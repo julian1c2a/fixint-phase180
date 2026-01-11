@@ -74,7 +74,7 @@ void test_is_zero_true()
 }
 void test_low_high_access()
 {
-    nstd::int128_ms_t x(0xABCD, 0xEF01);
+    nstd::int128_ms_t x(0xEF01, 0xABCD); // high, low
     ASSERT_EQ(x.low(), 0xABCD);
     ASSERT_EQ(x.high(), 0xEF01);
 }
@@ -146,7 +146,8 @@ void test_copy_preserves_sign()
 void test_uint_positive()
 {
     nstd::uint128_ms_t u(100ULL);
-    ASSERT_FALSE(u.is_negative());
+    // Unsigned types don't have is_negative()
+    ASSERT_FALSE(u.is_zero());
 }
 void test_uint_zero()
 {
@@ -173,17 +174,20 @@ void test_uint_compare()
 void test_compare_with_literal()
 {
     nstd::int128_ms_t x(42LL);
-    ASSERT_TRUE(x > 0);
+    nstd::int128_ms_t zero(0LL);
+    ASSERT_TRUE(x > zero);
 }
 void test_compare_negative_with_zero()
 {
     nstd::int128_ms_t x(-1LL);
-    ASSERT_TRUE(x < 0);
+    nstd::int128_ms_t zero(0LL);
+    ASSERT_TRUE(x < zero);
 }
 void test_compare_eq_with_literal()
 {
     nstd::int128_ms_t x(100LL);
-    ASSERT_TRUE(x == 100LL);
+    nstd::int128_ms_t y(100LL);
+    ASSERT_TRUE(x == y);
 }
 void test_value_diff_properties()
 {

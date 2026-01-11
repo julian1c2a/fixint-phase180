@@ -32,6 +32,73 @@
 
 namespace nstd
 {
+    // =============================================================================
+    // Parse Error Enums and Result Structures
+    // =============================================================================
+
+    /**
+     * @brief Enum for parsing error codes
+     */
+    enum class parse_error : std::uint8_t
+    {
+        success = 0,             ///< Parsing successful
+        null_pointer,            ///< Null pointer provided
+        empty_string,            ///< Empty string
+        invalid_base,            ///< Base out of range [2, 36]
+        invalid_base_value,      ///< Invalid base (alias of invalid_base)
+        invalid_character,       ///< Invalid character for specified base
+        digit_out_of_range,      ///< Digit out of range for base
+        no_digits,               ///< No valid digits found
+        overflow,                ///< Result exceeds type range
+        separator_at_boundaries, ///< Separator at start or end
+        unknown_error            ///< Unknown error
+    };
+
+    /**
+     * @brief Structure encapsulating parse_ct result with error detection
+     *
+     * @tparam T Data type to parse (int128_param_t, etc.)
+     *
+     * @details Allows parse_ct_safe to return error with exact error location (error_index)
+     * without throwing exceptions. Essential for constexpr contexts where exceptions not allowed.
+     */
+    template <typename T>
+    struct parse_result
+    {
+        parse_error error;  ///< Error code
+        T value;            ///< Parsed value
+        size_t error_index; ///< Index of error in string (npos if success)
+
+        /**
+         * @brief Checks if parse was successful
+         * @return true if error == parse_error::success, false otherwise
+         */
+        constexpr bool success() const noexcept
+        {
+            return error == parse_error::success;
+        }
+
+        /**
+         * @brief Default constructor
+         * Initializes with error=success, value=0, error_index=npos
+         */
+        constexpr parse_result() noexcept
+            : error(parse_error::success),
+              value(T{}),
+              error_index(std::string::npos)
+        {
+        }
+
+        /**
+         * @brief Custom constructor
+         */
+        constexpr parse_result(parse_error err, T val, size_t idx) noexcept
+            : error(err),
+              value(val),
+              error_index(idx)
+        {
+        }
+    };
 
     // =============================================================================
     // Main Parameterized Integer Template
@@ -146,7 +213,8 @@ namespace nstd
 
             if constexpr (std::is_signed_v<T>)
             {
-                // Sign-extend for signed types
+                // Always sign-extend (interpret as Two's Complement internally)
+                // Users can convert to other representations explicitly if needed
                 const bool negative = value < 0;
                 data[0] = static_cast<std::uint64_t>(value);
                 data[1] = negative ? std::uint64_t(-1) : 0;
@@ -159,7 +227,7 @@ namespace nstd
             }
         }
 
-        /// @brief Constructor from (high, low) pair
+        /// @brief Constructor from (high, low) pair (written in Western order, stored little-endian)
         template <typename T1, typename T2>
         explicit constexpr int128_param_t(T1 high, T2 low) noexcept
             : data{static_cast<std::uint64_t>(low), static_cast<std::uint64_t>(high)} {}
@@ -281,7 +349,18 @@ namespace nstd
         /// @brief Check if value is zero
         constexpr bool is_zero() const noexcept
         {
-            return data[0] == 0 && data[1] == 0;
+            if constexpr (is_magnitude_sign)
+            {
+                // MS: zero if magnitude bits are all 0
+                // Magnitude is in bits [0..62] of both words
+                const std::uint64_t magnitude_mask = (1ULL << 63) - 1; // All bits except sign
+                return (data[0] == 0) && ((data[1] & magnitude_mask) == 0);
+            }
+            else
+            {
+                // TC and others: zero only if both words are 0
+                return data[0] == 0 && data[1] == 0;
+            }
         }
 
         /**
@@ -316,11 +395,332 @@ namespace nstd
         // Conversions to String
         // ========================================================================
 
-        /// @brief Convert to decimal string
-        std::string to_string() const;
+        /**
+         * @brief Convert to decimal string representation
+         *
+         * Converts the 128-bit value to its decimal string representation.
+         * For signed types, includes the minus sign if negative.
+         *
+         * @return Decimal string (e.g., "12345", "-67890")
+         */
+        std::string to_string() const noexcept
+        {
+            return to_string(10);
+        }
 
-        /// @brief Convert to string in specified base (2-36)
-        std::string to_string(int base) const;
+        /**
+         * @brief Convert to string in specified base (2-36)
+         *
+         * Converts the 128-bit value to string representation in the given base.
+         * - Base 2: Binary (digits 0-1)
+         * - Base 8: Octal (digits 0-7)
+         * - Base 10: Decimal (digits 0-9)
+         * - Base 16: Hexadecimal (digits 0-9, A-F)
+         * - Base 2-36: General (digits 0-9, A-Z)
+         *
+         * For signed types, includes the minus sign if negative.
+         *
+         * @param base Base for conversion (2-36). Default is 10 (decimal).
+         * @return String representation in the specified base
+         */
+        std::string to_string(int base) const noexcept
+        {
+            // Validate base
+            if (base < 2 || base > 36)
+                base = 10; // Default to decimal if invalid
+
+            // Handle zero
+            if (is_zero())
+                return "0";
+
+            // For signed types, handle negative numbers
+            bool is_negative_value = false;
+            int128_param_t abs_value = *this;
+
+            if constexpr (is_signed)
+            {
+                if (is_negative_value = this->is_negative())
+                {
+                    abs_value = -(*this);
+                }
+            }
+
+            // Convert absolute value to string
+            std::string result;
+            int128_param_t value = abs_value;
+
+            while (!value.is_zero())
+            {
+                // Get remainder when divided by base
+                std::uint64_t remainder;
+                if constexpr (std::is_same_v<std::remove_const_t<decltype(base)>, int>)
+                {
+                    // Simple division for bases
+                    if (value.data[1] == 0)
+                    {
+                        remainder = value.data[0] % base;
+                        value.data[0] /= base;
+                    }
+                    else
+                    {
+                        // For large numbers, use simpler approach
+                        remainder = value.data[0] % base;
+                        value.data[0] = value.data[0] / base;
+                        if (value.data[1] > 0)
+                        {
+                            // Carry from high word
+                            std::uint64_t carry = (value.data[1] % base) * (std::numeric_limits<std::uint64_t>::max() / base + 1);
+                            value.data[0] += carry;
+                            value.data[1] /= base;
+                        }
+                    }
+                }
+
+                // Convert digit to character
+                const char *digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                result = digits[remainder] + result;
+            }
+
+            // Add sign if negative
+            if (is_negative_value)
+                result = "-" + result;
+
+            return result.empty() ? "0" : result;
+        }
+
+        // ========================================================================
+        // Conversions from String
+        // ========================================================================
+
+        /**
+         * @brief Safe constexpr parser for string input with error reporting
+         *
+         * @details Parses string at compile-time (constexpr). Supports:
+         * - Decimal (default): "12345"
+         * - Hexadecimal: "0xDEADBEEF", "0XDEADBEEF"
+         * - Binary: "0b11110000", "0B11110000"
+         * - Octal: "0777"
+         * - Separators: ignored (underscores, single quotes)
+         *
+         * @param str Null-terminated string to parse
+         * @return parse_result<> containing error code, value, and error index
+         *
+         * @code
+         * constexpr auto result = int128_tc_t::parse_ct_safe("0xDEADBEEF");
+         * if (result.success()) {
+         *     // Use result.value
+         * } else {
+         *     // Check result.error and result.error_index
+         * }
+         * @endcode
+         */
+        static constexpr parse_result<int128_param_t> parse_ct_safe(const char *str) noexcept
+        {
+            parse_result<int128_param_t> result{};
+
+            // Check for null pointer
+            if (!str)
+            {
+                result.error = parse_error::null_pointer;
+                result.error_index = 0;
+                return result;
+            }
+
+            // Check for empty string
+            if (*str == '\0')
+            {
+                result.error = parse_error::empty_string;
+                result.error_index = 0;
+                return result;
+            }
+
+            int base = 10;
+            const char *ptr = str;
+            size_t index = 0;
+            bool is_negative = false;
+
+            // Handle sign for signed types
+            if constexpr (is_signed)
+            {
+                if (*ptr == '-')
+                {
+                    is_negative = true;
+                    ++ptr;
+                    ++index;
+                }
+                else if (*ptr == '+')
+                {
+                    ++ptr;
+                    ++index;
+                }
+            }
+
+            // Auto-detect base from prefix
+            if (*ptr == '0' && *(ptr + 1) != '\0')
+            {
+                char next = *(ptr + 1);
+                if (next == 'x' || next == 'X')
+                {
+                    base = 16;
+                    ptr += 2;
+                    index += 2;
+                }
+                else if (next == 'b' || next == 'B')
+                {
+                    base = 2;
+                    ptr += 2;
+                    index += 2;
+                }
+                else if (next >= '0' && next <= '7')
+                {
+                    base = 8;
+                    ptr += 1;
+                    index += 1;
+                }
+            }
+
+            int128_param_t parsed_value{};
+            bool found_digit = false;
+            size_t digit_start_index = index;
+
+            while (*ptr != '\0')
+            {
+                unsigned digit = 0;
+                char c = *ptr;
+
+                // Skip separators (but track position)
+                if (c == '_' || c == '\'')
+                {
+                    // Check for separator at start of digits
+                    if (!found_digit && *(ptr + 1) != '\0')
+                    {
+                        result.error = parse_error::separator_at_boundaries;
+                        result.error_index = index;
+                        return result;
+                    }
+
+                    ++ptr;
+                    ++index;
+                    continue;
+                }
+
+                // Parse digit
+                if (c >= '0' && c <= '9')
+                {
+                    digit = c - '0';
+                    found_digit = true;
+                }
+                else if (c >= 'a' && c <= 'f')
+                {
+                    digit = c - 'a' + 10;
+                    found_digit = true;
+                }
+                else if (c >= 'A' && c <= 'F')
+                {
+                    digit = c - 'A' + 10;
+                    found_digit = true;
+                }
+                else
+                {
+                    result.error = parse_error::invalid_character;
+                    result.error_index = index;
+                    return result;
+                }
+
+                // Check digit is valid for base
+                if (digit >= static_cast<unsigned>(base))
+                {
+                    result.error = parse_error::digit_out_of_range;
+                    result.error_index = index;
+                    return result;
+                }
+
+                // Multiply by base and add digit (with overflow check)
+                int128_param_t old_value = parsed_value;
+                parsed_value = parsed_value * int128_param_t(base) + int128_param_t(digit);
+
+                // Check overflow
+                if (parsed_value < old_value && digit != 0)
+                {
+                    result.error = parse_error::overflow;
+                    result.error_index = index;
+                    return result;
+                }
+
+                ++ptr;
+                ++index;
+            }
+
+            // Check if we found any digits
+            if (!found_digit)
+            {
+                result.error = parse_error::no_digits;
+                result.error_index = digit_start_index;
+                return result;
+            }
+
+            // Apply sign for signed types
+            if constexpr (is_signed)
+            {
+                if (is_negative)
+                {
+                    parsed_value = -parsed_value;
+                }
+            }
+
+            result.error = parse_error::success;
+            result.value = parsed_value;
+            result.error_index = static_cast<size_t>(-1); // npos
+            return result;
+        }
+
+        /**
+         * @brief Parse string with automatic base detection (constexpr)
+         *
+         * @details Can be evaluated at compile-time or runtime. Throws on error.
+         * For safe version with error reporting, use parse_ct_safe() instead.
+         *
+         * @param str Null-terminated string to parse
+         * @return Parsed value
+         * @throw std::invalid_argument if string is invalid
+         * @throw std::out_of_range if value overflows
+         *
+         * @code
+         * // Compile-time usage:
+         * constexpr auto val = int128_tc_t::from_string("0xDEADBEEF");
+         *
+         * // Runtime usage:
+         * auto val = int128_tc_t::from_string(user_input);  // Can fail at runtime
+         * @endcode
+         */
+        static constexpr int128_param_t from_string(const char *str)
+        {
+            auto safe_result = parse_ct_safe(str);
+            if (!safe_result.success())
+            {
+                // Provide informative error message
+                switch (safe_result.error)
+                {
+                case parse_error::null_pointer:
+                    throw std::invalid_argument("Null pointer");
+                case parse_error::empty_string:
+                    throw std::invalid_argument("Empty string");
+                case parse_error::invalid_character:
+                    throw std::invalid_argument("Invalid character");
+                case parse_error::digit_out_of_range:
+                    throw std::invalid_argument("Digit out of range");
+                case parse_error::no_digits:
+                    throw std::invalid_argument("No digits found");
+                case parse_error::overflow:
+                    throw std::out_of_range("Number too large");
+                case parse_error::separator_at_boundaries:
+                    throw std::invalid_argument("Separator at invalid position");
+                default:
+                    throw std::invalid_argument("Parse error");
+                }
+            }
+            return safe_result.value;
+        }
 
         // ========================================================================
         // Byte Operations
@@ -348,9 +748,18 @@ namespace nstd
         // Comparison Operators
         // ========================================================================
 
-        /// @brief Equality operator (representation-agnostic)
+        /// @brief Equality operator (representation-aware)
         constexpr bool operator==(const int128_param_t &other) const noexcept
         {
+            // Special handling for MS: +0 and -0 are mathematically equal
+            if constexpr (is_magnitude_sign)
+            {
+                // Both zero? (magnitude bits = 0)
+                if (is_zero() && other.is_zero())
+                    return true; // +0 == -0 in MS
+            }
+
+            // Otherwise compare bit patterns
             return data[0] == other.data[0] && data[1] == other.data[1];
         }
 
@@ -364,8 +773,8 @@ namespace nstd
          * @brief Less-than operator (representation-aware)
          *
          * **Two's Complement:** Standard signed/unsigned comparison
-         * **Magnitude-Sign Unsigned:** Same as two's complement
          * **Magnitude-Sign Signed:** Compare signs first, then magnitudes
+         *                            For negatives: INVERTED comparison (-2 < -1 means |2| > |1|)
          */
         constexpr bool operator<(const int128_param_t &other) const noexcept
             requires(is_signed)
@@ -378,18 +787,33 @@ namespace nstd
 
                 // Different signs: negative < positive
                 if (this_negative != other_negative)
-                    return this_negative; // true if this is negative, false if other is negative
+                    return this_negative;
 
                 // Same sign: compare magnitudes
-                // Extract magnitudes (clear sign bit)
                 std::uint64_t this_mag_low = data[0];
                 std::uint64_t this_mag_high = data[1] & ~(1ULL << 63);
                 std::uint64_t other_mag_low = other.data[0];
                 std::uint64_t other_mag_high = other.data[1] & ~(1ULL << 63);
 
-                if (this_mag_high != other_mag_high)
-                    return this_mag_high < other_mag_high;
-                return this_mag_low < other_mag_low;
+                if constexpr (is_signed)
+                {
+                    if (this_negative)
+                    {
+                        // Both negative: INVERT comparison (larger magnitude = smaller value)
+                        // -2 < -1 means |2| > |1|
+                        if (this_mag_high != other_mag_high)
+                            return this_mag_high > other_mag_high; // INVERTED
+                        return this_mag_low > other_mag_low;       // INVERTED
+                    }
+                    else
+                    {
+                        // Both positive: NORMAL comparison
+                        // 1 < 2 means |1| < |2|
+                        if (this_mag_high != other_mag_high)
+                            return this_mag_high < other_mag_high;
+                        return this_mag_low < other_mag_low;
+                    }
+                }
             }
             else
             {

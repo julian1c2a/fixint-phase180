@@ -5,6 +5,9 @@ cmake-build-debug/
 cmake-build-release/
 .build/
 
+# Legacy code (read-only reference from other phases)
+legacy-code/
+
 # CMake
 CMakeFiles/
 CMakeCache.txt

@@ -94,14 +94,14 @@ void test_copy_constructor()
 // TEST 7: Accessor high()
 void test_accessor_high()
 {
-    uint128_t x(0xDEADBEEFCAFEBABEULL, 0x0102030405060708ULL);
+    uint128_t x(0x0102030405060708ULL, 0xDEADBEEFCAFEBABEULL); // high, low
     ASSERT_EQ(x.high(), 0x0102030405060708ULL);
 }
 
 // TEST 8: Accessor low()
 void test_accessor_low()
 {
-    uint128_t x(0x0102030405060708ULL, 0xDEADBEEFCAFEBABEULL);
+    uint128_t x(0x0102030405060708ULL, 0xDEADBEEFCAFEBABEULL); // high, low
     ASSERT_EQ(x.low(), 0xDEADBEEFCAFEBABEULL);
 }
 
