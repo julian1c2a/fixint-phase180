@@ -193,7 +193,7 @@ namespace nstd
         static constexpr bool uses_bias = true;
 
         /// @brief Typical bias for 128-bit
-        static constexpr std::uint64_t default_bias = 1ULL << 126; // 2^126
+        static constexpr std::uint64_t default_bias = (1ULL << 63) * 2ULL; // 2^126
 
         /// @brief Hardware support
         static constexpr bool hardware_optimized = false; // Custom bias handling

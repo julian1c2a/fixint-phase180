@@ -28,6 +28,7 @@
 #include <limits>
 #include <string>
 #include <array>
+#include <stdexcept>
 
 namespace nstd
 {
@@ -269,7 +270,7 @@ namespace nstd
          *
          * @return -1 for negative, 0 for zero, +1 for positive
          */
-        constexpr int sign() const noexcept
+        constexpr int get_sign() const noexcept
             requires(is_signed)
         {
             if (is_zero())
@@ -362,3 +363,5 @@ namespace nstd
 } // namespace nstd
 
 #endif // INT128_PARAMETERIZED_HPP
+
+
