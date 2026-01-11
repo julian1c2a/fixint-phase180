@@ -1,0 +1,58 @@
+# Build directories
+build/
+build_*/
+cmake-build-debug/
+cmake-build-release/
+.build/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+*.cmake
+build.ninja
+build.ninja.d
+rules.ninja
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Executables
+*.exe
+*.dll
+*.so
+*.dylib
+*.o
+*.obj
+*.a
+*.lib
+
+# Test results
+*.xml
+test_results/
+coverage/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Documentation
+documentation/generated/
+docs/_build/
+*.doxygen.log
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.log
