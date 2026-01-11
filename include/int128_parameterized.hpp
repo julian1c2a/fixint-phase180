@@ -1282,21 +1282,25 @@ namespace nstd
 
             if constexpr (is_magnitude_sign && is_signed)
             {
-                // MS: Shift only magnitude bits, preserve sign
+                // MS: Extract sign, shift magnitude as unsigned, restore sign
                 uint64_t sign_bit = data[1] & (1ULL << 63);
                 uint64_t mag_high = data[1] & ~(1ULL << 63);
 
                 if (shift >= 64)
                 {
+                    // Shift magnitude (as if unsigned)
                     uint64_t new_high = data[0] << (shift - 64);
                     data[0] = 0;
+                    // Restore sign
                     data[1] = new_high | sign_bit;
                 }
                 else
                 {
+                    // Shift magnitude (as if unsigned)
                     uint64_t new_high = (mag_high << shift) | (data[0] >> (64 - shift));
                     uint64_t new_low = data[0] << shift;
                     data[0] = new_low;
+                    // Restore sign
                     data[1] = new_high | sign_bit;
                 }
             }
@@ -1354,7 +1358,7 @@ namespace nstd
             {
                 if constexpr (is_magnitude_sign && is_signed)
                 {
-                    // MS: Shift magnitude logically (fill with 0s), preserve sign
+                    // MS: Shift magnitude logically, preserve sign
                     uint64_t sign_bit = data[1] & (1ULL << 63);
                     data[0] = 0;
                     data[1] = sign_bit;
@@ -1379,11 +1383,13 @@ namespace nstd
             {
                 if constexpr (is_magnitude_sign && is_signed)
                 {
-                    // MS: Shift magnitude logically
+                    // MS: Extract sign, shift magnitude as unsigned, restore sign
                     uint64_t sign_bit = data[1] & (1ULL << 63);
                     uint64_t mag_high = data[1] & ~(1ULL << 63);
+                    // Shift magnitude (as if unsigned)
                     uint64_t new_low = mag_high >> (shift - 64);
                     data[0] = new_low;
+                    // Restore sign
                     data[1] = sign_bit;
                 }
                 else if constexpr (is_signed)
@@ -1407,12 +1413,14 @@ namespace nstd
                 uint64_t new_low = (data[0] >> shift) | (data[1] << (64 - shift));
                 if constexpr (is_magnitude_sign && is_signed)
                 {
-                    // MS: Shift magnitude logically, preserve sign
+                    // MS: Extract sign, shift magnitude as unsigned, restore sign
                     uint64_t sign_bit = data[1] & (1ULL << 63);
                     uint64_t mag_high = data[1] & ~(1ULL << 63);
-                    uint64_t new_high = (mag_high >> shift) | sign_bit;
+                    // Shift magnitude (as if unsigned)
+                    uint64_t new_high = mag_high >> shift;
                     data[0] = new_low;
-                    data[1] = new_high;
+                    // Restore sign
+                    data[1] = new_high | sign_bit;
                 }
                 else if constexpr (is_signed)
                 {
