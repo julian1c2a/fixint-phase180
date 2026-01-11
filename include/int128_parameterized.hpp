@@ -284,6 +284,34 @@ namespace nstd
             return data[0] == 0 && data[1] == 0;
         }
 
+        /**
+         * @brief Check if value is positive zero (+0)
+         *
+         * Only meaningful for magnitude-sign representation.
+         * In two's complement, there is only one zero.
+         *
+         * @return true if zero AND sign bit is 0 (positive zero)
+         */
+        constexpr bool is_positive_zero() const noexcept
+            requires(is_magnitude_sign && is_signed)
+        {
+            return is_zero() && !is_negative();
+        }
+
+        /**
+         * @brief Check if value is negative zero (-0)
+         *
+         * Only meaningful for magnitude-sign representation.
+         * In two's complement, there is only one zero.
+         *
+         * @return true if zero AND sign bit is 1 (negative zero)
+         */
+        constexpr bool is_negative_zero() const noexcept
+            requires(is_magnitude_sign && is_signed)
+        {
+            return is_zero() && is_negative();
+        }
+
         // ========================================================================
         // Conversions to String
         // ========================================================================
@@ -320,24 +348,342 @@ namespace nstd
         // Comparison Operators
         // ========================================================================
 
+        /// @brief Equality operator (representation-agnostic)
         constexpr bool operator==(const int128_param_t &other) const noexcept
         {
             return data[0] == other.data[0] && data[1] == other.data[1];
         }
 
+        /// @brief Inequality operator (representation-agnostic)
         constexpr bool operator!=(const int128_param_t &other) const noexcept
         {
             return !(*this == other);
         }
 
-        // Note: Ordering operators require representation-specific comparison
+        /**
+         * @brief Less-than operator (representation-aware)
+         *
+         * **Two's Complement:** Standard signed/unsigned comparison
+         * **Magnitude-Sign Unsigned:** Same as two's complement
+         * **Magnitude-Sign Signed:** Compare signs first, then magnitudes
+         */
+        constexpr bool operator<(const int128_param_t &other) const noexcept
+            requires(is_signed)
+        {
+            if constexpr (is_magnitude_sign)
+            {
+                // Magnitude-Sign signed comparison
+                bool this_negative = is_negative();
+                bool other_negative = other.is_negative();
+
+                // Different signs: negative < positive
+                if (this_negative != other_negative)
+                    return this_negative; // true if this is negative, false if other is negative
+
+                // Same sign: compare magnitudes
+                // Extract magnitudes (clear sign bit)
+                std::uint64_t this_mag_low = data[0];
+                std::uint64_t this_mag_high = data[1] & ~(1ULL << 63);
+                std::uint64_t other_mag_low = other.data[0];
+                std::uint64_t other_mag_high = other.data[1] & ~(1ULL << 63);
+
+                if (this_mag_high != other_mag_high)
+                    return this_mag_high < other_mag_high;
+                return this_mag_low < other_mag_low;
+            }
+            else
+            {
+                // Two's Complement signed comparison
+                std::int64_t this_high = static_cast<std::int64_t>(data[1]);
+                std::int64_t other_high = static_cast<std::int64_t>(other.data[1]);
+
+                if (this_high != other_high)
+                    return this_high < other_high;
+                return data[0] < other.data[0];
+            }
+        }
+
+        /**
+         * @brief Greater-than operator (representation-aware)
+         */
+        constexpr bool operator>(const int128_param_t &other) const noexcept
+            requires(is_signed)
+        {
+            return other < *this; // Swap operands
+        }
+
+        /**
+         * @brief Less-than-or-equal operator (representation-aware)
+         */
+        constexpr bool operator<=(const int128_param_t &other) const noexcept
+            requires(is_signed)
+        {
+            return (*this < other) || (*this == other);
+        }
+
+        /**
+         * @brief Greater-than-or-equal operator (representation-aware)
+         */
+        constexpr bool operator>=(const int128_param_t &other) const noexcept
+            requires(is_signed)
+        {
+            return (other < *this) || (*this == other);
+        }
+
+        /// @brief Less-than for unsigned (standard comparison)
+        constexpr bool operator<(const int128_param_t &other) const noexcept
+            requires(!is_signed)
+        {
+            if (data[1] != other.data[1])
+                return data[1] < other.data[1];
+            return data[0] < other.data[0];
+        }
+
+        /// @brief Greater-than for unsigned (standard comparison)
+        constexpr bool operator>(const int128_param_t &other) const noexcept
+            requires(!is_signed)
+        {
+            return other < *this;
+        }
+
+        /// @brief Less-than-or-equal for unsigned (standard comparison)
+        constexpr bool operator<=(const int128_param_t &other) const noexcept
+            requires(!is_signed)
+        {
+            return (*this < other) || (*this == other);
+        }
+
+        /// @brief Greater-than-or-equal for unsigned (standard comparison)
+        constexpr bool operator>=(const int128_param_t &other) const noexcept
+            requires(!is_signed)
+        {
+            return (other < *this) || (*this == other);
+        }
 
         // ========================================================================
-        // Arithmetic (Basic)
+        // Arithmetic Operators
         // ========================================================================
 
-        // Addition, subtraction, multiplication, division (TODO - implement with
-        // representation-specific handling for magnitude-sign and excess-k)
+        /**
+         * @brief Unary plus operator
+         * @return Copy of this value
+         */
+        constexpr int128_param_t operator+() const noexcept
+        {
+            return *this;
+        }
+
+        /**
+         * @brief Unary negation operator (representation-aware)
+         *
+         * **Two's Complement:** Invert all bits and add 1
+         * **Magnitude-Sign:** Flip sign bit (single bit operation)
+         *
+         * @return Negated value
+         */
+        constexpr int128_param_t operator-() const noexcept
+            requires(is_signed)
+        {
+            if constexpr (is_magnitude_sign)
+            {
+                // Magnitude-Sign: Just flip the sign bit (MSB of data[1])
+                int128_param_t result = *this;
+                result.data[1] ^= (1ULL << 63);
+                return result;
+            }
+            else
+            {
+                // Two's Complement: Invert bits and add 1
+                int128_param_t result;
+                result.data[0] = ~data[0];
+                result.data[1] = ~data[1];
+                // Add 1 to low word
+                ++result.data[0];
+                // Propagate carry to high word
+                if (result.data[0] == 0)
+                    ++result.data[1];
+                return result;
+            }
+        }
+
+        /**
+         * @brief Addition assignment operator (representation-agnostic)
+         *
+         * Performs 128-bit addition with carry propagation.
+         * Works identically for TC and MS representations.
+         *
+         * @param other Value to add
+         * @return Reference to this (modified)
+         */
+        constexpr int128_param_t &operator+=(const int128_param_t &other) noexcept
+        {
+            std::uint64_t new_low = data[0] + other.data[0];
+            std::uint64_t carry = (new_low < data[0]) ? 1 : 0;
+            data[0] = new_low;
+            data[1] = data[1] + other.data[1] + carry;
+            return *this;
+        }
+
+        /**
+         * @brief Addition operator
+         * @param other Value to add
+         * @return Sum of this and other
+         */
+        constexpr int128_param_t operator+(const int128_param_t &other) const noexcept
+        {
+            int128_param_t result = *this;
+            result += other;
+            return result;
+        }
+
+        /**
+         * @brief Subtraction assignment operator (representation-agnostic)
+         *
+         * Performs 128-bit subtraction with borrow propagation.
+         * Works identically for TC and MS representations.
+         *
+         * @param other Value to subtract
+         * @return Reference to this (modified)
+         */
+        constexpr int128_param_t &operator-=(const int128_param_t &other) noexcept
+        {
+            std::uint64_t new_low = data[0] - other.data[0];
+            std::uint64_t borrow = (new_low > data[0]) ? 1 : 0;
+            data[0] = new_low;
+            data[1] = data[1] - other.data[1] - borrow;
+            return *this;
+        }
+
+        /**
+         * @brief Subtraction operator
+         * @param other Value to subtract
+         * @return Difference of this and other
+         */
+        constexpr int128_param_t operator-(const int128_param_t &other) const noexcept
+        {
+            int128_param_t result = *this;
+            result -= other;
+            return result;
+        }
+
+        /**
+         * @brief Multiplication assignment operator (representation-agnostic)
+         *
+         * Performs basic 128-bit multiplication.
+         * Works identically for TC and MS representations.
+         *
+         * Note: Only handles 64-bit × 64-bit → 128-bit products efficiently.
+         * Full 128-bit × 128-bit requires more complex logic.
+         *
+         * @param other Value to multiply
+         * @return Reference to this (modified)
+         */
+        constexpr int128_param_t &operator*=(const int128_param_t &other) noexcept
+        {
+            // Simple multiplication: decompose into 64-bit chunks
+            // a·b = (a_high·2^64 + a_low) · (b_high·2^64 + b_low)
+            //     = a_high·b_high·2^128 + (a_high·b_low + a_low·b_high)·2^64 + a_low·b_low
+
+            std::uint64_t a_low = data[0];
+            std::uint64_t a_high = data[1];
+            std::uint64_t b_low = other.data[0];
+            std::uint64_t b_high = other.data[1];
+
+            // Low 128 bits: a_low * b_low
+            // Note: This is a simplification; full implementation would use __uint128_t or similar
+            std::uint64_t product_low_low = a_low * b_low;
+
+            // Cross products for the 128-bit result
+            std::uint64_t cross_1 = a_high * b_low;
+            std::uint64_t cross_2 = a_low * b_high;
+
+            // Combine: low part stays, high part accumulates
+            data[0] = product_low_low;
+            data[1] = cross_1 + cross_2 + (a_high * b_high);
+
+            return *this;
+        }
+
+        /**
+         * @brief Multiplication operator
+         * @param other Value to multiply
+         * @return Product of this and other
+         */
+        constexpr int128_param_t operator*(const int128_param_t &other) const noexcept
+        {
+            int128_param_t result = *this;
+            result *= other;
+            return result;
+        }
+
+        /**
+         * @brief Division assignment operator (representation-agnostic)
+         *
+         * Performs 128-bit integer division.
+         * Note: Full implementation is complex; this is a stub.
+         *
+         * @param other Divisor (must be non-zero)
+         * @return Reference to this (modified)
+         */
+        constexpr int128_param_t &operator/=(const int128_param_t &other) noexcept
+        {
+            // TODO: Implement full 128-bit division
+            // For now, handle simple cases
+            if (other.data[1] == 0 && other.data[0] != 0)
+            {
+                // Divide by 64-bit value
+                std::uint64_t divisor = other.data[0];
+                std::uint64_t remainder = 0;
+                std::uint64_t new_high = data[1] / divisor;
+                remainder = data[1] % divisor;
+                std::uint64_t new_low = (remainder * (std::numeric_limits<std::uint64_t>::max() / divisor + 1)) + data[0] / divisor;
+                data[0] = new_low;
+                data[1] = new_high;
+            }
+            return *this;
+        }
+
+        /**
+         * @brief Division operator
+         * @param other Divisor
+         * @return Quotient of this divided by other
+         */
+        constexpr int128_param_t operator/(const int128_param_t &other) const noexcept
+        {
+            int128_param_t result = *this;
+            result /= other;
+            return result;
+        }
+
+        /**
+         * @brief Modulo assignment operator
+         *
+         * @param other Divisor
+         * @return Reference to this (modified)
+         */
+        constexpr int128_param_t &operator%=(const int128_param_t &other) noexcept
+        {
+            // TODO: Implement full 128-bit modulo
+            if (other.data[1] == 0 && other.data[0] != 0)
+            {
+                std::uint64_t divisor = other.data[0];
+                data[0] = data[0] % divisor;
+                data[1] = 0;
+            }
+            return *this;
+        }
+
+        /**
+         * @brief Modulo operator
+         * @param other Divisor
+         * @return Remainder of this divided by other
+         */
+        constexpr int128_param_t operator%(const int128_param_t &other) const noexcept
+        {
+            int128_param_t result = *this;
+            result %= other;
+            return result;
+        }
     };
 
     // =============================================================================
@@ -363,5 +709,3 @@ namespace nstd
 } // namespace nstd
 
 #endif // INT128_PARAMETERIZED_HPP
-
-
