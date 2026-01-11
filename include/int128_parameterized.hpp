@@ -1108,6 +1108,352 @@ namespace nstd
             result %= other;
             return result;
         }
+
+        // ========================================================================
+        // Bitwise Operators (AND, OR, XOR, NOT)
+        // ========================================================================
+
+        /**
+         * @brief Bitwise AND operator (representation-aware)
+         *
+         * **Two's Complement:** Standard bitwise AND
+         * **Magnitude-Sign:** Apply AND to magnitude bits only, preserve signs
+         */
+        constexpr int128_param_t operator&(const int128_param_t &other) const noexcept
+        {
+            int128_param_t result;
+
+            if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS: AND magnitudes, preserve signs separately
+                std::uint64_t this_mag_low = data[0];
+                std::uint64_t this_mag_high = data[1] & ~(1ULL << 63);
+                std::uint64_t other_mag_low = other.data[0];
+                std::uint64_t other_mag_high = other.data[1] & ~(1ULL << 63);
+
+                result.data[0] = this_mag_low & other_mag_low;
+                result.data[1] = (this_mag_high & other_mag_high) | (data[1] & (1ULL << 63));
+            }
+            else
+            {
+                // TC and unsigned: standard bitwise AND
+                result.data[0] = data[0] & other.data[0];
+                result.data[1] = data[1] & other.data[1];
+            }
+
+            return result;
+        }
+
+        /**
+         * @brief Bitwise AND assignment operator
+         */
+        constexpr int128_param_t &operator&=(const int128_param_t &other) noexcept
+        {
+            *this = *this & other;
+            return *this;
+        }
+
+        /**
+         * @brief Bitwise OR operator (representation-aware)
+         *
+         * **Two's Complement:** Standard bitwise OR
+         * **Magnitude-Sign:** Apply OR to magnitude bits only, preserve signs
+         */
+        constexpr int128_param_t operator|(const int128_param_t &other) const noexcept
+        {
+            int128_param_t result;
+
+            if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS: OR magnitudes, preserve signs separately
+                std::uint64_t this_mag_low = data[0];
+                std::uint64_t this_mag_high = data[1] & ~(1ULL << 63);
+                std::uint64_t other_mag_low = other.data[0];
+                std::uint64_t other_mag_high = other.data[1] & ~(1ULL << 63);
+
+                result.data[0] = this_mag_low | other_mag_low;
+                result.data[1] = (this_mag_high | other_mag_high) | (data[1] & (1ULL << 63));
+            }
+            else
+            {
+                // TC and unsigned: standard bitwise OR
+                result.data[0] = data[0] | other.data[0];
+                result.data[1] = data[1] | other.data[1];
+            }
+
+            return result;
+        }
+
+        /**
+         * @brief Bitwise OR assignment operator
+         */
+        constexpr int128_param_t &operator|=(const int128_param_t &other) noexcept
+        {
+            *this = *this | other;
+            return *this;
+        }
+
+        /**
+         * @brief Bitwise XOR operator (representation-aware)
+         *
+         * **Two's Complement:** Standard bitwise XOR
+         * **Magnitude-Sign:** Apply XOR to magnitude bits only, preserve signs
+         */
+        constexpr int128_param_t operator^(const int128_param_t &other) const noexcept
+        {
+            int128_param_t result;
+
+            if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS: XOR magnitudes, preserve signs separately
+                std::uint64_t this_mag_low = data[0];
+                std::uint64_t this_mag_high = data[1] & ~(1ULL << 63);
+                std::uint64_t other_mag_low = other.data[0];
+                std::uint64_t other_mag_high = other.data[1] & ~(1ULL << 63);
+
+                result.data[0] = this_mag_low ^ other_mag_low;
+                result.data[1] = (this_mag_high ^ other_mag_high) | (data[1] & (1ULL << 63));
+            }
+            else
+            {
+                // TC and unsigned: standard bitwise XOR
+                result.data[0] = data[0] ^ other.data[0];
+                result.data[1] = data[1] ^ other.data[1];
+            }
+
+            return result;
+        }
+
+        /**
+         * @brief Bitwise XOR assignment operator
+         */
+        constexpr int128_param_t &operator^=(const int128_param_t &other) noexcept
+        {
+            *this = *this ^ other;
+            return *this;
+        }
+
+        /**
+         * @brief Bitwise NOT operator (representation-aware)
+         *
+         * **Two's Complement:** Standard bitwise complement (flip all bits)
+         * **Magnitude-Sign:** Invert magnitude bits only, preserve sign bit
+         */
+        constexpr int128_param_t operator~() const noexcept
+        {
+            int128_param_t result;
+
+            if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS: Invert magnitude bits, preserve sign bit
+                std::uint64_t mag_low = data[0];
+                std::uint64_t mag_high = data[1] & ~(1ULL << 63);
+
+                result.data[0] = ~mag_low;
+                result.data[1] = (~mag_high) | (data[1] & (1ULL << 63));
+            }
+            else
+            {
+                // TC and unsigned: standard bitwise NOT
+                result.data[0] = ~data[0];
+                result.data[1] = ~data[1];
+            }
+
+            return result;
+        }
+
+        // ========================================================================
+        // Shift Operators
+        // ========================================================================
+
+        /// @brief Left shift assignment operator
+        constexpr int128_param_t &operator<<=(int shift) noexcept
+        {
+            if (shift <= 0)
+            {
+                return *this;
+            }
+            if (shift >= 128)
+            {
+                data[0] = 0;
+                data[1] = 0;
+                return *this;
+            }
+
+            if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS: Shift only magnitude bits, preserve sign
+                uint64_t sign_bit = data[1] & (1ULL << 63);
+                uint64_t mag_high = data[1] & ~(1ULL << 63);
+
+                if (shift >= 64)
+                {
+                    uint64_t new_high = data[0] << (shift - 64);
+                    data[0] = 0;
+                    data[1] = new_high | sign_bit;
+                }
+                else
+                {
+                    uint64_t new_high = (mag_high << shift) | (data[0] >> (64 - shift));
+                    uint64_t new_low = data[0] << shift;
+                    data[0] = new_low;
+                    data[1] = new_high | sign_bit;
+                }
+            }
+            else
+            {
+                // TC and unsigned: standard left shift
+                if (shift >= 64)
+                {
+                    uint64_t new_high = data[0] << (shift - 64);
+                    data[0] = 0;
+                    data[1] = new_high;
+                }
+                else
+                {
+                    uint64_t new_high = (data[1] << shift) | (data[0] >> (64 - shift));
+                    uint64_t new_low = data[0] << shift;
+                    data[0] = new_low;
+                    data[1] = new_high;
+                }
+            }
+
+            return *this;
+        }
+
+        /// @brief Left shift operator
+        constexpr int128_param_t operator<<(int shift) const noexcept
+        {
+            int128_param_t result(*this);
+            result <<= shift;
+            return result;
+        }
+
+        /// @brief Left shift assignment with integral type
+        template <typename T>
+        constexpr int128_param_t &operator<<=(T shift) noexcept
+        {
+            return *this <<= static_cast<int>(shift);
+        }
+
+        /// @brief Left shift with integral type
+        template <typename T>
+        constexpr int128_param_t operator<<(T shift) const noexcept
+        {
+            return *this << static_cast<int>(shift);
+        }
+
+        /// @brief Right shift assignment operator (arithmetic for signed TC, logical for unsigned and MS)
+        constexpr int128_param_t &operator>>=(int shift) noexcept
+        {
+            if (shift <= 0)
+            {
+                return *this;
+            }
+            if (shift >= 128)
+            {
+                if constexpr (is_magnitude_sign && is_signed)
+                {
+                    // MS: Shift magnitude logically (fill with 0s), preserve sign
+                    uint64_t sign_bit = data[1] & (1ULL << 63);
+                    data[0] = 0;
+                    data[1] = sign_bit;
+                }
+                else if constexpr (is_signed)
+                {
+                    // TC signed: arithmetic shift - propagate sign bit
+                    bool is_negative = (static_cast<int64_t>(data[1]) < 0);
+                    data[0] = is_negative ? ~0ull : 0ull;
+                    data[1] = is_negative ? ~0ull : 0ull;
+                }
+                else
+                {
+                    // Unsigned: logical shift - fill with 0s
+                    data[0] = 0;
+                    data[1] = 0;
+                }
+                return *this;
+            }
+
+            if (shift >= 64)
+            {
+                if constexpr (is_magnitude_sign && is_signed)
+                {
+                    // MS: Shift magnitude logically
+                    uint64_t sign_bit = data[1] & (1ULL << 63);
+                    uint64_t mag_high = data[1] & ~(1ULL << 63);
+                    uint64_t new_low = mag_high >> (shift - 64);
+                    data[0] = new_low;
+                    data[1] = sign_bit;
+                }
+                else if constexpr (is_signed)
+                {
+                    // TC signed: arithmetic shift
+                    int64_t sign_extended = static_cast<int64_t>(data[1]) >> (shift - 64);
+                    int64_t all_sign = static_cast<int64_t>(data[1]) >> 63;
+                    data[0] = static_cast<uint64_t>(sign_extended);
+                    data[1] = static_cast<uint64_t>(all_sign);
+                }
+                else
+                {
+                    // Unsigned: logical shift
+                    uint64_t new_low = data[1] >> (shift - 64);
+                    data[0] = new_low;
+                    data[1] = 0;
+                }
+            }
+            else
+            {
+                uint64_t new_low = (data[0] >> shift) | (data[1] << (64 - shift));
+                if constexpr (is_magnitude_sign && is_signed)
+                {
+                    // MS: Shift magnitude logically, preserve sign
+                    uint64_t sign_bit = data[1] & (1ULL << 63);
+                    uint64_t mag_high = data[1] & ~(1ULL << 63);
+                    uint64_t new_high = (mag_high >> shift) | sign_bit;
+                    data[0] = new_low;
+                    data[1] = new_high;
+                }
+                else if constexpr (is_signed)
+                {
+                    // TC signed: arithmetic shift
+                    int64_t sign_extended = static_cast<int64_t>(data[1]) >> shift;
+                    data[0] = new_low;
+                    data[1] = static_cast<uint64_t>(sign_extended);
+                }
+                else
+                {
+                    // Unsigned: logical shift
+                    uint64_t new_high = data[1] >> shift;
+                    data[0] = new_low;
+                    data[1] = new_high;
+                }
+            }
+
+            return *this;
+        }
+
+        /// @brief Right shift operator
+        constexpr int128_param_t operator>>(int shift) const noexcept
+        {
+            int128_param_t result(*this);
+            result >>= shift;
+            return result;
+        }
+
+        /// @brief Right shift assignment with integral type
+        template <typename T>
+        constexpr int128_param_t &operator>>=(T shift) noexcept
+        {
+            return *this >>= static_cast<int>(shift);
+        }
+
+        /// @brief Right shift with integral type
+        template <typename T>
+        constexpr int128_param_t operator>>(T shift) const noexcept
+        {
+            return *this >> static_cast<int>(shift);
+        }
     };
 
     // =============================================================================

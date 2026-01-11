@@ -162,7 +162,9 @@ void test_uint_max_representation()
 void test_uint_low_high()
 {
     nstd::uint128_ms_t u(0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL);
-    ASSERT_EQ(u.low(), 0x1122334455667788ULL);
+    // Constructor takes (high, low) in Western order
+    ASSERT_EQ(u.high(), 0x1122334455667788ULL);
+    ASSERT_EQ(u.low(), 0x99AABBCCDDEEFF00ULL);
 }
 void test_uint_compare()
 {
