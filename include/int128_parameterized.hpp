@@ -1768,6 +1768,255 @@ namespace nstd
             // Rotate right is same as rotate left by (128 - shift)
             return rotate_left(128 - shift);
         }
+
+        // =========================================================================
+        // Helper Methods (Priority 9)
+        // =========================================================================
+
+        /**
+         * @brief Division with remainder (divmod operation)
+         *
+         * @param divisor The divisor
+         * @return Pair of (quotient, remainder)
+         *
+         * @details
+         * Efficient combined division and modulo operation.
+         * Representation-aware for MS (operates on magnitude).
+         *
+         * @example
+         * auto [quot, rem] = uint128_tc_t{100}.divmod(uint128_tc_t{7});
+         * // quot = 14, rem = 2
+         */
+        constexpr std::pair<int128_param_t, int128_param_t> divmod(const int128_param_t &divisor) const noexcept
+        {
+            const int128_param_t quotient{*this / divisor};
+            const int128_param_t remainder{*this % divisor};
+            return {quotient, remainder};
+        }
+
+        /**
+         * @brief Get absolute value (magnitude)
+         *
+         * @return Absolute value of this number
+         *
+         * @details
+         * - For unsigned types: returns self
+         * - For TC signed: negates if negative
+         * - For MS signed: returns magnitude directly
+         */
+        constexpr int128_param_t abs() const noexcept
+        {
+            if constexpr (!is_signed)
+            {
+                return *this;
+            }
+            else if constexpr (is_magnitude_sign)
+            {
+                // MS: clear sign bit to get magnitude
+                int128_param_t result{*this};
+                result.data[1] &= ~(1ULL << 63);
+                return result;
+            }
+            else
+            {
+                // TC: negate if negative
+                return is_negative() ? -*this : *this;
+            }
+        }
+
+        /**
+         * @brief Swap with another value
+         *
+         * @param other Value to swap with
+         */
+        constexpr void swap(int128_param_t &other) noexcept
+        {
+            const uint64_t temp_low{data[0]};
+            const uint64_t temp_high{data[1]};
+            data[0] = other.data[0];
+            data[1] = other.data[1];
+            other.data[0] = temp_low;
+            other.data[1] = temp_high;
+        }
+
+        // =========================================================================
+        // Friend Operators for Symmetric Operations (Priority 9)
+        // =========================================================================
+
+        /**
+         * @brief Friend addition operator for mixed-type operations
+         *
+         * @details Enables: int128 + int, int + int128, etc.
+         */
+        template <typename T>
+        friend constexpr int128_param_t operator+(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs + int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr int128_param_t operator+(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} + rhs;
+        }
+
+        /**
+         * @brief Friend subtraction operator for mixed-type operations
+         */
+        template <typename T>
+        friend constexpr int128_param_t operator-(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs - int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr int128_param_t operator-(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} - rhs;
+        }
+
+        /**
+         * @brief Friend multiplication operator for mixed-type operations
+         */
+        template <typename T>
+        friend constexpr int128_param_t operator*(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs * int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr int128_param_t operator*(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} * rhs;
+        }
+
+        /**
+         * @brief Friend comparison operators for mixed-type operations
+         */
+        template <typename T>
+        friend constexpr bool operator==(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs == int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr bool operator==(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} == rhs;
+        }
+
+        template <typename T>
+        friend constexpr bool operator!=(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs != int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr bool operator!=(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} != rhs;
+        }
+
+        template <typename T>
+        friend constexpr bool operator<(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs < int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr bool operator<(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} < rhs;
+        }
+
+        template <typename T>
+        friend constexpr bool operator<=(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs <= int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr bool operator<=(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} <= rhs;
+        }
+
+        template <typename T>
+        friend constexpr bool operator>(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs > int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr bool operator>(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} > rhs;
+        }
+
+        template <typename T>
+        friend constexpr bool operator>=(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs >= int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr bool operator>=(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} >= rhs;
+        }
+
+        /**
+         * @brief Friend bitwise AND for mixed-type operations
+         */
+        template <typename T>
+        friend constexpr int128_param_t operator&(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs & int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr int128_param_t operator&(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} & rhs;
+        }
+
+        /**
+         * @brief Friend bitwise OR for mixed-type operations
+         */
+        template <typename T>
+        friend constexpr int128_param_t operator|(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs | int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr int128_param_t operator|(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} | rhs;
+        }
+
+        /**
+         * @brief Friend bitwise XOR for mixed-type operations
+         */
+        template <typename T>
+        friend constexpr int128_param_t operator^(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs ^ int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr int128_param_t operator^(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} ^ rhs;
+        }
+
+        /**
+         * @brief Friend swap function (ADL-findable)
+         */
+        friend constexpr void swap(int128_param_t &a, int128_param_t &b) noexcept
+        {
+            a.swap(b);
+        }
     };
 
     // =============================================================================

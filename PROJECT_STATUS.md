@@ -2,7 +2,7 @@
 
 **Date:** January 18, 2026  
 **Branch:** phase-1.75  
-**Overall Progress:** 98.4% Complete (8/11 priorities) ✅
+**Overall Progress:** 98.5% Complete (9/11 priorities) ✅
 
 ## Test Results Summary
 
@@ -16,9 +16,10 @@
 | **P5** | String I/O | 41/41 | ✅ PASS | to_string(), parsing |
 | **P6** | Bitwise Operators | 24/24 | ✅ PASS | &, \|, ^, ~ with MS |
 | **P7** | Shift Operators | 28/28 | ✅ PASS | <<, >>, <<=, >>= |
-| **P8** | Bit Manipulation | 39/39 | ✅ PASS | NEW: trailing_zeros, popcount, rotate |
+| **P8** | Bit Manipulation | 39/39 | ✅ PASS | trailing_zeros, popcount, rotate |
+| **P9** | Friend Operators | 25/25 | ✅ PASS | NEW: symmetric ops, helpers, divmod |
 
-**Core Total:** 211/215 ✅ PASSED (98.1%)
+**Core Total:** 236/240 ✅ PASSED (98.3%)
 
 ### Investigation Priority
 
@@ -63,6 +64,7 @@ using int128_ek_t  = int128_param_t<signed_type, excess_k>;
 - Checks: `is_negative()`, `is_zero()`
 - String I/O: `to_string()`, `parse_ct_safe()`, `from_string()`
 - Bit manipulation: `trailing_zeros()`, `leading_zeros()`, `bit_width()`, `is_power_of_2()`, `count_ones()`, `popcount()`, `rotate_left()`, `rotate_right()`
+- Helpers: `divmod()`, `abs()`, `swap()`
 
 **Type Support:**
 
@@ -70,14 +72,15 @@ using int128_ek_t  = int128_param_t<signed_type, excess_k>;
 - Magnitude-Sign (sign bit separate, ±0 distinction)
 - Excess-K (framework ready)
 
-### Next Priority (P9 - Ready to Start)
+### Next Priority (P10 - Ready to Start)
 
-**Friend Operators & Helper Methods** (Estimated 150 minutes)
+**Float Conversions** (Estimated 120 minutes)
 
-- Friend comparison operators (cross-type)
-- Helper methods (add_with_carry, mul_high_low)
-- Conversion helpers (to/from float/double)
-- 15-20 comprehensive tests
+- `operator double()`, `operator long double()`
+- Constructors from double/long double
+- Precision handling (52-bit mantissa vs 128-bit)
+- Overflow detection and edge cases
+- 8-10 comprehensive tests
 - Full MS/EK support
 
 See [COMPREHENSIVE_IMPLEMENTATION_STRATEGY.md](COMPREHENSIVE_IMPLEMENTATION_STRATEGY.md) for complete details.
@@ -93,9 +96,9 @@ See [COMPREHENSIVE_IMPLEMENTATION_STRATEGY.md](COMPREHENSIVE_IMPLEMENTATION_STRA
 
 ## Key Files
 
-- [include/int128_parameterized.hpp](include/int128_parameterized.hpp) - Main implementation (1,752 lines)
-- [tests/test_priority8_bitops.cpp](tests/test_priority8_bitops.cpp) - P8 tests (39 tests)
-- [PRIORITY_8_COMPLETION.md](PRIORITY_8_COMPLETION.md) - P8 completion report
+- [include/int128_parameterized.hpp](include/int128_parameterized.hpp) - Main implementation (2,068 lines)
+- [tests/test_priority9_friends.cpp](tests/test_priority9_friends.cpp) - P9 tests (25 tests)
+- [PRIORITY_9_COMPLETION.md](PRIORITY_9_COMPLETION.md) - P9 completion report
 - [COMPREHENSIVE_IMPLEMENTATION_STRATEGY.md](COMPREHENSIVE_IMPLEMENTATION_STRATEGY.md) - Full roadmap
 
 ## Status
