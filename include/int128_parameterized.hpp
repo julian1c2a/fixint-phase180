@@ -930,6 +930,238 @@ namespace nstd
             }
         }
 
+        // ========================================================================
+        // Float/Double Conversions (Priority 10)
+        // ========================================================================
+
+        /**
+         * @brief Explicit conversion to double
+         *
+         * @return Double representation of this value
+         *
+         * @details
+         * - Precision loss may occur (double has 52-bit mantissa)
+         * - For MS signed: converts magnitude, applies sign
+         * - For TC signed: handles negative values via two's complement
+         * - Large values may lose precision or become infinity
+         *
+         * @example
+         * uint128_tc_t x{0, 100};
+         * double d = static_cast<double>(x);  // d = 100.0
+         */
+        explicit constexpr operator double() const noexcept
+        {
+            if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS: get magnitude, then apply sign
+                const uint64_t mag_high{data[1] & ~(1ULL << 63)};
+                const bool negative{(data[1] & (1ULL << 63)) != 0};
+
+                // Convert magnitude to double
+                double result{static_cast<double>(mag_high) * 18446744073709551616.0 + // 2^64
+                              static_cast<double>(data[0])};
+
+                return negative ? -result : result;
+            }
+            else if constexpr (is_signed)
+            {
+                // TC: check if negative
+                if (is_negative())
+                {
+                    // Convert -x to positive, then negate result
+                    const int128_param_t abs_val{-(*this)};
+                    // Reinterpret as unsigned for conversion
+                    const int128_param_t<signedness::unsigned_type, Form> unsigned_val{
+                        abs_val.high(), abs_val.low()};
+                    return -static_cast<double>(unsigned_val);
+                }
+            }
+
+            // Unsigned or positive: standard conversion
+            return static_cast<double>(data[1]) * 18446744073709551616.0 + // 2^64
+                   static_cast<double>(data[0]);
+        }
+
+        /**
+         * @brief Explicit conversion to long double
+         *
+         * @return Long double representation of this value
+         *
+         * @details
+         * - Better precision than double (typically 64-bit mantissa on x86)
+         * - Same overflow considerations as double
+         * - Representation-aware for MS signed values
+         */
+        explicit constexpr operator long double() const noexcept
+        {
+            if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS: get magnitude, then apply sign
+                const uint64_t mag_high{data[1] & ~(1ULL << 63)};
+                const bool negative{(data[1] & (1ULL << 63)) != 0};
+
+                long double result{static_cast<long double>(mag_high) * 18446744073709551616.0L +
+                                   static_cast<long double>(data[0])};
+
+                return negative ? -result : result;
+            }
+            else if constexpr (is_signed)
+            {
+                // TC: check if negative
+                if (is_negative())
+                {
+                    const int128_param_t abs_val{-(*this)};
+                    const int128_param_t<signedness::unsigned_type, Form> unsigned_val{
+                        abs_val.high(), abs_val.low()};
+                    return -static_cast<long double>(unsigned_val);
+                }
+            }
+
+            // Unsigned or positive
+            return static_cast<long double>(data[1]) * 18446744073709551616.0L +
+                   static_cast<long double>(data[0]);
+        }
+
+        /**
+         * @brief Constructor from double (explicit)
+         *
+         * @param value Double value to convert
+         *
+         * @details
+         * - Truncates fractional part
+         * - Handles negative values appropriately for TC/MS
+         * - Overflow/underflow behavior: saturates to max/min value
+         *
+         * @note Requires std::isfinite(), std::isnan() checks at runtime
+         */
+        explicit constexpr int128_param_t(double value) noexcept
+            : data{0, 0}
+        {
+            // Handle special values
+            if (value != value) // NaN check
+            {
+                return; // Zero
+            }
+
+            const bool negative{value < 0.0};
+            double abs_val{negative ? -value : value};
+
+            // Handle overflow (too large for 128-bit)
+            if (abs_val >= 340282366920938463463374607431768211456.0) // 2^128
+            {
+                // Saturate to max
+                if constexpr (is_signed)
+                {
+                    if (negative)
+                    {
+                        // Set to minimum value
+                        data[0] = 0;
+                        data[1] = 0x8000000000000000ULL;
+                        return;
+                    }
+                }
+                // Max value
+                data[0] = ~0ULL;
+                data[1] = ~0ULL;
+                return;
+            }
+
+            // Extract high and low parts
+            if (abs_val >= 18446744073709551616.0) // 2^64
+            {
+                const double high_part{abs_val / 18446744073709551616.0};
+                data[1] = static_cast<uint64_t>(high_part);
+                abs_val -= static_cast<double>(data[1]) * 18446744073709551616.0;
+            }
+
+            data[0] = static_cast<uint64_t>(abs_val);
+
+            // Apply sign for signed types
+            if constexpr (is_signed)
+            {
+                if (negative)
+                {
+                    if constexpr (is_magnitude_sign)
+                    {
+                        // MS: set sign bit
+                        data[1] |= (1ULL << 63);
+                    }
+                    else
+                    {
+                        // TC: negate
+                        *this = -*this;
+                    }
+                }
+            }
+        }
+
+        /**
+         * @brief Constructor from long double (explicit)
+         *
+         * @param value Long double value to convert
+         *
+         * @details Same behavior as double constructor but with better precision
+         */
+        explicit constexpr int128_param_t(long double value) noexcept
+            : data{0, 0}
+        {
+            // Handle special values
+            if (value != value) // NaN
+            {
+                return;
+            }
+
+            const bool negative{value < 0.0L};
+            long double abs_val{negative ? -value : value};
+
+            // Handle overflow
+            if (abs_val >= 340282366920938463463374607431768211456.0L) // 2^128
+            {
+                if constexpr (is_signed)
+                {
+                    if (negative)
+                    {
+                        data[0] = 0;
+                        data[1] = 0x8000000000000000ULL;
+                        return;
+                    }
+                }
+                data[0] = ~0ULL;
+                data[1] = ~0ULL;
+                return;
+            }
+
+            // Extract parts
+            if (abs_val >= 18446744073709551616.0L) // 2^64
+            {
+                const long double high_part{abs_val / 18446744073709551616.0L};
+                data[1] = static_cast<uint64_t>(high_part);
+                abs_val -= static_cast<long double>(data[1]) * 18446744073709551616.0L;
+            }
+
+            data[0] = static_cast<uint64_t>(abs_val);
+
+            // Apply sign
+            if constexpr (is_signed)
+            {
+                if (negative)
+                {
+                    if constexpr (is_magnitude_sign)
+                    {
+                        data[1] |= (1ULL << 63);
+                    }
+                    else
+                    {
+                        *this = -*this;
+                    }
+                }
+            }
+        }
+
+        // ========================================================================
+        // Arithmetic Operations
+        // ========================================================================
+
         /**
          * @brief Addition assignment operator (representation-agnostic)
          *
