@@ -34,7 +34,7 @@ static std::vector<TestCase> tests;
 
 TEST(to_array_simple_tc)
 {
-    uint128_tc_t x{0x12, 0x34};
+    uint128_tc_t x{0x34, 0x12}; // (high, low) → high=0x34, low=0x12
     const auto bytes{static_cast<std::array<std::byte, 16>>(x)};
 
     // Check low limb (bytes [0..7])
@@ -133,7 +133,7 @@ TEST(to_array_ms_negative)
 
 TEST(to_bitset_simple_tc)
 {
-    uint128_tc_t x{0xFF, 0x00}; // Low = 0xFF, High = 0
+    uint128_tc_t x{0x00, 0xFF}; // (high, low) → high=0, low=0xFF
     const auto bits{static_cast<std::bitset<128>>(x)};
 
     // First 8 bits should be set
@@ -154,7 +154,7 @@ TEST(to_bitset_simple_tc)
 
 TEST(to_bitset_high_limb_tc)
 {
-    uint128_tc_t x{0x00, 0xFF}; // Low = 0, High = 0xFF
+    uint128_tc_t x{0xFF, 0x00}; // (high, low) → high=0xFF, low=0
     const auto bits{static_cast<std::bitset<128>>(x)};
 
     // First 64 bits should be clear
