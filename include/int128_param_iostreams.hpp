@@ -68,16 +68,31 @@ namespace nstd
         // Convert to string using member function
         std::string str = value.to_string(base);
 
-        // Handle prefixes (showbase flag)
+        // Step 1: Handle uppercase/lowercase (for hex)
+        // to_string() returns uppercase, so convert to lowercase by default
+        const bool use_uppercase = (flags & std::ios_base::uppercase) != 0;
+        if (base == 16 && !use_uppercase)
+        {
+            // Convert to lowercase (default for hex)
+            for (char &c : str)
+            {
+                if (c >= 'A' && c <= 'F')
+                {
+                    c = c - 'A' + 'a';
+                }
+            }
+        }
+
+        // Step 2: Handle prefixes (showbase flag)
         if (flags & std::ios_base::showbase)
         {
             if (base == 16 && str[0] != '-')
             {
-                str = "0x" + str;
+                str = (use_uppercase ? "0X" : "0x") + str;
             }
             else if (base == 16 && str[0] == '-')
             {
-                str = "-0x" + str.substr(1);
+                str = (use_uppercase ? "-0X" : "-0x") + str.substr(1);
             }
             else if (base == 8 && str != "0" && str[0] != '-')
             {
@@ -89,28 +104,7 @@ namespace nstd
             }
         }
 
-        // Handle uppercase/lowercase (for hex)
-        // to_string() returns uppercase, so convert to lowercase by default
-        if (base == 16)
-        {
-            if (flags & std::ios_base::uppercase)
-            {
-                // Keep uppercase (already uppercase from to_string)
-            }
-            else
-            {
-                // Convert to lowercase (default for hex)
-                for (char &c : str)
-                {
-                    if (c >= 'A' && c <= 'F')
-                    {
-                        c = c - 'A' + 'a';
-                    }
-                }
-            }
-        }
-
-        // Handle showpos flag (show + for positive)
+        // Step 3: Handle showpos flag (show + for positive)
         if ((flags & std::ios_base::showpos) && str[0] != '-' && str[0] != '0')
         {
             str = "+" + str;

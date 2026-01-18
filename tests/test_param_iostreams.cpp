@@ -191,7 +191,7 @@ int main()
     {
         std::cout << "\nTest 13: Round-trip conversion\n";
 
-        const uint128_tc_t original{0x1234, 0x5678};
+        const uint128_tc_t original{0, 123456789};
         std::ostringstream oss;
         oss << original;
 
