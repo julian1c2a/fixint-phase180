@@ -194,15 +194,27 @@ namespace nstd
         }
 
         // Newton's method: x_{n+1} = (x_n + value/x_n) / 2
-        int128_param_t<S, F> guess{x.high() >> 32, x.high() << 32 | (x.low() >> 32)}; // Initial guess
+        // Start with a good initial guess based on bit width
+        int128_param_t<S, F> guess = x;
+
+        // Better initial guess: x >> (bit_width / 2)
+        const int log2_val = ilog2(x);
+        if (log2_val > 0)
+        {
+            const int shift = log2_val / 2;
+            for (int i = 0; i < shift && i < 64; ++i)
+            {
+                guess = guess >> 1;
+            }
+        }
         if (guess.is_zero())
         {
             guess = int128_param_t<S, F>{0, 1};
         }
 
         for (int i = 0; i < 128; ++i)
-        { // Max 128 iterations
-            const auto next = (guess + x / guess) / int128_param_t<S, F>{0, 2};
+        {                                               // Max 128 iterations
+            const auto next = (guess + x / guess) >> 1; // Divide by 2 using shift
             if (next >= guess)
                 break; // Converged
             guess = next;
