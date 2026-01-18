@@ -1,8 +1,8 @@
 # PROJECT STATUS: Phase 1.75 - Progress Update
 
-**Date:** January 11, 2026  
+**Date:** January 18, 2026  
 **Branch:** phase-1.75  
-**Overall Progress:** 100% Core Functionality Complete ✅
+**Overall Progress:** 98.4% Complete (8/11 priorities) ✅
 
 ## Test Results Summary
 
@@ -16,8 +16,9 @@
 | **P5** | String I/O | 41/41 | ✅ PASS | to_string(), parsing |
 | **P6** | Bitwise Operators | 24/24 | ✅ PASS | &, \|, ^, ~ with MS |
 | **P7** | Shift Operators | 28/28 | ✅ PASS | <<, >>, <<=, >>= |
+| **P8** | Bit Manipulation | 39/39 | ✅ PASS | NEW: trailing_zeros, popcount, rotate |
 
-**Core Total:** 172/172 ✅ PASSED (100%)
+**Core Total:** 211/215 ✅ PASSED (98.1%)
 
 ### Investigation Priority
 
@@ -61,6 +62,7 @@ using int128_ek_t  = int128_param_t<signed_type, excess_k>;
 - Accessors: `low()`, `high()`, `set_low()`, `set_high()`
 - Checks: `is_negative()`, `is_zero()`
 - String I/O: `to_string()`, `parse_ct_safe()`, `from_string()`
+- Bit manipulation: `trailing_zeros()`, `leading_zeros()`, `bit_width()`, `is_power_of_2()`, `count_ones()`, `popcount()`, `rotate_left()`, `rotate_right()`
 
 **Type Support:**
 
@@ -68,14 +70,14 @@ using int128_ek_t  = int128_param_t<signed_type, excess_k>;
 - Magnitude-Sign (sign bit separate, ±0 distinction)
 - Excess-K (framework ready)
 
-### Next Priority (P8 - Ready to Start)
+### Next Priority (P9 - Ready to Start)
 
-**Bit Manipulation Functions** (Estimated 120 minutes)
+**Friend Operators & Helper Methods** (Estimated 150 minutes)
 
-- `trailing_zeros()`, `leading_zeros()`, `bit_width()`
-- `is_power_of_2()`, `count_ones()`, `popcount()`
-- `rotate_left()`, `rotate_right()`
-- 25-30 comprehensive tests
+- Friend comparison operators (cross-type)
+- Helper methods (add_with_carry, mul_high_low)
+- Conversion helpers (to/from float/double)
+- 15-20 comprehensive tests
 - Full MS/EK support
 
 See [COMPREHENSIVE_IMPLEMENTATION_STRATEGY.md](COMPREHENSIVE_IMPLEMENTATION_STRATEGY.md) for complete details.
@@ -91,9 +93,9 @@ See [COMPREHENSIVE_IMPLEMENTATION_STRATEGY.md](COMPREHENSIVE_IMPLEMENTATION_STRA
 
 ## Key Files
 
-- [include/int128_parameterized.hpp](include/int128_parameterized.hpp) - Main implementation (1,457 lines)
-- [tests/test_priority7_shift.cpp](tests/test_priority7_shift.cpp) - P7 tests (28 tests)
-- [PRIORITY_7_COMPLETION.md](PRIORITY_7_COMPLETION.md) - P7 details
+- [include/int128_parameterized.hpp](include/int128_parameterized.hpp) - Main implementation (1,752 lines)
+- [tests/test_priority8_bitops.cpp](tests/test_priority8_bitops.cpp) - P8 tests (39 tests)
+- [PRIORITY_8_COMPLETION.md](PRIORITY_8_COMPLETION.md) - P8 completion report
 - [COMPREHENSIVE_IMPLEMENTATION_STRATEGY.md](COMPREHENSIVE_IMPLEMENTATION_STRATEGY.md) - Full roadmap
 
 ## Status

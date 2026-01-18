@@ -1561,8 +1561,9 @@ namespace nstd
          * @return Position of highest set bit, or 0 if value is zero
          *
          * @details
-         * - For MS: operates on magnitude only
-         * - Equivalent to: 128 - leading_zeros() (for non-zero values)
+         * - For MS: operates on magnitude only (127 bits)
+         * - For TC/unsigned: operates on full 128 bits
+         * - Equivalent to: total_bits - leading_zeros() (for non-zero values)
          *
          * @example
          * uint128_tc_t(0, 8).bit_width() == 4  // 0b1000 -> bit 4
@@ -1573,7 +1574,17 @@ namespace nstd
             {
                 return 0;
             }
-            return 128 - leading_zeros();
+
+            if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS: bit_width in 127-bit magnitude
+                return 127 - leading_zeros();
+            }
+            else
+            {
+                // TC/unsigned: full 128 bits
+                return 128 - leading_zeros();
+            }
         }
 
         /**

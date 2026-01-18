@@ -85,7 +85,7 @@ TEST(trailing_zeros_simple_tc)
 TEST(trailing_zeros_high_tc)
 {
     const uint128_tc_t x{0x8000000000000000ULL, 0}; // Bit 127 set
-    ASSERT_EQ(x.trailing_zeros(), 64);              // All 64 low bits are zero
+    ASSERT_EQ(x.trailing_zeros(), 127);             // 127 trailing zeros before MSB
 }
 
 TEST(trailing_zeros_all_zeros_tc)
@@ -136,7 +136,7 @@ TEST(leading_zeros_ms_signed)
 {
     // MS signed: leading zeros counts in magnitude (127 bits)
     const int128_ms_t x{0, 1};         // Positive, magnitude 1
-    ASSERT_EQ(x.leading_zeros(), 127); // 126 leading zeros in magnitude
+    ASSERT_EQ(x.leading_zeros(), 126); // 126 leading zeros in magnitude (bit 0 is set)
 }
 
 TEST(leading_zeros_mid_value)
