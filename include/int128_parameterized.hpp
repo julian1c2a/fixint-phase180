@@ -295,10 +295,25 @@ namespace nstd
             {
                 return (data[1] & (1ULL << 63)) != 0;
             }
-            else
+            else // excess_k
             {
-                // excess_k: depends on bias comparison (TODO)
-                return false;
+                // Excess-K: negative when stored_value < bias
+                // bias = 2^126 = 0x4000000000000000 0x0000000000000000
+                constexpr uint64_t bias_high = (1ULL << 62);
+                constexpr uint64_t bias_low = 0;
+
+                if (data[1] < bias_high)
+                {
+                    return true;
+                }
+                else if (data[1] > bias_high)
+                {
+                    return false;
+                }
+                else
+                {
+                    return data[0] < bias_low;
+                }
             }
         }
 
@@ -324,10 +339,56 @@ namespace nstd
                 result.data[1] &= ~(1ULL << 63); // Clear sign bit
                 return result;
             }
-            else
+            else // excess_k
             {
-                // excess_k: TODO
-                return int128_param_t(0);
+                // Excess-K: magnitude = |stored_value - bias|
+                // Convert to real value first, then take absolute value
+                constexpr uint64_t bias_high = (1ULL << 62);
+                constexpr uint64_t bias_low = 0;
+
+                int128_param_t result{*this};
+
+                // Subtract bias (real_value = stored - bias)
+                bool borrow = false;
+                if (result.data[0] < bias_low)
+                {
+                    borrow = true;
+                }
+                result.data[0] -= bias_low;
+
+                if (borrow)
+                {
+                    if (result.data[1] == 0)
+                    {
+                        // Underflow, value was negative
+                        result.data[1] = ~0ULL - bias_high + 1;
+                    }
+                    else
+                    {
+                        result.data[1] = result.data[1] - bias_high - 1;
+                    }
+                }
+                else
+                {
+                    result.data[1] -= bias_high;
+                }
+
+                // If negative (MSB set in TC interpretation), negate
+                if ((result.data[1] & (1ULL << 63)) != 0)
+                {
+                    // Negate (two's complement negation)
+                    result.data[0] = ~result.data[0];
+                    result.data[1] = ~result.data[1];
+
+                    // Add 1
+                    result.data[0]++;
+                    if (result.data[0] == 0)
+                    {
+                        result.data[1]++;
+                    }
+                }
+
+                return result;
             }
         }
 
@@ -357,9 +418,17 @@ namespace nstd
                 const std::uint64_t magnitude_mask = (1ULL << 63) - 1; // All bits except sign
                 return (data[0] == 0) && ((data[1] & magnitude_mask) == 0);
             }
-            else
+            else if constexpr (is_excess_k)
             {
-                // TC and others: zero only if both words are 0
+                // Excess-K: zero when stored_value == bias
+                // bias = 2^126 = 0x4000000000000000 0x0000000000000000
+                constexpr uint64_t bias_high = (1ULL << 62);
+                constexpr uint64_t bias_low = 0;
+                return (data[0] == bias_low) && (data[1] == bias_high);
+            }
+            else // twos_complement
+            {
+                // TC: zero only if both words are 0
                 return data[0] == 0 && data[1] == 0;
             }
         }
@@ -903,6 +972,7 @@ namespace nstd
          *
          * **Two's Complement:** Invert all bits and add 1
          * **Magnitude-Sign:** Flip sign bit (single bit operation)
+         * **Excess-K:** Negate via: -x = bias - (x - bias) = 2·bias - x
          *
          * @return Negated value
          */
@@ -916,7 +986,35 @@ namespace nstd
                 result.data[1] ^= (1ULL << 63);
                 return result;
             }
-            else
+            else if constexpr (is_excess_k)
+            {
+                // Excess-K: -x = 2·bias - x
+                // bias = 2^126, so 2·bias = 2^127
+                constexpr uint64_t two_bias_high = (1ULL << 63);
+                constexpr uint64_t two_bias_low = 0;
+
+                int128_param_t result;
+
+                // Subtract this value from 2·bias
+                bool borrow = false;
+                if (two_bias_low < data[0])
+                {
+                    borrow = true;
+                }
+                result.data[0] = two_bias_low - data[0];
+
+                if (borrow)
+                {
+                    result.data[1] = two_bias_high - data[1] - 1;
+                }
+                else
+                {
+                    result.data[1] = two_bias_high - data[1];
+                }
+
+                return result;
+            }
+            else // twos_complement
             {
                 // Two's Complement: Invert bits and add 1
                 int128_param_t result;
