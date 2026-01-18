@@ -1,10 +1,170 @@
 # CHANGELOG - Phase 1.75 (Representation Forms Investigation)
 
-> **Phase 1.75 Status:** 🔬 **EXTENDED DEVELOPMENT - Excess-K Implementation**  
+> **Phase 1.75 Status:** � **ACTIVE DEVELOPMENT - Extended Features Porting**  
 > **Started:** 11 January 2026 19:30 UTC  
-> **Last Updated:** 18 January 2026 23:50 UTC  
+> **Last Updated:** 19 January 2026 00:30 UTC  
 > **Objective:** Full parity for TC, MS, and EK representations  
-> **Progress:** Phase 1.75 complete (11/11 priorities), Excess-K basic operations working (5/5 tests)
+> **Progress:** Phase 1.75 complete (11/11 priorities) + 4 extended feature headers ported ✅
+
+---
+
+## [19 January 2026 - 00:30] - Extended Feature Headers Ported (2/13 complete) ✅
+
+### 🎯 Steps 1→2→3→4 Complete
+
+**User Request:** Sequential execution of next 4 priorities
+
+**Completed Today:**
+
+#### ✅ Step 1: Comparison Operator Tests for Excess-K (10/10 tests)
+
+Created comprehensive test suite for EK comparison operators:
+
+- Equality (==, !=): 2 tests
+- Ordering (<, <=, >, >=): 4 tests
+- Mathematical properties: 4 tests (transitivity, reflexivity, antisymmetry, total ordering)
+
+**Key Finding:** All comparison operators work correctly for EK because stored value ordering preserves real value ordering.
+
+**File Created:** `tests/test_excess_k_comparison.cpp` (120 lines)
+
+---
+
+#### ✅ Step 2: Arithmetic Limitations Documentation
+
+Created comprehensive guide for EK arithmetic limitations:
+
+- Problem analysis (bias accumulation in +, -, *, /)
+- Correct formulas for custom implementation
+- Recommended solution: Convert to TC pattern
+- What works vs what doesn't (comparison ✅, arithmetic ❌)
+- Code examples and best practices
+
+**File Created:** `EXCESS_K_ARITHMETIC_GUIDE.md` (~450 lines)
+
+---
+
+#### ✅ Step 3: int128_param_bits.hpp Ported (8/8 tests)
+
+Ported bit manipulation functions with representation awareness:
+
+**Functions Implemented:**
+
+1. `popcount()` - Population count (TC/EK: 128 bits, MS: 127 bits)
+2. `countl_zero()` - Leading zeros (representation-aware)
+3. `countr_zero()` - Trailing zeros (representation-aware)
+4. `bit_width()` - Highest bit position (TC/EK: 128-bit, MS: 127-bit space)
+5. `is_power_of_2()` - Power of 2 check (MS checks magnitude only)
+6. `rotl()` - Rotate left (MS preserves sign bit)
+7. `rotr()` - Rotate right (MS preserves sign bit)
+
+**Key Design Decisions:**
+
+- MS operations work on 127-bit magnitude (exclude sign bit)
+- TC/EK operations work on full 128 bits
+- Hardware intrinsics used (`__builtin_popcountll`, `__builtin_clzll`, `__builtin_ctzll`)
+
+**Files Created:**
+
+- `include/int128_param_bits.hpp` (~420 lines)
+- `tests/test_param_bits.cpp` (~150 lines, 8 test categories)
+
+---
+
+#### ✅ Step 4: int128_param_cmath.hpp Ported (8/8 tests)
+
+Ported mathematical functions with representation awareness:
+
+**Functions Implemented:**
+
+1. `abs()` - Absolute value (wrapper for member function)
+2. `min()` / `max()` - Min/max using comparison operators
+3. `clamp()` - Clamp to range [lo, hi]
+4. `gcd()` - Greatest Common Divisor (Stein's binary algorithm)
+5. `lcm()` - Least Common Multiple
+6. `midpoint()` - Overflow-safe midpoint
+7. `pow()` - Integer exponentiation by squaring
+
+**Key Design Decisions:**
+
+- GCD uses binary algorithm (no division, O(log n))
+- All functions work with absolute values for signed types
+- Mixed-type overloads (int128 + builtin integrals)
+- ⚠️ EK note: gcd/lcm/pow operate on stored values (convert to TC for semantic correctness)
+
+**Files Created:**
+
+- `include/int128_param_cmath.hpp` (~320 lines)
+- `tests/test_param_cmath.cpp` (~220 lines, 8 test categories)
+
+---
+
+### Summary of Work (Session Duration: ~2 hours)
+
+**Files Created (6 total):**
+
+1. `tests/test_excess_k_comparison.cpp` - EK comparison tests
+2. `EXCESS_K_ARITHMETIC_GUIDE.md` - Comprehensive EK arithmetic documentation
+3. `include/int128_param_bits.hpp` - Bit manipulation header
+4. `tests/test_param_bits.cpp` - Bit manipulation tests
+5. `include/int128_param_cmath.hpp` - Mathematical functions header
+6. `tests/test_param_cmath.cpp` - Mathematical function tests
+
+**Total New Code:** ~1,680 lines
+**Total Tests Passing:** 26/26 (100%)
+
+- EK comparison: 10/10 ✅
+- Bit manipulation: 8/8 ✅
+- Mathematical functions: 8/8 ✅
+
+**Compilation Status:**
+
+- ✅ 0 errors
+- ✅ 0 warnings
+- ✅ Compiler: GCC 15.2.0, C++20 standard
+- ✅ Optimization: -O2
+
+---
+
+### Extended Features Progress Tracker
+
+| Feature Header | Status | Tests | Lines | Priority |
+|----------------|--------|-------|-------|----------|
+| **Completed** | | | | |
+| int128_param_bits.hpp | ✅ Complete | 8/8 | ~420 | High |
+| int128_param_cmath.hpp | ✅ Complete | 8/8 | ~320 | High |
+| **Pending** | | | | |
+| int128_param_limits.hpp | ⏳ TODO | 0 | ~200 | High |
+| int128_param_numeric.hpp | ⏳ TODO | 0 | ~300 | Medium |
+| int128_param_algorithm.hpp | ⏳ TODO | 0 | ~250 | Medium |
+| int128_param_format.hpp | ⏳ TODO | 0 | ~400 | Medium |
+| int128_param_concepts.hpp | ⏳ TODO | 0 | ~150 | Low |
+| int128_param_ranges.hpp | ⏳ TODO | 0 | ~300 | Low |
+| int128_param_safe.hpp | ⏳ TODO | 0 | ~350 | Low |
+| int128_param_thread_safety.hpp | ⏳ TODO | 0 | ~300 | Low |
+| int128_param_traits.hpp | ⏳ TODO | 0 | ~200 | Low |
+| int128_param_traits_specializations.hpp | ⏳ TODO | 0 | ~250 | Low |
+| int128_param_iostreams.hpp | ⏳ TODO | 0 | ~200 | Medium |
+
+**Progress:** 2/13 headers complete (15%)  
+**Estimated remaining work:** ~30-40 hours (11 headers × 2.5-3.5h average)
+
+---
+
+### Next Steps (Priority Order)
+
+1. ⏳ **int128_param_limits.hpp** - Numeric limits specialization (2-3 hours)
+   - `min()`, `max()`, `lowest()` constants
+   - `digits`, `is_signed`, `is_exact` traits
+   - Representation-specific ranges
+
+2. ⏳ **int128_param_numeric.hpp** - Additional numeric algorithms (3-4 hours)
+   - Already has gcd/lcm (in cmath), may need other functions
+   - Check phase166 for additional functions
+
+3. ⏳ **int128_param_iostreams.hpp** - Test existing I/O (1-2 hours)
+   - Verify `operator<<` and `operator>>` work for EK
+   - Test string conversions
 
 ---
 

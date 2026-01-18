@@ -20,9 +20,10 @@ int main()
     std::cout << "Test 1: abs()\n";
 
     // TC: Standard negation
-    int128_tc_t tc_neg{0, static_cast<std::uint64_t>(-42)};
+    int128_tc_t tc_neg{-42}; // Constructor handles sign extension
     const auto tc_abs_result = abs(tc_neg);
-    assert((tc_abs_result == int128_tc_t{0, 42}));
+    const int128_tc_t tc_expected{42};
+    assert((tc_abs_result == tc_expected));
     std::cout << "  ✓ TC abs(-42) = 42\n";
 
     // MS: Clear sign bit
