@@ -28,6 +28,7 @@
 #include <limits>
 #include <string>
 #include <array>
+#include <bitset>
 #include <stdexcept>
 
 namespace nstd
@@ -206,10 +207,10 @@ namespace nstd
         constexpr int128_param_t(int128_param_t &&) = default;
 
         /// @brief Constructor from single 64-bit value (zero-extends or sign-extends)
-        template <typename T>
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
         explicit constexpr int128_param_t(T value) noexcept
         {
-            static_assert(std::is_integral_v<T>, "T must be integral");
 
             if constexpr (std::is_signed_v<T>)
             {
@@ -1154,6 +1155,170 @@ namespace nstd
                     {
                         *this = -*this;
                     }
+                }
+            }
+        }
+
+        // ========================================================================
+        // Array & Bitset Conversions (Priority 11)
+        // ========================================================================
+
+        /**
+         * @brief Convert to std::array of bytes (little-endian)
+         *
+         * Serializes the 128-bit value to a 16-byte array in little-endian order.
+         * - Bytes [0..7] = low 64 bits (data[0])
+         * - Bytes [8..15] = high 64 bits (data[1])
+         *
+         * For MS representation, the sign bit is included in the serialization.
+         *
+         * @return std::array<std::byte, 16> containing the byte representation
+         *
+         * @note Little-endian byte order matches internal storage (data[0]=low)
+         *
+         * @code
+         * uint128_tc_t x{0x1234567890ABCDEFULL, 0xFEDCBA0987654321ULL};
+         * auto bytes = static_cast<std::array<std::byte, 16>>(x);
+         * // bytes[0] = 0xEF, bytes[1] = 0xCD, ...
+         * // bytes[15] = 0xFE
+         * @endcode
+         */
+        explicit constexpr operator std::array<std::byte, 16>() const noexcept
+        {
+            std::array<std::byte, 16> result{};
+
+            // Low 64 bits (data[0]) → bytes [0..7]
+            for (int i{0}; i < 8; ++i)
+            {
+                result[i] = static_cast<std::byte>((data[0] >> (i * 8)) & 0xFF);
+            }
+
+            // High 64 bits (data[1]) → bytes [8..15]
+            for (int i{0}; i < 8; ++i)
+            {
+                result[i + 8] = static_cast<std::byte>((data[1] >> (i * 8)) & 0xFF);
+            }
+
+            return result;
+        }
+
+        /**
+         * @brief Convert to std::bitset<128>
+         *
+         * Creates a bitset representation where:
+         * - bit 0 = LSB (least significant bit of data[0])
+         * - bit 63 = MSB of data[0]
+         * - bit 64 = LSB of data[1]
+         * - bit 127 = MSB (for MS signed: this is the sign bit)
+         *
+         * @return std::bitset<128> with bits set according to internal storage
+         *
+         * @code
+         * uint128_tc_t x{0xFF};
+         * auto bits = static_cast<std::bitset<128>>(x);
+         * // bits[0..7] = 1, bits[8..127] = 0
+         * @endcode
+         */
+        explicit constexpr operator std::bitset<128>() const noexcept
+        {
+            std::bitset<128> result{};
+
+            // Set bits from low limb (data[0])
+            for (int i{0}; i < 64; ++i)
+            {
+                if ((data[0] & (1ULL << i)) != 0)
+                {
+                    result.set(i);
+                }
+            }
+
+            // Set bits from high limb (data[1])
+            for (int i{0}; i < 64; ++i)
+            {
+                if ((data[1] & (1ULL << i)) != 0)
+                {
+                    result.set(i + 64);
+                }
+            }
+
+            return result;
+        }
+
+        /**
+         * @brief Construct from std::array of bytes (little-endian)
+         *
+         * Deserializes a 16-byte array in little-endian order to a 128-bit value.
+         * - Bytes [0..7] → low 64 bits (data[0])
+         * - Bytes [8..15] → high 64 bits (data[1])
+         *
+         * For MS signed types, the sign bit (MSB of byte[15]) is preserved.
+         *
+         * @param bytes Byte array in little-endian order
+         *
+         * @note This is the inverse operation of operator std::array<std::byte, 16>()
+         *
+         * @code
+         * std::array<std::byte, 16> bytes{};
+         * bytes[0] = std::byte{0xFF};
+         * bytes[1] = std::byte{0x00};
+         * // ... (remaining bytes)
+         * uint128_tc_t x{bytes};  // Deserializes from byte array
+         * @endcode
+         */
+        explicit constexpr int128_param_t(const std::array<std::byte, 16> &bytes) noexcept
+            : data{0, 0}
+        {
+            // Reconstruct low 64 bits from bytes [0..7]
+            for (int i{0}; i < 8; ++i)
+            {
+                data[0] |= (static_cast<uint64_t>(bytes[i]) << (i * 8));
+            }
+
+            // Reconstruct high 64 bits from bytes [8..15]
+            for (int i{0}; i < 8; ++i)
+            {
+                data[1] |= (static_cast<uint64_t>(bytes[i + 8]) << (i * 8));
+            }
+        }
+
+        /**
+         * @brief Construct from std::bitset<128>
+         *
+         * Creates an int128 value from a bitset where:
+         * - bit 0 = LSB (least significant bit of data[0])
+         * - bit 63 = MSB of data[0]
+         * - bit 64 = LSB of data[1]
+         * - bit 127 = MSB (for MS signed: this becomes the sign bit)
+         *
+         * @param bits Bitset with 128 bits
+         *
+         * @note This is the inverse operation of operator std::bitset<128>()
+         *
+         * @code
+         * std::bitset<128> bits{};
+         * bits.set(0);  // Set LSB
+         * bits.set(127);  // Set MSB
+         * uint128_tc_t x{bits};
+         * @endcode
+         */
+        explicit constexpr int128_param_t(const std::bitset<128> &bits) noexcept
+            : data{0, 0}
+        {
+            // Reconstruct low 64 bits (bits 0..63)
+            for (int i{0}; i < 64; ++i)
+            {
+                if (bits.test(i))
+                {
+                    data[0] |= (1ULL << i);
+                }
+            }
+
+            // Reconstruct high 64 bits (bits 64..127)
+            for (int i{0}; i < 64; ++i)
+            {
+                if (bits.test(i + 64))
+                {
+                    data[1] |= (1ULL << i);
                 }
             }
         }
