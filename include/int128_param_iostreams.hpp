@@ -89,22 +89,31 @@ namespace nstd
             }
         }
 
+        // Handle uppercase/lowercase (for hex)
+        // to_string() returns uppercase, so convert to lowercase by default
+        if (base == 16)
+        {
+            if (flags & std::ios_base::uppercase)
+            {
+                // Keep uppercase (already uppercase from to_string)
+            }
+            else
+            {
+                // Convert to lowercase (default for hex)
+                for (char &c : str)
+                {
+                    if (c >= 'A' && c <= 'F')
+                    {
+                        c = c - 'A' + 'a';
+                    }
+                }
+            }
+        }
+
         // Handle showpos flag (show + for positive)
         if ((flags & std::ios_base::showpos) && str[0] != '-' && str[0] != '0')
         {
             str = "+" + str;
-        }
-
-        // Handle uppercase (for hex)
-        if ((flags & std::ios_base::uppercase) && base == 16)
-        {
-            for (char &c : str)
-            {
-                if (c >= 'a' && c <= 'f')
-                {
-                    c = c - 'a' + 'A';
-                }
-            }
         }
 
         // Handle width and alignment
