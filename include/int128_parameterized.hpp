@@ -466,19 +466,6 @@ namespace nstd
         // ========================================================================
 
         /**
-         * @brief Convert to decimal string representation
-         *
-         * Converts the 128-bit value to its decimal string representation.
-         * For signed types, includes the minus sign if negative.
-         *
-         * @return Decimal string (e.g., "12345", "-67890")
-         */
-        std::string to_string() const noexcept
-        {
-            return to_string(10);
-        }
-
-        /**
          * @brief Convert to string in specified base (2-36)
          *
          * Converts the 128-bit value to string representation in the given base.
