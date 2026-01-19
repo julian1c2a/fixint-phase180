@@ -285,7 +285,7 @@ namespace nstd
          * @return true if negative, false if positive (or zero)
          */
         constexpr bool is_negative() const noexcept
-            requires(is_signed)
+            requires(is_signed) // ;
         {
             if constexpr (is_twos_complement)
             {
@@ -493,65 +493,88 @@ namespace nstd
          * @param base Base for conversion (2-36). Default is 10 (decimal).
          * @return String representation in the specified base
          */
-        std::string to_string(int base) const noexcept
+        std::string to_string(int base = 10) const noexcept
         {
             // Validate base
             if (base < 2 || base > 36)
-                base = 10; // Default to decimal if invalid
+                base = 10;
 
-            // Handle zero
+            // Handle zero - works for all representations
             if (is_zero())
                 return "0";
 
-            // For signed types, handle negative numbers
+            // ================================================================
+            // STEP 1: Determine if negative and extract magnitude
+            // ================================================================
             bool is_negative_value = false;
-            int128_param_t abs_value = *this;
+            int128_param_t value_for_division; // Will hold absolute value in TC representation
 
             if constexpr (is_signed)
             {
-                if (is_negative_value = this->is_negative())
+                is_negative_value = is_negative();
+
+                if constexpr (Form == representation_form::twos_complement)
                 {
-                    abs_value = -(*this);
+                    value_for_division = is_negative_value ? -(*this) : *this;
+                }
+                else // For MS and EK
+                {
+                    // magnitude() correctly returns the absolute value, TC-encoded
+                    value_for_division = this->magnitude();
                 }
             }
-
-            // Convert absolute value to string
-            std::string result;
-            int128_param_t value = abs_value;
-
-            while (!value.is_zero())
+            else // unsigned
             {
-                // Get remainder when divided by base
-                std::uint64_t remainder;
-                if constexpr (std::is_same_v<std::remove_const_t<decltype(base)>, int>)
-                {
-                    // Simple division for bases
-                    if (value.data[1] == 0)
-                    {
-                        remainder = value.data[0] % base;
-                        value.data[0] /= base;
-                    }
-                    else
-                    {
-                        // For large numbers, use simpler approach
-                        remainder = value.data[0] % base;
-                        value.data[0] = value.data[0] / base;
-                        if (value.data[1] > 0)
-                        {
-                            // Carry from high word
-                            std::uint64_t carry = (value.data[1] % base) * (std::numeric_limits<std::uint64_t>::max() / base + 1);
-                            value.data[0] += carry;
-                            value.data[1] /= base;
-                        }
-                    }
-                }
-
-                // Convert digit to character
-                const char *digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                result = digits[remainder] + result;
+                value_for_division = *this;
             }
 
-            // Add sign if negative
+            // ================================================================
+            // STEP 2: Convert absolute value to string (long division)
+            // ================================================================
+            std::string result;
+            const char *digits = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+            // Iteratively extract digits from LSB to MSB
+            // The loop must check for raw zero, as value_for_division is now always TC
+            while (value_for_division.high() != 0 || value_for_division.low() != 0)
+            {
+                // Perform 128-bit division by base using long division algorithm
+                // This correctly handles multi-word division
+
+                int128_param_t quotient{0};
+                std::uint64_t remainder = 0;
+
+                // === Long Division Step ===
+                // Process from high to low word
+
+                // Step 1: Divide high 64 bits
+                std::uint64_t high_dividend = value_for_division.data[1];
+                quotient.data[1] = high_dividend / base;
+                remainder = high_dividend % base;
+
+                // Step 2: Divide middle part (remainder from high + upper 32 bits of low)
+                std::uint64_t mid_dividend = (remainder << 32) | ((value_for_division.data[0] >> 32) & 0xFFFFFFFFULL);
+                std::uint64_t mid_quotient = mid_dividend / base;
+                remainder = mid_dividend % base;
+
+                // Step 3: Divide low part (remainder from middle + lower 32 bits of low)
+                std::uint64_t low_dividend = (remainder << 32) | (value_for_division.data[0] & 0xFFFFFFFFULL);
+                std::uint64_t low_quotient = low_dividend / base;
+                remainder = low_dividend % base;
+
+                // Reconstruct quotient.data[0] from mid_quotient and low_quotient
+                quotient.data[0] = (mid_quotient << 32) | (low_quotient & 0xFFFFFFFFULL);
+
+                // Append digit to result
+                result = digits[remainder] + result;
+
+                // Move to next iteration
+                value_for_division = quotient;
+            }
+
+            // ================================================================
+            // STEP 3: Add sign if negative
+            // ================================================================
             if (is_negative_value)
                 result = "-" + result;
 
@@ -588,7 +611,6 @@ namespace nstd
         {
             parse_result<int128_param_t> result{};
 
-            // Check for null pointer
             if (!str)
             {
                 result.error = parse_error::null_pointer;
@@ -596,7 +618,6 @@ namespace nstd
                 return result;
             }
 
-            // Check for empty string
             if (*str == '\0')
             {
                 result.error = parse_error::empty_string;
@@ -609,7 +630,6 @@ namespace nstd
             size_t index = 0;
             bool is_negative = false;
 
-            // Handle sign for signed types
             if constexpr (is_signed)
             {
                 if (*ptr == '-')
@@ -625,7 +645,6 @@ namespace nstd
                 }
             }
 
-            // Auto-detect base from prefix
             if (*ptr == '0' && *(ptr + 1) != '\0')
             {
                 char next = *(ptr + 1);
@@ -644,12 +663,12 @@ namespace nstd
                 else if (next >= '0' && next <= '7')
                 {
                     base = 8;
-                    ptr += 1;
-                    index += 1;
+                    // No ptr increment here, it's part of the number
                 }
             }
-
-            int128_param_t parsed_value{};
+            
+            // Use a temporary TC value for parsing arithmetic
+            int128_param_t<signedness::signed_type, representation_form::twos_complement> temp_val{};
             bool found_digit = false;
             size_t digit_start_index = index;
 
@@ -658,38 +677,21 @@ namespace nstd
                 unsigned digit = 0;
                 char c = *ptr;
 
-                // Skip separators (but track position)
                 if (c == '_' || c == '\'')
                 {
-                    // Check for separator at start of digits
-                    if (!found_digit && *(ptr + 1) != '\0')
-                    {
+                    if (!found_digit && *(ptr + 1) != '\0') {
                         result.error = parse_error::separator_at_boundaries;
                         result.error_index = index;
                         return result;
                     }
-
                     ++ptr;
                     ++index;
                     continue;
                 }
 
-                // Parse digit
-                if (c >= '0' && c <= '9')
-                {
-                    digit = c - '0';
-                    found_digit = true;
-                }
-                else if (c >= 'a' && c <= 'f')
-                {
-                    digit = c - 'a' + 10;
-                    found_digit = true;
-                }
-                else if (c >= 'A' && c <= 'F')
-                {
-                    digit = c - 'A' + 10;
-                    found_digit = true;
-                }
+                if (c >= '0' && c <= '9') { digit = c - '0'; }
+                else if (c >= 'a' && c <= 'z') { digit = c - 'a' + 10; }
+                else if (c >= 'A' && c <= 'Z') { digit = c - 'A' + 10; }
                 else
                 {
                     result.error = parse_error::invalid_character;
@@ -697,21 +699,18 @@ namespace nstd
                     return result;
                 }
 
-                // Check digit is valid for base
                 if (digit >= static_cast<unsigned>(base))
                 {
                     result.error = parse_error::digit_out_of_range;
                     result.error_index = index;
                     return result;
                 }
+                
+                found_digit = true;
+                auto old_value = temp_val;
+                temp_val = temp_val * base + digit;
 
-                // Multiply by base and add digit (with overflow check)
-                int128_param_t old_value = parsed_value;
-                parsed_value = parsed_value * int128_param_t(base) + int128_param_t(digit);
-
-                // Check overflow
-                if (parsed_value < old_value && digit != 0)
-                {
+                if (temp_val < old_value && digit != 0) {
                     result.error = parse_error::overflow;
                     result.error_index = index;
                     return result;
@@ -721,7 +720,6 @@ namespace nstd
                 ++index;
             }
 
-            // Check if we found any digits
             if (!found_digit)
             {
                 result.error = parse_error::no_digits;
@@ -729,18 +727,43 @@ namespace nstd
                 return result;
             }
 
-            // Apply sign for signed types
-            if constexpr (is_signed)
+            if (is_negative)
             {
-                if (is_negative)
+                temp_val = -temp_val;
+            }
+            
+            // Now convert the final TC value to the target representation
+            if constexpr (is_excess_k)
+            {
+                constexpr uint64_t bias_high = (1ULL << 62);
+                constexpr uint64_t bias_low = 0;
+                int128_param_t<signedness::signed_type, representation_form::twos_complement> bias_tc(bias_high, bias_low);
+                auto final_val = temp_val + bias_tc;
+                result.value.set_high(final_val.high());
+                result.value.set_low(final_val.low());
+            }
+            else if constexpr (is_magnitude_sign)
+            {
+                if (temp_val.is_negative())
                 {
-                    parsed_value = -parsed_value;
+                    auto mag = -temp_val;
+                    result.value.set_high(mag.high() | (1ULL << 63));
+                    result.value.set_low(mag.low());
                 }
+                else
+                {
+                    result.value.set_high(temp_val.high());
+                    result.value.set_low(temp_val.low());
+                }
+            }
+            else
+            {
+                result.value.set_high(temp_val.high());
+                result.value.set_low(temp_val.low());
             }
 
             result.error = parse_error::success;
-            result.value = parsed_value;
-            result.error_index = static_cast<size_t>(-1); // npos
+            result.error_index = static_cast<size_t>(-1);
             return result;
         }
 

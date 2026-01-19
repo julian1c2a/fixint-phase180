@@ -62,7 +62,7 @@ endef
 build_tests:
 	$(call validate_values,build_tests)
 	@echo "🔨 Compilando tests: $(FEATURE) [$(COMPILER)/$(MODE)]"
-	@bash scripts/build_tests_generic.bash $(FEATURE) $(COMPILER) $(MODE) $(PRINT)
+	@python scripts/build_generic.py int128 $(FEATURE) tests $(COMPILER) $(MODE) $(PRINT)
 
 build_benchs:
 	$(call validate_values,build_benchs)

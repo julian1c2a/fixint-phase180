@@ -330,7 +330,10 @@ def main():
         output_suffix = demo_name  # Output name is the demo name
         echo_info(f"Building demo: {category}/{demo_name}...")
     elif target == "tests":
-        source_file = f"tests/{type_name}_{feature}_extracted_tests.cpp"
+        if feature in ["bits", "cmath", "iostreams", "limits", "numeric", "traits", "concepts", "algorithm"]:
+            source_file = f"tests/test_param_{feature}.cpp"
+        else:
+            source_file = f"tests/{type_name}_{feature}_extracted_tests.cpp"
         build_dir = "build/build_tests"
         output_suffix = "tests"
         echo_info(f"Building {type_name} {feature} {target} for all compilers...")

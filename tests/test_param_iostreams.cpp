@@ -4,7 +4,6 @@
 // License: BSL-1.0
 // =============================================================================
 
-#include "int128_parameterized.hpp"
 #include "int128_param_iostreams.hpp"
 #include <iostream>
 #include <sstream>
@@ -327,13 +326,80 @@ int main()
         std::cout << "  ✓ EK positive (real): " << oss2.str() << "\n";
     }
 
+    // ========================================================================
+    // TEST 22: MS-SPECIFIC ROUND-TRIP
+    // ========================================================================
+    {
+        std::cout << "\nTest 22: MS-specific round-trip\n";
+
+        const int128_ms_t ms_pos_orig{0, 98765};
+        const int128_ms_t ms_neg_orig = -ms_pos_orig;
+
+        std::ostringstream oss_pos, oss_neg;
+        oss_pos << ms_pos_orig;
+        oss_neg << ms_neg_orig;
+
+        assert(oss_pos.str() == "98765");
+        assert(oss_neg.str() == "-98765");
+
+        int128_ms_t ms_pos_read, ms_neg_read;
+        std::istringstream iss_pos(oss_pos.str());
+        std::istringstream iss_neg(oss_neg.str());
+
+        iss_pos >> ms_pos_read;
+        iss_neg >> ms_neg_read;
+
+        assert(ms_pos_read == ms_pos_orig);
+        assert(ms_neg_read == ms_neg_orig);
+
+        std::cout << "  ✓ MS round-trip positive: 98765 -> " << oss_pos.str() << " -> " << ms_pos_read << "\n";
+        std::cout << "  ✓ MS round-trip negative: -98765 -> " << oss_neg.str() << " -> " << ms_neg_read << "\n";
+    }
+
+    // ========================================================================
+    // TEST 23: EK-SPECIFIC ROUND-TRIP (and negative)
+    // ========================================================================
+    {
+        std::cout << "\nTest 23: EK-specific round-trip\n";
+
+        const int128_ek_t ek_zero_orig = int128_ek_t::from_string("0");
+        const int128_ek_t ek_pos_orig = int128_ek_t::from_string("12345");
+        const int128_ek_t ek_neg_orig = int128_ek_t::from_string("-54321");
+
+        std::ostringstream oss_zero, oss_pos, oss_neg;
+        oss_zero << ek_zero_orig;
+        oss_pos << ek_pos_orig;
+        oss_neg << ek_neg_orig;
+
+        assert(oss_zero.str() == "0");
+        assert(oss_pos.str() == "12345");
+        assert(oss_neg.str() == "-54321");
+
+        int128_ek_t ek_zero_read, ek_pos_read, ek_neg_read;
+        std::istringstream iss_zero(oss_zero.str());
+        std::istringstream iss_pos(oss_pos.str());
+        std::istringstream iss_neg(oss_neg.str());
+
+        iss_zero >> ek_zero_read;
+        iss_pos >> ek_pos_read;
+        iss_neg >> ek_neg_read;
+
+        assert(ek_zero_read == ek_zero_orig);
+        assert(ek_pos_read == ek_pos_orig);
+        assert(ek_neg_read == ek_neg_orig);
+
+        std::cout << "  ✓ EK round-trip zero: 0 -> " << oss_zero.str() << " -> " << ek_zero_read << "\n";
+        std::cout << "  ✓ EK round-trip positive: 12345 -> " << oss_pos.str() << " -> " << ek_pos_read << "\n";
+        std::cout << "  ✓ EK round-trip negative: -54321 -> " << oss_neg.str() << " -> " << ek_neg_read << "\n";
+    }
+
     std::cout << "\n✅ All stream I/O tests passed!\n";
     std::cout << "\n📝 Summary:\n";
     std::cout << "   - operator<< works for all representations\n";
     std::cout << "   - operator>> works for all representations\n";
     std::cout << "   - Stream flags respected (hex, oct, dec, showbase, showpos, uppercase)\n";
     std::cout << "   - Width, fill, and alignment working\n";
-    std::cout << "   - Round-trip conversion lossless\n";
+    std::cout << "   - Round-trip conversion lossless for TC, MS, and EK\n";
     std::cout << "   - Convenience functions (format, hex, oct, dec, bin)\n";
     std::cout << "   - MS and EK output real values (not stored)\n";
 
