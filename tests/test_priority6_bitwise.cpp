@@ -183,11 +183,8 @@ void test_not_unsigned()
 void test_not_double_invert()
 {
     int128_t x(42LL);
-    // ~~x should equal TC representation of ~(~x)
-    // For TC: ~~x != x (because of two's complement semantics)
-    // For MS: might be different
     int128_t result = ~(~x);
-    ASSERT_TRUE(result != int128_t(0LL));
+    ASSERT_EQ(result, x);
 }
 
 // ============================================================================
@@ -206,12 +203,10 @@ void test_demorgan_laws()
 {
     int128_t x(0x0F);
     int128_t y(0xF0);
-    // ~(x & y) should be ~x | ~y (mod full 128-bit size)
-    // Just verify operations don't crash
+    // ~(x & y) should be ~x | ~y
     int128_t result1 = ~(x & y);
     int128_t result2 = (~x) | (~y);
-    ASSERT_TRUE(result1 != x);
-    ASSERT_TRUE(result2 != x);
+    ASSERT_EQ(result1, result2);
 }
 
 // ============================================================================
