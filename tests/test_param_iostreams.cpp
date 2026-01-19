@@ -27,7 +27,7 @@ int main()
         oss << val;
 
         assert(oss.str() == "42");
-        std::cout << "  ✓ Basic output: 42\n";
+        std::cout << "  OK: Basic output: 42\n";
     }
 
     // ========================================================================
@@ -41,7 +41,7 @@ int main()
         oss << val;
 
         assert(oss.str() == "-42");
-        std::cout << "  ✓ Negative output: -42\n";
+        std::cout << "  OK: Negative output: -42\n";
     }
 
     // ========================================================================
@@ -55,7 +55,7 @@ int main()
         oss << std::hex << val;
 
         assert(oss.str() == "ff");
-        std::cout << "  ✓ Hex output: ff\n";
+        std::cout << "  OK: Hex output: ff\n";
     }
 
     // ========================================================================
@@ -69,7 +69,7 @@ int main()
         oss << std::hex << std::showbase << val;
 
         assert(oss.str() == "0xff");
-        std::cout << "  ✓ Hex with prefix: 0xff\n";
+        std::cout << "  OK: Hex with prefix: 0xff\n";
     }
 
     // ========================================================================
@@ -83,7 +83,7 @@ int main()
         oss << std::hex << std::uppercase << std::showbase << val;
 
         assert(oss.str() == "0XFF");
-        std::cout << "  ✓ Hex uppercase: 0XFF\n";
+        std::cout << "  OK: Hex uppercase: 0XFF\n";
     }
 
     // ========================================================================
@@ -97,7 +97,7 @@ int main()
         oss << std::oct << std::showbase << val;
 
         assert(oss.str() == "0100");
-        std::cout << "  ✓ Octal output: 0100\n";
+        std::cout << "  OK: Octal output: 0100\n";
     }
 
     // ========================================================================
@@ -111,7 +111,7 @@ int main()
         oss << std::setw(10) << std::setfill('0') << val;
 
         assert(oss.str() == "0000000042");
-        std::cout << "  ✓ Width 10, fill '0': 0000000042\n";
+        std::cout << "  OK: Width 10, fill '0': 0000000042\n";
     }
 
     // ========================================================================
@@ -125,7 +125,7 @@ int main()
         oss << std::left << std::setw(10) << std::setfill('*') << val;
 
         assert(oss.str() == "42********");
-        std::cout << "  ✓ Left align: 42********\n";
+        std::cout << "  OK: Left align: 42********\n";
     }
 
     // ========================================================================
@@ -139,7 +139,7 @@ int main()
         oss << std::showpos << val;
 
         assert(oss.str() == "+42");
-        std::cout << "  ✓ Showpos: +42\n";
+        std::cout << "  OK: Showpos: +42\n";
     }
 
     // ========================================================================
@@ -153,7 +153,7 @@ int main()
         iss >> val;
 
         assert((val == uint128_tc_t{0, 42}));
-        std::cout << "  ✓ Basic input: 42\n";
+        std::cout << "  OK: Basic input: 42\n";
     }
 
     // ========================================================================
@@ -167,7 +167,7 @@ int main()
         iss >> val;
 
         assert((val == int128_tc_t{-42}));
-        std::cout << "  ✓ Negative input: -42\n";
+        std::cout << "  OK: Negative input: -42\n";
     }
 
     // ========================================================================
@@ -181,7 +181,7 @@ int main()
         iss >> val;
 
         assert((val == uint128_tc_t{0, 255}));
-        std::cout << "  ✓ Hex input: 0xff = 255\n";
+        std::cout << "  OK: Hex input: 0xff = 255\n";
     }
 
     // ========================================================================
@@ -199,7 +199,7 @@ int main()
         iss >> result;
 
         assert((result == original));
-        std::cout << "  ✓ Round-trip successful\n";
+        std::cout << "  OK: Round-trip successful\n";
     }
 
     // ========================================================================
@@ -216,7 +216,7 @@ int main()
         assert((b == uint128_tc_t{0, 200}));
         assert((c == uint128_tc_t{0, 300}));
 
-        std::cout << "  ✓ Multiple values: 100, 200, 300\n";
+        std::cout << "  OK: Multiple values: 100, 200, 300\n";
     }
 
     // ========================================================================
@@ -229,7 +229,7 @@ int main()
         const auto str1 = iostreams::format(val, 10, 8, '0', false, true, false, false);
 
         assert(str1 == "00000+42");
-        std::cout << "  ✓ format(42, width=8, fill='0', showpos): " << str1 << "\n";
+        std::cout << "  OK: format(42, width=8, fill='0', showpos): " << str1 << "\n";
     }
 
     // ========================================================================
@@ -242,7 +242,7 @@ int main()
         const auto str = iostreams::hex(val, true, true);
 
         assert(str == "0XFF");
-        std::cout << "  ✓ hex(255): " << str << "\n";
+        std::cout << "  OK: hex(255): " << str << "\n";
     }
 
     // ========================================================================
@@ -255,7 +255,7 @@ int main()
         const auto str = iostreams::oct(val, true);
 
         assert(str == "0100");
-        std::cout << "  ✓ oct(64): " << str << "\n";
+        std::cout << "  OK: oct(64): " << str << "\n";
     }
 
     // ========================================================================
@@ -268,7 +268,7 @@ int main()
         const auto str = iostreams::dec(val, true);
 
         assert(str == "+42");
-        std::cout << "  ✓ dec(42, showpos): " << str << "\n";
+        std::cout << "  OK: dec(42, showpos): " << str << "\n";
     }
 
     // ========================================================================
@@ -281,7 +281,7 @@ int main()
         const auto str = iostreams::bin(val, true);
 
         assert(str == "0b101");
-        std::cout << "  ✓ bin(5): " << str << "\n";
+        std::cout << "  OK: bin(5): " << str << "\n";
     }
 
     // ========================================================================
@@ -300,8 +300,8 @@ int main()
         assert(oss1.str() == "42");
         assert(oss2.str() == "-42");
 
-        std::cout << "  ✓ MS positive: " << oss1.str() << "\n";
-        std::cout << "  ✓ MS negative: " << oss2.str() << "\n";
+        std::cout << "  OK: MS positive: " << oss1.str() << "\n";
+        std::cout << "  OK: MS negative: " << oss2.str() << "\n";
     }
 
     // ========================================================================
@@ -322,8 +322,8 @@ int main()
         assert(oss1.str() == "0");
         assert(oss2.str() == "1");
 
-        std::cout << "  ✓ EK zero (real): " << oss1.str() << "\n";
-        std::cout << "  ✓ EK positive (real): " << oss2.str() << "\n";
+        std::cout << "  OK: EK zero (real): " << oss1.str() << "\n";
+        std::cout << "  OK: EK positive (real): " << oss2.str() << "\n";
     }
 
     // ========================================================================
@@ -352,8 +352,8 @@ int main()
         assert(ms_pos_read == ms_pos_orig);
         assert(ms_neg_read == ms_neg_orig);
 
-        std::cout << "  ✓ MS round-trip positive: 98765 -> " << oss_pos.str() << " -> " << ms_pos_read << "\n";
-        std::cout << "  ✓ MS round-trip negative: -98765 -> " << oss_neg.str() << " -> " << ms_neg_read << "\n";
+        std::cout << "  OK: MS round-trip positive: 98765 -> " << oss_pos.str() << " -> " << ms_pos_read << "\n";
+        std::cout << "  OK: MS round-trip negative: -98765 -> " << oss_neg.str() << " -> " << ms_neg_read << "\n";
     }
 
     // ========================================================================
@@ -388,13 +388,13 @@ int main()
         assert(ek_pos_read == ek_pos_orig);
         assert(ek_neg_read == ek_neg_orig);
 
-        std::cout << "  ✓ EK round-trip zero: 0 -> " << oss_zero.str() << " -> " << ek_zero_read << "\n";
-        std::cout << "  ✓ EK round-trip positive: 12345 -> " << oss_pos.str() << " -> " << ek_pos_read << "\n";
-        std::cout << "  ✓ EK round-trip negative: -54321 -> " << oss_neg.str() << " -> " << ek_neg_read << "\n";
+        std::cout << "  OK: EK round-trip zero: 0 -> " << oss_zero.str() << " -> " << ek_zero_read << "\n";
+        std::cout << "  OK: EK round-trip positive: 12345 -> " << oss_pos.str() << " -> " << ek_pos_read << "\n";
+        std::cout << "  OK: EK round-trip negative: -54321 -> " << oss_neg.str() << " -> " << ek_neg_read << "\n";
     }
 
-    std::cout << "\n✅ All stream I/O tests passed!\n";
-    std::cout << "\n📝 Summary:\n";
+    std::cout << "\nOK: All stream I/O tests passed!\n";
+    std::cout << "\n>> Summary:\n";
     std::cout << "   - operator<< works for all representations\n";
     std::cout << "   - operator>> works for all representations\n";
     std::cout << "   - Stream flags respected (hex, oct, dec, showbase, showpos, uppercase)\n";
