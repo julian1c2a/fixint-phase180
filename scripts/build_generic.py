@@ -299,7 +299,7 @@ def main():
         
         valid_features = ["t", "tt", "traits", "limits", "concepts", "algorithm", "algorithms", "iostreams",
                           "bits", "cmath", "numeric", "ranges", "format", "safe",
-                          "thread_safety", "comparison_boost", "interop"]
+                          "thread_safety", "comparison_boost", "interop", "priority6_bitwise"]
         if feature not in valid_features:
             print(f"Error: FEATURE debe ser uno de: {', '.join(valid_features)}")
             sys.exit(1)
@@ -332,6 +332,8 @@ def main():
     elif target == "tests":
         if feature in ["bits", "cmath", "iostreams", "limits", "numeric", "traits", "concepts", "algorithm"]:
             source_file = f"tests/test_param_{feature}.cpp"
+        elif feature == "priority6_bitwise":
+            source_file = "tests/test_priority6_bitwise.cpp"
         else:
             source_file = f"tests/{type_name}_{feature}_extracted_tests.cpp"
         build_dir = "build/build_tests"
