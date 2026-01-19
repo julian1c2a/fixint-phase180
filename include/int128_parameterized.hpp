@@ -1978,41 +1978,24 @@ namespace nstd
          * @return Number of consecutive zero bits starting from LSB
          *
          * @details
-         * - Returns 128 if all bits are zero
+         * - Returns 128 (or 127 for MS magnitude) if all bits are zero
          * - For MS signed: operates on magnitude only (ignores sign bit)
          * - Uses __builtin_ctzll for hardware optimization
-         *
-         * @example
-         * uint128_tc_t(0, 8).trailing_zeros() == 3  // 0b1000 has 3 trailing zeros
          */
         constexpr int trailing_zeros() const noexcept
         {
             if constexpr (is_magnitude_sign && is_signed)
             {
-                // MS: operate on magnitude (clear sign bit)
                 const uint64_t mag_high{data[1] & ~(1ULL << 63)};
-                if (data[0] != 0)
-                {
-                    return __builtin_ctzll(data[0]);
-                }
-                if (mag_high != 0)
-                {
-                    return 64 + __builtin_ctzll(mag_high);
-                }
-                return 127; // All magnitude bits are zero (only sign bit may be set)
+                if (data[0] != 0) { return __builtin_ctzll(data[0]); }
+                if (mag_high != 0) { return 64 + __builtin_ctzll(mag_high); }
+                return 127; // MS magnitude is 127 bits
             }
             else
             {
-                // TC/unsigned: standard implementation
-                if (data[0] != 0)
-                {
-                    return __builtin_ctzll(data[0]);
-                }
-                if (data[1] != 0)
-                {
-                    return 64 + __builtin_ctzll(data[1]);
-                }
-                return 128; // All bits zero
+                if (data[0] != 0) { return __builtin_ctzll(data[0]); }
+                if (data[1] != 0) { return 64 + __builtin_ctzll(data[1]); }
+                return 128;
             }
         }
 
@@ -2022,261 +2005,174 @@ namespace nstd
          * @return Number of consecutive zero bits starting from MSB
          *
          * @details
-         * - Returns 128 if all bits are zero
-         * - For MS signed: counts in magnitude only (127 bits)
-         * - For TC signed: counts including sign bit (128 bits)
-         *
-         * @example
-         * uint128_tc_t(0, 1).leading_zeros() == 127  // Only LSB set
+         * - For MS signed: operates on 127-bit magnitude
+         * - Uses __builtin_clzll for hardware optimization
          */
         constexpr int leading_zeros() const noexcept
         {
             if constexpr (is_magnitude_sign && is_signed)
             {
-                // MS: count in magnitude (127 bits, MSB is sign)
                 const uint64_t mag_high{data[1] & ~(1ULL << 63)};
-                if (mag_high != 0)
-                {
-                    return __builtin_clzll(mag_high) - 1; // -1 because MSB is sign
-                }
-                if (data[0] != 0)
-                {
-                    return 63 + __builtin_clzll(data[0]);
-                }
-                return 127; // All magnitude bits zero
+                if (mag_high != 0) { return __builtin_clzll(mag_high) - 1; }
+                if (data[0] != 0) { return 63 + __builtin_clzll(data[0]); }
+                return 127; // MS magnitude is 127 bits
             }
             else
             {
-                // TC/unsigned: standard implementation
-                if (data[1] != 0)
-                {
-                    return __builtin_clzll(data[1]);
-                }
-                if (data[0] != 0)
-                {
-                    return 64 + __builtin_clzll(data[0]);
-                }
-                return 128; // All bits zero
+                if (data[1] != 0) { return __builtin_clzll(data[1]); }
+                if (data[0] != 0) { return 64 + __builtin_clzll(data[0]); }
+                return 128;
             }
         }
 
         /**
-         * @brief Get position of highest set bit (1-based)
+         * @brief Count set bits (population count)
          *
-         * @return Position of highest set bit, or 0 if value is zero
-         *
-         * @details
-         * - For MS: operates on magnitude only (127 bits)
-         * - For TC/unsigned: operates on full 128 bits
-         * - Equivalent to: total_bits - leading_zeros() (for non-zero values)
-         *
-         * @example
-         * uint128_tc_t(0, 8).bit_width() == 4  // 0b1000 -> bit 4
-         */
-        constexpr int bit_width() const noexcept
-        {
-            if (is_zero())
-            {
-                return 0;
-            }
-
-            if constexpr (is_magnitude_sign && is_signed)
-            {
-                // MS: bit_width in 127-bit magnitude
-                return 127 - leading_zeros();
-            }
-            else
-            {
-                // TC/unsigned: full 128 bits
-                return 128 - leading_zeros();
-            }
-        }
-
-        /**
-         * @brief Check if value is a power of 2
-         *
-         * @return true if exactly one bit is set, false otherwise
+         * @return The number of bits set to 1
          *
          * @details
-         * - For MS signed: checks magnitude only (negative powers of 2 return false)
-         * - Zero returns false
-         *
-         * @example
-         * uint128_tc_t(0, 8).is_power_of_2() == true   // 8 = 2^3
-         * uint128_tc_t(0, 6).is_power_of_2() == false  // 6 = 0b110
-         */
-        constexpr bool is_power_of_2() const noexcept
-        {
-            if (is_zero())
-            {
-                return false;
-            }
-
-            if constexpr (is_magnitude_sign && is_signed)
-            {
-                // MS: check magnitude only, ignore sign
-                const uint64_t mag_high{data[1] & ~(1ULL << 63)};
-                const uint64_t mag_low{data[0]};
-
-                // Power of 2: exactly one bit set in magnitude
-                if (mag_high != 0)
-                {
-                    return (mag_high & (mag_high - 1)) == 0 && mag_low == 0;
-                }
-                else
-                {
-                    return (mag_low & (mag_low - 1)) == 0;
-                }
-            }
-            else
-            {
-                // TC/unsigned: standard implementation
-                // Power of 2: n & (n-1) == 0 for n != 0
-                const int128_param_t minus_one{*this};
-                int128_param_t temp{*this};
-                temp -= int128_param_t{0, 1};
-
-                // Check if exactly one bit set
-                if (data[1] != 0)
-                {
-                    return (data[1] & (data[1] - 1)) == 0 && data[0] == 0;
-                }
-                else
-                {
-                    return (data[0] & (data[0] - 1)) == 0;
-                }
-            }
-        }
-
-        /**
-         * @brief Count number of bits set to 1 (population count)
-         *
-         * @return Number of bits set to 1
-         *
-         * @details
-         * - For MS signed: counts bits in magnitude only (127 bits)
-         * - Uses __builtin_popcountll for hardware optimization
-         *
-         * @example
-         * uint128_tc_t(0, 0b1101).count_ones() == 3
+         * - For MS signed: operates on magnitude only
          */
         constexpr int count_ones() const noexcept
         {
             if constexpr (is_magnitude_sign && is_signed)
             {
-                // MS: count in magnitude only (ignore sign bit)
-                const uint64_t mag_high{data[1] & ~(1ULL << 63)};
-                return __builtin_popcountll(data[0]) + __builtin_popcountll(mag_high);
+                const uint64_t mag_high = data[1] & ~(1ULL << 63);
+                return __builtin_popcountll(mag_high) + __builtin_popcountll(data[0]);
             }
             else
             {
-                // TC/unsigned: count all bits
-                return __builtin_popcountll(data[0]) + __builtin_popcountll(data[1]);
+                return __builtin_popcountll(data[1]) + __builtin_popcountll(data[0]);
+            }
+        }
+
+        /// @brief Alias for count_ones()
+        constexpr int popcount() const noexcept { return count_ones(); }
+
+        /**
+         * @brief Check if the number is a power of 2
+         *
+         * @return true if the number is a power of 2, false otherwise
+         *
+         * @details For MS signed, operates on magnitude. Negative numbers are not powers of 2.
+         */
+        constexpr bool is_power_of_2() const noexcept
+        {
+            if constexpr (is_signed) {
+                if(is_negative()) return false;
+            }
+            if (is_zero()) return false;
+            return count_ones() == 1;
+        }
+
+        /**
+         * @brief Returns the minimum number of bits required to represent the value.
+         *
+         * @return The bit width of the value.
+         */
+        constexpr int bit_width() const noexcept
+        {
+            if (is_zero()) return 0;
+
+            if constexpr (is_magnitude_sign && is_signed) {
+                return 127 - leading_zeros();
+            }
+            else {
+                 return 128 - leading_zeros();
             }
         }
 
         /**
-         * @brief Alias for count_ones() (STL-compatible name)
-         */
-        constexpr int popcount() const noexcept
-        {
-            return count_ones();
-        }
-
-        /**
-         * @brief Rotate bits left (circular shift)
+         * @brief Performs a circular left shift (rotate)
          *
-         * @param shift Number of positions to rotate (modulo 128)
-         * @return New value with bits rotated left
-         *
-         * @details
-         * - For MS signed: rotates magnitude, preserves sign bit
-         * - Bits shifted out from left re-enter at right
-         *
-         * @example
-         * uint128_tc_t(0x8000000000000000ULL, 0x1).rotate_left(1)
-         *   -> uint128_tc_t(0x0000000000000000ULL, 0x3)
+         * @param shift The number of bits to rotate left
+         * @return The rotated value
          */
         constexpr int128_param_t rotate_left(int shift) const noexcept
         {
-            shift &= 127; // Normalize to [0, 127]
-            if (shift == 0)
-            {
-                return *this;
-            }
+            if constexpr (is_magnitude_sign && is_signed) {
+                const int s = shift & 127;
+                if (s == 0) return *this;
 
-            if constexpr (is_magnitude_sign && is_signed)
-            {
-                // MS: rotate magnitude, preserve sign
-                const uint64_t sign_bit{data[1] & (1ULL << 63)};
-                uint64_t mag_high{data[1] & ~(1ULL << 63)};
-                uint64_t mag_low{data[0]};
+                uint64_t sign_bit = data[1] & (1ULL << 63);
+                int128_param_t temp(data[1] & ~(1ULL << 63), data[0]);
 
-                // Rotate 127-bit magnitude
-                if (shift >= 64)
-                {
-                    // Major rotation: swap limbs
-                    const int sub_shift{shift - 64};
-                    const uint64_t new_high{(mag_low << sub_shift) | (mag_high >> (63 - sub_shift))};
-                    const uint64_t new_low{(mag_high << sub_shift) | (mag_low >> (63 - sub_shift))};
-                    return int128_param_t{new_high | sign_bit, new_low};
-                }
-                else
-                {
-                    // Minor rotation
-                    const uint64_t new_high{(mag_high << shift) | (mag_low >> (64 - shift))};
-                    const uint64_t new_low{(mag_low << shift) | (mag_high >> (63 - shift))};
-                    return int128_param_t{new_high | sign_bit, new_low & ~(1ULL << 63)};
-                }
+                int128_param_t shifted = temp << s;
+                int128_param_t rotated = temp >> (127 - s);
+
+                int128_param_t result = shifted | rotated;
+                result.data[1] &= ~(1ULL << 63);
+                result.data[1] |= sign_bit;
+                return result;
             }
             else
             {
-                // TC/unsigned: standard 128-bit rotation
-                if (shift >= 64)
-                {
-                    const int sub_shift{shift - 64};
-                    const uint64_t new_high{(data[0] << sub_shift) | (data[1] >> (64 - sub_shift))};
-                    const uint64_t new_low{(data[1] << sub_shift) | (data[0] >> (64 - sub_shift))};
-                    return int128_param_t{new_high, new_low};
-                }
-                else
-                {
-                    const uint64_t new_high{(data[1] << shift) | (data[0] >> (64 - shift))};
-                    const uint64_t new_low{(data[0] << shift) | (data[1] >> (64 - shift))};
-                    return int128_param_t{new_high, new_low};
-                }
+                const int s = shift & 127;
+                if (s == 0) return *this;
+                return (*this << s) | (*this >> (128 - s));
             }
         }
 
         /**
-         * @brief Rotate bits right (circular shift)
+         * @brief Performs a circular right shift (rotate)
          *
-         * @param shift Number of positions to rotate (modulo 128)
-         * @return New value with bits rotated right
-         *
-         * @details
-         * - For MS signed: rotates magnitude, preserves sign bit
-         * - Bits shifted out from right re-enter at left
-         *
-         * @example
-         * uint128_tc_t(0, 0x8000000000000001ULL).rotate_right(1)
-         *   -> uint128_tc_t(0x8000000000000000ULL, 0x4000000000000000ULL)
+         * @param shift The number of bits to rotate right
+         * @return The rotated value
          */
         constexpr int128_param_t rotate_right(int shift) const noexcept
         {
-            shift &= 127; // Normalize to [0, 127]
-            if (shift == 0)
-            {
-                return *this;
+             if constexpr (is_magnitude_sign && is_signed) {
+                const int s = shift & 127;
+                if (s == 0) return *this;
+                return rotate_left(127 - s);
             }
-
-            // Rotate right is same as rotate left by (128 - shift)
-            return rotate_left(128 - shift);
+            else
+            {
+                const int s = shift & 127;
+                if (s == 0) return *this;
+                return (*this >> s) | (*this << (128 - s));
+            }
         }
 
-        // =========================================================================
-        // Helper Methods (Priority 9)
-        // =========================================================================
+        /**
+         * @brief Reverses the order of bits.
+         *
+         * @return Value with all bits reversed.
+         *
+         * @details For MS signed, reverses 127 magnitude bits, preserves sign.
+         */
+        constexpr int128_param_t reverse_bits() const noexcept
+        {
+            auto reverse64 = [](uint64_t n) {
+                n = (n >> 32) | (n << 32);
+                n = ((n & 0xFFFF0000FFFF0000ULL) >> 16) | ((n & 0x0000FFFF0000FFFFULL) << 16);
+                n = ((n & 0xFF00FF00FF00FF00ULL) >> 8)  | ((n & 0x00FF00FF00FF00FFULL) << 8);
+                n = ((n & 0xF0F0F0F0F0F0F0F0ULL) >> 4)  | ((n & 0x0F0F0F0F0F0F0F0FULL) << 4);
+                n = ((n & 0xCCCCCCCCCCCCCCCCULL) >> 2)  | ((n & 0x3333333333333333ULL) << 2);
+                n = ((n & 0xAAAAAAAAAAAAAAAAULL) >> 1)  | ((n & 0x5555555555555555ULL) << 1);
+                return n;
+            };
+
+            if constexpr (is_magnitude_sign && is_signed)
+            {
+                uint64_t sign_bit = data[1] & (1ULL << 63);
+                uint64_t mag_high = data[1] & ~(1ULL << 63);
+
+                uint64_t reversed_low_part = reverse64(mag_high);
+                uint64_t reversed_high_part = reverse64(data[0]);
+
+                int128_param_t temp(reversed_high_part, reversed_low_part);
+                temp >>= 1;
+
+                temp.data[1] |= sign_bit;
+                return temp;
+            }
+            else
+            {
+                return int128_param_t(reverse64(data[0]), reverse64(data[1]));
+            }
+        }
+
 
         /**
          * @brief Division with remainder (divmod operation)
