@@ -19,6 +19,7 @@
 // @version    1.75.0
 // =============================================================================
 
+// Test comment
 #ifndef INT128_PARAM_IOSTREAMS_HPP
 #define INT128_PARAM_IOSTREAMS_HPP
 
@@ -255,7 +256,35 @@ namespace nstd
             }
 
             // Convert to target representation
-            result.value = T(temp_val);
+            if constexpr (T::is_excess_k)
+            {
+                constexpr uint64_t bias_high = (1ULL << 62);
+                constexpr uint64_t bias_low = 0;
+                int128_param_t<signedness::signed_type, representation_form::twos_complement> bias_tc(bias_high, bias_low);
+                auto final_val = temp_val + bias_tc;
+                result.value.set_high(final_val.high());
+                result.value.set_low(final_val.low());
+            }
+            else if constexpr (T::is_magnitude_sign)
+            {
+                if (temp_val.is_negative())
+                {
+                    auto mag = -temp_val;
+                    result.value.set_high(mag.high() | (1ULL << 63));
+                    result.value.set_low(mag.low());
+                }
+                else
+                {
+                    result.value.set_high(temp_val.high());
+                    result.value.set_low(temp_val.low());
+                }
+            }
+            else // Twos complement
+            {
+                result.value.set_high(temp_val.high());
+                result.value.set_low(temp_val.low());
+            }
+
             result.error = parse_error::success;
             return result;
         }
