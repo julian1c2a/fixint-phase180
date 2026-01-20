@@ -316,7 +316,7 @@ namespace nstd
             }
             else if constexpr (is_magnitude_sign)
             {
-                return (data[1] & (1ULL << 63)) != 0 && !is_zero();
+                return (data[1] & (1ULL << 63)) != 0;
             }
             else // excess_k
             {

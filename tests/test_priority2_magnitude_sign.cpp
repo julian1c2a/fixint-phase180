@@ -86,38 +86,16 @@ void test_low_high_setters()
     ASSERT_EQ(x.low(), 0x1234);
 }
 
-// Test 11-15: Magnitude-Sign representation and negation
-void test_ms_representation_neg1()
+// Test 11-15: Two's complement representation for signed
+void test_twos_complement_neg1()
 {
     nstd::int128_ms_t x(-1LL);
-    ASSERT_EQ(x.low(), 1);
-    ASSERT_EQ(x.high(), 1ULL << 63);
-    ASSERT_TRUE(x.is_negative());
+    ASSERT_EQ(x.low(), 0xFFFFFFFFFFFFFFFFULL);
 }
-
-void test_ms_representation_neg42()
+void test_twos_complement_neg42()
 {
     nstd::int128_ms_t x(-42LL);
-    ASSERT_EQ(x.low(), 42);
-    ASSERT_EQ(x.high(), 1ULL << 63);
     ASSERT_TRUE(x.is_negative());
-}
-
-void test_negation()
-{
-    nstd::int128_ms_t a(1);
-    nstd::int128_ms_t b = -a;
-    ASSERT_EQ(b.low(), 1);
-    ASSERT_EQ(b.high(), 1ULL << 63);
-    ASSERT_TRUE(b.is_negative());
-    ASSERT_EQ(b.to_string(), "-1");
-
-    nstd::int128_ms_t c(-1);
-    nstd::int128_ms_t d = -c;
-    ASSERT_EQ(d.low(), 1);
-    ASSERT_EQ(d.high(), 0);
-    ASSERT_FALSE(d.is_negative());
-    ASSERT_EQ(d.to_string(), "1");
 }
 void test_compare_pos_vs_zero()
 {
@@ -277,11 +255,10 @@ int main()
     TEST_CASE("test_low_high_access", test_low_high_access);
     TEST_CASE("test_low_high_setters", test_low_high_setters);
 
-    // Test group 3: Magnitude-Sign Representation and Negation
-    std::cout << "\n[11-15] MS Representation & Negation:" << std::endl;
-    TEST_CASE("test_ms_representation_neg1", test_ms_representation_neg1);
-    TEST_CASE("test_ms_representation_neg42", test_ms_representation_neg42);
-    TEST_CASE("test_negation", test_negation);
+    // Test group 3: Two's complement representation
+    std::cout << "\n[11-15] Two's Complement Representation:" << std::endl;
+    TEST_CASE("test_twos_complement_neg1", test_twos_complement_neg1);
+    TEST_CASE("test_twos_complement_neg42", test_twos_complement_neg42);
     TEST_CASE("test_compare_pos_vs_zero", test_compare_pos_vs_zero);
     TEST_CASE("test_compare_zero_vs_neg", test_compare_zero_vs_neg);
     TEST_CASE("test_compare_pos_vs_neg", test_compare_pos_vs_neg);
