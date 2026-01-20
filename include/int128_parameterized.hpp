@@ -211,20 +211,43 @@ namespace nstd
                   typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
         explicit constexpr int128_param_t(T value) noexcept
         {
-
-            if constexpr (std::is_signed_v<T>)
+            if constexpr (is_magnitude_sign && is_signed)
             {
-                // Always sign-extend (interpret as Two's Complement internally)
-                // Users can convert to other representations explicitly if needed
-                const bool negative = value < 0;
-                data[0] = static_cast<std::uint64_t>(value);
-                data[1] = negative ? std::uint64_t(-1) : 0;
+                if constexpr (std::is_signed_v<T>)
+                {
+                    if (value < 0)
+                    {
+                        using UnsignedT = std::make_unsigned_t<T>;
+                        data[0] = static_cast<uint64_t>(-static_cast<UnsignedT>(value));
+                        data[1] = (1ULL << 63); // Set sign bit
+                    }
+                    else
+                    {
+                        data[0] = static_cast<uint64_t>(value);
+                        data[1] = 0;
+                    }
+                }
+                else // T is unsigned
+                {
+                    data[0] = static_cast<uint64_t>(value);
+                    data[1] = (sizeof(T) > sizeof(uint64_t)) ? static_cast<uint64_t>(value >> 64) : 0;
+                }
             }
             else
             {
-                // Zero-extend for unsigned types
-                data[0] = static_cast<std::uint64_t>(value);
-                data[1] = 0;
+                if constexpr (std::is_signed_v<T>)
+                {
+                    // Original logic for TC and EK
+                    const bool negative = value < 0;
+                    data[0] = static_cast<std::uint64_t>(value);
+                    data[1] = negative ? std::uint64_t(-1) : 0;
+                }
+                else
+                {
+                    // This handles unsigned T for TC, EK, and also for uint128_ms_t
+                    data[0] = static_cast<std::uint64_t>(value);
+                    data[1] = (sizeof(T) > sizeof(uint64_t)) ? static_cast<uint64_t>(value >> 64) : 0;
+                }
             }
         }
 
@@ -293,7 +316,7 @@ namespace nstd
             }
             else if constexpr (is_magnitude_sign)
             {
-                return (data[1] & (1ULL << 63)) != 0;
+                return (data[1] & (1ULL << 63)) != 0 && !is_zero();
             }
             else // excess_k
             {
