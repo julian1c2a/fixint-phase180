@@ -153,6 +153,114 @@ namespace nstd
     // ========================================================================
     // STREAM INPUT OPERATOR (operator>>)
     // ========================================================================
+    
+    namespace detail {
+        template <typename T>
+        parse_result<T> parse_string_with_base(const char* str, int base) noexcept
+        {
+            parse_result<T> result{};
+
+            if (!str) {
+                result.error = parse_error::null_pointer;
+                result.error_index = 0;
+                return result;
+            }
+
+            if (*str == '\0') {
+                result.error = parse_error::empty_string;
+                result.error_index = 0;
+                return result;
+            }
+
+            const char* ptr = str;
+            size_t index = 0;
+            bool is_negative = false;
+
+            if constexpr (T::is_signed) {
+                if (*ptr == '-') {
+                    is_negative = true;
+                    ++ptr;
+                    ++index;
+                } else if (*ptr == '+') {
+                    ++ptr;
+                    ++index;
+                }
+            }
+
+            // Auto-detect base from prefix if not specified
+            if (base == 0 || base == 16 || base == 8 || base == 2) {
+                if (*ptr == '0' && *(ptr + 1) != '\0') {
+                    char next = *(ptr + 1);
+                    if ((next == 'x' || next == 'X') && (base == 0 || base == 16)) {
+                        base = 16;
+                        ptr += 2;
+                        index += 2;
+                    } else if ((next == 'b' || next == 'B') && (base == 0 || base == 2)) {
+                        base = 2;
+                        ptr += 2;
+                        index += 2;
+                    } else if (next >= '0' && next <= '7' && (base == 0 || base == 8)) {
+                        base = 8;
+                    }
+                }
+            }
+             if (base == 0) base = 10;
+
+
+            int128_param_t<signedness::signed_type, representation_form::twos_complement> temp_val{};
+            bool found_digit = false;
+            size_t digit_start_index = index;
+
+            while (*ptr != '\0') {
+                unsigned digit = 0;
+                char c = *ptr;
+
+                if (c >= '0' && c <= '9') { digit = c - '0'; }
+                else if (c >= 'a' && c <= 'z') { digit = c - 'a' + 10; }
+                else if (c >= 'A' && c <= 'Z') { digit = c - 'A' + 10; }
+                else {
+                    result.error = parse_error::invalid_character;
+                    result.error_index = index;
+                    return result;
+                }
+
+                if (digit >= static_cast<unsigned>(base)) {
+                    result.error = parse_error::digit_out_of_range;
+                    result.error_index = index;
+                    return result;
+                }
+
+                found_digit = true;
+                auto old_value = temp_val;
+                temp_val = temp_val * base + digit;
+                
+                if (temp_val < old_value && digit != 0) {
+                    result.error = parse_error::overflow;
+                    result.error_index = index;
+                    return result;
+                }
+
+                ++ptr;
+                ++index;
+            }
+
+            if (!found_digit) {
+                result.error = parse_error::no_digits;
+                result.error_index = digit_start_index;
+                return result;
+            }
+
+            if (is_negative) {
+                temp_val = -temp_val;
+            }
+
+            // Convert to target representation
+            result.value = T(temp_val);
+            result.error = parse_error::success;
+            return result;
+        }
+    } // namespace detail
+
 
     /**
      * @brief Stream input operator
@@ -164,10 +272,7 @@ namespace nstd
      * - Respects stream flags (hex, oct, dec)
      * - Auto-detects base from prefix (0x, 0)
      * - Sets failbit on parse error
-     * - Representation-aware (uses from_string() internally)
-     *
-     * @note For EK: Reads real value (not stored value).
-     *       Uses from_string() which creates proper EK encoding.
+     * - Representation-aware
      */
     template <signedness S, representation_form F>
     std::istream &operator>>(std::istream &is, int128_param_t<S, F> &value)
@@ -187,29 +292,39 @@ namespace nstd
             }
             str += c;
 
-            // Stop at reasonable length (max 130 chars for 128-bit in binary)
+            // Stop at reasonable length
             if (str.size() > 130)
                 break;
         }
 
-        // Try to parse
         if (str.empty())
         {
             is.setstate(std::ios_base::failbit);
             return is;
         }
 
-        try
+        // Determine base from stream flags
+        const std::ios_base::fmtflags flags = is.flags();
+        int base = 0; // 0 means auto-detect from prefix
+        if (flags & std::ios_base::hex) base = 16;
+        else if (flags & std::ios_base::oct) base = 8;
+        else if (flags & std::ios_base::dec) base = 10;
+        
+
+        auto result = detail::parse_string_with_base<int128_param_t<S, F>>(str.c_str(), base);
+
+        if (result.success())
         {
-            value = int128_param_t<S, F>::from_string(str.c_str());
+            value = result.value;
         }
-        catch (...)
+        else
         {
             is.setstate(std::ios_base::failbit);
         }
 
         return is;
     }
+
 
     // ========================================================================
     // CONVENIENCE FORMATTING FUNCTIONS

@@ -1,0 +1,149 @@
+name: Release Build
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  # ============================================================================
+  # Build Release Binaries for All Compilers
+  # ============================================================================
+  build-release:
+    name: Release - ${{ matrix.compiler }}
+    runs-on: windows-latest
+    
+    strategy:
+      matrix:
+        compiler: [gcc, clang, msvc, intel]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: true
+        install: >-
+          mingw-w64-ucrt-x86_64-gcc
+          mingw-w64-ucrt-x86_64-clang
+          mingw-w64-ucrt-x86_64-cmake
+          mingw-w64-ucrt-x86_64-ninja
+          python
+          zip
+    
+    - name: Setup MSVC
+      if: matrix.compiler == 'msvc'
+      uses: microsoft/setup-msbuild@v2
+    
+    - name: Setup Intel oneAPI
+      if: matrix.compiler == 'intel'
+      uses: rscohn2/setup-oneapi@v0
+      with:
+        components: |
+          icx
+          dpcpp
+    
+    - name: Build all with ${{ matrix.compiler }}
+      shell: msys2 {0}
+      run: |
+        # Configurar entorno
+        if [ "${{ matrix.compiler }}" == "msvc" ]; then
+          source <(python scripts/vcvarsall.py)
+        elif [ "${{ matrix.compiler }}" == "intel" ]; then
+          source <(python scripts/setvarsall_intel.py)
+        fi
+        
+        # Build tests
+        chmod +x scripts/build_extracted_tests.bash
+        ./scripts/build_extracted_tests.bash ${{ matrix.compiler }}
+        
+        # Build benchmarks
+        chmod +x scripts/build_benchmarks.bash
+        ./scripts/build_benchmarks.bash ${{ matrix.compiler }}
+    
+    - name: Package release - ${{ matrix.compiler }}
+      shell: msys2 {0}
+      run: |
+        mkdir -p release-package
+        
+        # Copiar ejecutables
+        cp -r build/build_tests/${{ matrix.compiler }}/release release-package/tests
+        cp -r build/build_benchmarks/${{ matrix.compiler }}/release release-package/benchmarks
+        
+        # Copiar headers
+        cp -r include release-package/
+        
+        # Copiar documentación
+        cp README.md release-package/
+        cp LICENSE.txt release-package/
+        cp -r documentation release-package/
+        
+        # Crear archivo zip
+        cd release-package
+        zip -r ../int128-${{ matrix.compiler }}-windows-x64.zip .
+    
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-${{ matrix.compiler }}
+        path: int128-${{ matrix.compiler }}-windows-x64.zip
+        retention-days: 90
+
+  # ============================================================================
+  # Create GitHub Release
+  # ============================================================================
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build-release
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Download all release artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: release-artifacts/
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: release-artifacts/**/*.zip
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        body: |
+          ## 🚀 int128 Release
+          
+          Biblioteca C++20 de enteros de 128 bits (uint128_t + int128_t)
+          
+          ### 📦 Binarios Incluidos
+          - **GCC** - MinGW-w64 UCRT64
+          - **Clang** - LLVM/Clang
+          - **MSVC** - Microsoft Visual C++
+          - **Intel** - Intel oneAPI C++ Compiler
+          
+          ### 📚 Contenido
+          - Tests compilados
+          - Benchmarks
+          - Headers (`include/`)
+          - Documentación completa
+          
+          ### 🔧 Uso
+          1. Descargar el archivo para tu compilador
+          2. Extraer el contenido
+          3. Incluir headers: `#include "include/int128.hpp"`
+          4. Ejecutar tests o benchmarks desde las carpetas correspondientes
+          
+          ---
+          **Compiladores usados:**
+          - GCC 11+ / Clang 13+ / MSVC 19.50+ / Intel oneAPI 2025+
+          - C++20 o superior requerido
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

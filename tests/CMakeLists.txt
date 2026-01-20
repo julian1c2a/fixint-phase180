@@ -11,6 +11,10 @@ foreach(TEST_FILE ${TEST_SOURCES})
     target_include_directories(${TEST_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/include)
     target_compile_features(${TEST_NAME} PRIVATE cxx_std_20)
     
+    # Set output directory for test executables
+    set_target_properties(${TEST_NAME} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build_tests)
+    
+    
     # Add as CTest
     add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
 endforeach()

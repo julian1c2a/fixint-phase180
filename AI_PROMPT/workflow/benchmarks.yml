@@ -1,0 +1,165 @@
+name: Benchmarks - Full Suite
+
+on:
+  schedule:
+    # Ejecutar benchmarks completos semanalmente (domingos a las 00:00 UTC)
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+    inputs:
+      compiler:
+        description: 'Compiler to benchmark'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - gcc
+          - clang
+          - msvc
+          - intel
+
+jobs:
+  # ============================================================================
+  # Full Benchmark Suite - All Compilers
+  # ============================================================================
+  benchmark-all-compilers:
+    name: Benchmark - ${{ matrix.compiler }}
+    runs-on: windows-latest
+    if: github.event.inputs.compiler == 'all' || github.event.inputs.compiler == ''
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang, msvc, intel]
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: true
+        install: >-
+          mingw-w64-ucrt-x86_64-gcc
+          mingw-w64-ucrt-x86_64-clang
+          mingw-w64-ucrt-x86_64-cmake
+          mingw-w64-ucrt-x86_64-ninja
+          python
+    
+    - name: Setup MSVC
+      if: matrix.compiler == 'msvc'
+      uses: microsoft/setup-msbuild@v2
+    
+    - name: Setup Intel oneAPI
+      if: matrix.compiler == 'intel'
+      uses: rscohn2/setup-oneapi@v0
+      with:
+        components: |
+          icx
+          dpcpp
+    
+    - name: Configure environment - ${{ matrix.compiler }}
+      shell: msys2 {0}
+      run: |
+        if [ "${{ matrix.compiler }}" == "msvc" ]; then
+          source <(python scripts/vcvarsall.py)
+        elif [ "${{ matrix.compiler }}" == "intel" ]; then
+          source <(python scripts/setvarsall_intel.py)
+        fi
+    
+    - name: Build benchmarks - ${{ matrix.compiler }}
+      shell: msys2 {0}
+      run: |
+        if [ "${{ matrix.compiler }}" == "msvc" ]; then
+          source <(python scripts/vcvarsall.py)
+        elif [ "${{ matrix.compiler }}" == "intel" ]; then
+          source <(python scripts/setvarsall_intel.py)
+        fi
+        chmod +x scripts/build_benchmarks.bash
+        ./scripts/build_benchmarks.bash ${{ matrix.compiler }}
+    
+    - name: Run benchmarks - ${{ matrix.compiler }}
+      shell: msys2 {0}
+      run: |
+        if [ "${{ matrix.compiler }}" == "msvc" ]; then
+          source <(python scripts/vcvarsall.py)
+        elif [ "${{ matrix.compiler }}" == "intel" ]; then
+          source <(python scripts/setvarsall_intel.py)
+        fi
+        chmod +x scripts/run_benchmarks.bash
+        ./scripts/run_benchmarks.bash ${{ matrix.compiler }}
+    
+    - name: Upload benchmark results - ${{ matrix.compiler }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-${{ matrix.compiler }}
+        path: |
+          benchmark_results/
+          build/build_benchmarks/${{ matrix.compiler }}/release/
+        retention-days: 90
+
+  # ============================================================================
+  # Generate Comparison Report
+  # ============================================================================
+  benchmark-report:
+    name: Generate Benchmark Report
+    runs-on: ubuntu-latest
+    needs: benchmark-all-compilers
+    if: always()
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Download all benchmark results
+      uses: actions/download-artifact@v4
+      with:
+        path: all-benchmarks/
+    
+    - name: Generate comparison report
+      run: |
+        echo "# 📊 Benchmark Comparison Report" > benchmark-report.md
+        echo "" >> benchmark-report.md
+        echo "**Date:** $(date)" >> benchmark-report.md
+        echo "**Commit:** ${{ github.sha }}" >> benchmark-report.md
+        echo "" >> benchmark-report.md
+        echo "## Results by Compiler" >> benchmark-report.md
+        echo "" >> benchmark-report.md
+        
+        for compiler in gcc clang msvc intel; do
+          echo "### $compiler" >> benchmark-report.md
+          if [ -d "all-benchmarks/benchmark-results-$compiler" ]; then
+            echo "✅ Completed" >> benchmark-report.md
+            if [ -f "all-benchmarks/benchmark-results-$compiler/benchmark_results/summary.txt" ]; then
+              echo "\`\`\`" >> benchmark-report.md
+              cat "all-benchmarks/benchmark-results-$compiler/benchmark_results/summary.txt" >> benchmark-report.md
+              echo "\`\`\`" >> benchmark-report.md
+            fi
+          else
+            echo "❌ Failed or not available" >> benchmark-report.md
+          fi
+          echo "" >> benchmark-report.md
+        done
+    
+    - name: Upload comparison report
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-comparison-report
+        path: benchmark-report.md
+        retention-days: 365
+    
+    - name: Comment on PR (if applicable)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('benchmark-report.md', 'utf8');
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: report
+          });
