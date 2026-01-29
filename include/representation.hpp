@@ -245,6 +245,86 @@ namespace nstd
         return magnitude | (1ULL << 63);
     }
 
+    // =============================================================================
+    // 128-bit Conversion Functions Between Representations
+    // =============================================================================
+
+    // TC <-> MS (128 bits)
+    inline constexpr void ms128_to_twos_complement(uint64_t ms_high, uint64_t ms_low, uint64_t &tc_high, uint64_t &tc_low) noexcept
+    {
+        // MS: sign bit is MSB of high
+        const bool is_negative = (ms_high & (1ULL << 63)) != 0;
+        const uint64_t mag_high = ms_high & ~(1ULL << 63);
+        if (!is_negative)
+        {
+            tc_high = mag_high;
+            tc_low = ms_low;
+        }
+        else
+        {
+            // Two's complement: invert and add 1 (128 bits)
+            tc_high = ~mag_high;
+            tc_low = ~ms_low;
+            // Add 1 (handle carry)
+            if (++tc_low == 0)
+                ++tc_high;
+        }
+    }
+
+    inline constexpr void twos_complement128_to_ms(uint64_t tc_high, uint64_t tc_low, uint64_t &ms_high, uint64_t &ms_low) noexcept
+    {
+        const bool is_negative = (tc_high & (1ULL << 63)) != 0;
+        if (!is_negative)
+        {
+            ms_high = tc_high;
+            ms_low = tc_low;
+        }
+        else
+        {
+            // Negate (128 bits)
+            uint64_t mag_low = ~tc_low + 1;
+            uint64_t mag_high = ~tc_high + (mag_low == 0 ? 1 : 0);
+            // Set sign bit
+            ms_high = (mag_high & ~(1ULL << 63)) | (1ULL << 63);
+            ms_low = mag_low;
+        }
+    }
+
+    // TC <-> EK (128 bits)
+    inline constexpr void twos_complement128_to_excess_k(uint64_t tc_high, uint64_t tc_low, uint64_t &ek_high, uint64_t &ek_low) noexcept
+    {
+        // EK: stored = value + bias
+        constexpr uint64_t bias_high = (1ULL << 62);
+        constexpr uint64_t bias_low = 0;
+        // Add bias (128 bits)
+        ek_low = tc_low + bias_low;
+        ek_high = tc_high + bias_high + (ek_low < tc_low ? 1 : 0);
+    }
+
+    inline constexpr void excess_k128_to_twos_complement(uint64_t ek_high, uint64_t ek_low, uint64_t &tc_high, uint64_t &tc_low) noexcept
+    {
+        constexpr uint64_t bias_high = (1ULL << 62);
+        constexpr uint64_t bias_low = 0;
+        // Subtract bias (128 bits)
+        tc_low = ek_low - bias_low;
+        tc_high = ek_high - bias_high - (ek_low < bias_low ? 1 : 0);
+    }
+
+    // MS <-> EK (128 bits)
+    inline constexpr void ms128_to_excess_k(uint64_t ms_high, uint64_t ms_low, uint64_t &ek_high, uint64_t &ek_low) noexcept
+    {
+        uint64_t tc_high, tc_low;
+        ms128_to_twos_complement(ms_high, ms_low, tc_high, tc_low);
+        twos_complement128_to_excess_k(tc_high, tc_low, ek_high, ek_low);
+    }
+
+    inline constexpr void excess_k128_to_ms(uint64_t ek_high, uint64_t ek_low, uint64_t &ms_high, uint64_t &ms_low) noexcept
+    {
+        uint64_t tc_high, tc_low;
+        excess_k128_to_twos_complement(ek_high, ek_low, tc_high, tc_low);
+        twos_complement128_to_ms(tc_high, tc_low, ms_high, ms_low);
+    }
+
 } // namespace nstd
 
 #endif // INT128_REPRESENTATION_HPP
