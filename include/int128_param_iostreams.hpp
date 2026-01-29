@@ -154,78 +154,117 @@ namespace nstd
     // ========================================================================
     // STREAM INPUT OPERATOR (operator>>)
     // ========================================================================
-    
-    namespace detail {
+
+    namespace detail
+    {
         template <typename T>
-        parse_result<T> parse_string_with_base(const char* str, int base) noexcept
+        parse_result<T> parse_string_with_base(const char *str, int base) noexcept
         {
             parse_result<T> result{};
 
-            if (!str) {
+            if (!str)
+            {
                 result.error = parse_error::null_pointer;
                 result.error_index = 0;
                 return result;
             }
 
-            if (*str == '\0') {
+            if (*str == '\0')
+            {
                 result.error = parse_error::empty_string;
                 result.error_index = 0;
                 return result;
             }
 
-            const char* ptr = str;
+            const char *ptr = str;
             size_t index = 0;
             bool is_negative = false;
 
-            if constexpr (T::is_signed) {
-                if (*ptr == '-') {
+            if constexpr (T::is_signed)
+            {
+                if (*ptr == '-')
+                {
                     is_negative = true;
                     ++ptr;
                     ++index;
-                } else if (*ptr == '+') {
+                }
+                else if (*ptr == '+')
+                {
                     ++ptr;
                     ++index;
                 }
             }
 
             // Auto-detect base from prefix if not specified
-            if (base == 0 || base == 16 || base == 8 || base == 2) {
-                if (*ptr == '0' && *(ptr + 1) != '\0') {
+            if (base == 0 || base == 16 || base == 8 || base == 2)
+            {
+                if (*ptr == '0' && *(ptr + 1) != '\0')
+                {
                     char next = *(ptr + 1);
-                    if ((next == 'x' || next == 'X') && (base == 0 || base == 16)) {
+                    if ((next == 'x' || next == 'X') && (base == 0 || base == 16))
+                    {
                         base = 16;
                         ptr += 2;
                         index += 2;
-                    } else if ((next == 'b' || next == 'B') && (base == 0 || base == 2)) {
+                        // FIX: Avanzar el puntero solo si realmente hay dígitos después del prefijo
+                        if (!((*ptr >= '0' && *ptr <= '9') || (*ptr >= 'a' && *ptr <= 'f') || (*ptr >= 'A' && *ptr <= 'F')))
+                        {
+                            result.error = parse_error::no_digits;
+                            result.error_index = index;
+                            return result;
+                        }
+                    }
+                    else if ((next == 'b' || next == 'B') && (base == 0 || base == 2))
+                    {
                         base = 2;
                         ptr += 2;
                         index += 2;
-                    } else if (next >= '0' && next <= '7' && (base == 0 || base == 8)) {
+                        if (!((*ptr == '0') || (*ptr == '1')))
+                        {
+                            result.error = parse_error::no_digits;
+                            result.error_index = index;
+                            return result;
+                        }
+                    }
+                    else if (next >= '0' && next <= '7' && (base == 0 || base == 8))
+                    {
                         base = 8;
                     }
                 }
             }
-             if (base == 0) base = 10;
-
+            if (base == 0)
+                base = 10;
 
             int128_param_t<signedness::signed_type, representation_form::twos_complement> temp_val{};
             bool found_digit = false;
             size_t digit_start_index = index;
 
-            while (*ptr != '\0') {
+            while (*ptr != '\0')
+            {
                 unsigned digit = 0;
                 char c = *ptr;
 
-                if (c >= '0' && c <= '9') { digit = c - '0'; }
-                else if (c >= 'a' && c <= 'z') { digit = c - 'a' + 10; }
-                else if (c >= 'A' && c <= 'Z') { digit = c - 'A' + 10; }
-                else {
+                if (c >= '0' && c <= '9')
+                {
+                    digit = c - '0';
+                }
+                else if (c >= 'a' && c <= 'z')
+                {
+                    digit = c - 'a' + 10;
+                }
+                else if (c >= 'A' && c <= 'Z')
+                {
+                    digit = c - 'A' + 10;
+                }
+                else
+                {
                     result.error = parse_error::invalid_character;
                     result.error_index = index;
                     return result;
                 }
 
-                if (digit >= static_cast<unsigned>(base)) {
+                if (digit >= static_cast<unsigned>(base))
+                {
                     result.error = parse_error::digit_out_of_range;
                     result.error_index = index;
                     return result;
@@ -234,8 +273,9 @@ namespace nstd
                 found_digit = true;
                 auto old_value = temp_val;
                 temp_val = temp_val * base + digit;
-                
-                if (temp_val < old_value && digit != 0) {
+
+                if (temp_val < old_value && digit != 0)
+                {
                     result.error = parse_error::overflow;
                     result.error_index = index;
                     return result;
@@ -245,13 +285,15 @@ namespace nstd
                 ++index;
             }
 
-            if (!found_digit) {
+            if (!found_digit)
+            {
                 result.error = parse_error::no_digits;
                 result.error_index = digit_start_index;
                 return result;
             }
 
-            if (is_negative) {
+            if (is_negative)
+            {
                 temp_val = -temp_val;
             }
 
@@ -289,7 +331,6 @@ namespace nstd
             return result;
         }
     } // namespace detail
-
 
     /**
      * @brief Stream input operator
@@ -332,13 +373,14 @@ namespace nstd
             return is;
         }
 
-        // Determine base from stream flags
+        // Determine base from stream flags (autodetect unless flag is set)
         const std::ios_base::fmtflags flags = is.flags();
-        int base = 0; // 0 means auto-detect from prefix
-        if (flags & std::ios_base::hex) base = 16;
-        else if (flags & std::ios_base::oct) base = 8;
-        else if (flags & std::ios_base::dec) base = 10;
-        
+        int base = 0; // 0 = autodetect (permite prefijos 0x, 0b, 0)
+        if (flags & std::ios_base::hex)
+            base = 16;
+        else if (flags & std::ios_base::oct)
+            base = 8;
+        // Si no hay flag explícito, base=0 (autodetecta)
 
         auto result = detail::parse_string_with_base<int128_param_t<S, F>>(str.c_str(), base);
 
@@ -353,7 +395,6 @@ namespace nstd
 
         return is;
     }
-
 
     // ========================================================================
     // CONVENIENCE FORMATTING FUNCTIONS
