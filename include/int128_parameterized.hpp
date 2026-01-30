@@ -676,7 +676,7 @@ namespace nstd
                     // No ptr increment here, it's part of the number
                 }
             }
-            
+
             // Use a temporary TC value for parsing arithmetic
             int128_param_t<signedness::signed_type, representation_form::twos_complement> temp_val{};
             bool found_digit = false;
@@ -689,7 +689,8 @@ namespace nstd
 
                 if (c == '_' || c == '\'')
                 {
-                    if (!found_digit && *(ptr + 1) != '\0') {
+                    if (!found_digit && *(ptr + 1) != '\0')
+                    {
                         result.error = parse_error::separator_at_boundaries;
                         result.error_index = index;
                         return result;
@@ -699,9 +700,18 @@ namespace nstd
                     continue;
                 }
 
-                if (c >= '0' && c <= '9') { digit = c - '0'; }
-                else if (c >= 'a' && c <= 'z') { digit = c - 'a' + 10; }
-                else if (c >= 'A' && c <= 'Z') { digit = c - 'A' + 10; }
+                if (c >= '0' && c <= '9')
+                {
+                    digit = c - '0';
+                }
+                else if (c >= 'a' && c <= 'z')
+                {
+                    digit = c - 'a' + 10;
+                }
+                else if (c >= 'A' && c <= 'Z')
+                {
+                    digit = c - 'A' + 10;
+                }
                 else
                 {
                     result.error = parse_error::invalid_character;
@@ -715,12 +725,13 @@ namespace nstd
                     result.error_index = index;
                     return result;
                 }
-                
+
                 found_digit = true;
                 auto old_value = temp_val;
                 temp_val = temp_val * base + digit;
 
-                if (temp_val < old_value && digit != 0) {
+                if (temp_val < old_value && digit != 0)
+                {
                     result.error = parse_error::overflow;
                     result.error_index = index;
                     return result;
@@ -741,7 +752,7 @@ namespace nstd
             {
                 temp_val = -temp_val;
             }
-            
+
             // Now convert the final TC value to the target representation
             if constexpr (is_excess_k)
             {
@@ -1469,11 +1480,36 @@ namespace nstd
          */
         constexpr int128_param_t &operator+=(const int128_param_t &other) noexcept
         {
-            std::uint64_t new_low = data[0] + other.data[0];
-            std::uint64_t carry = (new_low < data[0]) ? 1 : 0;
-            data[0] = new_low;
-            data[1] = data[1] + other.data[1] + carry;
-            return *this;
+            if constexpr (is_excess_k)
+            {
+                // Suma en Excess-K: (x - K) + (y - K) = (x + y) - K
+                // K = 2^126 = 0x4000000000000000 (high), 0x0 (low)
+                constexpr std::uint64_t bias_high = (1ULL << 62);
+                constexpr std::uint64_t bias_low = 0ULL;
+
+                // Suma x + y
+                std::uint64_t sum_low = data[0] + other.data[0];
+                std::uint64_t carry = (sum_low < data[0]) ? 1 : 0;
+                std::uint64_t sum_high = data[1] + other.data[1] + carry;
+
+                // Restar bias (K)
+                std::uint64_t new_low = sum_low - bias_low;
+                std::uint64_t borrow = (sum_low < bias_low) ? 1 : 0;
+                std::uint64_t new_high = sum_high - bias_high - borrow;
+
+                data[0] = new_low;
+                data[1] = new_high;
+                return *this;
+            }
+            else
+            {
+                // TC y MS: suma binaria estándar
+                std::uint64_t new_low = data[0] + other.data[0];
+                std::uint64_t carry = (new_low < data[0]) ? 1 : 0;
+                data[0] = new_low;
+                data[1] = data[1] + other.data[1] + carry;
+                return *this;
+            }
         }
 
         /**
@@ -2010,14 +2046,26 @@ namespace nstd
             if constexpr (is_magnitude_sign && is_signed)
             {
                 const uint64_t mag_high{data[1] & ~(1ULL << 63)};
-                if (data[0] != 0) { return __builtin_ctzll(data[0]); }
-                if (mag_high != 0) { return 64 + __builtin_ctzll(mag_high); }
+                if (data[0] != 0)
+                {
+                    return __builtin_ctzll(data[0]);
+                }
+                if (mag_high != 0)
+                {
+                    return 64 + __builtin_ctzll(mag_high);
+                }
                 return 127; // MS magnitude is 127 bits
             }
             else
             {
-                if (data[0] != 0) { return __builtin_ctzll(data[0]); }
-                if (data[1] != 0) { return 64 + __builtin_ctzll(data[1]); }
+                if (data[0] != 0)
+                {
+                    return __builtin_ctzll(data[0]);
+                }
+                if (data[1] != 0)
+                {
+                    return 64 + __builtin_ctzll(data[1]);
+                }
                 return 128;
             }
         }
@@ -2036,14 +2084,26 @@ namespace nstd
             if constexpr (is_magnitude_sign && is_signed)
             {
                 const uint64_t mag_high{data[1] & ~(1ULL << 63)};
-                if (mag_high != 0) { return __builtin_clzll(mag_high) - 1; }
-                if (data[0] != 0) { return 63 + __builtin_clzll(data[0]); }
+                if (mag_high != 0)
+                {
+                    return __builtin_clzll(mag_high) - 1;
+                }
+                if (data[0] != 0)
+                {
+                    return 63 + __builtin_clzll(data[0]);
+                }
                 return 127; // MS magnitude is 127 bits
             }
             else
             {
-                if (data[1] != 0) { return __builtin_clzll(data[1]); }
-                if (data[0] != 0) { return 64 + __builtin_clzll(data[0]); }
+                if (data[1] != 0)
+                {
+                    return __builtin_clzll(data[1]);
+                }
+                if (data[0] != 0)
+                {
+                    return 64 + __builtin_clzll(data[0]);
+                }
                 return 128;
             }
         }
@@ -2081,10 +2141,13 @@ namespace nstd
          */
         constexpr bool is_power_of_2() const noexcept
         {
-            if constexpr (is_signed) {
-                if(is_negative()) return false;
+            if constexpr (is_signed)
+            {
+                if (is_negative())
+                    return false;
             }
-            if (is_zero()) return false;
+            if (is_zero())
+                return false;
             return count_ones() == 1;
         }
 
@@ -2095,13 +2158,16 @@ namespace nstd
          */
         constexpr int bit_width() const noexcept
         {
-            if (is_zero()) return 0;
+            if (is_zero())
+                return 0;
 
-            if constexpr (is_magnitude_sign && is_signed) {
+            if constexpr (is_magnitude_sign && is_signed)
+            {
                 return 127 - leading_zeros();
             }
-            else {
-                 return 128 - leading_zeros();
+            else
+            {
+                return 128 - leading_zeros();
             }
         }
 
@@ -2113,9 +2179,11 @@ namespace nstd
          */
         constexpr int128_param_t rotate_left(int shift) const noexcept
         {
-            if constexpr (is_magnitude_sign && is_signed) {
+            if constexpr (is_magnitude_sign && is_signed)
+            {
                 const int s = shift & 127;
-                if (s == 0) return *this;
+                if (s == 0)
+                    return *this;
 
                 uint64_t sign_bit = data[1] & (1ULL << 63);
                 int128_param_t temp(data[1] & ~(1ULL << 63), data[0]);
@@ -2131,7 +2199,8 @@ namespace nstd
             else
             {
                 const int s = shift & 127;
-                if (s == 0) return *this;
+                if (s == 0)
+                    return *this;
                 return (*this << s) | (*this >> (128 - s));
             }
         }
@@ -2144,15 +2213,18 @@ namespace nstd
          */
         constexpr int128_param_t rotate_right(int shift) const noexcept
         {
-             if constexpr (is_magnitude_sign && is_signed) {
+            if constexpr (is_magnitude_sign && is_signed)
+            {
                 const int s = shift & 127;
-                if (s == 0) return *this;
+                if (s == 0)
+                    return *this;
                 return rotate_left(127 - s);
             }
             else
             {
                 const int s = shift & 127;
-                if (s == 0) return *this;
+                if (s == 0)
+                    return *this;
                 return (*this >> s) | (*this << (128 - s));
             }
         }
@@ -2166,13 +2238,14 @@ namespace nstd
          */
         constexpr int128_param_t reverse_bits() const noexcept
         {
-            auto reverse64 = [](uint64_t n) {
+            auto reverse64 = [](uint64_t n)
+            {
                 n = (n >> 32) | (n << 32);
                 n = ((n & 0xFFFF0000FFFF0000ULL) >> 16) | ((n & 0x0000FFFF0000FFFFULL) << 16);
-                n = ((n & 0xFF00FF00FF00FF00ULL) >> 8)  | ((n & 0x00FF00FF00FF00FFULL) << 8);
-                n = ((n & 0xF0F0F0F0F0F0F0F0ULL) >> 4)  | ((n & 0x0F0F0F0F0F0F0F0FULL) << 4);
-                n = ((n & 0xCCCCCCCCCCCCCCCCULL) >> 2)  | ((n & 0x3333333333333333ULL) << 2);
-                n = ((n & 0xAAAAAAAAAAAAAAAAULL) >> 1)  | ((n & 0x5555555555555555ULL) << 1);
+                n = ((n & 0xFF00FF00FF00FF00ULL) >> 8) | ((n & 0x00FF00FF00FF00FFULL) << 8);
+                n = ((n & 0xF0F0F0F0F0F0F0F0ULL) >> 4) | ((n & 0x0F0F0F0F0F0F0F0FULL) << 4);
+                n = ((n & 0xCCCCCCCCCCCCCCCCULL) >> 2) | ((n & 0x3333333333333333ULL) << 2);
+                n = ((n & 0xAAAAAAAAAAAAAAAAULL) >> 1) | ((n & 0x5555555555555555ULL) << 1);
                 return n;
             };
 
@@ -2195,7 +2268,6 @@ namespace nstd
                 return int128_param_t(reverse64(data[0]), reverse64(data[1]));
             }
         }
-
 
         /**
          * @brief Division with remainder (divmod operation)

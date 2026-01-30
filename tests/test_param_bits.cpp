@@ -2,9 +2,14 @@
 #include <iostream>
 #include "int128_parameterized.hpp"
 
+using nstd::int128_ms_t;
+using nstd::uint128_tc_t;
+
 // Define a simple testing framework
 #define TEST_CASE(name) void test_##name()
-#define RUN_TEST(name) test_##name(); std::cout << "✓ " #name "\n"
+#define RUN_TEST(name) \
+    test_##name();     \
+    std::cout << "✓ " #name "\n"
 #define ASSERT_EQ(a, b) assert((a) == (b))
 
 // Forward declarations for all tests
@@ -20,14 +25,14 @@ TEST_CASE(ms_trailing_zeros_negative);
 
 TEST_CASE(trailing_zeros_simple)
 {
-    uint128_tc_t x(0, 8);  // 0x0000...0008
+    uint128_tc_t x(0, 8); // 0x0000...0008
     ASSERT_EQ(x.trailing_zeros(), 3);
 }
 
 TEST_CASE(leading_zeros_simple)
 {
-    uint128_tc_t x(0, 1);  // This is wrong, should be high part
-    x.set_high(1); // Corrected
+    uint128_tc_t x(0, 1); // This is wrong, should be high part
+    x.set_high(1);        // Corrected
     x.set_low(0);
     // This now represents 1 << 64
     // leading_zeros should be 63 for the high part, but clzll(1) is 63.
@@ -44,19 +49,17 @@ TEST_CASE(leading_zeros_simple)
     ASSERT_EQ(y.leading_zeros(), 127);
 }
 
-
 TEST_CASE(popcount_all_ones)
 {
-    uint128_tc_t x(~0ULL, ~0ULL);  // All 1s
+    uint128_tc_t x(~0ULL, ~0ULL); // All 1s
     ASSERT_EQ(x.count_ones(), 128);
 }
 
 TEST_CASE(ms_trailing_zeros_negative)
 {
-    int128_ms_t x(-1);  // -1 in MS = magnitude 1, sign bit set
-    ASSERT_EQ(x.trailing_zeros(), 0);  // Magnitude 1 has 0 trailing zeros
+    int128_ms_t x(-1);                // -1 in MS = magnitude 1, sign bit set
+    ASSERT_EQ(x.trailing_zeros(), 0); // Magnitude 1 has 0 trailing zeros
 }
-
 
 // ========================================================================
 // Main function to run all tests
@@ -71,7 +74,6 @@ int main()
     RUN_TEST(popcount_all_ones);
     RUN_TEST(ms_trailing_zeros_negative);
     // Add more RUN_TEST calls here...
-
 
     std::cout << "\nPRIORITY 8 TESTS PASSED!\n";
     return 0;
