@@ -213,27 +213,24 @@ namespace nstd
         {
             if constexpr (is_magnitude_sign && is_signed)
             {
-                data[0] = 0;
-                data[1] = 0;
                 if constexpr (std::is_signed_v<T>)
                 {
                     if (value < 0)
                     {
-                        // Guardar magnitud absoluta en data[0], bit de signo en data[1]
-                        data[0] = static_cast<uint64_t>(static_cast<std::make_unsigned_t<T>>(-value));
+                        using UnsignedT = std::make_unsigned_t<T>;
+                        data[0] = static_cast<uint64_t>(static_cast<UnsignedT>(-value));
                         data[1] = (1ULL << 63);
                     }
                     else
                     {
                         data[0] = static_cast<uint64_t>(value);
-                        // data[1] ya está a 0
+                        data[1] = 0;
                     }
                 }
                 else // T es unsigned
                 {
                     data[0] = static_cast<uint64_t>(value);
-                    if (sizeof(T) > sizeof(uint64_t))
-                        data[1] = static_cast<uint64_t>(value >> 64);
+                    data[1] = (sizeof(T) > sizeof(uint64_t)) ? static_cast<uint64_t>(value >> 64) : 0;
                 }
             }
             else
@@ -319,6 +316,11 @@ namespace nstd
             }
             else if constexpr (is_magnitude_sign)
             {
+                // Solo negativo si magnitud != 0 y bit de signo a 1
+                const std::uint64_t magnitude_mask = (1ULL << 63) - 1;
+                const bool is_zero = (data[0] == 0) && ((data[1] & magnitude_mask) == 0);
+                if (is_zero)
+                    return false;
                 return (data[1] & (1ULL << 63)) != 0;
             }
             else // excess_k

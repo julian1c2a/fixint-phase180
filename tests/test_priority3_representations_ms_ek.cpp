@@ -131,6 +131,60 @@ void assert_true(const string &name, bool cond)
 // ============================================================================
 
 void test_group_1()
+// Volcado a archivo para depuración de -1 en MS
+{
+    std::ofstream dbg("ms_debug.txt", std::ios::app);
+    nstd::int128_ms_t neg{-1};
+    nstd::int128_ms_t uno{1};
+    auto mag = neg.magnitude();
+    dbg << "[MS] -1: data[0]=0x" << std::hex << neg.low() << ", data[1]=0x" << neg.high() << std::dec << std::endl;
+    dbg << "[MS] mag(-1): data[0]=0x" << std::hex << mag.low() << ", data[1]=0x" << mag.high() << std::dec << std::endl;
+    dbg << "[MS] 1: data[0]=0x" << std::hex << uno.low() << ", data[1]=0x" << uno.high() << std::dec << std::endl;
+    dbg << "[MS] mag(-1) == 1: " << (mag == uno) << std::endl;
+}
+// Comprobación explícita de los datos internos de -1 en MS y comparación con 1
+{
+    nstd::int128_ms_t neg{-1};
+    nstd::int128_ms_t uno{1};
+    auto mag = neg.magnitude();
+    std::cout << "[MS] -1: data[0]=" << std::hex << neg.low() << ", data[1]=" << neg.high() << std::dec << std::endl;
+    std::cout << "[MS] mag(-1): data[0]=" << std::hex << mag.low() << ", data[1]=" << mag.high() << std::dec << std::endl;
+    std::cout << "[MS] 1: data[0]=" << std::hex << uno.low() << ", data[1]=" << uno.high() << std::dec << std::endl;
+    std::cout << "[MS] mag(-1) == 1: " << (mag == uno) << std::endl;
+}
+// Comprobación explícita de +0 y -0 en MS
+{
+    nstd::int128_ms_t plus_zero{0};
+    nstd::int128_ms_t minus_zero = plus_zero;
+    minus_zero = nstd::int128_ms_t{0};
+    minus_zero.set_high(minus_zero.high() | (1ULL << 63)); // Forzar bit de signo a 1
+    if (plus_zero.is_negative())
+        std::cout << "  [FAIL] ms_plus_zero_neg" << std::endl;
+    else
+        std::cout << "  [OK] ms_plus_zero_neg" << std::endl;
+    if (minus_zero.is_negative())
+        std::cout << "  [FAIL] ms_minus_zero_neg" << std::endl;
+    else
+        std::cout << "  [OK] ms_minus_zero_neg" << std::endl;
+    // Nueva comprobación: +0 y -0 deben ser iguales
+    if (plus_zero == minus_zero)
+        std::cout << "  [OK] ms_zero_eq" << std::endl;
+    else
+    {
+        std::cout << "  [FAIL] ms_zero_eq" << std::endl;
+        g_tests_failed++;
+        g_failed_tests.push_back("ms_zero_eq");
+    }
+}
+// --- Bloque de comprobación temporal de is_negative() para varios valores MS ---
+{
+    nstd::int128_ms_t v0{0};
+    nstd::int128_ms_t v1{1};
+    nstd::int128_ms_t vn1{-1};
+    nstd::int128_ms_t v2{2};
+    nstd::int128_ms_t vn2{-2};
+    std::cout << "[MS] 0: " << v0.is_negative() << ", 1: " << v1.is_negative() << ", -1: " << vn1.is_negative() << ", 2: " << v2.is_negative() << ", -2: " << vn2.is_negative() << std::endl;
+}
 {
     cout << "\n[Group 1] Magnitude-Sign Fundamentals:" << endl;
     nstd::int128_ms_t neg{-1};
