@@ -90,7 +90,10 @@ void test_low_high_setters()
 void test_twos_complement_neg1()
 {
     nstd::int128_ms_t x(-1LL);
-    ASSERT_EQ(x.low(), 0xFFFFFFFFFFFFFFFFULL);
+    // Validar semántica: signo y magnitud
+    ASSERT_TRUE(x.is_negative());
+    auto mag = x.magnitude();
+    ASSERT_EQ(mag, nstd::int128_ms_t(1LL));
 }
 void test_twos_complement_neg42()
 {

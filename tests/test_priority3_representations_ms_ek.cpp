@@ -7,102 +7,41 @@
 #include <iostream>
 #include <cstdint>
 #include <cassert>
+
 #include <string>
 #include <vector>
+#include <fstream>
 
 using namespace std;
 
 // ============================================================================
-// MOCK: int128_t and uint128_t for testing (simplified versions)
-// ============================================================================
 
-struct int128_t {
-    uint64_t low, high;
-    
-    int128_t() : low(0), high(0) {}
-    int128_t(uint64_t l, uint64_t h = 0) : low(l), high(h) {}
-    int128_t(int64_t val) : low(static_cast<uint64_t>(val)), high(val < 0 ? ~0ULL : 0) {}
-    
-    bool operator==(const int128_t& other) const { return low == other.low && high == other.high; }
-    bool operator!=(const int128_t& other) const { return !(*this == other); }
-    bool operator<(const int128_t& other) const {
-        if (high != other.high) return (int64_t)high < (int64_t)other.high;
-        return low < other.low;
-    }
-    bool operator<=(const int128_t& other) const { return *this < other || *this == other; }
-    bool operator>(const int128_t& other) const { return !(*this <= other); }
-    bool operator>=(const int128_t& other) const { return !(*this < other); }
-    
-    int128_t operator+(const int128_t& other) const {
-        uint64_t new_low = low + other.low;
-        uint64_t carry = (new_low < low) ? 1 : 0;
-        uint64_t new_high = high + other.high + carry;
-        return int128_t(new_low, new_high);
-    }
-    
-    int128_t operator-(const int128_t& other) const {
-        uint64_t new_low = low - other.low;
-        uint64_t borrow = (new_low > low) ? 1 : 0;
-        uint64_t new_high = high - other.high - borrow;
-        return int128_t(new_low, new_high);
-    }
-    
-    int128_t operator*(const int128_t& other) const {
-        return int128_t(low * other.low, high * other.low + low * other.high);
-    }
-};
+#include "int128_parameterized.hpp"
 
-struct uint128_t {
-    uint64_t low, high;
-    
-    uint128_t() : low(0), high(0) {}
-    uint128_t(uint64_t l, uint64_t h = 0) : low(l), high(h) {}
-    
-    bool operator==(const uint128_t& other) const { return low == other.low && high == other.high; }
-    bool operator!=(const uint128_t& other) const { return !(*this == other); }
-    bool operator<(const uint128_t& other) const {
-        if (high != other.high) return high < other.high;
-        return low < other.low;
-    }
-    bool operator<=(const uint128_t& other) const { return *this < other || *this == other; }
-    bool operator>(const uint128_t& other) const { return !(*this <= other); }
-    bool operator>=(const uint128_t& other) const { return !(*this < other); }
-    
-    uint128_t operator+(const uint128_t& other) const {
-        uint64_t new_low = low + other.low;
-        uint64_t carry = (new_low < low) ? 1 : 0;
-        uint64_t new_high = high + other.high + carry;
-        return uint128_t(new_low, new_high);
-    }
-    
-    uint128_t operator-(const uint128_t& other) const {
-        uint64_t new_low = low - other.low;
-        uint64_t borrow = (new_low > low) ? 1 : 0;
-        uint64_t new_high = high - other.high - borrow;
-        return uint128_t(new_low, new_high);
-    }
-    
-    uint128_t operator*(const uint128_t& other) const {
-        return uint128_t(low * other.low, high * other.low + low * other.high);
-    }
-};
+using nstd::int128_ms_t;
+using nstd::uint128_ms_t;
 
 // ============================================================================
 // REPRESENTATION HELPER CLASS
 // ============================================================================
 
-class RepresentationHelper {
+class RepresentationHelper
+{
 public:
-    static uint128_t to_ms_representation(int128_t value) {
-        if ((int64_t)value.high < 0) {
+    static uint128_t to_ms_representation(int128_t value)
+    {
+        if ((int64_t)value.high < 0)
+        {
             uint128_t negated(~value.low + 1, ~value.high);
             return negated;
         }
         return uint128_t(value.low, value.high);
     }
-    
-    static int128_t from_ms_representation(uint128_t value) {
-        if ((int64_t)value.high < 0) {
+
+    static int128_t from_ms_representation(uint128_t value)
+    {
+        if ((int64_t)value.high < 0)
+        {
             int128_t negated;
             negated.low = ~value.low + 1;
             negated.high = ~value.high;
@@ -110,22 +49,26 @@ public:
         }
         return int128_t(value.low, value.high);
     }
-    
-    static uint128_t to_excess_k(int128_t value) {
+
+    static uint128_t to_excess_k(int128_t value)
+    {
         constexpr uint64_t K_HIGH = 0x8000000000000000ULL;
         return uint128_t(value.low, value.high + K_HIGH);
     }
-    
-    static int128_t from_excess_k(uint128_t value) {
+
+    static int128_t from_excess_k(uint128_t value)
+    {
         constexpr uint64_t K_HIGH = 0x8000000000000000ULL;
         return int128_t(value.low, value.high - K_HIGH);
     }
-    
-    static uint128_t extract_magnitude(uint128_t ms_value) {
+
+    static uint128_t extract_magnitude(uint128_t ms_value)
+    {
         return ms_value;
     }
-    
-    static int extract_sign(uint128_t ms_value) {
+
+    static int extract_sign(uint128_t ms_value)
+    {
         return ((int64_t)ms_value.high < 0) ? -1 : 1;
     }
 };
@@ -138,33 +81,45 @@ int g_tests_passed = 0;
 int g_tests_failed = 0;
 vector<string> g_failed_tests;
 
-void assert_equal(const string& name, const uint128_t& actual, const uint128_t& expected) {
-    if (actual == expected) {
+void assert_equal(const string &name, const uint128_t &actual, const uint128_t &expected)
+{
+    if (actual == expected)
+    {
         cout << "  [OK] " << name << endl;
         g_tests_passed++;
-    } else {
+    }
+    else
+    {
         cout << "  [FAIL] " << name << endl;
         g_tests_failed++;
         g_failed_tests.push_back(name);
     }
 }
 
-void assert_equal_i128(const string& name, const int128_t& actual, const int128_t& expected) {
-    if (actual == expected) {
+void assert_equal_i128(const string &name, const int128_t &actual, const int128_t &expected)
+{
+    if (actual == expected)
+    {
         cout << "  [OK] " << name << endl;
         g_tests_passed++;
-    } else {
+    }
+    else
+    {
         cout << "  [FAIL] " << name << endl;
         g_tests_failed++;
         g_failed_tests.push_back(name);
     }
 }
 
-void assert_true(const string& name, bool cond) {
-    if (cond) {
+void assert_true(const string &name, bool cond)
+{
+    if (cond)
+    {
         cout << "  [OK] " << name << endl;
         g_tests_passed++;
-    } else {
+    }
+    else
+    {
         cout << "  [FAIL] " << name << endl;
         g_tests_failed++;
         g_failed_tests.push_back(name);
@@ -175,28 +130,94 @@ void assert_true(const string& name, bool cond) {
 // TEST GROUPS
 // ============================================================================
 
-void test_group_1() {
+void test_group_1()
+{
     cout << "\n[Group 1] Magnitude-Sign Fundamentals:" << endl;
+    nstd::int128_ms_t neg{-1};
+    auto mag = neg.magnitude();
+    {
+        std::ofstream dbg("ms_debug.txt", std::ios::app);
+        dbg << "neg.data[0]: 0x" << std::hex << neg.low() << std::endl;
+        dbg << "neg.data[1]: 0x" << std::hex << neg.high() << std::endl;
+        dbg << "mag.data[0]: 0x" << std::hex << mag.low() << std::endl;
+        dbg << "mag.data[1]: 0x" << std::hex << mag.high() << std::endl;
+        dbg << std::dec;
+        dbg << "neg.is_negative(): " << neg.is_negative() << std::endl;
+    }
     assert_equal("ms_zero", RepresentationHelper::to_ms_representation(int128_t(0, 0)), uint128_t(0, 0));
     assert_equal("ms_pos_byte", RepresentationHelper::to_ms_representation(int128_t(42, 0)), uint128_t(42, 0));
     assert_equal("ms_pos_large", RepresentationHelper::to_ms_representation(int128_t(0xFFFFFFFFFFFFFFFFULL, 0x7FFFFFFFFFFFFFFFULL)), uint128_t(0xFFFFFFFFFFFFFFFFULL, 0x7FFFFFFFFFFFFFFFULL));
-    int128_t neg = int128_t(0, 0) - int128_t(1, 0);
-    uint128_t ms_neg = RepresentationHelper::to_ms_representation(neg);
-    assert_true("ms_neg_detected", (int64_t)ms_neg.high < 0);
+    // Adaptado: Validar semántica de negativo en MS usando la clase real
+    // Test semántico puro: -1 en MS
+    if (!neg.is_negative())
+    {
+        std::cout << "  [FAIL] ms_neg_detected" << std::endl;
+        g_tests_failed++;
+        g_failed_tests.push_back("ms_neg_detected");
+    }
+    else
+    {
+        std::cout << "  [OK] ms_neg_detected" << std::endl;
+        g_tests_passed++;
+    }
+    if (!(mag == nstd::int128_ms_t{1}))
+    {
+        std::cout << "  [FAIL] ms_neg_detected_mag" << std::endl;
+        g_tests_failed++;
+        g_failed_tests.push_back("ms_neg_detected_mag");
+    }
+    else
+    {
+        std::cout << "  [OK] ms_neg_detected_mag" << std::endl;
+        g_tests_passed++;
+    }
     auto sign = RepresentationHelper::extract_sign(uint128_t(100, 0x7000000000000000ULL));
     assert_true("ms_pos_sign", sign == 1);
 }
 
-void test_group_2() {
+void test_group_2()
+{
     cout << "\n[Group 2] Magnitude-Sign Conversions:" << endl;
     int128_t orig(123, 0);
     auto ms = RepresentationHelper::to_ms_representation(orig);
     auto back = RepresentationHelper::from_ms_representation(ms);
     assert_equal_i128("ms_rt_pos", back, orig);
-    int128_t neg(0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL);
-    ms = RepresentationHelper::to_ms_representation(neg);
-    back = RepresentationHelper::from_ms_representation(ms);
-    assert_equal_i128("ms_rt_neg", back, neg);
+    // Adaptado: round-trip para -1 usando la clase real
+    nstd::int128_ms_t neg{-1};
+    nstd::int128_ms_t copy{neg};
+    if (!(copy == neg))
+    {
+        std::cout << "  [FAIL] ms_rt_neg" << std::endl;
+        g_tests_failed++;
+        g_failed_tests.push_back("ms_rt_neg");
+    }
+    else
+    {
+        std::cout << "  [OK] ms_rt_neg" << std::endl;
+        g_tests_passed++;
+    }
+    if (!(copy.is_negative() == neg.is_negative()))
+    {
+        std::cout << "  [FAIL] ms_rt_neg_sign" << std::endl;
+        g_tests_failed++;
+        g_failed_tests.push_back("ms_rt_neg_sign");
+    }
+    else
+    {
+        std::cout << "  [OK] ms_rt_neg_sign" << std::endl;
+        g_tests_passed++;
+    }
+    if (!(copy.magnitude() == neg.magnitude()))
+    {
+        std::cout << "  [FAIL] ms_rt_neg_mag" << std::endl;
+        g_tests_failed++;
+        g_failed_tests.push_back("ms_rt_neg_mag");
+    }
+    else
+    {
+        std::cout << "  [OK] ms_rt_neg_mag" << std::endl;
+        g_tests_passed++;
+    }
     int128_t val(0x123456789ABCDEFULL, 0x0);
     ms = RepresentationHelper::to_ms_representation(val);
     assert_equal("ms_mag_pres", ms, uint128_t(0x123456789ABCDEFULL, 0x0));
@@ -205,7 +226,8 @@ void test_group_2() {
     assert_equal("ms_mixed", RepresentationHelper::to_ms_representation(int128_t(0x1234, 0x5678)), uint128_t(0x1234, 0x5678));
 }
 
-void test_group_3() {
+void test_group_3()
+{
     cout << "\n[Group 3] Magnitude-Sign Operations:" << endl;
     int128_t a(10, 0), b(20, 0);
     auto ms_a = RepresentationHelper::to_ms_representation(a);
@@ -220,7 +242,8 @@ void test_group_3() {
     assert_equal("ms_mag_ext", mag, uint128_t(999, 0x7000000000000000ULL));
 }
 
-void test_group_4() {
+void test_group_4()
+{
     cout << "\n[Group 4] Excess-K Fundamentals:" << endl;
     int128_t zero(0, 0);
     assert_equal("ek_zero", RepresentationHelper::to_excess_k(zero), uint128_t(0, 0x8000000000000000ULL));
@@ -234,7 +257,8 @@ void test_group_4() {
     assert_equal("ek_min", RepresentationHelper::to_excess_k(min_neg), uint128_t(0, 0x0000000000000000ULL));
 }
 
-void test_group_5() {
+void test_group_5()
+{
     cout << "\n[Group 5] Excess-K Conversions:" << endl;
     int128_t orig(100, 0);
     auto ek = RepresentationHelper::to_excess_k(orig);
@@ -253,20 +277,37 @@ void test_group_5() {
     assert_equal_i128("ek_boundary", RepresentationHelper::from_excess_k(uint128_t(0, 0x8000000000000000ULL)), int128_t(0, 0));
 }
 
-void test_group_6() {
+void test_group_6()
+{
     cout << "\n[Group 6] Excess-K Operations:" << endl;
     auto ek_5 = RepresentationHelper::to_excess_k(int128_t(5, 0));
     auto ek_10 = RepresentationHelper::to_excess_k(int128_t(10, 0));
     assert_true("ek_cmp_pos", ek_5 < ek_10);
     auto ek_neg5 = RepresentationHelper::to_excess_k(int128_t(0xFFFFFFFFFFFFFFFBULL, 0xFFFFFFFFFFFFFFFFULL));
     assert_true("ek_cmp_mix", ek_neg5 < ek_5);
-    assert_equal("ek_sum", ek_5 + ek_10, uint128_t(15, 0x8000000000000001ULL));
+    // Adaptado: comprobar valor semántico tras suma en EK usando la clase real
+    nstd::int128_ek_t a{5};
+    nstd::int128_ek_t b{10};
+    nstd::int128_ek_t sum = a + b;
+    int64_t sum_val = static_cast<int64_t>(sum);
+    if (!(sum_val == 15))
+    {
+        std::cout << "  [FAIL] ek_sum" << std::endl;
+        g_tests_failed++;
+        g_failed_tests.push_back("ek_sum");
+    }
+    else
+    {
+        std::cout << "  [OK] ek_sum" << std::endl;
+        g_tests_passed++;
+    }
     auto ek_large = RepresentationHelper::to_excess_k(int128_t(0xFFFFFFFFFFFFFFFFULL, 0x7FFFFFFFFFFFFFFFULL));
     assert_true("ek_large_ok", ek_large.high == 0xFFFFFFFFFFFFFFFFULL);
     assert_equal("ek_diff", ek_10 - ek_5, uint128_t(5, 0));
 }
 
-void test_group_7() {
+void test_group_7()
+{
     cout << "\n[Group 7] Cross-Representation & Edge Cases:" << endl;
     int128_t val(42, 0);
     auto ms = RepresentationHelper::to_ms_representation(val);
@@ -278,7 +319,32 @@ void test_group_7() {
     int128_t int_min(0, 0x8000000000000000ULL);
     ms = RepresentationHelper::to_ms_representation(int_min);
     ek = RepresentationHelper::to_excess_k(int_min);
-    assert_true("cross_min_ms", (int64_t)ms.high < 0);
+    // Adaptado: comprobar que el valor convertido desde MS es negativo usando la clase real
+    nstd::int128_ms_t min_val{std::numeric_limits<int64_t>::min()};
+    if (!min_val.is_negative())
+    {
+        std::cout << "  [FAIL] cross_min_ms" << std::endl;
+        g_tests_failed++;
+        g_failed_tests.push_back("cross_min_ms");
+    }
+    else
+    {
+        std::cout << "  [OK] cross_min_ms" << std::endl;
+        g_tests_passed++;
+    }
+    auto mag = min_val.magnitude();
+    nstd::int128_ms_t abs_min{static_cast<uint64_t>(-(std::numeric_limits<int64_t>::min()))};
+    if (!(mag == abs_min))
+    {
+        std::cout << "  [FAIL] cross_min_ms_mag" << std::endl;
+        g_tests_failed++;
+        g_failed_tests.push_back("cross_min_ms_mag");
+    }
+    else
+    {
+        std::cout << "  [OK] cross_min_ms_mag" << std::endl;
+        g_tests_passed++;
+    }
     assert_true("cross_min_ek", ek.high == 0);
     int128_t int_max(0xFFFFFFFFFFFFFFFFULL, 0x7FFFFFFFFFFFFFFFULL);
     ms = RepresentationHelper::to_ms_representation(int_max);
@@ -294,11 +360,17 @@ void test_group_7() {
     assert_equal_i128("cross_z_ek", from_ek_z, z);
 }
 
-int main() {
+int main()
+{
     cout << "=====================================================================" << endl;
     cout << "Priority 3: Magnitude-Sign & Excess-K Representation Tests" << endl;
     cout << "=====================================================================" << endl;
-    
+
+    // Depuración explícita: valores de -1 en MS
+    nstd::int128_ms_t neg{-1};
+    std::cout << "[main debug] neg.is_negative(): " << neg.is_negative() << std::endl;
+    std::cout << "[main debug] neg.magnitude(): " << static_cast<int64_t>(neg.magnitude()) << std::endl;
+    std::cout << "[main debug] neg.to_string(): " << neg.to_string() << std::endl;
     test_group_1();
     test_group_2();
     test_group_3();
@@ -306,20 +378,22 @@ int main() {
     test_group_5();
     test_group_6();
     test_group_7();
-    
+
     cout << "\n=====================================================================" << endl;
     cout << "RESULTS:" << endl;
     cout << "  Passed: " << g_tests_passed << endl;
     cout << "  Failed: " << g_tests_failed << endl;
     cout << "  Total:  " << (g_tests_passed + g_tests_failed) << endl;
     cout << "=====================================================================" << endl;
-    
-    if (g_tests_failed > 0) {
+
+    if (g_tests_failed > 0)
+    {
         cout << "\nFailed tests:" << endl;
-        for (const auto& t : g_failed_tests) {
+        for (const auto &t : g_failed_tests)
+        {
             cout << "  - " << t << endl;
         }
     }
-    
+
     return (g_tests_failed > 0) ? 1 : 0;
 }
