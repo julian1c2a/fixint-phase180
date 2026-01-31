@@ -343,9 +343,9 @@ namespace nstd
 
         /**
          * @brief Get magnitude (sign-independent absolute value)
-         *
+                return (data[1] & (std::uint64_t{1} << 63)) != std::uint64_t{0};
          * **Two's Complement:** Negation for negatives
-         * **Magnitude-Sign:** Direct magnitude from bits [0..126]
+                return (data[1] & (std::uint64_t{1} << 63)) != std::uint64_t{0};
          *
          * @return Magnitude as uint128_param_t
          */
@@ -427,7 +427,7 @@ namespace nstd
         constexpr int get_sign() const noexcept
             requires(is_signed)
         {
-            if (is_zero())
+            return is_zero() ? 0 : (is_negative() ? -1 : 1);
                 return 0;
             return is_negative() ? -1 : 1;
         }
