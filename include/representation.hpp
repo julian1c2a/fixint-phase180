@@ -41,8 +41,24 @@ namespace nstd
      * representation of the integer. This allows the same underlying storage to
      * be interpreted in different ways (two's complement, magnitude-sign, etc.)
      */
+    /**
+     * @brief Formas de representación para int128_param_t
+     * - binnat: binario natural (solo unsigned, sin signo, sin codificación especial)
+     * - twos_complement: complemento a dos (solo signed)
+     * - magnitude_sign: magnitud y signo (solo signed)
+     * - excess_k: exceso-K (solo signed)
+     */
     enum class representation_form : std::uint8_t
     {
+        /**
+         * @brief Binario natural (solo unsigned)
+         *
+         * No hay codificación de signo ni bias. Simplemente almacena el valor binario puro.
+         * Range: [0, 2^128-1]
+         * Ejemplo: 42 = 0x2A
+         */
+        binnat = 0,
+
         /**
          * @brief Two's Complement (Standard, Phase 1.66)
          *
@@ -56,7 +72,7 @@ namespace nstd
          *
          * Example: -1 = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
          */
-        twos_complement = 0,
+        twos_complement = 1,
 
         /**
          * @brief Magnitude-Sign (Phase 1.75 Investigation)
@@ -71,7 +87,7 @@ namespace nstd
          *
          * Example: -42 = [1|0000...0101010] (sign=1, magnitude=42)
          */
-        magnitude_sign = 1,
+        magnitude_sign = 2,
 
         /**
          * @brief Excess-k (Bias Notation, Future - Phase 1.75)
@@ -86,7 +102,7 @@ namespace nstd
          *
          * Example (k=64): stored=100 represents value=36
          */
-        excess_k = 2
+        excess_k = 3
     };
 
     // =============================================================================
