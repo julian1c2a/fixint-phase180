@@ -184,7 +184,8 @@ namespace nstd
          * - data[1] MSB is explicit sign bit (0=positive, 1=negative)
          * - Remaining bits are magnitude (unsigned interpretation)
          * - WARNING: Supports both +0 and -0 (are distinct)
-         *
+         * - Used primarily for magnitudes in IEEE 754
+         * 
          * **Excess-k:**
          * - All 128 bits form biased value
          * - Actual value = stored_value - bias_k
@@ -444,15 +445,15 @@ namespace nstd
             {
                 // MS: zero if magnitude bits are all 0
                 // Magnitude is in bits [0..62] of both words
-                const std::uint64_t magnitude_mask = (1ULL << 63) - 1; // All bits except sign
+                constexpr std::uint64_t magnitude_mask = (1ULL << 63) - 1; // All bits except sign
                 return (data[0] == 0) && ((data[1] & magnitude_mask) == 0);
             }
             else if constexpr (is_excess_k)
             {
                 // Excess-K: zero when stored_value == bias
                 // bias = 2^126 = 0x4000000000000000 0x0000000000000000
-                constexpr uint64_t bias_high = (1ULL << 62);
-                constexpr uint64_t bias_low = 0;
+                constexpr std::uint64_t bias_high = (1ULL << 62);
+                constexpr std::uint64_t bias_low = 0;
                 return (data[0] == bias_low) && (data[1] == bias_high);
             }
             else // twos_complement
@@ -762,8 +763,8 @@ namespace nstd
             // Now convert the final TC value to the target representation
             if constexpr (is_excess_k)
             {
-                constexpr uint64_t bias_high = (1ULL << 62);
-                constexpr uint64_t bias_low = 0;
+                constexpr std::uint64_t bias_high = (1ULL << 62);
+                constexpr std::uint64_t bias_low = 0;
                 int128_param_t<signedness::signed_type, representation_form::twos_complement> bias_tc(bias_high, bias_low);
                 auto final_val = temp_val + bias_tc;
                 result.value.set_high(final_val.high());
@@ -773,7 +774,7 @@ namespace nstd
             {
                 if (temp_val.is_negative())
                 {
-                    auto mag = -temp_val;
+                    constexpr auto mag = -temp_val;
                     result.value.set_high(mag.high() | (1ULL << 63));
                     result.value.set_low(mag.low());
                 }
@@ -1196,7 +1197,7 @@ namespace nstd
                 return; // Zero
             }
 
-            const bool negative{value < 0.0};
+            constexpr bool negative{value < 0.0};
             double abs_val{negative ? -value : value};
 
             // Handle overflow (too large for 128-bit)
@@ -1222,7 +1223,7 @@ namespace nstd
             // Extract high and low parts
             if (abs_val >= 18446744073709551616.0) // 2^64
             {
-                const double high_part{abs_val / 18446744073709551616.0};
+                constexpr double high_part{abs_val / 18446744073709551616.0};
                 data[1] = static_cast<uint64_t>(high_part);
                 abs_val -= static_cast<double>(data[1]) * 18446744073709551616.0;
             }
@@ -1264,7 +1265,7 @@ namespace nstd
                 return;
             }
 
-            const bool negative{value < 0.0L};
+            constexpr bool negative{value < 0.0L};
             long double abs_val{negative ? -value : value};
 
             // Handle overflow
@@ -1287,7 +1288,7 @@ namespace nstd
             // Extract parts
             if (abs_val >= 18446744073709551616.0L) // 2^64
             {
-                const long double high_part{abs_val / 18446744073709551616.0L};
+                constexpr long double high_part{abs_val / 18446744073709551616.0L};
                 data[1] = static_cast<uint64_t>(high_part);
                 abs_val -= static_cast<long double>(data[1]) * 18446744073709551616.0L;
             }
@@ -1494,18 +1495,18 @@ namespace nstd
             {
                 // Suma en Excess-K: (x - K) + (y - K) = (x + y) - K
                 // K = 2^126 = 0x4000000000000000 (high), 0x0 (low)
-                constexpr std::uint64_t bias_high = (1ULL << 62);
-                constexpr std::uint64_t bias_low = 0ULL;
+                constexpr std::uint64_t bias_high{(1ULL << 62)};
+                constexpr std::uint64_t bias_low{0ULL};
 
                 // Suma x + y
-                std::uint64_t sum_low = data[0] + other.data[0];
-                std::uint64_t carry = (sum_low < data[0]) ? 1 : 0;
-                std::uint64_t sum_high = data[1] + other.data[1] + carry;
+                constexpr std::uint64_t sum_low{data[0] + other.data[0]};
+                constexpr std::uint64_t carry{(sum_low < data[0]) ? 1 : 0};
+                constexpr std::uint64_t sum_high{data[1] + other.data[1] + carry};
 
                 // Restar bias (K)
-                std::uint64_t new_low = sum_low - bias_low;
-                std::uint64_t borrow = (sum_low < bias_low) ? 1 : 0;
-                std::uint64_t new_high = sum_high - bias_high - borrow;
+                constexpr std::uint64_t new_low{sum_low - bias_low};
+                constexpr std::uint64_t borrow{(sum_low < bias_low) ? 1 : 0};
+                constexpr std::uint64_t new_high{sum_high - bias_high - borrow};
 
                 data[0] = new_low;
                 data[1] = new_high;
@@ -1514,8 +1515,8 @@ namespace nstd
             else
             {
                 // TC y MS: suma binaria estándar
-                std::uint64_t new_low = data[0] + other.data[0];
-                std::uint64_t carry = (new_low < data[0]) ? 1 : 0;
+                constexpr std::uint64_t new_low{data[0] + other.data[0]};
+                constexpr std::uint64_t carry{(new_low < data[0]) ? 1 : 0};
                 data[0] = new_low;
                 data[1] = data[1] + other.data[1] + carry;
                 return *this;
@@ -1532,18 +1533,18 @@ namespace nstd
             if constexpr (is_excess_k)
             {
                 // Suma en Excess-K: (x - K) + (y - K) = (x + y) - K
-                constexpr std::uint64_t bias_high = (1ULL << 62);
-                constexpr std::uint64_t bias_low = 0ULL;
+                constexpr std::uint64_t bias_high{(1ULL << 62)};
+                constexpr std::uint64_t bias_low{0ULL};
 
                 // Suma x + y
-                std::uint64_t sum_low = data[0] + other.data[0];
-                std::uint64_t carry = (sum_low < data[0]) ? 1 : 0;
-                std::uint64_t sum_high = data[1] + other.data[1] + carry;
+                constexpr std::uint64_t sum_low{data[0] + other.data[0]};
+                constexpr std::uint64_t carry{(sum_low < data[0]) ? 1 : 0};
+                constexpr std::uint64_t sum_high{data[1] + other.data[1] + carry};
 
                 // Restar bias (K)
-                std::uint64_t new_low = sum_low - bias_low;
-                std::uint64_t borrow = (sum_low < bias_low) ? 1 : 0;
-                std::uint64_t new_high = sum_high - bias_high - borrow;
+                constexpr std::uint64_t new_low{sum_low - bias_low};
+                constexpr std::uint64_t borrow{(sum_low < bias_low) ? 1 : 0};
+                constexpr std::uint64_t new_high{sum_high - bias_high - borrow};
 
                 int128_param_t result;
                 result.data[0] = new_low;
@@ -1576,14 +1577,14 @@ namespace nstd
                 constexpr std::uint64_t bias_low = 0ULL;
 
                 // Resta x - y
-                std::uint64_t diff_low = data[0] - other.data[0];
-                std::uint64_t borrow = (data[0] < other.data[0]) ? 1 : 0;
-                std::uint64_t diff_high = data[1] - other.data[1] - borrow;
+                constexpr std::uint64_t diff_low{data[0] - other.data[0]};
+                constexpr std::uint64_t borrow{(data[0] < other.data[0]) ? 1 : 0};
+                constexpr std::uint64_t diff_high{data[1] - other.data[1] - borrow};
 
                 // Sumar bias (K)
-                std::uint64_t new_low = diff_low + bias_low;
-                std::uint64_t carry = (new_low < diff_low) ? 1 : 0;
-                std::uint64_t new_high = diff_high + bias_high + carry;
+                constexpr std::uint64_t new_low{diff_low + bias_low};
+                constexpr std::uint64_t carry{(new_low < diff_low) ? 1 : 0};
+                constexpr std::uint64_t new_high{diff_high + bias_high + carry};
 
                 data[0] = new_low;
                 data[1] = new_high;
@@ -1591,8 +1592,8 @@ namespace nstd
             }
             else
             {
-                std::uint64_t new_low = data[0] - other.data[0];
-                std::uint64_t borrow = (new_low > data[0]) ? 1 : 0;
+                constexpr std::uint64_t new_low{data[0] - other.data[0]};
+                constexpr std::uint64_t borrow{(new_low > data[0]) ? 1 : 0};
                 data[0] = new_low;
                 data[1] = data[1] - other.data[1] - borrow;
                 return *this;
@@ -1613,14 +1614,14 @@ namespace nstd
                 constexpr std::uint64_t bias_low = 0ULL;
 
                 // Resta x - y
-                std::uint64_t diff_low = data[0] - other.data[0];
-                std::uint64_t borrow = (data[0] < other.data[0]) ? 1 : 0;
-                std::uint64_t diff_high = data[1] - other.data[1] - borrow;
+                constexpr std::uint64_t diff_low{data[0] - other.data[0]};
+                constexpr std::uint64_t borrow{(data[0] < other.data[0]) ? 1 : 0};
+                constexpr std::uint64_t diff_high{data[1] - other.data[1] - borrow};
 
                 // Sumar bias (K)
-                std::uint64_t new_low = diff_low + bias_low;
-                std::uint64_t carry = (new_low < diff_low) ? 1 : 0;
-                std::uint64_t new_high = diff_high + bias_high + carry;
+                constexpr std::uint64_t new_low{diff_low + bias_low};
+                constexpr std::uint64_t carry{(new_low < diff_low) ? 1 : 0};
+                constexpr std::uint64_t new_high{diff_high + bias_high + carry};
 
                 int128_param_t result;
                 result.data[0] = new_low;
@@ -1656,13 +1657,13 @@ namespace nstd
                 constexpr std::uint64_t bias_low = 0ULL;
 
                 // Convertir a valor real: xr = x - K, yr = y - K
-                std::uint64_t xr_low = data[0] - bias_low;
-                std::uint64_t borrow_x = (data[0] < bias_low) ? 1 : 0;
-                std::uint64_t xr_high = data[1] - bias_high - borrow_x;
+                constexpr std::uint64_t xr_low{data[0] - bias_low};
+                constexpr std::uint64_t borrow_x{(data[0] < bias_low) ? 1 : 0};
+                constexpr std::uint64_t xr_high{data[1] - bias_high - borrow_x};
 
-                std::uint64_t yr_low = other.data[0] - bias_low;
-                std::uint64_t borrow_y = (other.data[0] < bias_low) ? 1 : 0;
-                std::uint64_t yr_high = other.data[1] - bias_high - borrow_y;
+                constexpr std::uint64_t yr_low{other.data[0] - bias_low};
+                constexpr std::uint64_t borrow_y{(other.data[0] < bias_low) ? 1 : 0};
+                constexpr std::uint64_t yr_high{other.data[1] - bias_high - borrow_y};
 
                 // Multiplicación de 128 bits (simplificada, solo para valores pequeños)
                 // Para valores grandes, se recomienda usar __uint128_t o una función especializada
@@ -1680,14 +1681,14 @@ namespace nstd
             else
             {
                 // Multiplicación estándar para TC y MS
-                std::uint64_t a_low = data[0];
-                std::uint64_t a_high = data[1];
-                std::uint64_t b_low = other.data[0];
-                std::uint64_t b_high = other.data[1];
+                constexpr std::uint64_t a_low{data[0]};
+                constexpr std::uint64_t a_high{data[1]};
+                constexpr std::uint64_t b_low{other.data[0]};
+                constexpr std::uint64_t b_high{other.data[1]};
 
-                std::uint64_t product_low_low = a_low * b_low;
-                std::uint64_t cross_1 = a_high * b_low;
-                std::uint64_t cross_2 = a_low * b_high;
+                constexpr std::uint64_t product_low_low{a_low * b_low};
+                constexpr std::uint64_t cross_1{a_high * b_low};
+                constexpr std::uint64_t cross_2{a_low * b_high};
 
                 data[0] = product_low_low;
                 data[1] = cross_1 + cross_2 + (a_high * b_high);
@@ -2467,8 +2468,8 @@ namespace nstd
          */
         constexpr void swap(int128_param_t &other) noexcept
         {
-            const uint64_t temp_low{data[0]};
-            const uint64_t temp_high{data[1]};
+            constexpr std::uint64_t temp_low{data[0]};
+            constexpr std::uint64_t temp_high{data[1]};
             data[0] = other.data[0];
             data[1] = other.data[1];
             other.data[0] = temp_low;
