@@ -1072,6 +1072,17 @@ namespace nstd
         }
 
         /**
+         * @brief Constructor from float (explicit)
+         *
+         * @param value Float value to convert (delegates to double constructor)
+         *
+         * @details Converts to double and uses double constructor.
+         * Supports TC, MS, and EK representations.
+         */
+        explicit constexpr int128_param_t(float value) noexcept
+            : int128_param_t(static_cast<double>(value)) {}
+
+        /**
          * @brief Constructor from double (explicit)
          *
          * @param value Double value to convert
@@ -1089,7 +1100,12 @@ namespace nstd
             // Handle special values
             if (value != value) // NaN check
             {
-                return; // Zero
+                // For EK, zero is represented as bias K
+                if constexpr (is_excess_k && is_signed)
+                {
+                    data[1] = 1ULL << 62; // Set bias K
+                }
+                return;
             }
 
             const bool negative{value < 0.0};
@@ -1135,12 +1151,33 @@ namespace nstd
                         // MS: set sign bit
                         data[1] |= (1ULL << 63);
                     }
+                    else if constexpr (is_excess_k)
+                    {
+                        // EK: for negative, compute K - magnitude
+                        // Instead of storing magnitude, we need to store (bias - magnitude)
+                        // This is done by negating first, then adding bias below
+                        std::uint64_t new_low{~data[0] + 1ULL};
+                        std::uint64_t carry{(new_low < 1ULL) ? 1ULL : 0ULL};
+                        data[0] = new_low;
+                        data[1] = ~data[1] + carry;
+                    }
                     else
                     {
                         // TC: negate
                         *this = -*this;
                     }
                 }
+            }
+
+            // Add bias for Excess-K (ALWAYS for EK, whether positive or negative)
+            if constexpr (is_excess_k && is_signed)
+            {
+                constexpr std::uint64_t bias_high{1ULL << 62};
+                constexpr std::uint64_t bias_low{0ULL};
+                std::uint64_t sum_low{data[0] + bias_low};
+                std::uint64_t carry{(sum_low < data[0]) ? 1ULL : 0ULL};
+                data[0] = sum_low;
+                data[1] = data[1] + bias_high + carry;
             }
         }
 
@@ -1157,6 +1194,11 @@ namespace nstd
             // Handle special values
             if (value != value) // NaN
             {
+                // For EK, zero is represented as bias K
+                if constexpr (is_excess_k && is_signed)
+                {
+                    data[1] = 1ULL << 62; // Set bias K
+                }
                 return;
             }
 
@@ -1199,11 +1241,31 @@ namespace nstd
                     {
                         data[1] |= (1ULL << 63);
                     }
+                    else if constexpr (is_excess_k)
+                    {
+                        // EK: for negative, compute K - magnitude
+                        // Negate first, then add bias below gives us K + (-magnitude)
+                        std::uint64_t new_low{~data[0] + 1ULL};
+                        std::uint64_t carry{(new_low < 1ULL) ? 1ULL : 0ULL};
+                        data[0] = new_low;
+                        data[1] = ~data[1] + carry;
+                    }
                     else
                     {
                         *this = -*this;
                     }
                 }
+            }
+
+            // Add bias for Excess-K (ALWAYS for EK, whether positive or negative)
+            if constexpr (is_excess_k && is_signed)
+            {
+                constexpr std::uint64_t bias_high{1ULL << 62};
+                constexpr std::uint64_t bias_low{0ULL};
+                std::uint64_t sum_low{data[0] + bias_low};
+                std::uint64_t carry{(sum_low < data[0]) ? 1ULL : 0ULL};
+                data[0] = sum_low;
+                data[1] = data[1] + bias_high + carry;
             }
         }
 
@@ -1370,22 +1432,19 @@ namespace nstd
         // ========================================================================
 
         /**
-         * @brief Pre-increment operator (native for all representations)
+         * @brief Pre-increment operator (SEMANTIC for all representations)
          *
-         * **Excess-K:** Uses operator+= for correct bias handling
-         * **Two's Complement:** Standard binary +1
-         * **Magnitude-Sign:** Binary +1 works for positive; negative needs special handling
+         * **Two's Complement (TC):** SEMANTIC - Standard binary +1 matches real value increment
+         * **Magnitude-Sign (MS):** SEMANTIC - Increments magnitude with sign handling
+         * **Excess-K (EK):** SEMANTIC - Binary +1 on stored value
+         *   - Real value x → x+1: stored (x+K) + 1 = (x+1)+K ✓
+         *   - No bias compensation needed (adding constant to real value)
          *
          * @return Reference to incremented value
          */
         constexpr int128_param_t &operator++() noexcept
         {
-            if constexpr (is_excess_k)
-            {
-                // EK: Use += 1 to handle bias correctly
-                *this += int128_param_t{1};
-            }
-            else if constexpr (is_magnitude_sign && is_signed)
+            if constexpr (is_magnitude_sign && is_signed)
             {
                 // MS signed: check if negative
                 if (is_negative())
@@ -1414,7 +1473,8 @@ namespace nstd
             }
             else
             {
-                // TC and unsigned: standard increment
+                // TC, EK, and unsigned: standard binary increment
+                // For EK: (x+K) + 1 = (x+1) + K (correct representation)
                 ++data[0];
                 if (data[0] == 0)
                 {
@@ -1437,22 +1497,19 @@ namespace nstd
         }
 
         /**
-         * @brief Pre-decrement operator (native for all representations)
+         * @brief Pre-decrement operator (SEMANTIC for all representations)
          *
-         * **Excess-K:** Uses operator-= for correct bias handling
-         * **Two's Complement:** Standard binary -1
-         * **Magnitude-Sign:** Binary -1 works for positive; negative needs special handling
+         * **Two's Complement (TC):** SEMANTIC - Standard binary -1 matches real value decrement
+         * **Magnitude-Sign (MS):** SEMANTIC - Decrements magnitude with sign handling
+         * **Excess-K (EK):** SEMANTIC - Binary -1 on stored value
+         *   - Real value x → x-1: stored (x+K) - 1 = (x-1)+K ✓
+         *   - No bias compensation needed (subtracting constant from real value)
          *
          * @return Reference to decremented value
          */
         constexpr int128_param_t &operator--() noexcept
         {
-            if constexpr (is_excess_k)
-            {
-                // EK: Use -= 1 to handle bias correctly
-                *this -= int128_param_t{1};
-            }
-            else if constexpr (is_magnitude_sign && is_signed)
+            if constexpr (is_magnitude_sign && is_signed)
             {
                 // MS signed: check if negative or positive zero
                 if (is_negative())
@@ -1482,7 +1539,8 @@ namespace nstd
             }
             else
             {
-                // TC and unsigned: standard decrement
+                // TC, EK, and unsigned: standard binary decrement
+                // For EK: (x+K) - 1 = (x-1) + K (correct representation)
                 if (data[0] == 0)
                 {
                     --data[1];
@@ -1505,10 +1563,15 @@ namespace nstd
         }
 
         /**
-         * @brief Addition assignment operator (representation-agnostic)
+         * @brief Addition assignment operator (SEMANTIC for all representations)
          *
-         * Performs 128-bit addition with carry propagation.
-         * Works identically for TC and MS representations.
+         * **Two's Complement (TC):** SEMANTIC - Binary addition matches real value addition
+         * **Magnitude-Sign (MS):** SEMANTIC - Binary addition on magnitude (unsigned behavior)
+         * **Excess-K (EK):** SEMANTIC - Native implementation with bias compensation
+         *   - Real: (x) + (y) = (x+y)
+         *   - Stored: (x+K) + (y+K) = (x+y) + 2K
+         *   - Compensation: Subtract K to get (x+y) + K (correct stored result)
+         *   - Avoids expensive conversion to TC
          *
          * @param other Value to add
          * @return Reference to this (modified)
@@ -1560,10 +1623,15 @@ namespace nstd
         }
 
         /**
-         * @brief Subtraction assignment operator (representation-aware)
+         * @brief Subtraction assignment operator (SEMANTIC for all representations)
          *
-         * **Excess-K:** Subtract and add bias: (x-K) - (y-K) = x - y + K
-         * **Two's Complement & Magnitude-Sign:** Standard binary subtraction
+         * **Two's Complement (TC):** SEMANTIC - Binary subtraction matches real value subtraction
+         * **Magnitude-Sign (MS):** SEMANTIC - Binary subtraction on magnitude (unsigned behavior)
+         * **Excess-K (EK):** SEMANTIC - Native implementation with bias compensation
+         *   - Real: (x) - (y) = (x-y)
+         *   - Stored: (x+K) - (y+K) = (x-y) (bias cancels!)
+         *   - Compensation: Add K to get (x-y) + K (correct stored result)
+         *   - Avoids expensive conversion to TC
          *
          * @param other Value to subtract
          * @return Reference to this (modified)
@@ -1615,10 +1683,15 @@ namespace nstd
         }
 
         /**
-         * @brief Multiplication assignment operator (representation-agnostic)
+         * @brief Multiplication assignment operator
          *
-         * Performs basic 128-bit multiplication.
-         * Works identically for TC and MS representations.
+         * **Two's Complement (TC):** SEMANTIC - Binary multiplication matches real value multiplication
+         * **Magnitude-Sign (MS):** SEMANTIC - Binary multiplication on magnitude (unsigned behavior)
+         * **Excess-K (EK):** ⚠️ SYNTACTIC (NOT SEMANTIC) - Operates on stored values
+         *   - Real: (x) * (y) = (xy)
+         *   - Stored: (x+K) * (y+K) = xy + K(x+y) + K² ≠ (xy) + K
+         *   - ❌ Cannot be corrected without knowing x and y (real values)
+         *   - ⚠️ For semantic multiplication in EK: Convert to TC, multiply, convert back
          *
          * Note: Only handles 64-bit × 64-bit → 128-bit products efficiently.
          * Full 128-bit × 128-bit requires more complex logic.
@@ -2047,6 +2120,14 @@ namespace nstd
             }
 
             return *this;
+        }
+
+        /// @brief Right shift operator (non-modifying)
+        constexpr int128_param_t operator>>(int shift) const noexcept
+        {
+            int128_param_t result(*this);
+            result >>= shift;
+            return result;
         }
 
         /// @brief Right shift with integral type

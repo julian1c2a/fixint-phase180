@@ -1,3 +1,58 @@
+## [29 January 2026 - 21:00] - Float Constructor + EK Support Complete ✅
+
+### 🎯 Constructores de punto flotante completos (float, double, long double) con soporte EK
+
+**User Request:** "Añade soporte para float y soporte para EK"
+
+**Implementado:**
+
+1. ✅ **Constructor desde `float`** (línea ~1076)
+   - Delegación a constructor de `double` para simplicidad
+   - Hereda automáticamente todo el soporte EK
+
+2. ✅ **Soporte EK en constructor `double`** (líneas 1086-1177)
+   - Para valores negativos: `stored = K - magnitude` (negar en TC, luego sumar K)
+   - Para valores positivos: `stored = magnitude + K`
+   - Manejo correcto de NaN: retorna cero EK (`data[1] = K`)
+
+3. ✅ **Soporte EK en constructor `long double`** (líneas 1189-1264)
+   - Misma lógica que `double` pero con mejor precisión
+   - Manejo correcto de NaN para EK
+
+**Correcciones realizadas:**
+
+- **Bug 1:** Lógica de carry incorrecta en negación TC antes de sumar bias
+  - Era: `carry = (new_low < 1ULL) ? 0ULL : 1ULL` (invertido)
+  - Ahora: `carry = (new_low < 1ULL) ? 1ULL : 0ULL` (correcto)
+
+- **Bug 2:** NaN retornaba `data{0,0}` que NO es cero en EK
+  - Ahora: Para EK, NaN → `data[1] = 1ULL << 62` (bias K, cero correcto)
+
+**Test Results:** 27/27 passing (100%) ✅
+
+**Archivos afectados:**
+
+- `include/int128_parameterized.hpp` (+3 modificaciones)
+- `tests/test_float_constructors.cpp` (nuevo, 345 líneas, 27 tests)
+
+**Validación:**
+
+- Constructor `float`: 6/6 tests ✅ (TC, MS, EK, positivos y negativos)
+- Constructor `double`: 6/6 tests ✅ (TC, MS, EK, positivos y negativos)
+- Constructor `long double`: 4/4 tests ✅ (TC, MS, EK)
+- Valores especiales: 3/3 tests ✅ (NaN, overflow)
+- Validación EK: 4/4 tests ✅ (bias correcto, aritmética funciona)
+- Truncado fraccional: 4/4 tests ✅ (123.999 → 123)
+
+**Notas:**
+
+- Los 3 constructores (float, double, long double) ahora soportan las 3 representaciones (TC, MS, EK)
+- El truncado de parte fraccional funciona correctamente (no redondeo)
+- NaN se convierte a cero de la representación correspondiente
+- Overflow satura a max/min según corresponda
+
+---
+
 ## [29 January 2026 - 20:00] - Fix operator>> autodetección de base (input 0x)
 
 ### 🎯 Bugfix: input hexadecimal y autodetección de base en operator>>
