@@ -199,6 +199,38 @@ namespace nstd
                     data[1] = (sizeof(T) > sizeof(std::uint64_t)) ? static_cast<std::uint64_t>(value >> 64) : std::uint64_t{0};
                 }
             }
+            else if constexpr (is_excess_k && is_signed)
+            {
+                // Excess-K: stored_value = real_value + bias (K = 2^126)
+                constexpr std::uint64_t bias_high{1ULL << 62};
+                constexpr std::uint64_t bias_low{0ULL};
+
+                if constexpr (std::is_signed_v<T>)
+                {
+                    // Sign-extend to 128 bits first
+                    const bool negative{value < 0};
+                    const std::uint64_t value_low{static_cast<std::uint64_t>(value)};
+                    const std::uint64_t value_high{negative ? std::numeric_limits<std::uint64_t>::max() : std::uint64_t{0}};
+
+                    // Add bias
+                    std::uint64_t sum_low{value_low + bias_low};
+                    std::uint64_t carry{(sum_low < value_low) ? 1ULL : 0ULL};
+                    data[0] = sum_low;
+                    data[1] = value_high + bias_high + carry;
+                }
+                else
+                {
+                    // Zero-extend to 128 bits
+                    const std::uint64_t value_low{static_cast<std::uint64_t>(value)};
+                    const std::uint64_t value_high{(sizeof(T) > sizeof(std::uint64_t)) ? static_cast<std::uint64_t>(value >> 64) : std::uint64_t{0}};
+
+                    // Add bias
+                    std::uint64_t sum_low{value_low + bias_low};
+                    std::uint64_t carry{(sum_low < value_low) ? 1ULL : 0ULL};
+                    data[0] = sum_low;
+                    data[1] = value_high + bias_high + carry;
+                }
+            }
             else
             {
                 if constexpr (std::is_signed_v<T>)
@@ -1338,6 +1370,141 @@ namespace nstd
         // ========================================================================
 
         /**
+         * @brief Pre-increment operator (native for all representations)
+         *
+         * **Excess-K:** Uses operator+= for correct bias handling
+         * **Two's Complement:** Standard binary +1
+         * **Magnitude-Sign:** Binary +1 works for positive; negative needs special handling
+         *
+         * @return Reference to incremented value
+         */
+        constexpr int128_param_t &operator++() noexcept
+        {
+            if constexpr (is_excess_k)
+            {
+                // EK: Use += 1 to handle bias correctly
+                *this += int128_param_t{1};
+            }
+            else if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS signed: check if negative
+                if (is_negative())
+                {
+                    // Negative: decrement magnitude (moves toward zero)
+                    if (data[0] == 0)
+                    {
+                        --data[1];
+                    }
+                    --data[0];
+                    // Clear sign bit if magnitude becomes zero
+                    if (data[0] == 0 && (data[1] & ~(1ULL << 63)) == 0)
+                    {
+                        data[1] &= ~(1ULL << 63);
+                    }
+                }
+                else
+                {
+                    // Positive: increment magnitude
+                    ++data[0];
+                    if (data[0] == 0)
+                    {
+                        ++data[1];
+                    }
+                }
+            }
+            else
+            {
+                // TC and unsigned: standard increment
+                ++data[0];
+                if (data[0] == 0)
+                {
+                    ++data[1];
+                }
+            }
+            return *this;
+        }
+
+        /**
+         * @brief Post-increment operator (native for all representations)
+         * @param Dummy parameter (unused)
+         * @return Copy of original value before increment
+         */
+        constexpr int128_param_t operator++(int) noexcept
+        {
+            int128_param_t temp = *this;
+            ++(*this);
+            return temp;
+        }
+
+        /**
+         * @brief Pre-decrement operator (native for all representations)
+         *
+         * **Excess-K:** Uses operator-= for correct bias handling
+         * **Two's Complement:** Standard binary -1
+         * **Magnitude-Sign:** Binary -1 works for positive; negative needs special handling
+         *
+         * @return Reference to decremented value
+         */
+        constexpr int128_param_t &operator--() noexcept
+        {
+            if constexpr (is_excess_k)
+            {
+                // EK: Use -= 1 to handle bias correctly
+                *this -= int128_param_t{1};
+            }
+            else if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS signed: check if negative or positive zero
+                if (is_negative())
+                {
+                    // Negative: increment magnitude (moves away from zero)
+                    ++data[0];
+                    if (data[0] == 0)
+                    {
+                        ++data[1];
+                    }
+                }
+                else if (is_zero())
+                {
+                    // +0 → -1: set magnitude to 1 and sign bit
+                    data[0] = 1;
+                    data[1] = (1ULL << 63);
+                }
+                else
+                {
+                    // Positive: decrement magnitude
+                    if (data[0] == 0)
+                    {
+                        --data[1];
+                    }
+                    --data[0];
+                }
+            }
+            else
+            {
+                // TC and unsigned: standard decrement
+                if (data[0] == 0)
+                {
+                    --data[1];
+                }
+                --data[0];
+            }
+            return *this;
+        }
+
+        /**
+         * @brief Post-decrement operator (native for all representations)
+         * @param Dummy parameter (unused)
+         * @return Copy of original value before decrement
+         */
+        constexpr int128_param_t operator--(int) noexcept
+        {
+            int128_param_t temp = *this;
+            --(*this);
+            return temp;
+        }
+
+        /**
          * @brief Addition assignment operator (representation-agnostic)
          *
          * Performs 128-bit addition with carry propagation.
@@ -1393,21 +1560,46 @@ namespace nstd
         }
 
         /**
-         * @brief Subtraction assignment operator (representation-agnostic)
+         * @brief Subtraction assignment operator (representation-aware)
          *
-         * Performs 128-bit subtraction with borrow propagation.
-         * Works identically for TC and MS representations.
+         * **Excess-K:** Subtract and add bias: (x-K) - (y-K) = x - y + K
+         * **Two's Complement & Magnitude-Sign:** Standard binary subtraction
          *
          * @param other Value to subtract
          * @return Reference to this (modified)
          */
         constexpr int128_param_t &operator-=(const int128_param_t &other) noexcept
         {
-            std::uint64_t new_low = data[0] - other.data[0];
-            std::uint64_t borrow = (new_low > data[0]) ? 1 : 0;
-            data[0] = new_low;
-            data[1] = data[1] - other.data[1] - borrow;
-            return *this;
+            if constexpr (is_excess_k)
+            {
+                // Resta en Excess-K: (x - K) - (y - K) = (x - y) + K
+                // K = 2^126 = 0x4000000000000000 (high), 0x0 (low)
+                constexpr std::uint64_t bias_high = (1ULL << 62);
+                constexpr std::uint64_t bias_low = 0ULL;
+
+                // Restar x - y
+                std::uint64_t diff_low = data[0] - other.data[0];
+                std::uint64_t borrow = (diff_low > data[0]) ? 1 : 0;
+                std::uint64_t diff_high = data[1] - other.data[1] - borrow;
+
+                // Sumar bias (K)
+                std::uint64_t new_low = diff_low + bias_low;
+                std::uint64_t carry = (new_low < diff_low) ? 1 : 0;
+                std::uint64_t new_high = diff_high + bias_high + carry;
+
+                data[0] = new_low;
+                data[1] = new_high;
+                return *this;
+            }
+            else
+            {
+                // TC y MS: resta binaria estándar
+                std::uint64_t new_low = data[0] - other.data[0];
+                std::uint64_t borrow = (new_low > data[0]) ? 1 : 0;
+                data[0] = new_low;
+                data[1] = data[1] - other.data[1] - borrow;
+                return *this;
+            }
         }
 
         /**
