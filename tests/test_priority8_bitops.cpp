@@ -3,7 +3,7 @@
 #include "int128_parameterized.hpp"
 
 using nstd::int128_ms_t;
-using nstd::uint128_tc_t;
+using nstd::uint128_t;
 
 // Define a simple testing framework
 #define TEST_CASE(name) void test_##name()
@@ -25,13 +25,13 @@ TEST_CASE(ms_trailing_zeros_negative);
 
 TEST_CASE(trailing_zeros_simple)
 {
-    uint128_tc_t x(0, 8); // 0x0000...0008
+    uint128_t x(0, 8); // 0x0000...0008
     ASSERT_EQ(x.trailing_zeros(), 3);
 }
 
 TEST_CASE(leading_zeros_simple)
 {
-    uint128_tc_t x(0, 1); // This is wrong, should be high part
+    uint128_t x(0, 1); // This is wrong, should be high part
     x.set_high(1);        // Corrected
     x.set_low(0);
     // This now represents 1 << 64
@@ -42,7 +42,7 @@ TEST_CASE(leading_zeros_simple)
     // So this is correct.
     ASSERT_EQ(x.leading_zeros(), 63);
 
-    uint128_tc_t y(0, 1); // low part is 1
+    uint128_t y(0, 1); // low part is 1
     // data[1] = 0, data[0] = 1
     // leading_zeros should go into the second branch.
     // 64 + __builtin_clzll(1) = 64 + 63 = 127
@@ -51,7 +51,7 @@ TEST_CASE(leading_zeros_simple)
 
 TEST_CASE(popcount_all_ones)
 {
-    uint128_tc_t x(~0ULL, ~0ULL); // All 1s
+    uint128_t x(~0ULL, ~0ULL); // All 1s
     ASSERT_EQ(x.count_ones(), 128);
 }
 

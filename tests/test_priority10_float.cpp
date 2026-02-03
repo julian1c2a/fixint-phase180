@@ -82,21 +82,21 @@ int g_failed = 0;
 
 TEST(to_double_simple_tc)
 {
-    const uint128_tc_t x{0, 100};
+    const uint128_t x{0, 100};
     const double d{static_cast<double>(x)};
     ASSERT_NEAR(d, 100.0, 0.001);
 }
 
 TEST(to_double_large_tc)
 {
-    const uint128_tc_t x{0, 0xFFFFFFFFFFFFFFFFULL}; // 2^64 - 1
+    const uint128_t x{0, 0xFFFFFFFFFFFFFFFFULL}; // 2^64 - 1
     const double d{static_cast<double>(x)};
     ASSERT_NEAR(d, 18446744073709551615.0, 1.0);
 }
 
 TEST(to_double_high_limb_tc)
 {
-    const uint128_tc_t x{1, 0}; // 2^64
+    const uint128_t x{1, 0}; // 2^64
     const double d{static_cast<double>(x)};
     ASSERT_NEAR(d, 18446744073709551616.0, 1.0);
 }
@@ -114,7 +114,7 @@ TEST(to_double_negative_tc)
 
 TEST(to_long_double_simple_tc)
 {
-    const uint128_tc_t x{0, 1000};
+    const uint128_t x{0, 1000};
     const long double ld{static_cast<long double>(x)};
     ASSERT_NEAR(static_cast<double>(ld), 1000.0, 0.001);
 }
@@ -132,14 +132,14 @@ TEST(to_long_double_negative_tc)
 
 TEST(from_double_simple_tc)
 {
-    const uint128_tc_t x{100.0};
+    const uint128_t x{100.0};
     ASSERT_EQ(x.low(), 100);
     ASSERT_EQ(x.high(), 0);
 }
 
 TEST(from_double_truncate_tc)
 {
-    const uint128_tc_t x{123.456}; // Should truncate to 123
+    const uint128_t x{123.456}; // Should truncate to 123
     ASSERT_EQ(x.low(), 123);
 }
 
@@ -152,7 +152,7 @@ TEST(from_double_negative_tc)
 
 TEST(from_double_large_tc)
 {
-    const uint128_tc_t x{18446744073709551616.0}; // 2^64
+    const uint128_t x{18446744073709551616.0}; // 2^64
     ASSERT_EQ(x.high(), 1);
     ASSERT_EQ(x.low(), 0);
 }
@@ -163,7 +163,7 @@ TEST(from_double_large_tc)
 
 TEST(from_long_double_simple_tc)
 {
-    const uint128_tc_t x{1000.0L};
+    const uint128_t x{1000.0L};
     ASSERT_EQ(x.low(), 1000);
     ASSERT_EQ(x.high(), 0);
 }
@@ -181,9 +181,9 @@ TEST(from_long_double_negative_tc)
 
 TEST(roundtrip_double_tc)
 {
-    const uint128_tc_t original{0, 12345};
+    const uint128_t original{0, 12345};
     const double d{static_cast<double>(original)};
-    const uint128_tc_t restored{d};
+    const uint128_t restored{d};
 
     ASSERT_EQ(restored.low(), original.low());
     ASSERT_EQ(restored.high(), original.high());
@@ -234,7 +234,7 @@ TEST(from_double_ms_negative)
 
 TEST(from_double_zero)
 {
-    const uint128_tc_t x{0.0};
+    const uint128_t x{0.0};
     ASSERT_EQ(x.low(), 0);
     ASSERT_EQ(x.high(), 0);
 }
@@ -242,7 +242,7 @@ TEST(from_double_zero)
 TEST(from_double_nan_becomes_zero)
 {
     const double nan_val{std::numeric_limits<double>::quiet_NaN()};
-    const uint128_tc_t x{nan_val};
+    const uint128_t x{nan_val};
     ASSERT_EQ(x.low(), 0);
     ASSERT_EQ(x.high(), 0);
 }

@@ -197,7 +197,7 @@ void test_type_traits_is_signed()
 // TEST 20: Type aliases validation
 void test_type_aliases()
 {
-    uint128_ms_t x(42ULL);
+    uint128_t x(42ULL);
     ASSERT_EQ(x.form, representation_form::magnitude_sign);
 
     int128_ek_t y(42LL);

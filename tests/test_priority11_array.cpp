@@ -34,7 +34,7 @@ static std::vector<TestCase> tests;
 
 TEST(to_array_simple_tc)
 {
-    uint128_tc_t x{0x34, 0x12}; // (high, low) → high=0x34, low=0x12
+    uint128_t x{0x34, 0x12}; // (high, low) → high=0x34, low=0x12
     const auto bytes{static_cast<std::array<std::byte, 16>>(x)};
 
     // Check low limb (bytes [0..7])
@@ -57,7 +57,7 @@ TEST(to_array_simple_tc)
 
 TEST(to_array_full_bytes_tc)
 {
-    uint128_tc_t x{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};
+    uint128_t x{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};
     const auto bytes{static_cast<std::array<std::byte, 16>>(x)};
 
     // All bytes should be 0xFF
@@ -78,7 +78,7 @@ TEST(from_array_simple_tc)
     bytes[8] = std::byte{0xEF};
     bytes[9] = std::byte{0x12};
 
-    const uint128_tc_t x{bytes};
+    const uint128_t x{bytes};
 
     // Expected: low = 0xCDAB, high = 0x12EF
     return (x.low() == 0xCDABULL) && (x.high() == 0x12EFULL);
@@ -92,7 +92,7 @@ TEST(from_array_full_bytes_tc)
         bytes[i] = std::byte{0xFF};
     }
 
-    const uint128_tc_t x{bytes};
+    const uint128_t x{bytes};
 
     return (x.low() == 0xFFFFFFFFFFFFFFFFULL) &&
            (x.high() == 0xFFFFFFFFFFFFFFFFULL);
@@ -100,11 +100,11 @@ TEST(from_array_full_bytes_tc)
 
 TEST(roundtrip_array_tc)
 {
-    uint128_tc_t original{0x123456789ABCDEFULL, 0xFEDCBA987654321ULL};
+    uint128_t original{0x123456789ABCDEFULL, 0xFEDCBA987654321ULL};
 
     // Convert to array and back
     const auto bytes{static_cast<std::array<std::byte, 16>>(original)};
-    const uint128_tc_t reconstructed{bytes};
+    const uint128_t reconstructed{bytes};
 
     return (reconstructed.low() == original.low()) &&
            (reconstructed.high() == original.high());
@@ -133,7 +133,7 @@ TEST(to_array_ms_negative)
 
 TEST(to_bitset_simple_tc)
 {
-    uint128_tc_t x{0x00, 0xFF}; // (high, low) → high=0, low=0xFF
+    uint128_t x{0x00, 0xFF}; // (high, low) → high=0, low=0xFF
     const auto bits{static_cast<std::bitset<128>>(x)};
 
     // First 8 bits should be set
@@ -154,7 +154,7 @@ TEST(to_bitset_simple_tc)
 
 TEST(to_bitset_high_limb_tc)
 {
-    uint128_tc_t x{0xFF, 0x00}; // (high, low) → high=0xFF, low=0
+    uint128_t x{0xFF, 0x00}; // (high, low) → high=0xFF, low=0
     const auto bits{static_cast<std::bitset<128>>(x)};
 
     // First 64 bits should be clear
@@ -187,7 +187,7 @@ TEST(from_bitset_simple_tc)
     bits.set(64);  // LSB of high limb
     bits.set(127); // MSB of high limb
 
-    const uint128_tc_t x{bits};
+    const uint128_t x{bits};
 
     const uint64_t expected_low{1ULL | (1ULL << 63)};
     const uint64_t expected_high{1ULL | (1ULL << 63)};
@@ -200,7 +200,7 @@ TEST(from_bitset_all_ones_tc)
     std::bitset<128> bits{};
     bits.set(); // Set all bits to 1
 
-    const uint128_tc_t x{bits};
+    const uint128_t x{bits};
 
     return (x.low() == 0xFFFFFFFFFFFFFFFFULL) &&
            (x.high() == 0xFFFFFFFFFFFFFFFFULL);
@@ -208,11 +208,11 @@ TEST(from_bitset_all_ones_tc)
 
 TEST(roundtrip_bitset_tc)
 {
-    uint128_tc_t original{0x0F0F0F0F0F0F0F0FULL, 0xF0F0F0F0F0F0F0F0ULL};
+    uint128_t original{0x0F0F0F0F0F0F0F0FULL, 0xF0F0F0F0F0F0F0F0ULL};
 
     // Convert to bitset and back
     const auto bits{static_cast<std::bitset<128>>(original)};
-    const uint128_tc_t reconstructed{bits};
+    const uint128_t reconstructed{bits};
 
     return (reconstructed.low() == original.low()) &&
            (reconstructed.high() == original.high());
@@ -237,11 +237,11 @@ TEST(to_bitset_ms_negative)
 
 TEST(array_to_bitset_consistency)
 {
-    uint128_tc_t x{0xAAAAAAAAAAAAAAAAULL, 0x5555555555555555ULL};
+    uint128_t x{0xAAAAAAAAAAAAAAAAULL, 0x5555555555555555ULL};
 
     // Convert to array then to bitset
     const auto bytes{static_cast<std::array<std::byte, 16>>(x)};
-    const uint128_tc_t from_bytes{bytes};
+    const uint128_t from_bytes{bytes};
     const auto bits1{static_cast<std::bitset<128>>(from_bytes)};
 
     // Convert directly to bitset
@@ -253,7 +253,7 @@ TEST(array_to_bitset_consistency)
 
 TEST(zero_value_conversions)
 {
-    uint128_tc_t zero{0, 0};
+    uint128_t zero{0, 0};
 
     // To array
     const auto bytes{static_cast<std::array<std::byte, 16>>(zero)};
@@ -272,7 +272,7 @@ TEST(zero_value_conversions)
 
 TEST(max_value_conversions)
 {
-    uint128_tc_t max{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};
+    uint128_t max{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};
 
     // To array
     const auto bytes{static_cast<std::array<std::byte, 16>>(max)};

@@ -148,30 +148,30 @@ void test_copy_preserves_sign()
 // Test 21-25: Unsigned type behavior
 void test_uint_positive()
 {
-    nstd::uint128_ms_t u(100ULL);
+    nstd::uint128_t u(100ULL);
     // Unsigned types don't have is_negative()
     ASSERT_FALSE(u.is_zero());
 }
 void test_uint_zero()
 {
-    nstd::uint128_ms_t u(0ULL);
+    nstd::uint128_t u(0ULL);
     ASSERT_TRUE(u.is_zero());
 }
 void test_uint_max_representation()
 {
-    nstd::uint128_ms_t u(std::numeric_limits<uint64_t>::max());
+    nstd::uint128_t u(std::numeric_limits<uint64_t>::max());
     ASSERT_FALSE(u.is_zero());
 }
 void test_uint_low_high()
 {
-    nstd::uint128_ms_t u(0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL);
+    nstd::uint128_t u(0x1122334455667788ULL, 0x99AABBCCDDEEFF00ULL);
     // Constructor takes (high, low) in Western order
     ASSERT_EQ(u.high(), 0x1122334455667788ULL);
     ASSERT_EQ(u.low(), 0x99AABBCCDDEEFF00ULL);
 }
 void test_uint_compare()
 {
-    nstd::uint128_ms_t u1(100ULL), u2(50ULL);
+    nstd::uint128_t u1(100ULL), u2(50ULL);
     ASSERT_TRUE(u1 > u2);
 }
 

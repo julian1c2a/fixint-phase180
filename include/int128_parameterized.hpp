@@ -147,18 +147,80 @@ namespace nstd
         static constexpr bool is_excess_k{Form == representation_form::excess_k};
         static constexpr int BITS{128};
         static constexpr int BYTES{16};
+        // Enforce valid combinations: unsigned solo binnat, signed solo TC/MS/EK
         static_assert(
-            (Sign == signedness::unsigned_type && Form == representation_form::binnat) ||
-                (Sign == signedness::signed_type && Form != representation_form::binnat),
-            "Combinación inválida: unsigned solo permite binnat; signed no permite binnat");
+            (Sign == signedness::unsigned_type) == (Form == representation_form::binnat),
+            "Combinación inválida: unsigned solo permite binnat; signed solo permite TC, MS o EK");
 
-        // ===================== Storage =====================
     private:
-        std::uint64_t data[2]{{0, 0}};
+        std::uint64_t data[2]{0, 0};
+
+    public:
+        // ===================== Constructors =====================
+
+        /// @brief Default constructor (zero)
+        constexpr int128_param_t() noexcept : data{0, 0} {}
+
+        /// @brief Copy constructor
+        constexpr int128_param_t(const int128_param_t &other) noexcept = default;
+
+        /// @brief Move constructor
+        constexpr int128_param_t(int128_param_t &&other) noexcept = default;
+
+        /// @brief Constructor from (high, low) pair
+        template <typename T1, typename T2>
+        explicit constexpr int128_param_t(T1 high, T2 low) noexcept
+            : data{static_cast<std::uint64_t>(low), static_cast<std::uint64_t>(high)} {}
+
+        /// @brief Constructor from single integral value (zero-extends or sign-extends)
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        explicit constexpr int128_param_t(T value) noexcept : data{0, 0}
+        {
+            if constexpr (is_magnitude_sign && is_signed)
+            {
+                if constexpr (std::is_signed_v<T>)
+                {
+                    if (value < 0)
+                    {
+                        using UnsignedT = std::make_unsigned_t<T>;
+                        data[0] = static_cast<std::uint64_t>(-static_cast<UnsignedT>(value));
+                        data[1] = std::uint64_t{1ULL << 63}; // Set sign bit
+                    }
+                    else
+                    {
+                        data[0] = static_cast<std::uint64_t>(value);
+                        data[1] = std::uint64_t{0};
+                    }
+                }
+                else
+                {
+                    data[0] = static_cast<std::uint64_t>(value);
+                    data[1] = (sizeof(T) > sizeof(std::uint64_t)) ? static_cast<std::uint64_t>(value >> 64) : std::uint64_t{0};
+                }
+            }
+            else
+            {
+                if constexpr (std::is_signed_v<T>)
+                {
+                    const bool negative{value < 0};
+                    data[0] = static_cast<std::uint64_t>(value);
+                    data[1] = negative ? std::numeric_limits<std::uint64_t>::max() : std::uint64_t{0};
+                }
+                else
+                {
+                    data[0] = static_cast<std::uint64_t>(value);
+                    data[1] = (sizeof(T) > sizeof(std::uint64_t)) ? static_cast<std::uint64_t>(value >> 64) : std::uint64_t{0};
+                }
+            }
+        }
+
+        // ===================== Assignment Operators =====================
+
+        constexpr int128_param_t &operator=(const int128_param_t &) noexcept = default;
+        constexpr int128_param_t &operator=(int128_param_t &&) noexcept = default;
 
         // ===================== Public API =====================
-    public:
-        // ...existing code...
 
         /// @brief Assignment from integral type
         template <typename T>
@@ -936,7 +998,7 @@ namespace nstd
                 if (is_negative())
                 {
                     const int128_param_t abs_val{-(*this)};
-                    const int128_param_t<signedness::unsigned_type, Form> unsigned_val{abs_val.high(), abs_val.low()};
+                    const int128_param_t<signedness::unsigned_type, representation_form::binnat> unsigned_val{abs_val.high(), abs_val.low()};
                     return -static_cast<double>(unsigned_val);
                 }
             }
@@ -969,7 +1031,7 @@ namespace nstd
                 if (is_negative())
                 {
                     const int128_param_t abs_val{-(*this)};
-                    const int128_param_t<signedness::unsigned_type, Form> unsigned_val{abs_val.high(), abs_val.low()};
+                    const int128_param_t<signedness::unsigned_type, representation_form::binnat> unsigned_val{abs_val.high(), abs_val.low()};
                     return -static_cast<long double>(unsigned_val);
                 }
             }
@@ -2058,7 +2120,45 @@ namespace nstd
          * auto [quot, rem] = uint128_tc_t{100}.divmod(uint128_tc_t{7});
          * // quot = 14, rem = 2
          */
-        // (Eliminada la versión recursiva de divmod)
+        [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t>
+        divmod(const int128_param_t &other) const noexcept
+        {
+            int128_param_t quotient{0};
+            int128_param_t remainder{*this};
+            const bool neg_dividend{is_signed && remainder.is_negative()};
+            const bool neg_divisor{is_signed && other.is_negative()};
+            const int128_param_t divisor_abs{neg_divisor ? -other : other};
+            remainder = neg_dividend ? -remainder : remainder;
+            if (divisor_abs.is_zero())
+            {
+                return {int128_param_t{0}, *this};
+            }
+            while (remainder >= divisor_abs)
+            {
+                remainder -= divisor_abs;
+                ++quotient;
+            }
+            if (neg_dividend != neg_divisor)
+                quotient = -quotient;
+            if (neg_dividend)
+                remainder = -remainder;
+            return {quotient, remainder};
+        }
+
+        /**
+         * @brief Swap contents with another int128_param_t
+         *
+         * @param other The other value to swap with
+         */
+        constexpr void swap(int128_param_t &other) noexcept
+        {
+            const std::uint64_t temp_low{data[0]};
+            const std::uint64_t temp_high{data[1]};
+            data[0] = other.data[0];
+            data[1] = other.data[1];
+            other.data[0] = temp_low;
+            other.data[1] = temp_high;
+        }
 
         /**
          * @brief Get absolute value (magnitude)
@@ -2070,74 +2170,63 @@ namespace nstd
          * - For TC signed: negates if negative
          * - For MS signed: returns magnitude directly
          */
-        std::string to_string(int base = 10) const noexcept
+        constexpr int128_param_t abs() const noexcept
         {
-            // Validate base
-            if (base < 2 || base > 36)
-                base = 10;
-
-            // Handle zero - works for all representations
-            if (is_zero())
-                return "0";
-
-            // ================================================================
-            // STEP 1: Determine if negative and extract magnitude
-            // ================================================================
-            const bool is_negative_value{is_signed ? is_negative() : false};
-            int128_param_t value_for_division{0};
-
-            if constexpr (is_signed)
+            if constexpr (!is_signed)
             {
-                if constexpr (Form == representation_form::twos_complement)
-                {
-                    value_for_division = is_negative_value ? -(*this) : *this;
-                }
-                else // For MS and EK
-                {
-                    value_for_division = this->magnitude();
-                }
+                return *this;
             }
-            else // unsigned
+            else if constexpr (is_magnitude_sign)
             {
-                value_for_division = *this;
+                int128_param_t result{*this};
+                result.data[1] &= ~(std::uint64_t{1} << 63);
+                return result;
             }
-
-            // ================================================================
-            // STEP 2: Convert absolute value to string (long division)
-            // ================================================================
-            std::string result{};
-            constexpr const char *digits{"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"};
-
-            while (value_for_division.high() != 0 || value_for_division.low() != 0)
+            else
             {
-                int128_param_t quotient{0};
-                std::uint64_t remainder{0};
-
-                // Step 1: Divide high 64 bits
-                const std::uint64_t high_dividend{value_for_division.data[1]};
-                quotient.data[1] = high_dividend / base;
-                remainder = high_dividend % base;
-
-                // Step 2: Divide middle part (remainder from high + upper 32 bits of low)
-                const std::uint64_t mid_dividend{(remainder << 32) | ((value_for_division.data[0] >> 32) & 0xFFFFFFFFULL)};
-                const std::uint64_t mid_quotient{mid_dividend / base};
-                remainder = mid_dividend % base;
-
-                // Step 3: Divide low part (remainder from middle + lower 32 bits of low)
-                const std::uint64_t low_dividend{(remainder << 32) | (value_for_division.data[0] & 0xFFFFFFFFULL)};
-                const std::uint64_t low_quotient{low_dividend / base};
-                remainder = low_dividend % base;
-
-                quotient.data[0] = (mid_quotient << 32) | (low_quotient & 0xFFFFFFFFULL);
-                result = digits[remainder] + result;
-                value_for_division = quotient;
+                return is_negative() ? -(*this) : (*this);
             }
-
-            if (is_negative_value)
-                result = "-" + result;
-
-            return result.empty() ? "0" : result;
         }
+
+        /**
+         * @brief Friend arithmetic operators for mixed-type operations
+         */
+        template <typename T>
+        friend constexpr int128_param_t operator+(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs + int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr int128_param_t operator+(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} + rhs;
+        }
+
+        template <typename T>
+        friend constexpr int128_param_t operator-(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs - int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr int128_param_t operator-(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} - rhs;
+        }
+
+        template <typename T>
+        friend constexpr int128_param_t operator*(const int128_param_t &lhs, T rhs) noexcept
+        {
+            return lhs * int128_param_t{rhs};
+        }
+
+        template <typename T>
+        friend constexpr int128_param_t operator*(T lhs, const int128_param_t &rhs) noexcept
+        {
+            return int128_param_t{lhs} * rhs;
+        }
+
         /**
          * @brief Friend comparison operators for mixed-type operations
          */
@@ -2271,21 +2360,17 @@ namespace nstd
     // Type Aliases
     // =============================================================================
 
-    // Two's Complement (Phase 1.66 Compatible)
-    using uint128_tc_t = int128_param_t<signedness::unsigned_type, representation_form::twos_complement>;
+    // Unsigned (binnat only)
+    using uint128_t = int128_param_t<signedness::unsigned_type, representation_form::binnat>;
+
+    // Signed (TC, MS, EK)
+    using int128_t = int128_param_t<signedness::signed_type, representation_form::twos_complement>;
     using int128_tc_t = int128_param_t<signedness::signed_type, representation_form::twos_complement>;
-
-    // Magnitude-Sign (Phase 1.75 Primary Investigation)
-    using uint128_ms_t = int128_param_t<signedness::unsigned_type, representation_form::magnitude_sign>;
     using int128_ms_t = int128_param_t<signedness::signed_type, representation_form::magnitude_sign>;
-
-    // Excess-k (Phase 1.75 Future - IEEE 754 Exponents)
-    using uint128_ek_t = int128_param_t<signedness::unsigned_type, representation_form::excess_k>;
     using int128_ek_t = int128_param_t<signedness::signed_type, representation_form::excess_k>;
 
-    // Default aliases (backward compatible with Phase 1.66)
-    using uint128_t = uint128_tc_t;
-    using int128_t = int128_tc_t;
+    // Legacy aliases (backward compatible)
+    using uint128_bn_t = uint128_t; // Binario Natural = default unsigned
 
 } // namespace nstd
 
