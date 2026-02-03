@@ -261,6 +261,39 @@ namespace nstd
             return *this = int128_param_t{value};
         }
 
+        /**
+         * @brief Assignment from float (delegates to constructor)
+         * @param value Float value to assign
+         * @return Reference to this object
+         * @note Truncates fractional part, handles NaN/overflow
+         */
+        int128_param_t &operator=(float value) noexcept
+        {
+            return *this = int128_param_t{value};
+        }
+
+        /**
+         * @brief Assignment from double (delegates to constructor)
+         * @param value Double value to assign
+         * @return Reference to this object
+         * @note Truncates fractional part, handles NaN/overflow
+         */
+        int128_param_t &operator=(double value) noexcept
+        {
+            return *this = int128_param_t{value};
+        }
+
+        /**
+         * @brief Assignment from long double (delegates to constructor)
+         * @param value Long double value to assign
+         * @return Reference to this object
+         * @note Truncates fractional part, handles NaN/overflow
+         */
+        int128_param_t &operator=(long double value) noexcept
+        {
+            return *this = int128_param_t{value};
+        }
+
         // ========================================================================
         // Accessors
         // ========================================================================
