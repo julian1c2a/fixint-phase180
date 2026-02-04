@@ -35,6 +35,10 @@
 #include "intrinsics/arithmetic_operations.hpp"
 #endif
 
+#if __has_include("intrinsics/bit_operations.hpp")
+#include "intrinsics/bit_operations.hpp"
+#endif
+
 namespace nstd
 {
     // =============================================================================
@@ -2507,6 +2511,38 @@ namespace nstd
          */
         constexpr int trailing_zeros() const noexcept
         {
+#if __has_include("intrinsics/bit_operations.hpp")
+            if (!std::is_constant_evaluated())
+            {
+                // Optimized path: Use TZCNT hardware instruction
+                if constexpr (is_magnitude_sign && is_signed)
+                {
+                    const uint64_t mag_high{data[1] & ~(1ULL << 63)};
+                    if (data[0] != 0)
+                    {
+                        return intrinsics::ctz64(data[0]);
+                    }
+                    if (mag_high != 0)
+                    {
+                        return 64 + intrinsics::ctz64(mag_high);
+                    }
+                    return 127; // MS magnitude is 127 bits
+                }
+                else
+                {
+                    if (data[0] != 0)
+                    {
+                        return intrinsics::ctz64(data[0]);
+                    }
+                    if (data[1] != 0)
+                    {
+                        return 64 + intrinsics::ctz64(data[1]);
+                    }
+                    return 128;
+                }
+            }
+#endif
+            // Portable fallback for constexpr contexts
             if constexpr (is_magnitude_sign && is_signed)
             {
                 const uint64_t mag_high{data[1] & ~(1ULL << 63)};
@@ -2545,6 +2581,38 @@ namespace nstd
          */
         constexpr int leading_zeros() const noexcept
         {
+#if __has_include("intrinsics/bit_operations.hpp")
+            if (!std::is_constant_evaluated())
+            {
+                // Optimized path: Use LZCNT hardware instruction
+                if constexpr (is_magnitude_sign && is_signed)
+                {
+                    const uint64_t mag_high{data[1] & ~(1ULL << 63)};
+                    if (mag_high != 0)
+                    {
+                        return intrinsics::clz64(mag_high) - 1;
+                    }
+                    if (data[0] != 0)
+                    {
+                        return 63 + intrinsics::clz64(data[0]);
+                    }
+                    return 127; // MS magnitude is 127 bits
+                }
+                else
+                {
+                    if (data[1] != 0)
+                    {
+                        return intrinsics::clz64(data[1]);
+                    }
+                    if (data[0] != 0)
+                    {
+                        return 64 + intrinsics::clz64(data[0]);
+                    }
+                    return 128;
+                }
+            }
+#endif
+            // Portable fallback for constexpr contexts
             if constexpr (is_magnitude_sign && is_signed)
             {
                 const uint64_t mag_high{data[1] & ~(1ULL << 63)};
@@ -2582,6 +2650,22 @@ namespace nstd
          */
         constexpr int count_ones() const noexcept
         {
+#if __has_include("intrinsics/bit_operations.hpp")
+            if (!std::is_constant_evaluated())
+            {
+                // Optimized path: Use POPCNT hardware instruction
+                if constexpr (is_magnitude_sign && is_signed)
+                {
+                    const uint64_t mag_high = data[1] & ~(1ULL << 63);
+                    return intrinsics::popcount64(mag_high) + intrinsics::popcount64(data[0]);
+                }
+                else
+                {
+                    return intrinsics::popcount64(data[1]) + intrinsics::popcount64(data[0]);
+                }
+            }
+#endif
+            // Portable fallback for constexpr contexts
             if constexpr (is_magnitude_sign && is_signed)
             {
                 const uint64_t mag_high = data[1] & ~(1ULL << 63);
