@@ -152,6 +152,75 @@ namespace nstd
             (Sign == signedness::unsigned_type) == (Form == representation_form::binnat),
             "Combinación inválida: unsigned solo permite binnat; signed solo permite TC, MS o EK");
 
+        /**
+         * @brief Return maximum representable value
+         *
+         * @details For unsigned: all bits set (2^128 - 1)
+         *          For TC signed: 0x7FFF... (2^127 - 1)
+         *          For MS signed: magnitude 0x7FFF..., sign=0 (2^127 - 1)
+         *          For EK signed: stored value = 2^127 - 1 + K (real max = 2^127 - 1)
+         */
+        static constexpr int128_param_t max() noexcept
+        {
+            if constexpr (Sign == signedness::unsigned_type)
+            {
+                // Unsigned: all bits set
+                return int128_param_t{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};
+            }
+            else if constexpr (Form == representation_form::twos_complement)
+            {
+                // TC signed: MSB=0, rest=1 → 0x7FFF...
+                return int128_param_t{0x7FFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};
+            }
+            else if constexpr (Form == representation_form::magnitude_sign)
+            {
+                // MS signed: sign bit=0, magnitude=max → 0x7FFF...
+                return int128_param_t{0x7FFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};
+            }
+            else // excess_k
+            {
+                // EK: stored = real_max + K = (2^127 - 1) + 2^126 = 3·2^126 - 1
+                // K = 0x4000000000000000 0x0000000000000000
+                // max_real = 0x7FFFFFFFFFFFFFFF FFFFFFFFFFFFFFFF
+                // stored = 0xBFFFFFFFFFFFFFFF FFFFFFFFFFFFFFFF
+                return int128_param_t{0xBFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};
+            }
+        }
+
+        /**
+         * @brief Return minimum representable value
+         *
+         * @details For unsigned: 0
+         *          For TC signed: 0x8000... (-2^127)
+         *          For MS signed: magnitude 0x7FFF..., sign=1 (-2^127 + 1 because no -0)
+         *          For EK signed: stored value = -2^127 + K (real min = -2^127)
+         */
+        static constexpr int128_param_t min() noexcept
+        {
+            if constexpr (Sign == signedness::unsigned_type)
+            {
+                // Unsigned: zero
+                return int128_param_t{0, 0};
+            }
+            else if constexpr (Form == representation_form::twos_complement)
+            {
+                // TC signed: MSB=1, rest=0 → 0x8000... = -2^127
+                return int128_param_t{0x8000000000000000ULL, 0};
+            }
+            else if constexpr (Form == representation_form::magnitude_sign)
+            {
+                // MS signed: sign bit=1, magnitude=max → -2^127 + 1 (no tiene -2^127)
+                // (Because MS can't represent -2^127, only -(2^127 - 1))
+                return int128_param_t{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};
+            }
+            else // excess_k
+            {
+                // EK: stored = real_min + K = -2^127 + 2^126 = -2^126
+                // Stored value = 0x0000000000000000 0x0000000000000000
+                return int128_param_t{0, 0};
+            }
+        }
+
     private:
         std::uint64_t data[2]{0, 0};
 
@@ -173,10 +242,63 @@ namespace nstd
             : data{static_cast<std::uint64_t>(low), static_cast<std::uint64_t>(high)} {}
 
         /// @brief Constructor from single integral value (zero-extends or sign-extends)
+        ///
+        /// ⚠️ GCC BUG WORKAROUND: GCC 15.2.0 with -O2 optimization incorrectly eliminates
+        /// the EK branch code that adds bias, even with volatile and explicit control flow.
+        /// Using #pragma GCC optimize("O0") for this function only as a workaround.
+#pragma GCC push_options
+#pragma GCC optimize("O0")
         template <typename T,
                   typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
         explicit constexpr int128_param_t(T value) noexcept : data{0, 0}
         {
+            // NOTE: Each representation form handled in separate branch
+            // CRITICAL: Must use if constexpr (not else-if) to ensure correct evaluation with -O2
+
+            // ========================================================================
+            // EXCESS-K Representation (Bias Notation)
+            // ========================================================================
+            if constexpr (is_excess_k && is_signed)
+            {
+                static_assert(is_excess_k, "EK branch: is_excess_k must be true");
+                static_assert(is_signed, "EK branch: is_signed must be true");
+                // Excess-K: stored_value = real_value + bias (K = 2^126)
+                constexpr std::uint64_t bias_high{1ULL << 62};
+                constexpr std::uint64_t bias_low{0ULL};
+
+                if constexpr (std::is_signed_v<T>)
+                {
+                    // Sign-extend to 128 bits first
+                    const bool negative{value < 0};
+                    const std::uint64_t value_low{static_cast<std::uint64_t>(value)};
+                    const std::uint64_t value_high{negative ? std::numeric_limits<std::uint64_t>::max() : std::uint64_t{0}};
+
+                    // Add bias - Use volatile to prevent optimizer from eliminating this
+                    volatile std::uint64_t vtemp_low{value_low};
+                    const std::uint64_t sum_low{vtemp_low + bias_low};
+                    const std::uint64_t carry{(sum_low < vtemp_low) ? 1ULL : 0ULL};
+                    data[0] = sum_low;
+                    data[1] = value_high + bias_high + carry;
+                }
+                else
+                {
+                    // Zero-extend to 128 bits
+                    const std::uint64_t value_low{static_cast<std::uint64_t>(value)};
+                    const std::uint64_t value_high{(sizeof(T) > sizeof(std::uint64_t)) ? static_cast<std::uint64_t>(value >> 64) : std::uint64_t{0}};
+
+                    // Add bias - Use volatile to prevent optimizer from eliminating this
+                    volatile std::uint64_t vtemp_low{value_low};
+                    const std::uint64_t sum_low{vtemp_low + bias_low};
+                    const std::uint64_t carry{(sum_low < vtemp_low) ? 1ULL : 0ULL};
+                    data[0] = sum_low;
+                    data[1] = value_high + bias_high + carry;
+                }
+                return; // Early return to ensure no other branch executes
+            }
+
+            // ========================================================================
+            // MAGNITUDE-SIGN Representation
+            // ========================================================================
             if constexpr (is_magnitude_sign && is_signed)
             {
                 if constexpr (std::is_signed_v<T>)
@@ -198,54 +320,26 @@ namespace nstd
                     data[0] = static_cast<std::uint64_t>(value);
                     data[1] = (sizeof(T) > sizeof(std::uint64_t)) ? static_cast<std::uint64_t>(value >> 64) : std::uint64_t{0};
                 }
+                return; // Early return
             }
-            else if constexpr (is_excess_k && is_signed)
+
+            // ========================================================================
+            // TWO'S COMPLEMENT (TC) and BINNAT (unsigned binary natural)
+            // ========================================================================
+            // Default: TC for signed, binnat for unsigned
+            if constexpr (std::is_signed_v<T>)
             {
-                // Excess-K: stored_value = real_value + bias (K = 2^126)
-                constexpr std::uint64_t bias_high{1ULL << 62};
-                constexpr std::uint64_t bias_low{0ULL};
-
-                if constexpr (std::is_signed_v<T>)
-                {
-                    // Sign-extend to 128 bits first
-                    const bool negative{value < 0};
-                    const std::uint64_t value_low{static_cast<std::uint64_t>(value)};
-                    const std::uint64_t value_high{negative ? std::numeric_limits<std::uint64_t>::max() : std::uint64_t{0}};
-
-                    // Add bias
-                    std::uint64_t sum_low{value_low + bias_low};
-                    std::uint64_t carry{(sum_low < value_low) ? 1ULL : 0ULL};
-                    data[0] = sum_low;
-                    data[1] = value_high + bias_high + carry;
-                }
-                else
-                {
-                    // Zero-extend to 128 bits
-                    const std::uint64_t value_low{static_cast<std::uint64_t>(value)};
-                    const std::uint64_t value_high{(sizeof(T) > sizeof(std::uint64_t)) ? static_cast<std::uint64_t>(value >> 64) : std::uint64_t{0}};
-
-                    // Add bias
-                    std::uint64_t sum_low{value_low + bias_low};
-                    std::uint64_t carry{(sum_low < value_low) ? 1ULL : 0ULL};
-                    data[0] = sum_low;
-                    data[1] = value_high + bias_high + carry;
-                }
+                const bool negative{value < 0};
+                data[0] = static_cast<std::uint64_t>(value);
+                data[1] = negative ? std::numeric_limits<std::uint64_t>::max() : std::uint64_t{0};
             }
             else
             {
-                if constexpr (std::is_signed_v<T>)
-                {
-                    const bool negative{value < 0};
-                    data[0] = static_cast<std::uint64_t>(value);
-                    data[1] = negative ? std::numeric_limits<std::uint64_t>::max() : std::uint64_t{0};
-                }
-                else
-                {
-                    data[0] = static_cast<std::uint64_t>(value);
-                    data[1] = (sizeof(T) > sizeof(std::uint64_t)) ? static_cast<std::uint64_t>(value >> 64) : std::uint64_t{0};
-                }
+                data[0] = static_cast<std::uint64_t>(value);
+                data[1] = (sizeof(T) > sizeof(std::uint64_t)) ? static_cast<std::uint64_t>(value >> 64) : std::uint64_t{0};
             }
         }
+#pragma GCC pop_options
 
         // ===================== Assignment Operators =====================
 
@@ -1719,7 +1813,7 @@ namespace nstd
          * @brief Multiplication assignment operator
          *
          * **Two's Complement (TC):** SEMANTIC - Binary multiplication matches real value multiplication
-         * **Magnitude-Sign (MS):** SEMANTIC - Binary multiplication on magnitude (unsigned behavior)
+         * **Magnitude-Sign (MS):** SEMANTIC - Extracts magnitudes, multiplies, applies sign rule
          * **Excess-K (EK):** ⚠️ SYNTACTIC (NOT SEMANTIC) - Operates on stored values
          *   - Real: (x) * (y) = (xy)
          *   - Stored: (x+K) * (y+K) = xy + K(x+y) + K² ≠ (xy) + K
@@ -1734,26 +1828,48 @@ namespace nstd
          */
         constexpr int128_param_t &operator*=(const int128_param_t &other) noexcept
         {
-            // Simple multiplication: decompose into 64-bit chunks
-            // a·b = (a_high·2^64 + a_low) · (b_high·2^64 + b_low)
-            //     = a_high·b_high·2^128 + (a_high·b_low + a_low·b_high)·2^64 + a_low·b_low
+            if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS: Extract magnitudes, multiply, apply sign rule
+                const bool lhs_neg{is_negative()};
+                const bool rhs_neg{other.is_negative()};
+                const bool result_neg{lhs_neg != rhs_neg}; // XOR for sign
 
-            std::uint64_t a_low = data[0];
-            std::uint64_t a_high = data[1];
-            std::uint64_t b_low = other.data[0];
-            std::uint64_t b_high = other.data[1];
+                // Extract magnitudes (clear sign bit)
+                std::uint64_t a_low = data[0];
+                std::uint64_t a_high = data[1] & ~(1ULL << 63); // Clear sign bit
+                std::uint64_t b_low = other.data[0];
+                std::uint64_t b_high = other.data[1] & ~(1ULL << 63); // Clear sign bit
 
-            // Low 128 bits: a_low * b_low
-            // Note: This is a simplification; full implementation would use __uint128_t or similar
-            std::uint64_t product_low_low = a_low * b_low;
+                // Multiply magnitudes (unsigned multiplication)
+                std::uint64_t product_low_low = a_low * b_low;
+                std::uint64_t cross_1 = a_high * b_low;
+                std::uint64_t cross_2 = a_low * b_high;
 
-            // Cross products for the 128-bit result
-            std::uint64_t cross_1 = a_high * b_low;
-            std::uint64_t cross_2 = a_low * b_high;
+                data[0] = product_low_low;
+                data[1] = cross_1 + cross_2 + (a_high * b_high);
 
-            // Combine: low part stays, high part accumulates
-            data[0] = product_low_low;
-            data[1] = cross_1 + cross_2 + (a_high * b_high);
+                // Apply sign (set sign bit if negative)
+                if (result_neg)
+                {
+                    data[1] |= (1ULL << 63);
+                }
+            }
+            else
+            {
+                // TC, EK, unsigned: binary multiplication
+                std::uint64_t a_low = data[0];
+                std::uint64_t a_high = data[1];
+                std::uint64_t b_low = other.data[0];
+                std::uint64_t b_high = other.data[1];
+
+                std::uint64_t product_low_low = a_low * b_low;
+                std::uint64_t cross_1 = a_high * b_low;
+                std::uint64_t cross_2 = a_low * b_high;
+
+                data[0] = product_low_low;
+                data[1] = cross_1 + cross_2 + (a_high * b_high);
+            }
 
             return *this;
         }
@@ -2429,26 +2545,94 @@ namespace nstd
         [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t>
         divmod(const int128_param_t &other) const noexcept
         {
-            int128_param_t quotient{0};
-            int128_param_t remainder{*this};
-            const bool neg_dividend{is_signed && remainder.is_negative()};
-            const bool neg_divisor{is_signed && other.is_negative()};
-            const int128_param_t divisor_abs{neg_divisor ? -other : other};
-            remainder = neg_dividend ? -remainder : remainder;
-            if (divisor_abs.is_zero())
+            if constexpr (!is_signed)
             {
-                return {int128_param_t{0}, *this};
+                // Unsigned: simple division loop
+                int128_param_t quotient{0};
+                int128_param_t remainder{*this};
+
+                if (other.is_zero())
+                {
+                    return {int128_param_t{0}, *this};
+                }
+
+                while (remainder >= other)
+                {
+                    remainder -= other;
+                    ++quotient;
+                }
+
+                return {quotient, remainder};
             }
-            while (remainder >= divisor_abs)
+            else if constexpr (is_magnitude_sign)
             {
-                remainder -= divisor_abs;
-                ++quotient;
+                // MS: Work with magnitudes, apply sign rules
+                const bool neg_dividend{is_negative()};
+                const bool neg_divisor{other.is_negative()};
+
+                // Extract magnitudes
+                const auto dividend_mag{magnitude()};
+                const auto divisor_mag{other.magnitude()};
+
+                if (divisor_mag.is_zero())
+                {
+                    return {int128_param_t{0}, *this};
+                }
+
+                // Divide magnitudes (unsigned division)
+                int128_param_t quotient{0};
+                int128_param_t remainder{dividend_mag};
+
+                while (remainder >= divisor_mag)
+                {
+                    remainder -= divisor_mag;
+                    ++quotient;
+                }
+
+                // Apply sign rules
+                if (neg_dividend != neg_divisor && !quotient.is_zero())
+                {
+                    quotient.data[1] |= (1ULL << 63); // Set sign bit
+                }
+                if (neg_dividend && !remainder.is_zero())
+                {
+                    remainder.data[1] |= (1ULL << 63); // Set sign bit
+                }
+
+                return {quotient, remainder};
             }
-            if (neg_dividend != neg_divisor)
-                quotient = -quotient;
-            if (neg_dividend)
-                remainder = -remainder;
-            return {quotient, remainder};
+            else
+            {
+                // TC and EK: handle negatives with two's complement
+                int128_param_t quotient{0};
+                int128_param_t remainder{*this};
+                const bool neg_dividend{remainder.is_negative()};
+                const bool neg_divisor{other.is_negative()};
+                const int128_param_t divisor_abs{neg_divisor ? -other : other};
+                remainder = neg_dividend ? -remainder : remainder;
+
+                if (divisor_abs.is_zero())
+                {
+                    return {int128_param_t{0}, *this};
+                }
+
+                while (remainder >= divisor_abs)
+                {
+                    remainder -= divisor_abs;
+                    ++quotient;
+                }
+
+                if (neg_dividend != neg_divisor)
+                {
+                    quotient = -quotient;
+                }
+                if (neg_dividend)
+                {
+                    remainder = -remainder;
+                }
+
+                return {quotient, remainder};
+            }
         }
 
         /**

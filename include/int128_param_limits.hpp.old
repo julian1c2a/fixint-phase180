@@ -13,7 +13,7 @@
 //
 // =============================================================================
 // @file       int128_param_limits.hpp
-// @brief      std::numeric_limits for parameterized 128-bit types (4 valid types)
+// @brief      std::numeric_limits specializations for parameterized 128-bit types
 // @author     Julián Calderón Almendros
 // @date       2026-02-04 (last edit)
 // @version    1.75.0
@@ -28,14 +28,25 @@
 namespace std
 {
     // ========================================================================
-    // 1. BINNAT (unsigned binary natural)
+    // NUMERIC_LIMITS SPECIALIZATION - BINNAT (UNSIGNED)
     // ========================================================================
 
+    /**
+     * @brief std::numeric_limits specialization for binnat_t (unsigned binary natural)
+     *
+     * @details Binary natural representation (unsigned only):
+     * - min() = 0
+     * - max() = 2^128 - 1
+     * - digits = 128 (full width)
+     * - No sign bit encoding
+     */
     template <>
-    class numeric_limits<nstd::uint128_t>
+    class numeric_limits<nstd::int128_param_t<nstd::signedness::unsigned_type,
+                                              nstd::representation_form::binnat>>
     {
     public:
-        using value_type = nstd::uint128_t;
+        using value_type = nstd::int128_param_t<nstd::signedness::unsigned_type,
+                                                nstd::representation_form::twos_complement>;
 
         static constexpr bool is_specialized = true;
         static constexpr bool is_signed = false;
@@ -49,7 +60,7 @@ namespace std
         static constexpr float_round_style round_style = round_toward_zero;
         static constexpr bool is_iec559 = false;
         static constexpr bool is_bounded = true;
-        static constexpr bool is_modulo = true; // Unsigned wraps
+        static constexpr bool is_modulo = true;
         static constexpr int digits = 128;
         static constexpr int digits10 = 38; // floor(log10(2^128))
         static constexpr int max_digits10 = 0;
@@ -73,14 +84,16 @@ namespace std
     };
 
     // ========================================================================
-    // 2. TWO'S COMPLEMENT (signed)
+    // NUMERIC_LIMITS SPECIALIZATION - TWO'S COMPLEMENT SIGNED
     // ========================================================================
 
     template <>
-    class numeric_limits<nstd::int128_tc_t>
+    class numeric_limits<nstd::int128_param_t<nstd::signedness::signed_type,
+                                              nstd::representation_form::twos_complement>>
     {
     public:
-        using value_type = nstd::int128_tc_t;
+        using value_type = nstd::int128_param_t<nstd::signedness::signed_type,
+                                                nstd::representation_form::twos_complement>;
 
         static constexpr bool is_specialized = true;
         static constexpr bool is_signed = true;
@@ -94,9 +107,9 @@ namespace std
         static constexpr float_round_style round_style = round_toward_zero;
         static constexpr bool is_iec559 = false;
         static constexpr bool is_bounded = true;
-        static constexpr bool is_modulo = false; // Signed overflow is UB
-        static constexpr int digits = 127;       // Excluding sign bit
-        static constexpr int digits10 = 38;      // floor(log10(2^127))
+        static constexpr bool is_modulo = false;
+        static constexpr int digits = 127;  // 1 bit for sign
+        static constexpr int digits10 = 38; // floor(log10(2^127))
         static constexpr int max_digits10 = 0;
         static constexpr int radix = 2;
         static constexpr int min_exponent = 0;
@@ -106,18 +119,9 @@ namespace std
         static constexpr bool traps = false;
         static constexpr bool tinyness_before = false;
 
-        static constexpr value_type min() noexcept
-        {
-            return value_type{1ULL << 63, 0}; // -2^127
-        }
-
+        static constexpr value_type min() noexcept { return value_type{1ULL << 63, 0}; } // -2^127
         static constexpr value_type lowest() noexcept { return min(); }
-
-        static constexpr value_type max() noexcept
-        {
-            return value_type{(1ULL << 63) - 1, ~0ULL}; // 2^127 - 1
-        }
-
+        static constexpr value_type max() noexcept { return value_type{(1ULL << 63) - 1, ~0ULL}; } // 2^127 - 1
         static constexpr value_type epsilon() noexcept { return value_type{0, 0}; }
         static constexpr value_type round_error() noexcept { return value_type{0, 0}; }
         static constexpr value_type infinity() noexcept { return value_type{0, 0}; }
@@ -127,17 +131,19 @@ namespace std
     };
 
     // ========================================================================
-    // 3. MAGNITUDE-SIGN (signed)
+    // NUMERIC_LIMITS SPECIALIZATION - MAGNITUDE-SIGN UNSIGNED
     // ========================================================================
 
     template <>
-    class numeric_limits<nstd::int128_ms_t>
+    class numeric_limits<nstd::int128_param_t<nstd::signedness::unsigned_type,
+                                              nstd::representation_form::magnitude_sign>>
     {
     public:
-        using value_type = nstd::int128_ms_t;
+        using value_type = nstd::int128_param_t<nstd::signedness::unsigned_type,
+                                                nstd::representation_form::magnitude_sign>;
 
         static constexpr bool is_specialized = true;
-        static constexpr bool is_signed = true;
+        static constexpr bool is_signed = false;
         static constexpr bool is_integer = true;
         static constexpr bool is_exact = true;
         static constexpr bool has_infinity = false;
@@ -148,8 +154,8 @@ namespace std
         static constexpr float_round_style round_style = round_toward_zero;
         static constexpr bool is_iec559 = false;
         static constexpr bool is_bounded = true;
-        static constexpr bool is_modulo = false; // Signed overflow is UB
-        static constexpr int digits = 127;       // Magnitude bits (excluding sign bit)
+        static constexpr bool is_modulo = true;
+        static constexpr int digits = 127; // Sign bit excluded from magnitude
         static constexpr int digits10 = 38;
         static constexpr int max_digits10 = 0;
         static constexpr int radix = 2;
@@ -160,20 +166,9 @@ namespace std
         static constexpr bool traps = false;
         static constexpr bool tinyness_before = false;
 
-        static constexpr value_type min() noexcept
-        {
-            // MS min = -(2^127 - 1) with sign bit set
-            return value_type{(1ULL << 63) | ((1ULL << 63) - 1), ~0ULL};
-        }
-
+        static constexpr value_type min() noexcept { return value_type{0, 0}; }
         static constexpr value_type lowest() noexcept { return min(); }
-
-        static constexpr value_type max() noexcept
-        {
-            // MS max = +(2^127 - 1) with sign bit clear
-            return value_type{(1ULL << 63) - 1, ~0ULL};
-        }
-
+        static constexpr value_type max() noexcept { return value_type{(1ULL << 63) - 1, ~0ULL}; } // 2^127 - 1
         static constexpr value_type epsilon() noexcept { return value_type{0, 0}; }
         static constexpr value_type round_error() noexcept { return value_type{0, 0}; }
         static constexpr value_type infinity() noexcept { return value_type{0, 0}; }
@@ -183,14 +178,16 @@ namespace std
     };
 
     // ========================================================================
-    // 4. EXCESS-K (signed)
+    // NUMERIC_LIMITS SPECIALIZATION - MAGNITUDE-SIGN SIGNED
     // ========================================================================
 
     template <>
-    class numeric_limits<nstd::int128_ek_t>
+    class numeric_limits<nstd::int128_param_t<nstd::signedness::signed_type,
+                                              nstd::representation_form::magnitude_sign>>
     {
     public:
-        using value_type = nstd::int128_ek_t;
+        using value_type = nstd::int128_param_t<nstd::signedness::signed_type,
+                                                nstd::representation_form::magnitude_sign>;
 
         static constexpr bool is_specialized = true;
         static constexpr bool is_signed = true;
@@ -204,8 +201,8 @@ namespace std
         static constexpr float_round_style round_style = round_toward_zero;
         static constexpr bool is_iec559 = false;
         static constexpr bool is_bounded = true;
-        static constexpr bool is_modulo = false; // Signed overflow is UB
-        static constexpr int digits = 127;       // Effective range after bias
+        static constexpr bool is_modulo = false;
+        static constexpr int digits = 127; // Magnitude bits only
         static constexpr int digits10 = 38;
         static constexpr int max_digits10 = 0;
         static constexpr int radix = 2;
@@ -216,22 +213,110 @@ namespace std
         static constexpr bool traps = false;
         static constexpr bool tinyness_before = false;
 
-        static constexpr value_type min() noexcept
-        {
-            // EK min = -2^126 (stored as 0, since K = 2^126)
-            // Real value -2^126 + K = 0
-            return value_type{0, 0};
-        }
-
+        // MS has symmetric range: -(2^127 - 1) to +(2^127 - 1)
+        static constexpr value_type min() noexcept { return value_type{(1ULL << 63) | ((1ULL << 63) - 1), ~0ULL}; } // -(2^127 - 1)
         static constexpr value_type lowest() noexcept { return min(); }
+        static constexpr value_type max() noexcept { return value_type{(1ULL << 63) - 1, ~0ULL}; } // +(2^127 - 1)
+        static constexpr value_type epsilon() noexcept { return value_type{0, 0}; }
+        static constexpr value_type round_error() noexcept { return value_type{0, 0}; }
+        static constexpr value_type infinity() noexcept { return value_type{0, 0}; }
+        static constexpr value_type quiet_NaN() noexcept { return value_type{0, 0}; }
+        static constexpr value_type signaling_NaN() noexcept { return value_type{0, 0}; }
+        static constexpr value_type denorm_min() noexcept { return value_type{0, 0}; }
+    };
 
-        static constexpr value_type max() noexcept
-        {
-            // EK max = 2^126 - 1 (real value)
-            // Stored value = (2^126 - 1) + K = 2^127 - 1
-            return value_type{(1ULL << 63) - 1, ~0ULL};
-        }
+    // ========================================================================
+    // NUMERIC_LIMITS SPECIALIZATION - EXCESS-K UNSIGNED
+    // ========================================================================
 
+    template <>
+    class numeric_limits<nstd::int128_param_t<nstd::signedness::unsigned_type,
+                                              nstd::representation_form::excess_k>>
+    {
+    public:
+        using value_type = nstd::int128_param_t<nstd::signedness::unsigned_type,
+                                                nstd::representation_form::excess_k>;
+
+        static constexpr bool is_specialized = true;
+        static constexpr bool is_signed = false;
+        static constexpr bool is_integer = true;
+        static constexpr bool is_exact = true;
+        static constexpr bool has_infinity = false;
+        static constexpr bool has_quiet_NaN = false;
+        static constexpr bool has_signaling_NaN = false;
+        static constexpr float_denorm_style has_denorm = denorm_absent;
+        static constexpr bool has_denorm_loss = false;
+        static constexpr float_round_style round_style = round_toward_zero;
+        static constexpr bool is_iec559 = false;
+        static constexpr bool is_bounded = true;
+        static constexpr bool is_modulo = true;
+        static constexpr int digits = 128;
+        static constexpr int digits10 = 38;
+        static constexpr int max_digits10 = 0;
+        static constexpr int radix = 2;
+        static constexpr int min_exponent = 0;
+        static constexpr int min_exponent10 = 0;
+        static constexpr int max_exponent = 0;
+        static constexpr int max_exponent10 = 0;
+        static constexpr bool traps = false;
+        static constexpr bool tinyness_before = false;
+
+        // EK unsigned: real_value = stored_value - bias
+        // min = 0 - bias = -bias (stored as 0)
+        // max = 2^128 - 1 - bias (stored as all 1s)
+        static constexpr value_type min() noexcept { return value_type{0, 0}; }
+        static constexpr value_type lowest() noexcept { return min(); }
+        static constexpr value_type max() noexcept { return value_type{~0ULL, ~0ULL}; }
+        static constexpr value_type epsilon() noexcept { return value_type{0, 0}; }
+        static constexpr value_type round_error() noexcept { return value_type{0, 0}; }
+        static constexpr value_type infinity() noexcept { return value_type{0, 0}; }
+        static constexpr value_type quiet_NaN() noexcept { return value_type{0, 0}; }
+        static constexpr value_type signaling_NaN() noexcept { return value_type{0, 0}; }
+        static constexpr value_type denorm_min() noexcept { return value_type{0, 0}; }
+    };
+
+    // ========================================================================
+    // NUMERIC_LIMITS SPECIALIZATION - EXCESS-K SIGNED
+    // ========================================================================
+
+    template <>
+    class numeric_limits<nstd::int128_param_t<nstd::signedness::signed_type,
+                                              nstd::representation_form::excess_k>>
+    {
+    public:
+        using value_type = nstd::int128_param_t<nstd::signedness::signed_type,
+                                                nstd::representation_form::excess_k>;
+
+        static constexpr bool is_specialized = true;
+        static constexpr bool is_signed = true;
+        static constexpr bool is_integer = true;
+        static constexpr bool is_exact = true;
+        static constexpr bool has_infinity = false;
+        static constexpr bool has_quiet_NaN = false;
+        static constexpr bool has_signaling_NaN = false;
+        static constexpr float_denorm_style has_denorm = denorm_absent;
+        static constexpr bool has_denorm_loss = false;
+        static constexpr float_round_style round_style = round_toward_zero;
+        static constexpr bool is_iec559 = false;
+        static constexpr bool is_bounded = true;
+        static constexpr bool is_modulo = false;
+        static constexpr int digits = 127; // Effective signed range
+        static constexpr int digits10 = 38;
+        static constexpr int max_digits10 = 0;
+        static constexpr int radix = 2;
+        static constexpr int min_exponent = 0;
+        static constexpr int min_exponent10 = 0;
+        static constexpr int max_exponent = 0;
+        static constexpr int max_exponent10 = 0;
+        static constexpr bool traps = false;
+        static constexpr bool tinyness_before = false;
+
+        // EK signed with bias = 2^126:
+        // min = -2^126 (stored as 0)
+        // max = 2^127 - 2^126 - 1 (stored as all 1s)
+        static constexpr value_type min() noexcept { return value_type{0, 0}; }
+        static constexpr value_type lowest() noexcept { return min(); }
+        static constexpr value_type max() noexcept { return value_type{~0ULL, ~0ULL}; }
         static constexpr value_type epsilon() noexcept { return value_type{0, 0}; }
         static constexpr value_type round_error() noexcept { return value_type{0, 0}; }
         static constexpr value_type infinity() noexcept { return value_type{0, 0}; }

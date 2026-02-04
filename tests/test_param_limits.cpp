@@ -1,6 +1,6 @@
 // =============================================================================
-// Test: int128_param_limits.hpp - Numeric Limits
-// Part of int128 Library - https://github.com/[repo]
+// Test: int128_param_limits.hpp - Numeric Limits (4 valid types)
+// Part of int128 Library - Phase 1.75
 // License: BSL-1.0
 // =============================================================================
 
@@ -12,236 +12,289 @@
 
 using namespace nstd;
 
+// Test result macros
+#define TEST_PASS() (++g_passed)
+#define TEST_FAIL() (++g_failed)
+
+int g_passed{0};
+int g_failed{0};
+
 int main()
 {
-    std::cout << "Testing int128_param_limits.hpp (Numeric Limits)...\n\n";
+    std::cout << "====================================================================\n";
+    std::cout << "Numeric Limits Tests (4 valid representation forms)\n";
+    std::cout << "====================================================================\n\n";
 
     // ========================================================================
-    // TEST 1: TWO'S COMPLEMENT UNSIGNED TRAITS
+    // [Group 1] BINNAT (unsigned) - 3 tests
     // ========================================================================
+    std::cout << "[Group 1] BINNAT (unsigned binary natural):\n";
+
+    // Test 1.1: binnat traits
     {
-        std::cout << "Test 1: TC Unsigned Traits\n";
-        using Limits = std::numeric_limits<uint128_tc_t>;
+        using Limits = std::numeric_limits<uint128_t>;
 
-        assert(Limits::is_specialized);
-        assert(!Limits::is_signed);
-        assert(Limits::is_integer);
-        assert(Limits::is_exact);
-        assert(Limits::is_bounded);
-        assert(Limits::is_modulo);
-        assert(Limits::digits == 128);
-        assert(Limits::digits10 == 38);
-        assert(Limits::radix == 2);
-
-        std::cout << "  ✓ All traits correct\n";
+        if (Limits::is_specialized && !Limits::is_signed && Limits::is_integer &&
+            Limits::is_exact && Limits::is_bounded && Limits::is_modulo &&
+            Limits::digits == 128 && Limits::digits10 == 38 && Limits::radix == 2)
+        {
+            std::cout << "  [OK] binnat_traits\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] binnat_traits\n";
+            TEST_FAIL();
+        }
     }
 
-    // ========================================================================
-    // TEST 2: TWO'S COMPLEMENT UNSIGNED VALUES
-    // ========================================================================
+    // Test 1.2: binnat min/max
     {
-        std::cout << "\nTest 2: TC Unsigned Values\n";
-        using Limits = std::numeric_limits<uint128_tc_t>;
+        using Limits = std::numeric_limits<uint128_t>;
 
-        const auto min_val = Limits::min();
-        const auto max_val = Limits::max();
+        const auto min_val{Limits::min()};
+        const auto max_val{Limits::max()};
 
-        assert((min_val == uint128_tc_t{0, 0}));
-        assert((max_val == uint128_tc_t{~0ULL, ~0ULL}));
-        assert((Limits::lowest() == min_val));
-
-        std::cout << "  ✓ min() = 0\n";
-        std::cout << "  ✓ max() = 2^128 - 1\n";
-        std::cout << "  ✓ lowest() = min()\n";
+        if ((min_val == uint128_t{0, 0}) && (max_val == uint128_t{~0ULL, ~0ULL}) &&
+            (Limits::lowest() == min_val))
+        {
+            std::cout << "  [OK] binnat_min_max\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] binnat_min_max\n";
+            TEST_FAIL();
+        }
     }
 
-    // ========================================================================
-    // TEST 3: TWO'S COMPLEMENT SIGNED TRAITS
-    // ========================================================================
+    // Test 1.3: binnat special values (all zero for integers)
     {
-        std::cout << "\nTest 3: TC Signed Traits\n";
+        using Limits = std::numeric_limits<uint128_t>;
+
+        if ((Limits::epsilon() == uint128_t{0, 0}) &&
+            (Limits::infinity() == uint128_t{0, 0}) &&
+            (Limits::quiet_NaN() == uint128_t{0, 0}))
+        {
+            std::cout << "  [OK] binnat_special_values\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] binnat_special_values\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Group 2] TWO'S COMPLEMENT (signed) - 3 tests
+    // ========================================================================
+    std::cout << "[Group 2] Two's Complement (signed):\n";
+
+    // Test 2.1: TC traits
+    {
         using Limits = std::numeric_limits<int128_tc_t>;
 
-        assert(Limits::is_specialized);
-        assert(Limits::is_signed);
-        assert(Limits::is_integer);
-        assert(Limits::is_exact);
-        assert(Limits::is_bounded);
-        assert(!Limits::is_modulo);    // Signed is not modulo
-        assert(Limits::digits == 127); // 1 bit for sign
-        assert(Limits::digits10 == 38);
-
-        std::cout << "  ✓ All traits correct\n";
+        if (Limits::is_specialized && Limits::is_signed && Limits::is_integer &&
+            Limits::is_exact && Limits::is_bounded && !Limits::is_modulo &&
+            Limits::digits == 127 && Limits::digits10 == 38)
+        {
+            std::cout << "  [OK] tc_traits\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] tc_traits\n";
+            TEST_FAIL();
+        }
     }
 
-    // ========================================================================
-    // TEST 4: TWO'S COMPLEMENT SIGNED VALUES
-    // ========================================================================
+    // Test 2.2: TC min/max
     {
-        std::cout << "\nTest 4: TC Signed Values\n";
         using Limits = std::numeric_limits<int128_tc_t>;
 
-        const auto min_val = Limits::min();
-        const auto max_val = Limits::max();
+        const auto min_val{Limits::min()};
+        const auto max_val{Limits::max()};
 
-        // min = -2^127 (MSB set, rest 0)
-        assert((min_val == int128_tc_t{1ULL << 63, 0}));
-        // max = 2^127 - 1 (MSB clear, rest all 1s)
-        assert((max_val == int128_tc_t{(1ULL << 63) - 1, ~0ULL}));
-        assert((Limits::lowest() == min_val));
-
-        std::cout << "  ✓ min() = -2^127\n";
-        std::cout << "  ✓ max() = 2^127 - 1\n";
-        std::cout << "  ✓ lowest() = min()\n";
+        // TC: min = -2^127 = 0x8000...0000, max = 2^127-1 = 0x7FFF...FFFF
+        if ((min_val == int128_tc_t{1ULL << 63, 0}) &&
+            (max_val == int128_tc_t{(1ULL << 63) - 1, ~0ULL}) &&
+            (Limits::lowest() == min_val))
+        {
+            std::cout << "  [OK] tc_min_max\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] tc_min_max\n";
+            TEST_FAIL();
+        }
     }
 
-    // ========================================================================
-    // TEST 5: MAGNITUDE-SIGN UNSIGNED TRAITS
-    // ========================================================================
+    // Test 2.3: TC special values
     {
-        std::cout << "\nTest 5: MS Unsigned Traits\n";
-        using Limits = std::numeric_limits<uint128_ms_t>;
+        using Limits = std::numeric_limits<int128_tc_t>;
 
-        assert(Limits::is_specialized);
-        assert(!Limits::is_signed);
-        assert(Limits::digits == 127); // Sign bit excluded
-        assert(Limits::digits10 == 38);
-
-        std::cout << "  ✓ All traits correct\n";
-        std::cout << "  ✓ digits = 127 (sign bit excluded)\n";
+        if ((Limits::epsilon() == int128_tc_t{0, 0}) &&
+            (Limits::infinity() == int128_tc_t{0, 0}) &&
+            (Limits::quiet_NaN() == int128_tc_t{0, 0}))
+        {
+            std::cout << "  [OK] tc_special_values\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] tc_special_values\n";
+            TEST_FAIL();
+        }
     }
 
+    std::cout << "\n";
+
     // ========================================================================
-    // TEST 6: MAGNITUDE-SIGN UNSIGNED VALUES
+    // [Group 3] MAGNITUDE-SIGN (signed) - 3 tests
     // ========================================================================
+    std::cout << "[Group 3] Magnitude-Sign (signed):\n";
+
+    // Test 3.1: MS traits
     {
-        std::cout << "\nTest 6: MS Unsigned Values\n";
-        using Limits = std::numeric_limits<uint128_ms_t>;
-
-        const auto min_val = Limits::min();
-        const auto max_val = Limits::max();
-
-        assert((min_val == uint128_ms_t{0, 0}));
-        assert((max_val == uint128_ms_t{(1ULL << 63) - 1, ~0ULL})); // 2^127 - 1
-
-        std::cout << "  ✓ min() = 0\n";
-        std::cout << "  ✓ max() = 2^127 - 1 (sign bit excluded)\n";
-    }
-
-    // ========================================================================
-    // TEST 7: MAGNITUDE-SIGN SIGNED TRAITS
-    // ========================================================================
-    {
-        std::cout << "\nTest 7: MS Signed Traits\n";
         using Limits = std::numeric_limits<int128_ms_t>;
 
-        assert(Limits::is_specialized);
-        assert(Limits::is_signed);
-        assert(Limits::digits == 127); // Magnitude bits only
-        assert(!Limits::is_modulo);
-
-        std::cout << "  ✓ All traits correct\n";
+        if (Limits::is_specialized && Limits::is_signed && Limits::is_integer &&
+            Limits::is_exact && Limits::is_bounded && !Limits::is_modulo &&
+            Limits::digits == 127 && Limits::digits10 == 38)
+        {
+            std::cout << "  [OK] ms_traits\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] ms_traits\n";
+            TEST_FAIL();
+        }
     }
 
-    // ========================================================================
-    // TEST 8: MAGNITUDE-SIGN SIGNED VALUES (SYMMETRIC RANGE)
-    // ========================================================================
+    // Test 3.2: MS min/max
     {
-        std::cout << "\nTest 8: MS Signed Values (Symmetric Range)\n";
         using Limits = std::numeric_limits<int128_ms_t>;
 
-        const auto min_val = Limits::min();
-        const auto max_val = Limits::max();
+        const auto min_val{Limits::min()};
+        const auto max_val{Limits::max()};
 
-        // MS has symmetric range: -(2^127 - 1) to +(2^127 - 1)
-        // min = -(2^127 - 1): sign bit set, magnitude = all 1s
-        assert((min_val == int128_ms_t{(1ULL << 63) | ((1ULL << 63) - 1), ~0ULL}));
-        // max = +(2^127 - 1): sign bit clear, magnitude = all 1s
-        assert((max_val == int128_ms_t{(1ULL << 63) - 1, ~0ULL}));
+        // MS: min = -(2^127-1) with sign bit set
+        // MS: max = +(2^127-1) with sign bit clear
+        const int128_ms_t expected_min{(1ULL << 63) | ((1ULL << 63) - 1), ~0ULL};
+        const int128_ms_t expected_max{(1ULL << 63) - 1, ~0ULL};
 
-        std::cout << "  ✓ min() = -(2^127 - 1) [symmetric]\n";
-        std::cout << "  ✓ max() = +(2^127 - 1) [symmetric]\n";
-        std::cout << "  ✓ MS has two zeros: +0 and -0\n";
+        if ((min_val == expected_min) && (max_val == expected_max) &&
+            (Limits::lowest() == min_val))
+        {
+            std::cout << "  [OK] ms_min_max\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] ms_min_max\n";
+            TEST_FAIL();
+        }
     }
 
-    // ========================================================================
-    // TEST 9: EXCESS-K UNSIGNED TRAITS
-    // ========================================================================
+    // Test 3.3: MS special values
     {
-        std::cout << "\nTest 9: EK Unsigned Traits\n";
-        using Limits = std::numeric_limits<uint128_ek_t>;
+        using Limits = std::numeric_limits<int128_ms_t>;
 
-        assert(Limits::is_specialized);
-        assert(!Limits::is_signed);
-        assert(Limits::digits == 128);
-        assert(Limits::is_modulo);
-
-        std::cout << "  ✓ All traits correct\n";
+        if ((Limits::epsilon() == int128_ms_t{0, 0}) &&
+            (Limits::infinity() == int128_ms_t{0, 0}) &&
+            (Limits::quiet_NaN() == int128_ms_t{0, 0}))
+        {
+            std::cout << "  [OK] ms_special_values\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] ms_special_values\n";
+            TEST_FAIL();
+        }
     }
 
+    std::cout << "\n";
+
     // ========================================================================
-    // TEST 10: EXCESS-K UNSIGNED VALUES
+    // [Group 4] EXCESS-K (signed) - 3 tests
     // ========================================================================
+    std::cout << "[Group 4] Excess-K (signed):\n";
+
+    // Test 4.1: EK traits
     {
-        std::cout << "\nTest 10: EK Unsigned Values\n";
-        using Limits = std::numeric_limits<uint128_ek_t>;
-
-        const auto min_val = Limits::min();
-        const auto max_val = Limits::max();
-
-        // EK: stored_value = real_value + bias
-        // min stored = 0 (real = -bias)
-        // max stored = all 1s (real = 2^128 - 1 - bias)
-        assert((min_val == uint128_ek_t{0, 0}));
-        assert((max_val == uint128_ek_t{~0ULL, ~0ULL}));
-
-        std::cout << "  ✓ min() = 0 (stored)\n";
-        std::cout << "  ✓ max() = all 1s (stored)\n";
-    }
-
-    // ========================================================================
-    // TEST 11: EXCESS-K SIGNED TRAITS
-    // ========================================================================
-    {
-        std::cout << "\nTest 11: EK Signed Traits\n";
         using Limits = std::numeric_limits<int128_ek_t>;
 
-        assert(Limits::is_specialized);
-        assert(Limits::is_signed);
-        assert(Limits::digits == 127);
-        assert(!Limits::is_modulo);
-
-        std::cout << "  ✓ All traits correct\n";
+        if (Limits::is_specialized && Limits::is_signed && Limits::is_integer &&
+            Limits::is_exact && Limits::is_bounded && !Limits::is_modulo &&
+            Limits::digits == 127 && Limits::digits10 == 38)
+        {
+            std::cout << "  [OK] ek_traits\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] ek_traits\n";
+            TEST_FAIL();
+        }
     }
 
-    // ========================================================================
-    // TEST 12: EXCESS-K SIGNED VALUES
-    // ========================================================================
+    // Test 4.2: EK min/max
     {
-        std::cout << "\nTest 12: EK Signed Values\n";
         using Limits = std::numeric_limits<int128_ek_t>;
 
-        const auto min_val = Limits::min();
-        const auto max_val = Limits::max();
+        const auto min_val{Limits::min()};
+        const auto max_val{Limits::max()};
 
-        // With bias = 2^126:
-        // min stored = 0 (real = -2^126)
-        // max stored = all 1s (real = 2^127 - 2^126 - 1)
-        assert((min_val == int128_ek_t{0, 0}));
-        assert((max_val == int128_ek_t{~0ULL, ~0ULL}));
-
-        std::cout << "  ✓ min() = 0 (stored, real = -2^126)\n";
-        std::cout << "  ✓ max() = all 1s (stored)\n";
+        // EK: min = -2^126 (stored as 0), max = 2^126-1 (stored as 2^127-1)
+        if ((min_val == int128_ek_t{0, 0}) &&
+            (max_val == int128_ek_t{(1ULL << 63) - 1, ~0ULL}) &&
+            (Limits::lowest() == min_val))
+        {
+            std::cout << "  [OK] ek_min_max\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] ek_min_max\n";
+            TEST_FAIL();
+        }
     }
 
-    std::cout << "\n✅ All numeric limits tests passed!\n";
-    std::cout << "\n📝 Summary:\n";
-    std::cout << "   - TC unsigned: [0, 2^128-1], 128 bits\n";
-    std::cout << "   - TC signed: [-2^127, 2^127-1], 127 value bits\n";
-    std::cout << "   - MS unsigned: [0, 2^127-1], 127 magnitude bits\n";
-    std::cout << "   - MS signed: [-(2^127-1), 2^127-1], symmetric range, ±0\n";
-    std::cout << "   - EK unsigned: Full 128-bit stored range\n";
-    std::cout << "   - EK signed: Bias-centered range (bias = 2^126)\n";
+    // Test 4.3: EK special values
+    {
+        using Limits = std::numeric_limits<int128_ek_t>;
 
-    return 0;
+        if ((Limits::epsilon() == int128_ek_t{0, 0}) &&
+            (Limits::infinity() == int128_ek_t{0, 0}) &&
+            (Limits::quiet_NaN() == int128_ek_t{0, 0}))
+        {
+            std::cout << "  [OK] ek_special_values\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] ek_special_values\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // RESULTS
+    // ========================================================================
+    std::cout << "====================================================================\n";
+    std::cout << "RESULTS:\n";
+    std::cout << "  Passed: " << g_passed << "\n";
+    std::cout << "  Failed: " << g_failed << "\n";
+    std::cout << "  Total:  " << (g_passed + g_failed) << "\n";
+    std::cout << "====================================================================\n";
+
+    return (g_failed == 0) ? 0 : 1;
 }
