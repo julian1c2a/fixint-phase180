@@ -39,6 +39,10 @@
 #include "intrinsics/bit_operations.hpp"
 #endif
 
+#if __has_include("intrinsics/byte_operations.hpp")
+#include "intrinsics/byte_operations.hpp"
+#endif
+
 namespace nstd
 {
     // =============================================================================
