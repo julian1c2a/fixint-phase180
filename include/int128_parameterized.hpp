@@ -30,6 +30,11 @@
 #include <bitset>
 #include <stdexcept>
 
+// Include intrinsics for optimized operations (optional, fallback available)
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+#include "intrinsics/arithmetic_operations.hpp"
+#endif
+
 namespace nstd
 {
     // =============================================================================
@@ -1712,7 +1717,21 @@ namespace nstd
                 constexpr std::uint64_t bias_high = (1ULL << 62);
                 constexpr std::uint64_t bias_low = 0ULL;
 
-                // Suma x + y
+                // Suma x + y usando intrinsics
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                if (!std::is_constant_evaluated())
+                {
+                    unsigned char carry = intrinsics::addcarry_u64(0, data[0], other.data[0], &data[0]);
+                    std::uint64_t sum_high;
+                    intrinsics::addcarry_u64(carry, data[1], other.data[1], &sum_high);
+
+                    // Restar bias (K) - también con intrinsics
+                    unsigned char borrow = intrinsics::subborrow_u64(0, data[0], bias_low, &data[0]);
+                    intrinsics::subborrow_u64(borrow, sum_high, bias_high, &data[1]);
+                    return *this;
+                }
+#endif
+                // Fallback constexpr portable
                 std::uint64_t sum_low = data[0] + other.data[0];
                 std::uint64_t carry = (sum_low < data[0]) ? 1 : 0;
                 std::uint64_t sum_high = data[1] + other.data[1] + carry;
@@ -1741,6 +1760,24 @@ namespace nstd
                 if (lhs_neg == rhs_neg)
                 {
                     // Mismo signo: sumar magnitudes, preservar signo
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                    if (!std::is_constant_evaluated())
+                    {
+                        std::uint64_t result_low, result_high;
+                        unsigned char carry = intrinsics::addcarry_u64(0, lhs_mag_low, rhs_mag_low, &result_low);
+                        intrinsics::addcarry_u64(carry, lhs_mag_high, rhs_mag_high, &result_high);
+
+                        data[0] = result_low;
+                        data[1] = result_high & 0x7FFFFFFFFFFFFFFFULL;
+
+                        if (lhs_neg)
+                        {
+                            data[1] |= 0x8000000000000000ULL;
+                        }
+                        return *this;
+                    }
+#endif
+                    // Fallback constexpr portable
                     std::uint64_t new_low = lhs_mag_low + rhs_mag_low;
                     std::uint64_t carry = (new_low < lhs_mag_low) ? 1 : 0;
                     std::uint64_t new_high = lhs_mag_high + rhs_mag_high + carry;
@@ -1764,21 +1801,42 @@ namespace nstd
                     std::uint64_t new_low, new_high;
                     bool result_neg;
 
-                    if (lhs_greater)
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                    if (!std::is_constant_evaluated())
                     {
-                        // |lhs| >= |rhs|: resultado = |lhs| - |rhs|, signo de lhs
-                        new_low = lhs_mag_low - rhs_mag_low;
-                        std::uint64_t borrow = (new_low > lhs_mag_low) ? 1 : 0;
-                        new_high = lhs_mag_high - rhs_mag_high - borrow;
-                        result_neg = lhs_neg;
+                        if (lhs_greater)
+                        {
+                            unsigned char borrow = intrinsics::subborrow_u64(0, lhs_mag_low, rhs_mag_low, &new_low);
+                            intrinsics::subborrow_u64(borrow, lhs_mag_high, rhs_mag_high, &new_high);
+                            result_neg = lhs_neg;
+                        }
+                        else
+                        {
+                            unsigned char borrow = intrinsics::subborrow_u64(0, rhs_mag_low, lhs_mag_low, &new_low);
+                            intrinsics::subborrow_u64(borrow, rhs_mag_high, lhs_mag_high, &new_high);
+                            result_neg = rhs_neg;
+                        }
                     }
                     else
+#endif
                     {
-                        // |rhs| > |lhs|: resultado = |rhs| - |lhs|, signo de rhs
-                        new_low = rhs_mag_low - lhs_mag_low;
-                        std::uint64_t borrow = (new_low > rhs_mag_low) ? 1 : 0;
-                        new_high = rhs_mag_high - lhs_mag_high - borrow;
-                        result_neg = rhs_neg;
+                        // Fallback constexpr portable
+                        if (lhs_greater)
+                        {
+                            // |lhs| >= |rhs|: resultado = |lhs| - |rhs|, signo de lhs
+                            new_low = lhs_mag_low - rhs_mag_low;
+                            std::uint64_t borrow = (new_low > lhs_mag_low) ? 1 : 0;
+                            new_high = lhs_mag_high - rhs_mag_high - borrow;
+                            result_neg = lhs_neg;
+                        }
+                        else
+                        {
+                            // |rhs| > |lhs|: resultado = |rhs| - |lhs|, signo de rhs
+                            new_low = rhs_mag_low - lhs_mag_low;
+                            std::uint64_t borrow = (new_low > rhs_mag_low) ? 1 : 0;
+                            new_high = rhs_mag_high - lhs_mag_high - borrow;
+                            result_neg = rhs_neg;
+                        }
                     }
 
                     data[0] = new_low;
@@ -1794,7 +1852,16 @@ namespace nstd
             }
             else
             {
-                // TC y unsigned: suma binaria estándar
+                // TC y unsigned: suma binaria estándar con intrinsics optimizados
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                if (!std::is_constant_evaluated())
+                {
+                    unsigned char carry = intrinsics::addcarry_u64(0, data[0], other.data[0], &data[0]);
+                    intrinsics::addcarry_u64(carry, data[1], other.data[1], &data[1]);
+                    return *this;
+                }
+#endif
+                // Fallback constexpr portable
                 std::uint64_t new_low = data[0] + other.data[0];
                 std::uint64_t carry = (new_low < data[0]) ? 1 : 0;
                 data[0] = new_low;
@@ -1838,6 +1905,25 @@ namespace nstd
                 constexpr std::uint64_t bias_high = (1ULL << 62);
                 constexpr std::uint64_t bias_low = 0ULL;
 
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                if (!std::is_constant_evaluated())
+                {
+                    // Optimized path: Use hardware intrinsics (SBB and ADC instructions)
+                    std::uint64_t diff_low{0};
+                    std::uint64_t diff_high{0};
+
+                    // Step 1: Subtract x - y using SBB (subtract with borrow)
+                    unsigned char borrow = intrinsics::subborrow_u64(0, data[0], other.data[0], &diff_low);
+                    intrinsics::subborrow_u64(borrow, data[1], other.data[1], &diff_high);
+
+                    // Step 2: Add bias (K) using ADC (add with carry)
+                    unsigned char carry = intrinsics::addcarry_u64(0, diff_low, bias_low, &data[0]);
+                    intrinsics::addcarry_u64(carry, diff_high, bias_high, &data[1]);
+
+                    return *this;
+                }
+#endif
+                // Portable fallback for constexpr contexts
                 // Restar x - y
                 std::uint64_t diff_low = data[0] - other.data[0];
                 std::uint64_t borrow = (diff_low > data[0]) ? 1 : 0;
@@ -1863,12 +1949,22 @@ namespace nstd
                     negated_other.data[1] ^= 0x8000000000000000ULL; // Toggle sign bit
                 }
 
-                // Delegar a operator+=
+                // Delegar a operator+= (que ya está optimizado con intrinsics)
                 return operator+=(negated_other);
             }
             else
             {
                 // TC y unsigned: resta binaria estándar
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                if (!std::is_constant_evaluated())
+                {
+                    // Optimized path: Simple 2-step SBB chain (subtract with borrow)
+                    unsigned char borrow = intrinsics::subborrow_u64(0, data[0], other.data[0], &data[0]);
+                    intrinsics::subborrow_u64(borrow, data[1], other.data[1], &data[1]);
+                    return *this;
+                }
+#endif
+                // Portable fallback for constexpr contexts
                 std::uint64_t new_low = data[0] - other.data[0];
                 std::uint64_t borrow = (new_low > data[0]) ? 1 : 0;
                 data[0] = new_low;
@@ -1921,13 +2017,31 @@ namespace nstd
                 std::uint64_t b_low = other.data[0];
                 std::uint64_t b_high = other.data[1] & ~(1ULL << 63); // Clear sign bit
 
-                // Multiply magnitudes (unsigned multiplication)
-                std::uint64_t product_low_low = a_low * b_low;
-                std::uint64_t cross_1 = a_high * b_low;
-                std::uint64_t cross_2 = a_low * b_high;
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                if (!std::is_constant_evaluated())
+                {
+                    // Optimized path: Use umul128 intrinsics for 128-bit multiplication
+                    // 128×128 → 256-bit multiplication, keep low 128 bits
+                    // Formula: (a_high*2^64 + a_low) × (b_high*2^64 + b_low)
+                    //        = a_low×b_low + 2^64(a_high×b_low + a_low×b_high) + 2^128(a_high×b_high)
+                    //        We only need low 128 bits, so ignore terms ≥2^128
 
-                data[0] = product_low_low;
-                data[1] = cross_1 + cross_2 + (a_high * b_high);
+                    std::uint64_t high_part{0};
+                    data[0] = intrinsics::umul128(a_low, b_low, &high_part);   // a_low × b_low → (low, high)
+                    data[1] = high_part + (a_high * b_low) + (a_low * b_high); // Add cross terms
+                }
+                else
+#endif
+                {
+                    // Portable fallback for constexpr contexts
+                    // Multiply magnitudes (unsigned multiplication)
+                    std::uint64_t product_low_low = a_low * b_low;
+                    std::uint64_t cross_1 = a_high * b_low;
+                    std::uint64_t cross_2 = a_low * b_high;
+
+                    data[0] = product_low_low;
+                    data[1] = cross_1 + cross_2 + (a_high * b_high);
+                }
 
                 // Apply sign (set sign bit if negative)
                 if (result_neg)
@@ -1943,6 +2057,17 @@ namespace nstd
                 std::uint64_t b_low = other.data[0];
                 std::uint64_t b_high = other.data[1];
 
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                if (!std::is_constant_evaluated())
+                {
+                    // Optimized path: Use umul128 intrinsics for 128-bit multiplication
+                    std::uint64_t high_part{0};
+                    data[0] = intrinsics::umul128(a_low, b_low, &high_part);   // a_low × b_low → (low, high)
+                    data[1] = high_part + (a_high * b_low) + (a_low * b_high); // Add cross terms
+                    return *this;
+                }
+#endif
+                // Portable fallback for constexpr contexts
                 std::uint64_t product_low_low = a_low * b_low;
                 std::uint64_t cross_1 = a_high * b_low;
                 std::uint64_t cross_2 = a_low * b_high;

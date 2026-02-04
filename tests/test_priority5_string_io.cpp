@@ -27,11 +27,11 @@ int test_count = 0, pass_count = 0;
         {                                                                  \
             func();                                                        \
             pass_count++;                                                  \
-            std::cout << "  ✓ " << name << std::endl;                      \
+            std::cout << "  [OK] " << name << std::endl;                      \
         }                                                                  \
         catch (const std::exception &e)                                    \
         {                                                                  \
-            std::cout << "  ✗ " << name << " - " << e.what() << std::endl; \
+            std::cout << "  [ERROR] " << name << " - " << e.what() << std::endl; \
         }                                                                  \
     } while (false)
 

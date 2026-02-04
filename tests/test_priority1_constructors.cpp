@@ -30,7 +30,7 @@ using namespace nstd;
 #define TEST(name)      \
     void test_##name(); \
     test_##name();      \
-    std::cout << "✓ " << #name << std::endl;
+    std::cout << "[OK] " << #name << std::endl;
 #define ASSERT_EQ(a, b) assert((a) == (b))
 #define ASSERT_TRUE(a) assert(a)
 #define ASSERT_FALSE(a) assert(!(a))
@@ -244,14 +244,14 @@ int main()
         TEST(type_traits_is_signed);
         TEST(type_aliases);
 
-        std::cout << "\n✅ All 20 tests PASSED!\n";
+        std::cout << "\n[OK] All 20 tests PASSED!\n";
         std::cout << "========================================================\n\n";
 
         return 0;
     }
     catch (const std::exception &e)
     {
-        std::cerr << "\n❌ Test failed with exception: " << e.what() << std::endl;
+        std::cerr << "\n[FAIL] Test failed with exception: " << e.what() << std::endl;
         return 1;
     }
 }

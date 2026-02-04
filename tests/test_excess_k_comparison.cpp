@@ -36,7 +36,7 @@ int main()
     assert(zero == another_zero);
     assert(pos_one == pos_one);
     assert(!(pos_one == pos_ten));
-    std::cout << "  ✓ Equality works correctly\n";
+    std::cout << "  [OK] Equality works correctly\n";
 
     // Test 2: Inequality operator (!=)
     std::cout << "\nTest 2: Inequality (!=)\n";
@@ -44,7 +44,7 @@ int main()
     assert(pos_one != pos_ten);
     assert(neg_one != zero);
     assert(!(zero != another_zero));
-    std::cout << "  ✓ Inequality works correctly\n";
+    std::cout << "  [OK] Inequality works correctly\n";
 
     // Test 3: Less than (<)
     std::cout << "\nTest 3: Less than (<)\n";
@@ -53,7 +53,7 @@ int main()
     assert(pos_one < pos_ten);    // 1 < 10
     assert(neg_ten < neg_one);    // -10 < -1
     assert(!(pos_one < pos_one)); // !(1 < 1)
-    std::cout << "  ✓ Less than works correctly\n";
+    std::cout << "  [OK] Less than works correctly\n";
 
     // Test 4: Less than or equal (<=)
     std::cout << "\nTest 4: Less than or equal (<=)\n";
@@ -62,7 +62,7 @@ int main()
     assert(pos_one <= pos_one); // Equal case
     assert(pos_one <= pos_ten);
     assert(!(pos_ten <= pos_one));
-    std::cout << "  ✓ Less than or equal works correctly\n";
+    std::cout << "  [OK] Less than or equal works correctly\n";
 
     // Test 5: Greater than (>)
     std::cout << "\nTest 5: Greater than (>)\n";
@@ -71,7 +71,7 @@ int main()
     assert(pos_ten > pos_one);    // 10 > 1
     assert(neg_one > neg_ten);    // -1 > -10
     assert(!(pos_one > pos_one)); // !(1 > 1)
-    std::cout << "  ✓ Greater than works correctly\n";
+    std::cout << "  [OK] Greater than works correctly\n";
 
     // Test 6: Greater than or equal (>=)
     std::cout << "\nTest 6: Greater than or equal (>=)\n";
@@ -80,7 +80,7 @@ int main()
     assert(pos_one >= pos_one); // Equal case
     assert(pos_ten >= pos_one);
     assert(!(pos_one >= pos_ten));
-    std::cout << "  ✓ Greater than or equal works correctly\n";
+    std::cout << "  [OK] Greater than or equal works correctly\n";
 
     // Test 7: Transitivity
     std::cout << "\nTest 7: Transitivity (a < b && b < c => a < c)\n";
@@ -91,14 +91,14 @@ int main()
     assert(zero < pos_one);
     assert(pos_one < pos_ten);
     assert(zero < pos_ten); // Transitivity
-    std::cout << "  ✓ Transitivity holds\n";
+    std::cout << "  [OK] Transitivity holds\n";
 
     // Test 8: Reflexivity (a == a)
     std::cout << "\nTest 8: Reflexivity (a == a)\n";
     assert(zero == zero);
     assert(pos_one == pos_one);
     assert(neg_one == neg_one);
-    std::cout << "  ✓ Reflexivity holds\n";
+    std::cout << "  [OK] Reflexivity holds\n";
 
     // Test 9: Antisymmetry (a <= b && b <= a => a == b)
     std::cout << "\nTest 9: Antisymmetry\n";
@@ -107,16 +107,16 @@ int main()
     assert(a <= b);
     assert(b <= a);
     assert(a == b);
-    std::cout << "  ✓ Antisymmetry holds\n";
+    std::cout << "  [OK] Antisymmetry holds\n";
 
     // Test 10: Total ordering (a < b || a == b || a > b)
     std::cout << "\nTest 10: Total ordering\n";
     assert((pos_one < pos_ten) || (pos_one == pos_ten) || (pos_one > pos_ten));
     assert((zero < pos_one) || (zero == pos_one) || (zero > pos_one));
     assert((neg_one < zero) || (neg_one == zero) || (neg_one > zero));
-    std::cout << "  ✓ Total ordering holds\n";
+    std::cout << "  [OK] Total ordering holds\n";
 
-    std::cout << "\n✅ All comparison operator tests passed!\n";
+    std::cout << "\n[OK] All comparison operator tests passed!\n";
     std::cout << "\n📝 Note: Comparison operators work correctly for Excess-K\n";
     std::cout << "   because stored value ordering preserves real value ordering.\n";
     std::cout << "   (stored_a < stored_b) ⟺ (real_a < real_b)\n";

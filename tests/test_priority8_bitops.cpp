@@ -9,7 +9,7 @@ using nstd::uint128_t;
 #define TEST_CASE(name) void test_##name()
 #define RUN_TEST(name) \
     test_##name();     \
-    std::cout << "✓ " #name "\n"
+    std::cout << "[OK] " #name "\n"
 #define ASSERT_EQ(a, b) assert((a) == (b))
 
 // Forward declarations for all tests

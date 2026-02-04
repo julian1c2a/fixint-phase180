@@ -383,7 +383,7 @@ int main()
     }
 
     {
-        // ⚠️ KNOWN ISSUE: MS multiplication not yet implemented correctly
+        // [WARN] KNOWN ISSUE: MS multiplication not yet implemented correctly
         // The base operator*= doesn't handle MS representation semantics
         // (extract magnitudes, multiply, apply sign rule)
         // This test documents the expected behavior for when it's fixed.
@@ -423,7 +423,7 @@ int main()
     std::cout << "\n[Group 15] Excess-K representation (known limitations):" << std::endl;
 
     {
-        // ⚠️ CRITICAL LIMITATION: EK arithmetic operates on STORED values, not REAL values
+        // [WARN] CRITICAL LIMITATION: EK arithmetic operates on STORED values, not REAL values
         // Real: x + y should give (x+y)
         // Stored: (x+K) + (y+K) = (x+y) + 2K ≠ (x+y) + K (correct stored result)
         // The overflow detection will trigger on stored value overflow, not real value overflow
