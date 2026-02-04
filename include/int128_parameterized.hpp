@@ -250,6 +250,25 @@ namespace nstd
         constexpr int128_param_t(int128_param_t &&other) noexcept = default;
 
         /// @brief Constructor from (high, low) pair
+        ///
+        /// ⚠️ CRITICAL: Parameter order is NOT intuitive!
+        /// Constructor parameters: (high_value, low_value)
+        /// Storage: data{low, high}  ← Stored in REVERSE order!
+        ///
+        /// @example
+        /// @code
+        ///   // To represent value 2:
+        ///   const auto x = int128_param_t{0x0, 0x2};  // ✓ Correct (high=0, low=2)
+        ///   // NOT: int128_param_t{0x2, 0x0}  ❌ Wrong (creates 2^65 instead of 2)
+        ///
+        ///   // To represent 2^64:
+        ///   const auto y = int128_param_t{0x0, 0x1};  // ✓ Correct (high=0, low=2^64)
+        ///
+        ///   // To represent 2^127:
+        ///   const auto z = int128_param_t{0x8000000000000000ULL, 0x0};  // ✓ Correct
+        /// @endcode
+        ///
+        /// @see data for storage layout: data[0] = low, data[1] = high
         template <typename T1, typename T2>
         explicit constexpr int128_param_t(T1 high, T2 low) noexcept
             : data{static_cast<std::uint64_t>(low), static_cast<std::uint64_t>(high)} {}
