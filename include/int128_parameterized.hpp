@@ -1077,16 +1077,31 @@ namespace nstd
         /**
          * @brief Unary negation operator (representation-aware)
          *
+         * **Unsigned (binnat):** Two's complement negation (like builtin unsigned)
          * **Two's Complement:** Invert all bits and add 1
          * **Magnitude-Sign:** Flip sign bit (single bit operation)
          * **Excess-K:** Negate via: -x = bias - (x - bias) = 2·bias - x
          *
          * @return Negated value
+         *
+         * @note Unsigned negation follows C++ builtin behavior (wraps around)
          */
         constexpr int128_param_t operator-() const noexcept
-            requires(is_signed)
         {
-            if constexpr (is_magnitude_sign)
+            if constexpr (!is_signed)
+            {
+                // Unsigned: Two's complement negation (like builtin unsigned)
+                int128_param_t result;
+                result.data[0] = ~data[0];
+                result.data[1] = ~data[1];
+                // Add 1 to low word
+                ++result.data[0];
+                // Propagate carry to high word
+                if (result.data[0] == 0)
+                    ++result.data[1];
+                return result;
+            }
+            else if constexpr (is_magnitude_sign)
             {
                 // Magnitude-Sign: Just flip the sign bit (MSB of data[1])
                 int128_param_t result = *this;
@@ -3053,22 +3068,8 @@ namespace nstd
         {
             if constexpr (!is_signed)
             {
-                // Unsigned: simple division loop
-                int128_param_t quotient{0};
-                int128_param_t remainder{*this};
-
-                if (other.is_zero())
-                {
-                    return {int128_param_t{0}, *this};
-                }
-
-                while (remainder >= other)
-                {
-                    remainder -= other;
-                    ++quotient;
-                }
-
-                return {quotient, remainder};
+                // Unsigned: use optimized binary division
+                return big_bin_divrem(other);
             }
             else if constexpr (is_magnitude_sign)
             {
@@ -3085,15 +3086,8 @@ namespace nstd
                     return {int128_param_t{0}, *this};
                 }
 
-                // Divide magnitudes (unsigned division)
-                int128_param_t quotient{0};
-                int128_param_t remainder{dividend_mag};
-
-                while (remainder >= divisor_mag)
-                {
-                    remainder -= divisor_mag;
-                    ++quotient;
-                }
+                // Divide magnitudes (unsigned division) - use optimized algorithm
+                auto [quotient, remainder] = dividend_mag.big_bin_divrem(divisor_mag);
 
                 // Apply sign rules
                 if (neg_dividend != neg_divisor && !quotient.is_zero())
@@ -3110,29 +3104,36 @@ namespace nstd
             else
             {
                 // TC and EK: handle negatives with two's complement
-                int128_param_t quotient{0};
-                int128_param_t remainder{*this};
-                const bool neg_dividend{remainder.is_negative()};
+                const bool neg_dividend{is_negative()};
                 const bool neg_divisor{other.is_negative()};
-                const int128_param_t divisor_abs{neg_divisor ? -other : other};
-                remainder = neg_dividend ? -remainder : remainder;
+
+                // Compute absolute values (requires signed types)
+                int128_param_t dividend_abs{*this};
+                int128_param_t divisor_abs{other};
+
+                if (neg_dividend)
+                {
+                    dividend_abs = -dividend_abs;
+                }
+                if (neg_divisor)
+                {
+                    divisor_abs = -divisor_abs;
+                }
 
                 if (divisor_abs.is_zero())
                 {
                     return {int128_param_t{0}, *this};
                 }
 
-                while (remainder >= divisor_abs)
-                {
-                    remainder -= divisor_abs;
-                    ++quotient;
-                }
+                // Use optimized binary division on absolute values
+                auto [quotient, remainder] = dividend_abs.big_bin_divrem(divisor_abs);
 
-                if (neg_dividend != neg_divisor)
+                // Apply signs to results
+                if (neg_dividend != neg_divisor && !quotient.is_zero())
                 {
                     quotient = -quotient;
                 }
-                if (neg_dividend)
+                if (neg_dividend && !remainder.is_zero())
                 {
                     remainder = -remainder;
                 }
@@ -3141,6 +3142,240 @@ namespace nstd
             }
         }
 
+        /**
+         * @brief Optimized binary division for unsigned 128-bit integers
+         *
+         * @details Implements multiple optimization levels:
+         * - [Fast paths] Zero divisor, zero dividend, divisor > dividend, divisor == dividend
+         * - [Level 1] Power-of-2 divisors: shift right optimization O(1)
+         * - [Level 2] Small specific divisors (3-15): native 64-bit division when possible
+         * - [Level 3] 64-bit values: native CPU division
+         * - [Level 4] 64-bit divisor / 128-bit dividend: hybrid algorithm
+         * - [Level 5] Common trailing zeros: reduce both operands
+         * - [Level 6] General case: long division bit-by-bit O(128)
+         *
+         * @param divisor The divisor (treated as unsigned)
+         * @return Pair {quotient, remainder}
+         *
+         * @note Treats all values as UNSIGNED (no sign checks)
+         * @warning If divisor == 0, returns {0, 0}
+         */
+        constexpr std::pair<int128_param_t, int128_param_t>
+        big_bin_divrem(const int128_param_t &divisor) const noexcept
+        {
+            // [0.a] Fast path: divisor is 0 (undefined behavior, return 0)
+            if (divisor.data[0] == 0 && divisor.data[1] == 0)
+            {
+                return {int128_param_t{0}, int128_param_t{0}};
+            }
+
+            // [0.b] Fast path: dividend is 0
+            if (data[0] == 0 && data[1] == 0)
+            {
+                return {int128_param_t{0}, int128_param_t{0}};
+            }
+
+            // [0.c] Fast path: divisor > dividend (unsigned comparison)
+            const bool divisor_greater =
+                (divisor.data[1] > data[1]) ||
+                (divisor.data[1] == data[1] && divisor.data[0] > data[0]);
+            if (divisor_greater)
+            {
+                return {int128_param_t{0}, *this};
+            }
+
+            // [0.d] Fast path: divisor == dividend
+            if (data[0] == divisor.data[0] && data[1] == divisor.data[1])
+            {
+                return {int128_param_t{1}, int128_param_t{0}};
+            }
+
+            // [0.e] Fast path: divisor == 1
+            if (divisor.data[0] == 1ull && divisor.data[1] == 0ull)
+            {
+                return {*this, int128_param_t{0}};
+            }
+
+            // ========================================================================
+            // [1] OPTIMIZATIONS FOR SMALL SPECIFIC DIVISORS (up to 15)
+            // ========================================================================
+
+            // Only apply if divisor fits in 64 bits
+            if (divisor.data[1] == 0)
+            {
+                const uint64_t d = divisor.data[0];
+
+                // [1.1] Powers of 2: optimized right shift
+                if (d != 0 && (d & (d - 1)) == 0)
+                {
+                    // Count trailing zeros to get the exponent
+                    int shift = 0;
+                    uint64_t temp = d;
+                    while ((temp & 1) == 0)
+                    {
+                        temp >>= 1;
+                        ++shift;
+                    }
+
+                    // Quotient = *this >> shift
+                    // Remainder = *this & (d - 1)
+                    const uint64_t mask = d - 1;
+                    const uint64_t remainder = data[0] & mask;
+
+                    int128_param_t quotient;
+                    if (shift >= 64)
+                    {
+                        // Shift >= 64: move high to low
+                        quotient.data[0] = data[1] >> (shift - 64);
+                        quotient.data[1] = 0;
+                    }
+                    else if (shift > 0)
+                    {
+                        // Normal shift
+                        quotient.data[0] = (data[0] >> shift) | (data[1] << (64 - shift));
+                        quotient.data[1] = data[1] >> shift;
+                    }
+                    else
+                    {
+                        quotient = *this;
+                    }
+
+                    int128_param_t rem_obj{0};
+                    rem_obj.data[0] = remainder;
+                    return {quotient, rem_obj};
+                }
+
+                // [1.2-1.12] Common specific divisors (not powers of 2)
+                switch (d)
+                {
+                case 3:
+                case 5:
+                case 6:
+                case 7:
+                case 9:
+                case 10:
+                case 11:
+                case 12:
+                case 13:
+                case 14:
+                case 15:
+                    // For these cases, if dividend fits in 64 bits, use native division
+                    if (data[1] == 0)
+                    {
+                        const uint64_t q = data[0] / d;
+                        const uint64_t r = data[0] % d;
+                        return {int128_param_t{0, q}, int128_param_t{0, r}};
+                    }
+                    break;
+
+                default:
+                    break;
+                }
+            }
+
+            // ========================================================================
+            // [2] BOTH VALUES FIT IN 64 BITS
+            // ========================================================================
+
+            if (data[1] == 0 && divisor.data[1] == 0)
+            {
+                const uint64_t q = data[0] / divisor.data[0];
+                const uint64_t r = data[0] % divisor.data[0];
+                return {int128_param_t{0, q}, int128_param_t{0, r}};
+            }
+
+            // ========================================================================
+            // [3] OPTIMIZATION FOR 64-BIT DIVISOR (128-bit dividend)
+            // ========================================================================
+
+            if (divisor.data[1] == 0)
+            {
+                const uint64_t divisor_64 = divisor.data[0];
+
+                // 128-bit dividend / 64-bit divisor
+                // Hybrid algorithm: divide high first, then process low bit-by-bit
+                uint64_t quotient_low = 0;
+                uint64_t quotient_high = data[1] / divisor_64;
+                uint64_t remainder = data[1] % divisor_64;
+
+                // Divide low part bit-by-bit (process from MSB)
+                for (int i = 63; i >= 0; --i)
+                {
+                    remainder = (remainder << 1) | ((data[0] >> i) & 1);
+                    if (remainder >= divisor_64)
+                    {
+                        remainder -= divisor_64;
+                        quotient_low |= (1ULL << i);
+                    }
+                }
+
+                return {int128_param_t{quotient_high, quotient_low},
+                        int128_param_t{0, remainder}};
+            }
+
+            // ========================================================================
+            // [4] OPTIMIZATION: FACTORIZATION OF COMMON POWERS OF 2
+            // ========================================================================
+            // If n = n' * 2^k and m = m' * 2^h (where n', m' are odd or have fewer 2s)
+            // Then: n / m = n' / m'  (quotient doesn't change if we divide both by 2^s)
+            //       n % m = (n' % m') * 2^s  where s = min(k, h)
+            //
+            // Benefit: Reduces effective number of bits in division
+            // Especially useful when both numbers have many trailing zeros
+
+            const int tz_n = trailing_zeros();
+            const int tz_m = divisor.trailing_zeros();
+
+            // Only optimize if both have trailing zeros and at least one has many
+            // Threshold: at least 4 bits of common trailing zeros
+            const int common_tz = (tz_n < tz_m) ? tz_n : tz_m;
+
+            if (common_tz >= 4)
+            {
+                // Divide both by 2^common_tz
+                int128_param_t n_reduced = *this >> common_tz;
+                int128_param_t m_reduced = divisor >> common_tz;
+
+                // Do division with reduced values (recursion)
+                auto [q_reduced, r_reduced] = n_reduced.big_bin_divrem(m_reduced);
+
+                // Quotient is the same, remainder is multiplied by 2^common_tz
+                return {q_reduced, r_reduced << common_tz};
+            }
+
+            // ========================================================================
+            // [5] GENERAL CASE: LONG BINARY DIVISION (128 bits / 128 bits)
+            // ========================================================================
+
+            int128_param_t quotient{0};
+            int128_param_t remainder{0};
+
+            // Long binary division (school algorithm)
+            // Process bits from MSB to LSB
+            for (int i = 127; i >= 0; --i)
+            {
+                remainder <<= 1;
+                const int word = i / 64;
+                const int bit = i % 64;
+                if ((data[word] & (1ULL << bit)) != 0)
+                {
+                    remainder.data[0] |= 1;
+                }
+
+                // If remainder >= divisor, subtract and add 1 to quotient
+                if (remainder >= divisor)
+                {
+                    remainder -= divisor;
+                    const int q_word = i / 64;
+                    const int q_bit = i % 64;
+                    quotient.data[q_word] |= (1ULL << q_bit);
+                }
+            }
+
+            return {quotient, remainder};
+        }
+
+    public:
         /**
          * @brief Swap contents with another int128_param_t
          *
