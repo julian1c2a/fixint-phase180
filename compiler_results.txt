@@ -1,0 +1,47 @@
+======================================================================
+  Multi-Compiler Division Test Results
+======================================================================
+Date: 2026-02-04 17:25:47
+
+[OK] GCC -O0 (Baseline)
+  Result: 9/9 PASS [OK]
+
+[OK] Clang -O2 (Optimized)
+  Result: 9/9 PASS [OK]
+
+[FAIL] MSVC 2026 (Windows)
+  Compilation failed
+  Error: Compilador de optimizaci¢n de C/C++ de Microsoft (R) versi¢n 19.50.35722 para x64
+(C) Microsoft Corporation. Todos los derechos reservados.
+
+/std:c++latest se proporciona como versi¢n preliminar de la
+
+[FAIL] Intel ICX (oneAPI)
+  Compilation failed
+  Error: Intel(R) oneAPI DPC++/C++ Compiler for applications running on Intel(R) 64, Version 2025.3.0 Build 20251010
+Copyright (C) 1985-2025 Intel Corporation. All rights reserved.
+
+icx: error: linker command 
+
+
+======================================================================
+Generated Executables:
+  test_clang_o2.exe (137538 bytes)
+  test_compare.exe (69054 bytes)
+  test_debug.exe (146031 bytes)
+  test_div_analysis.exe (65875 bytes)
+  test_div_corrected.exe (70802 bytes)
+  test_division_trace.exe (71339 bytes)
+  test_divmod_clang.exe (137538 bytes)
+  test_divmod_debug.exe (89858 bytes)
+  test_divmod_final.exe (90012 bytes)
+  test_divmod_real.exe (89864 bytes)
+  test_divmod_suite.exe (100722 bytes)
+  test_every.exe (70415 bytes)
+  test_exact_cmp.exe (63335 bytes)
+  test_gcc_o0.exe (90069 bytes)
+  test_O0.exe (141013 bytes)
+  test_O1.exe (71329 bytes)
+  test_shift_overflow.exe (70734 bytes)
+  test_step.exe (70924 bytes)
+  test_trace_detailed.exe (71503 bytes)
