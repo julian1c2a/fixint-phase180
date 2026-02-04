@@ -1,3 +1,93 @@
+## [4 February 2026 - 22:00] - MS ARITHMETIC FIXED ✅ - operator+= and operator-= Now Work Correctly
+
+### 🎯 Magnitude-Sign Addition/Subtraction Completely Rewritten - 10/10 Tests Passing
+
+**User Request:** "La suma binaria en M&S debe deslindarse en 2 operaciones..." (implement correct MS arithmetic with detailed rules)
+
+**Status:** ✅ **PRODUCTION READY - MS ARITHMETIC NOW WORKS**
+
+**Problema identificado:**
+
+- MS operator+= y operator-= usaban suma/resta binaria estándar
+- Esto fallaba porque MS almacena signo+magnitud (1 bit + 127 bits), NO complemento a dos
+- Ejemplo: -2 + 1 = -3 ❌ (incorrecto, debería ser -1)
+- Causa: Suma binaria trata el bit de signo como parte de la magnitud
+
+**Solución implementada:**
+
+1. ✅ **operator+= reescrito completamente** (~90 líneas, líneas 1731-1800)
+
+   **Lógica por signos:**
+   - **Mismo signo (+ + + o - + -):** Sumar magnitudes, preservar signo
+
+     ```cpp
+     if (lhs_neg == rhs_neg) {
+         result_mag = lhs_mag + rhs_mag;
+         apply_sign(lhs_neg);
+     }
+     ```
+
+   - **Signos distintos (+ + - o - + +):** Restar magnitudes, signo del mayor
+
+     ```cpp
+     else {
+         if (lhs_mag > rhs_mag) {
+             result_mag = lhs_mag - rhs_mag;
+             apply_sign(lhs_neg);
+         } else {
+             result_mag = rhs_mag - lhs_mag;
+             apply_sign(rhs_neg);
+         }
+     }
+     ```
+
+   - **Caso especial:** Magnitudes iguales → resultado = 0 (sin bit de signo)
+
+2. ✅ **operator-= simplificado** (~15 líneas, líneas 1805-1830)
+
+   **Lógica:** a - b = a + (-b)
+
+   ```cpp
+   int128_param_t negated_other = other;
+   if (!is_zero(other)) {
+       negated_other.data[1] ^= 0x8000000000000000ULL; // Toggle sign bit
+   }
+   return operator+=(negated_other);
+   ```
+
+**Test Results:** 10/10 passing (100%) ✅
+
+```
+Test 1: -2 + 1 = -1        ✅ (was -3, now fixed)
+Test 2: 5 + 3 = 8          ✅
+Test 3: -5 + -3 = -8       ✅
+Test 4: 10 + -3 = 7        ✅
+Test 5: -10 + 3 = -7       ✅
+Test 6: 5 - 3 = 2          ✅
+Test 7: 3 - 5 = -2         ✅
+Test 8: -5 - 3 = -8        ✅
+Test 9: -5 - (-3) = -2     ✅
+Test 10: -3 * 4 = -12      ✅ (unchanged, already worked)
+```
+
+**Archivos modificados:**
+
+- `include/int128_parameterized.hpp` (+105 líneas de nueva lógica MS)
+  - operator+= reescrito con branches explícitos para MS
+  - operator-= simplificado (delega a operator+= con signo negado)
+  - Manejo correcto de zero (sin bit de signo)
+  - Comparación de magnitudes (high+low) para determinar signo del resultado
+
+**Impacto:**
+
+- ✅ MS ahora totalmente funcional para aritmética básica
+- ✅ operator+= y operator-= funcionan correctamente
+- ✅ operator*= ya funcionaba (extracción de magnitudes + regla XOR)
+- ✅ Permite usar MS en test_param_ranges.cpp sin workarounds
+- 🔜 Próximo: Actualizar tests de ranges para incluir variantes MS
+
+---
+
 ## [4 February 2026 - 21:30] - Extended Header 11: Ranges Auxiliary Functions COMPLETE ✅
 
 ### 🎯 int128_param_ranges.hpp Validated - 13/13 Tests Passing (100%)

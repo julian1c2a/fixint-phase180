@@ -1726,9 +1726,75 @@ namespace nstd
                 data[1] = new_high;
                 return *this;
             }
+            else if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS: Reglas de suma con signo y magnitud
+                const bool lhs_neg = is_negative();
+                const bool rhs_neg = other.is_negative();
+
+                // Extraer magnitudes (sin bit de signo)
+                std::uint64_t lhs_mag_low = data[0];
+                std::uint64_t lhs_mag_high = data[1] & 0x7FFFFFFFFFFFFFFFULL;
+                std::uint64_t rhs_mag_low = other.data[0];
+                std::uint64_t rhs_mag_high = other.data[1] & 0x7FFFFFFFFFFFFFFFULL;
+
+                if (lhs_neg == rhs_neg)
+                {
+                    // Mismo signo: sumar magnitudes, preservar signo
+                    std::uint64_t new_low = lhs_mag_low + rhs_mag_low;
+                    std::uint64_t carry = (new_low < lhs_mag_low) ? 1 : 0;
+                    std::uint64_t new_high = lhs_mag_high + rhs_mag_high + carry;
+
+                    data[0] = new_low;
+                    data[1] = new_high & 0x7FFFFFFFFFFFFFFFULL; // Limpiar bit de signo
+
+                    // Aplicar signo
+                    if (lhs_neg)
+                    {
+                        data[1] |= 0x8000000000000000ULL;
+                    }
+                }
+                else
+                {
+                    // Distinto signo: restar magnitudes, signo del mayor
+                    // Comparar magnitudes
+                    bool lhs_greater = (lhs_mag_high > rhs_mag_high) ||
+                                       (lhs_mag_high == rhs_mag_high && lhs_mag_low >= rhs_mag_low);
+
+                    std::uint64_t new_low, new_high;
+                    bool result_neg;
+
+                    if (lhs_greater)
+                    {
+                        // |lhs| >= |rhs|: resultado = |lhs| - |rhs|, signo de lhs
+                        new_low = lhs_mag_low - rhs_mag_low;
+                        std::uint64_t borrow = (new_low > lhs_mag_low) ? 1 : 0;
+                        new_high = lhs_mag_high - rhs_mag_high - borrow;
+                        result_neg = lhs_neg;
+                    }
+                    else
+                    {
+                        // |rhs| > |lhs|: resultado = |rhs| - |lhs|, signo de rhs
+                        new_low = rhs_mag_low - lhs_mag_low;
+                        std::uint64_t borrow = (new_low > rhs_mag_low) ? 1 : 0;
+                        new_high = rhs_mag_high - lhs_mag_high - borrow;
+                        result_neg = rhs_neg;
+                    }
+
+                    data[0] = new_low;
+                    data[1] = new_high & 0x7FFFFFFFFFFFFFFFULL;
+
+                    // Aplicar signo (solo si no es cero)
+                    if (result_neg && !(new_low == 0 && new_high == 0))
+                    {
+                        data[1] |= 0x8000000000000000ULL;
+                    }
+                }
+                return *this;
+            }
             else
             {
-                // TC y MS: suma binaria estándar
+                // TC y unsigned: suma binaria estándar
                 std::uint64_t new_low = data[0] + other.data[0];
                 std::uint64_t carry = (new_low < data[0]) ? 1 : 0;
                 data[0] = new_low;
@@ -1786,9 +1852,23 @@ namespace nstd
                 data[1] = new_high;
                 return *this;
             }
+            else if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS: a - b = a + (-b), negar el signo de other y sumar
+                int128_param_t negated_other = other;
+
+                // Negar signo de other (si no es cero)
+                if (!(other.data[0] == 0 && (other.data[1] & 0x7FFFFFFFFFFFFFFFULL) == 0))
+                {
+                    negated_other.data[1] ^= 0x8000000000000000ULL; // Toggle sign bit
+                }
+
+                // Delegar a operator+=
+                return operator+=(negated_other);
+            }
             else
             {
-                // TC y MS: resta binaria estándar
+                // TC y unsigned: resta binaria estándar
                 std::uint64_t new_low = data[0] - other.data[0];
                 std::uint64_t borrow = (new_low > data[0]) ? 1 : 0;
                 data[0] = new_low;
