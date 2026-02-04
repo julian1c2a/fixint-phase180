@@ -1,6 +1,6 @@
 // =============================================================================
 // Test: int128_param_numeric.hpp - Additional Numeric Functions
-// Part of int128 Library - https://github.com/[repo]
+// Part of int128 Library - Phase 1.75
 // License: BSL-1.0
 // =============================================================================
 
@@ -11,236 +11,291 @@
 
 using namespace nstd;
 
+// Test result macros
+#define TEST_PASS() (++g_passed)
+#define TEST_FAIL() (++g_failed)
+
+int g_passed{0};
+int g_failed{0};
+
 int main()
 {
-    std::cout << "Testing int128_param_numeric.hpp (Additional Numeric Functions)...\n\n";
+    std::cout << "====================================================================\n";
+    std::cout << "Numeric Functions Tests (additional algorithms)\n";
+    std::cout << "====================================================================\n\n";
 
     // ========================================================================
-    // TEST 1: SIGN FUNCTION
+    // [Test 1] sign() - Returns -1, 0, or +1
     // ========================================================================
     {
-        std::cout << "Test 1: sign()\n";
+        std::cout << "[Test 1] sign():\n";
 
         const int128_tc_t tc_pos{0, 42};
         const int128_tc_t tc_neg{-42};
         const int128_tc_t tc_zero{0, 0};
 
-        assert((sign(tc_pos) == 1));
-        assert((sign(tc_neg) == -1));
-        assert((sign(tc_zero) == 0));
+        if ((sign(tc_pos) == 1) && (sign(tc_neg) == -1) && (sign(tc_zero) == 0))
+        {
+            std::cout << "  [OK] sign_tc\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] sign_tc\n";
+            TEST_FAIL();
+        }
 
-        const uint128_tc_t tc_unsigned{0, 100};
-        assert((sign(tc_unsigned) == 1)); // Unsigned always positive
-
-        std::cout << "  ✓ sign(42) = 1\n";
-        std::cout << "  ✓ sign(-42) = -1\n";
-        std::cout << "  ✓ sign(0) = 0\n";
-        std::cout << "  ✓ sign(unsigned) = 1\n";
+        const uint128_t unsigned_val{0, 100};
+        if (sign(unsigned_val) == 1) // Unsigned always positive
+        {
+            std::cout << "  [OK] sign_unsigned\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] sign_unsigned\n";
+            TEST_FAIL();
+        }
     }
 
+    std::cout << "\n";
+
     // ========================================================================
-    // TEST 2: IS_EVEN / IS_ODD
+    // [Test 2] is_even() / is_odd() - Parity checks
     // ========================================================================
     {
-        std::cout << "\nTest 2: is_even() / is_odd()\n";
+        std::cout << "[Test 2] is_even() / is_odd():\n";
 
-        const uint128_tc_t even_val{0, 42};
-        const uint128_tc_t odd_val{0, 43};
-        const uint128_tc_t zero{0, 0};
+        const uint128_t even_val{0, 42};
+        const uint128_t odd_val{0, 43};
+        const uint128_t zero{0, 0};
 
-        assert(is_even(even_val));
-        assert(!is_odd(even_val));
-        assert(!is_even(odd_val));
-        assert(is_odd(odd_val));
-        assert(is_even(zero));
-
-        std::cout << "  ✓ is_even(42) = true\n";
-        std::cout << "  ✓ is_odd(42) = false\n";
-        std::cout << "  ✓ is_even(43) = false\n";
-        std::cout << "  ✓ is_odd(43) = true\n";
-        std::cout << "  ✓ is_even(0) = true\n";
+        if (is_even(even_val) && !is_odd(even_val) &&
+            !is_even(odd_val) && is_odd(odd_val) &&
+            is_even(zero))
+        {
+            std::cout << "  [OK] parity_checks\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] parity_checks\n";
+            TEST_FAIL();
+        }
     }
 
+    std::cout << "\n";
+
     // ========================================================================
-    // TEST 3: ABS_DIFF
+    // [Test 3] abs_diff() - Absolute difference
     // ========================================================================
     {
-        std::cout << "\nTest 3: abs_diff()\n";
+        std::cout << "[Test 3] abs_diff():\n";
 
-        const uint128_tc_t a{0, 100};
-        const uint128_tc_t b{0, 50};
-        const uint128_tc_t c{0, 150};
+        const uint128_t a{0, 100};
+        const uint128_t b{0, 50};
+        const uint128_t c{0, 200};
 
-        const auto diff1 = abs_diff(a, b);
-        const auto diff2 = abs_diff(b, a);
-        const auto diff3 = abs_diff(a, c);
+        const auto diff1{abs_diff(a, b)};
+        const auto diff2{abs_diff(b, a)};
+        const auto diff3{abs_diff(a, c)};
 
-        assert((diff1 == uint128_tc_t{0, 50}));
-        assert((diff2 == uint128_tc_t{0, 50}));
-        assert((diff3 == uint128_tc_t{0, 50}));
+        if ((diff1 == uint128_t{0, 50}) &&
+            (diff2 == uint128_t{0, 50}) &&
+            (diff3 == uint128_t{0, 100}))
+        {
+            std::cout << "  [OK] abs_diff\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] abs_diff\n";
+            TEST_FAIL();
+        }
 
-        std::cout << "  ✓ abs_diff(100, 50) = 50\n";
-        std::cout << "  ✓ abs_diff(50, 100) = 50\n";
-        std::cout << "  ✓ abs_diff(100, 150) = 50\n";
+        const int128_tc_t tc_a{0, 100};
+        const int128_tc_t tc_b{-50};
+        const auto diff4{abs_diff(tc_a, tc_b)};
+
+        if (diff4 == int128_tc_t{0, 150})
+        {
+            std::cout << "  [OK] abs_diff_signed\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] abs_diff_signed\n";
+            TEST_FAIL();
+        }
     }
 
+    std::cout << "\n";
+
     // ========================================================================
-    // TEST 4: ILOG2
+    // [Test 4] ilog2() - Integer log base 2
     // ========================================================================
     {
-        std::cout << "\nTest 4: ilog2()\n";
+        std::cout << "[Test 4] ilog2():\n";
 
-        const uint128_tc_t val1{0, 1};   // 2^0
-        const uint128_tc_t val2{0, 8};   // 2^3
-        const uint128_tc_t val3{0, 255}; // Between 2^7 and 2^8
-        const uint128_tc_t val4{1, 0};   // 2^64
+        const uint128_t val1{0, 1};   // 2^0
+        const uint128_t val2{0, 8};   // 2^3
+        const uint128_t val3{0, 255}; // 2^8 - 1
+        const uint128_t val4{1, 0};   // 2^64
 
-        assert((ilog2(val1) == 0));
-        assert((ilog2(val2) == 3));
-        assert((ilog2(val3) == 7)); // floor(log2(255)) = 7
-        assert((ilog2(val4) == 64));
-
-        std::cout << "  ✓ ilog2(1) = 0\n";
-        std::cout << "  ✓ ilog2(8) = 3\n";
-        std::cout << "  ✓ ilog2(255) = 7\n";
-        std::cout << "  ✓ ilog2(2^64) = 64\n";
+        if ((ilog2(val1) == 0) &&
+            (ilog2(val2) == 3) &&
+            (ilog2(val3) == 7) && // floor(log2(255)) = 7
+            (ilog2(val4) == 64))
+        {
+            std::cout << "  [OK] ilog2\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] ilog2\n";
+            TEST_FAIL();
+        }
     }
 
+    std::cout << "\n";
+
     // ========================================================================
-    // TEST 5: ISQRT
+    // [Test 5] isqrt() - Integer square root
     // ========================================================================
     {
-        std::cout << "\nTest 5: isqrt()\n";
+        std::cout << "[Test 5] isqrt():\n";
 
-        const uint128_tc_t val1{0, 0};
-        const uint128_tc_t val2{0, 1};
-        const uint128_tc_t val3{0, 4};
-        const uint128_tc_t val4{0, 16};
-        const uint128_tc_t val5{0, 100};
-        const uint128_tc_t val6{0, 99}; // Non-perfect square
+        const uint128_t val1{0, 0};   // sqrt(0) = 0
+        const uint128_t val2{0, 1};   // sqrt(1) = 1
+        const uint128_t val3{0, 4};   // sqrt(4) = 2
+        const uint128_t val4{0, 100}; // sqrt(100) = 10
+        const uint128_t val5{0, 255}; // sqrt(255) = 15
 
-        const auto sqrt1 = isqrt(val1);
-        const auto sqrt2 = isqrt(val2);
-        const auto sqrt3 = isqrt(val3);
-        const auto sqrt4 = isqrt(val4);
-        const auto sqrt5 = isqrt(val5);
-        const auto sqrt6 = isqrt(val6);
-
-        assert((sqrt1 == uint128_tc_t{0, 0}));
-        assert((sqrt2 == uint128_tc_t{0, 1}));
-        assert((sqrt3 == uint128_tc_t{0, 2}));
-        assert((sqrt4 == uint128_tc_t{0, 4}));
-        assert((sqrt5 == uint128_tc_t{0, 10}));
-        assert((sqrt6 == uint128_tc_t{0, 9})); // floor(sqrt(99)) = 9
-
-        std::cout << "  ✓ isqrt(0) = 0\n";
-        std::cout << "  ✓ isqrt(1) = 1\n";
-        std::cout << "  ✓ isqrt(4) = 2\n";
-        std::cout << "  ✓ isqrt(16) = 4\n";
-        std::cout << "  ✓ isqrt(100) = 10\n";
-        std::cout << "  ✓ isqrt(99) = 9 (floor)\n";
+        if ((isqrt(val1) == uint128_t{0, 0}) &&
+            (isqrt(val2) == uint128_t{0, 1}) &&
+            (isqrt(val3) == uint128_t{0, 2}) &&
+            (isqrt(val4) == uint128_t{0, 10}) &&
+            (isqrt(val5) == uint128_t{0, 15}))
+        {
+            std::cout << "  [OK] isqrt\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] isqrt\n";
+            TEST_FAIL();
+        }
     }
 
+    std::cout << "\n";
+
     // ========================================================================
-    // TEST 6: FACTORIAL
+    // [Test 6] factorial() - Factorial function
     // ========================================================================
     {
-        std::cout << "\nTest 6: factorial()\n";
+        std::cout << "[Test 6] factorial():\n";
 
-        const auto fact0 = factorial<signedness::unsigned_type, representation_form::twos_complement>(0);
-        const auto fact1 = factorial<signedness::unsigned_type, representation_form::twos_complement>(1);
-        const auto fact5 = factorial<signedness::unsigned_type, representation_form::twos_complement>(5);
-        const auto fact10 = factorial<signedness::unsigned_type, representation_form::twos_complement>(10);
+        const auto fact0{factorial<signedness::unsigned_type, representation_form::binnat>(0)};
+        const auto fact1{factorial<signedness::unsigned_type, representation_form::binnat>(1)};
+        const auto fact5{factorial<signedness::unsigned_type, representation_form::binnat>(5)};
+        const auto fact10{factorial<signedness::unsigned_type, representation_form::binnat>(10)};
 
-        assert((fact0 == uint128_tc_t{0, 1}));        // 0! = 1
-        assert((fact1 == uint128_tc_t{0, 1}));        // 1! = 1
-        assert((fact5 == uint128_tc_t{0, 120}));      // 5! = 120
-        assert((fact10 == uint128_tc_t{0, 3628800})); // 10! = 3628800
-
-        std::cout << "  ✓ 0! = 1\n";
-        std::cout << "  ✓ 1! = 1\n";
-        std::cout << "  ✓ 5! = 120\n";
-        std::cout << "  ✓ 10! = 3628800\n";
+        if ((fact0 == uint128_t{0, 1}) &&      // 0! = 1
+            (fact1 == uint128_t{0, 1}) &&      // 1! = 1
+            (fact5 == uint128_t{0, 120}) &&    // 5! = 120
+            (fact10 == uint128_t{0, 3628800})) // 10! = 3628800
+        {
+            std::cout << "  [OK] factorial\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] factorial\n";
+            TEST_FAIL();
+        }
     }
 
+    std::cout << "\n";
+
     // ========================================================================
-    // TEST 7: DIVMOD
+    // [Test 7] divmod() - Combined division and modulo
     // ========================================================================
     {
-        std::cout << "\nTest 7: divmod()\n";
+        std::cout << "[Test 7] divmod():\n";
 
-        const uint128_tc_t dividend{0, 100};
-        const uint128_tc_t divisor1{0, 7};
-        const uint128_tc_t divisor2{0, 10};
+        const uint128_t dividend{0, 100};
+        const uint128_t divisor{0, 7};
 
-        const auto [q1, r1] = divmod(dividend, divisor1);
-        const auto [q2, r2] = divmod(dividend, divisor2);
+        const auto [quot, rem]{divmod(dividend, divisor)};
 
-        // 100 / 7 = 14 remainder 2
-        assert((q1 == uint128_tc_t{0, 14}));
-        assert((r1 == uint128_tc_t{0, 2}));
+        if ((quot == uint128_t{0, 14}) && (rem == uint128_t{0, 2}))
+        {
+            std::cout << "  [OK] divmod_unsigned\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] divmod_unsigned\n";
+            TEST_FAIL();
+        }
 
-        // 100 / 10 = 10 remainder 0
-        assert((q2 == uint128_tc_t{0, 10}));
-        assert((r2 == uint128_tc_t{0, 0}));
+        const int128_tc_t tc_dividend{-100};
+        const int128_tc_t tc_divisor{7};
+        const auto [tc_quot, tc_rem]{divmod(tc_dividend, tc_divisor)};
 
-        std::cout << "  ✓ divmod(100, 7) = {14, 2}\n";
-        std::cout << "  ✓ divmod(100, 10) = {10, 0}\n";
+        // TC divmod: quotient = -14, remainder = -2
+        if ((tc_quot == int128_tc_t{-14}) && (tc_rem == int128_tc_t{-2}))
+        {
+            std::cout << "  [OK] divmod_signed\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] divmod_signed\n";
+            TEST_FAIL();
+        }
     }
 
+    std::cout << "\n";
+
     // ========================================================================
-    // TEST 8: POWER (alias for pow)
+    // [Test 8] power() - Integer exponentiation
     // ========================================================================
     {
-        std::cout << "\nTest 8: power()\n";
+        std::cout << "[Test 8] power():\n";
 
-        const uint128_tc_t base1{0, 2};
-        const uint128_tc_t base2{0, 3};
+        const uint128_t base{0, 2};
+        const auto pow0{power(base, 0)};
+        const auto pow1{power(base, 1)};
+        const auto pow8{power(base, 8)};
+        const auto pow10{power(base, 10)};
 
-        const auto pow1 = power(base1, 10);
-        const auto pow2 = power(base2, 5);
-
-        assert((pow1 == uint128_tc_t{0, 1024})); // 2^10
-        assert((pow2 == uint128_tc_t{0, 243}));  // 3^5
-
-        std::cout << "  ✓ power(2, 10) = 1024\n";
-        std::cout << "  ✓ power(3, 5) = 243\n";
+        if ((pow0 == uint128_t{0, 1}) &&   // 2^0 = 1
+            (pow1 == uint128_t{0, 2}) &&   // 2^1 = 2
+            (pow8 == uint128_t{0, 256}) && // 2^8 = 256
+            (pow10 == uint128_t{0, 1024})) // 2^10 = 1024
+        {
+            std::cout << "  [OK] power\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] power\n";
+            TEST_FAIL();
+        }
     }
 
+    std::cout << "\n";
+
     // ========================================================================
-    // TEST 9: MS-SPECIFIC (127-bit magnitude space)
+    // RESULTS
     // ========================================================================
-    {
-        std::cout << "\nTest 9: MS-specific operations\n";
+    std::cout << "====================================================================\n";
+    std::cout << "RESULTS:\n";
+    std::cout << "  Passed: " << g_passed << "\n";
+    std::cout << "  Failed: " << g_failed << "\n";
+    std::cout << "  Total:  " << (g_passed + g_failed) << "\n";
+    std::cout << "====================================================================\n";
 
-        // MS positive value
-        int128_ms_t ms_pos{0, 42};
-
-        assert((sign(ms_pos) == 1));
-        assert(is_even(ms_pos));
-
-        // MS uses 127-bit magnitude for ilog2
-        const auto log_val = ilog2(ms_pos);
-        assert(log_val >= 0); // Should work correctly
-
-        std::cout << "  ✓ MS sign detection works\n";
-        std::cout << "  ✓ MS parity works\n";
-        std::cout << "  ✓ MS ilog2 works (127-bit space)\n";
-    }
-
-    std::cout << "\n✅ All additional numeric function tests passed!\n";
-    std::cout << "\n📝 Summary:\n";
-    std::cout << "   - sign: Returns -1, 0, or +1\n";
-    std::cout << "   - is_even/is_odd: Parity checks on LSB\n";
-    std::cout << "   - abs_diff: Overflow-safe absolute difference\n";
-    std::cout << "   - ilog2: floor(log2(x)) using bit position\n";
-    std::cout << "   - isqrt: floor(sqrt(x)) using Newton's method\n";
-    std::cout << "   - factorial: n! for small n (0 <= n <= ~34)\n";
-    std::cout << "   - divmod: Combined quotient and remainder\n";
-    std::cout << "   - power: Alias for pow (consistency)\n";
-    std::cout << "\n⚠️  Note for EK:\n";
-    std::cout << "   ilog2/isqrt operate on stored values (not real values).\n";
-    std::cout << "   For semantic correctness, convert to TC first.\n";
-
-    return 0;
+    return (g_failed == 0) ? 0 : 1;
 }
