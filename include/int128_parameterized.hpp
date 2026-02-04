@@ -2552,11 +2552,33 @@ namespace nstd
                 const uint64_t mag_high{data[1] & ~(1ULL << 63)};
                 if (data[0] != 0)
                 {
-                    return __builtin_ctzll(data[0]);
+#if defined(__has_include) && __has_include("intrinsics/bit_operations.hpp")
+                    return intrinsics::ctz64(data[0]);
+#else
+                    int count = 0;
+                    uint64_t val = data[0];
+                    while ((val & 1) == 0)
+                    {
+                        val >>= 1;
+                        count++;
+                    }
+                    return count;
+#endif
                 }
                 if (mag_high != 0)
                 {
-                    return 64 + __builtin_ctzll(mag_high);
+#if defined(__has_include) && __has_include("intrinsics/bit_operations.hpp")
+                    return 64 + intrinsics::ctz64(mag_high);
+#else
+                    int count = 0;
+                    uint64_t val = mag_high;
+                    while ((val & 1) == 0)
+                    {
+                        val >>= 1;
+                        count++;
+                    }
+                    return 64 + count;
+#endif
                 }
                 return 127; // MS magnitude is 127 bits
             }
@@ -2564,11 +2586,33 @@ namespace nstd
             {
                 if (data[0] != 0)
                 {
-                    return __builtin_ctzll(data[0]);
+#if defined(__has_include) && __has_include("intrinsics/bit_operations.hpp")
+                    return intrinsics::ctz64(data[0]);
+#else
+                    int count = 0;
+                    uint64_t val = data[0];
+                    while ((val & 1) == 0)
+                    {
+                        val >>= 1;
+                        count++;
+                    }
+                    return count;
+#endif
                 }
                 if (data[1] != 0)
                 {
-                    return 64 + __builtin_ctzll(data[1]);
+#if defined(__has_include) && __has_include("intrinsics/bit_operations.hpp")
+                    return 64 + intrinsics::ctz64(data[1]);
+#else
+                    int count = 0;
+                    uint64_t val = data[1];
+                    while ((val & 1) == 0)
+                    {
+                        val >>= 1;
+                        count++;
+                    }
+                    return 64 + count;
+#endif
                 }
                 return 128;
             }
@@ -2622,11 +2666,81 @@ namespace nstd
                 const uint64_t mag_high{data[1] & ~(1ULL << 63)};
                 if (mag_high != 0)
                 {
-                    return __builtin_clzll(mag_high) - 1;
+#if defined(__has_include) && __has_include("intrinsics/bit_operations.hpp")
+                    return intrinsics::clz64(mag_high);
+#else
+                    uint64_t val = mag_high;
+                    int count = 0;
+                    if ((val & 0xFFFFFFFF00000000ULL) == 0)
+                    {
+                        count += 32;
+                        val <<= 32;
+                    }
+                    if ((val & 0xFFFF000000000000ULL) == 0)
+                    {
+                        count += 16;
+                        val <<= 16;
+                    }
+                    if ((val & 0xFF00000000000000ULL) == 0)
+                    {
+                        count += 8;
+                        val <<= 8;
+                    }
+                    if ((val & 0xF000000000000000ULL) == 0)
+                    {
+                        count += 4;
+                        val <<= 4;
+                    }
+                    if ((val & 0xC000000000000000ULL) == 0)
+                    {
+                        count += 2;
+                        val <<= 2;
+                    }
+                    if ((val & 0x8000000000000000ULL) == 0)
+                    {
+                        count += 1;
+                    }
+                    return count;
+#endif
                 }
                 if (data[0] != 0)
                 {
-                    return 63 + __builtin_clzll(data[0]);
+#if defined(__has_include) && __has_include("intrinsics/bit_operations.hpp")
+                    return 64 + intrinsics::clz64(data[0]);
+#else
+                    uint64_t val = data[0];
+                    int count = 0;
+                    if ((val & 0xFFFFFFFF00000000ULL) == 0)
+                    {
+                        count += 32;
+                        val <<= 32;
+                    }
+                    if ((val & 0xFFFF000000000000ULL) == 0)
+                    {
+                        count += 16;
+                        val <<= 16;
+                    }
+                    if ((val & 0xFF00000000000000ULL) == 0)
+                    {
+                        count += 8;
+                        val <<= 8;
+                    }
+                    if ((val & 0xF000000000000000ULL) == 0)
+                    {
+                        count += 4;
+                        val <<= 4;
+                    }
+                    if ((val & 0xC000000000000000ULL) == 0)
+                    {
+                        count += 2;
+                        val <<= 2;
+                    }
+                    if ((val & 0x8000000000000000ULL) == 0)
+                    {
+                        count += 1;
+                    }
+                    return 64 + count;
+#endif
                 }
                 return 127; // MS magnitude is 127 bits
             }
@@ -2634,11 +2748,81 @@ namespace nstd
             {
                 if (data[1] != 0)
                 {
-                    return __builtin_clzll(data[1]);
+#if defined(__has_include) && __has_include("intrinsics/bit_operations.hpp")
+                    return intrinsics::clz64(data[1]);
+#else
+                    uint64_t val = data[1];
+                    int count = 0;
+                    if ((val & 0xFFFFFFFF00000000ULL) == 0)
+                    {
+                        count += 32;
+                        val <<= 32;
+                    }
+                    if ((val & 0xFFFF000000000000ULL) == 0)
+                    {
+                        count += 16;
+                        val <<= 16;
+                    }
+                    if ((val & 0xFF00000000000000ULL) == 0)
+                    {
+                        count += 8;
+                        val <<= 8;
+                    }
+                    if ((val & 0xF000000000000000ULL) == 0)
+                    {
+                        count += 4;
+                        val <<= 4;
+                    }
+                    if ((val & 0xC000000000000000ULL) == 0)
+                    {
+                        count += 2;
+                        val <<= 2;
+                    }
+                    if ((val & 0x8000000000000000ULL) == 0)
+                    {
+                        count += 1;
+                    }
+                    return count;
+#endif
                 }
                 if (data[0] != 0)
                 {
-                    return 64 + __builtin_clzll(data[0]);
+#if defined(__has_include) && __has_include("intrinsics/bit_operations.hpp")
+                    return 64 + intrinsics::clz64(data[0]);
+#else
+                    uint64_t val = data[0];
+                    int count = 0;
+                    if ((val & 0xFFFFFFFF00000000ULL) == 0)
+                    {
+                        count += 32;
+                        val <<= 32;
+                    }
+                    if ((val & 0xFFFF000000000000ULL) == 0)
+                    {
+                        count += 16;
+                        val <<= 16;
+                    }
+                    if ((val & 0xFF00000000000000ULL) == 0)
+                    {
+                        count += 8;
+                        val <<= 8;
+                    }
+                    if ((val & 0xF000000000000000ULL) == 0)
+                    {
+                        count += 4;
+                        val <<= 4;
+                    }
+                    if ((val & 0xC000000000000000ULL) == 0)
+                    {
+                        count += 2;
+                        val <<= 2;
+                    }
+                    if ((val & 0x8000000000000000ULL) == 0)
+                    {
+                        count += 1;
+                    }
+                    return 64 + count;
+#endif
                 }
                 return 128;
             }
@@ -2673,11 +2857,40 @@ namespace nstd
             if constexpr (is_magnitude_sign && is_signed)
             {
                 const uint64_t mag_high = data[1] & ~(1ULL << 63);
-                return __builtin_popcountll(mag_high) + __builtin_popcountll(data[0]);
+#if defined(__has_include) && __has_include("intrinsics/bit_operations.hpp")
+                return intrinsics::popcount64(mag_high) + intrinsics::popcount64(data[0]);
+#else
+                // Brian Kernighan's algorithm fallback
+                auto count_bits = [](uint64_t v) -> int
+                {
+                    int count = 0;
+                    while (v)
+                    {
+                        v &= v - 1;
+                        count++;
+                    }
+                    return count;
+                };
+                return count_bits(mag_high) + count_bits(data[0]);
+#endif
             }
             else
             {
-                return __builtin_popcountll(data[1]) + __builtin_popcountll(data[0]);
+#if defined(__has_include) && __has_include("intrinsics/bit_operations.hpp")
+                return intrinsics::popcount64(data[1]) + intrinsics::popcount64(data[0]);
+#else
+                auto count_bits = [](uint64_t v) -> int
+                {
+                    int count = 0;
+                    while (v)
+                    {
+                        v &= v - 1;
+                        count++;
+                    }
+                    return count;
+                };
+                return count_bits(data[1]) + count_bits(data[0]);
+#endif
             }
         }
 
