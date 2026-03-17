@@ -28,14 +28,24 @@
 #include "int128_parameterized.hpp"
 #include <iostream>
 #include <iomanip>
-#include <chrono>
 #include <cstdint>
 #include <string>
 
+// RDTSC: cycle-accurate timing independent of clock frequency
+#if defined(_MSC_VER) || defined(__INTEL_LLVM_COMPILER)
+#include <intrin.h>
+static inline std::uint64_t rdtsc() { return __rdtsc(); }
+#else
+static inline std::uint64_t rdtsc() { return __builtin_ia32_rdtsc(); }
+#endif
+
 // Boost.Multiprecision backends
 #include <boost/multiprecision/cpp_int.hpp>
+#if !defined(_MSC_VER) || defined(FORCE_GMP_TOMMATH)
+#define BENCH_HAS_GMP_TOMMATH 1
 #include <boost/multiprecision/gmp.hpp>
 #include <boost/multiprecision/tommath.hpp>
+#endif
 
 #ifdef __SIZEOF_INT128__
 #define HAS_BUILTIN_INT128 1
@@ -49,8 +59,10 @@ namespace bmp = boost::multiprecision;
 using boost_cpp_u128 = bmp::uint128_t;
 using boost_cpp_i128 = bmp::int128_t;
 using boost_checked_u128 = bmp::checked_uint128_t;
+#ifdef BENCH_HAS_GMP_TOMMATH
 using boost_gmp_int = bmp::mpz_int;
 using boost_tom_int = bmp::tom_int;
+#endif
 
 // ============================================================================
 // Configuration
@@ -64,19 +76,18 @@ static constexpr std::size_t ITERATIONS{BENCH_ITERATIONS};
 static constexpr std::size_t WARMUP{10000};
 
 // ============================================================================
-// Timer
+// Cycle counter (RDTSC-based, clock-frequency independent)
 // ============================================================================
 
-class Timer
+class CycleTimer
 {
-    std::chrono::high_resolution_clock::time_point start_;
+    std::uint64_t start_;
 
 public:
-    Timer() : start_{std::chrono::high_resolution_clock::now()} {}
-    double elapsed_ns() const
+    CycleTimer() : start_{rdtsc()} {}
+    std::uint64_t elapsed_cycles() const
     {
-        const auto end{std::chrono::high_resolution_clock::now()};
-        return std::chrono::duration<double, std::nano>(end - start_).count();
+        return rdtsc() - start_;
     }
 };
 
@@ -87,29 +98,27 @@ public:
 struct BenchResult
 {
     std::string name;
-    double ns_per_op;
-    double ops_per_sec;
+    double cycles_per_op;
 };
 
 static void print_separator()
 {
-    std::cout << "+-------------------------------+--------------+------------------+-----------+\n";
+    std::cout << "+-------------------------------+--------------+-----------+\n";
 }
 
 static void print_header(const char *operation)
 {
     std::cout << "\n[" << operation << "]\n";
     print_separator();
-    std::cout << "| Type                          |   ns/op      |       ops/sec    | vs u64    |\n";
+    std::cout << "| Type                          |  cyc/op      | vs u64    |\n";
     print_separator();
 }
 
-static void print_result(const BenchResult &r, double baseline_ns)
+static void print_result(const BenchResult &r, double baseline_cyc)
 {
-    const double ratio{(baseline_ns > 0.0) ? r.ns_per_op / baseline_ns : 0.0};
+    const double ratio{(baseline_cyc > 0.0) ? r.cycles_per_op / baseline_cyc : 0.0};
     std::cout << "| " << std::left << std::setw(29) << r.name << " | "
-              << std::right << std::fixed << std::setprecision(2) << std::setw(12) << r.ns_per_op << " | "
-              << std::scientific << std::setprecision(2) << std::setw(16) << r.ops_per_sec << " | "
+              << std::right << std::fixed << std::setprecision(2) << std::setw(12) << r.cycles_per_op << " | "
               << std::fixed << std::setprecision(2) << std::setw(6) << ratio << "x   |\n";
 }
 
@@ -118,9 +127,16 @@ static void print_result(const BenchResult &r, double baseline_ns)
 // ============================================================================
 
 template <typename T>
-static void doNotOptimize(const T &val)
+static void doNotOptimize(T &val)
 {
-    asm volatile("" : : "g"(&val) : "memory");
+#if defined(_MSC_VER) || defined(__INTEL_LLVM_COMPILER)
+    // MSVC/Intel-Windows: read+write one byte through volatile pointer.
+    // Forces the compiler to actually compute val (can't be eliminated).
+    *reinterpret_cast<char volatile *>(&val) =
+        *reinterpret_cast<char volatile *>(&val);
+#else
+    asm volatile("" : "+r,m"(val) : : "memory");
+#endif
 }
 
 // ============================================================================
@@ -136,14 +152,14 @@ static BenchResult bench_add_u64()
         a += b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a += b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"uint64_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"uint64_t", cycles / ITERATIONS};
 }
 
 static BenchResult bench_add_nstd_u128()
@@ -155,14 +171,14 @@ static BenchResult bench_add_nstd_u128()
         a += b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a += b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"nstd::uint128_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"nstd::uint128_t", cycles / ITERATIONS};
 }
 
 static BenchResult bench_add_nstd_i128()
@@ -174,14 +190,14 @@ static BenchResult bench_add_nstd_i128()
         a += b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a += b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"nstd::int128_t (TC)", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"nstd::int128_t (TC)", cycles / ITERATIONS};
 }
 
 #ifdef HAS_BUILTIN_INT128
@@ -194,14 +210,14 @@ static BenchResult bench_add_builtin_u128()
         a += b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a += b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"unsigned __int128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"unsigned __int128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_add_builtin_i128()
@@ -213,14 +229,14 @@ static BenchResult bench_add_builtin_i128()
         a += b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a += b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"__int128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"__int128", cycles / ITERATIONS};
 }
 #endif
 
@@ -233,14 +249,14 @@ static BenchResult bench_add_boost_cpp_u128()
         a += b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a += b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::cpp_int u128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::cpp_int u128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_add_boost_cpp_i128()
@@ -252,14 +268,14 @@ static BenchResult bench_add_boost_cpp_i128()
         a += b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a += b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::cpp_int i128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::cpp_int i128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_add_boost_chk_u128()
@@ -271,16 +287,17 @@ static BenchResult bench_add_boost_chk_u128()
         a += b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a += b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::checked_uint128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::checked_uint128", cycles / ITERATIONS};
 }
 
+#ifdef BENCH_HAS_GMP_TOMMATH
 static BenchResult bench_add_boost_gmp()
 {
     boost_gmp_int a{"0xDEADBEEF12345678"};
@@ -290,14 +307,14 @@ static BenchResult bench_add_boost_gmp()
         a += b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a += b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::gmp_int", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::gmp_int", cycles / ITERATIONS};
 }
 
 static BenchResult bench_add_boost_tom()
@@ -309,15 +326,58 @@ static BenchResult bench_add_boost_tom()
         a += b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a += b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::tom_int", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::tom_int", cycles / ITERATIONS};
 }
+
+// --- GMP & tommath constrained to 128 bits (& mask128) ---
+static const boost_gmp_int gmp_mask128{"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"};
+static const boost_tom_int tom_mask128{"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"};
+
+static BenchResult bench_add_boost_gmp128()
+{
+    boost_gmp_int a{"0xDEADBEEF12345678"};
+    boost_gmp_int b{"0x1234567890ABCDEF"};
+    for (std::size_t i{0}; i < WARMUP; ++i)
+    {
+        a = (a + b) & gmp_mask128;
+        doNotOptimize(a);
+    }
+    CycleTimer t;
+    for (std::size_t i{0}; i < ITERATIONS; ++i)
+    {
+        a = (a + b) & gmp_mask128;
+        doNotOptimize(a);
+    }
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::gmp_int [128]", cycles / ITERATIONS};
+}
+
+static BenchResult bench_add_boost_tom128()
+{
+    boost_tom_int a{"0xDEADBEEF12345678"};
+    boost_tom_int b{"0x1234567890ABCDEF"};
+    for (std::size_t i{0}; i < WARMUP; ++i)
+    {
+        a = (a + b) & tom_mask128;
+        doNotOptimize(a);
+    }
+    CycleTimer t;
+    for (std::size_t i{0}; i < ITERATIONS; ++i)
+    {
+        a = (a + b) & tom_mask128;
+        doNotOptimize(a);
+    }
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::tom_int [128]", cycles / ITERATIONS};
+}
+#endif // BENCH_HAS_GMP_TOMMATH
 
 // ============================================================================
 // BENCHMARK: Subtraction
@@ -332,14 +392,14 @@ static BenchResult bench_sub_u64()
         a -= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a -= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"uint64_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"uint64_t", cycles / ITERATIONS};
 }
 
 static BenchResult bench_sub_nstd_u128()
@@ -351,14 +411,14 @@ static BenchResult bench_sub_nstd_u128()
         a -= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a -= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"nstd::uint128_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"nstd::uint128_t", cycles / ITERATIONS};
 }
 
 static BenchResult bench_sub_nstd_i128()
@@ -370,14 +430,14 @@ static BenchResult bench_sub_nstd_i128()
         a -= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a -= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"nstd::int128_t (TC)", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"nstd::int128_t (TC)", cycles / ITERATIONS};
 }
 
 #ifdef HAS_BUILTIN_INT128
@@ -390,14 +450,14 @@ static BenchResult bench_sub_builtin_u128()
         a -= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a -= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"unsigned __int128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"unsigned __int128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_sub_builtin_i128()
@@ -409,14 +469,14 @@ static BenchResult bench_sub_builtin_i128()
         a -= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a -= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"__int128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"__int128", cycles / ITERATIONS};
 }
 #endif
 
@@ -429,14 +489,14 @@ static BenchResult bench_sub_boost_cpp_u128()
         a -= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a -= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::cpp_int u128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::cpp_int u128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_sub_boost_cpp_i128()
@@ -448,14 +508,14 @@ static BenchResult bench_sub_boost_cpp_i128()
         a -= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a -= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::cpp_int i128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::cpp_int i128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_sub_boost_chk_u128()
@@ -467,16 +527,17 @@ static BenchResult bench_sub_boost_chk_u128()
         a -= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a -= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::checked_uint128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::checked_uint128", cycles / ITERATIONS};
 }
 
+#ifdef BENCH_HAS_GMP_TOMMATH
 static BenchResult bench_sub_boost_gmp()
 {
     boost_gmp_int a{"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"};
@@ -491,7 +552,7 @@ static BenchResult bench_sub_boost_gmp()
         }
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a -= b;
@@ -501,8 +562,8 @@ static BenchResult bench_sub_boost_gmp()
         }
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::gmp_int", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::gmp_int", cycles / ITERATIONS};
 }
 
 static BenchResult bench_sub_boost_tom()
@@ -519,7 +580,7 @@ static BenchResult bench_sub_boost_tom()
         }
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a -= b;
@@ -529,9 +590,48 @@ static BenchResult bench_sub_boost_tom()
         }
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::tom_int", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::tom_int", cycles / ITERATIONS};
 }
+
+static BenchResult bench_sub_boost_gmp128()
+{
+    boost_gmp_int a{"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"};
+    boost_gmp_int b{1};
+    for (std::size_t i{0}; i < WARMUP; ++i)
+    {
+        a = (a - b) & gmp_mask128;
+        doNotOptimize(a);
+    }
+    CycleTimer t;
+    for (std::size_t i{0}; i < ITERATIONS; ++i)
+    {
+        a = (a - b) & gmp_mask128;
+        doNotOptimize(a);
+    }
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::gmp_int [128]", cycles / ITERATIONS};
+}
+
+static BenchResult bench_sub_boost_tom128()
+{
+    boost_tom_int a{"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"};
+    boost_tom_int b{1};
+    for (std::size_t i{0}; i < WARMUP; ++i)
+    {
+        a = (a - b) & tom_mask128;
+        doNotOptimize(a);
+    }
+    CycleTimer t;
+    for (std::size_t i{0}; i < ITERATIONS; ++i)
+    {
+        a = (a - b) & tom_mask128;
+        doNotOptimize(a);
+    }
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::tom_int [128]", cycles / ITERATIONS};
+}
+#endif // BENCH_HAS_GMP_TOMMATH
 
 // ============================================================================
 // BENCHMARK: Multiplication
@@ -546,14 +646,14 @@ static BenchResult bench_mul_u64()
         a = a * b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a = a * b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"uint64_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"uint64_t", cycles / ITERATIONS};
 }
 
 static BenchResult bench_mul_nstd_u128()
@@ -565,14 +665,14 @@ static BenchResult bench_mul_nstd_u128()
         a = a * b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a = a * b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"nstd::uint128_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"nstd::uint128_t", cycles / ITERATIONS};
 }
 
 static BenchResult bench_mul_nstd_i128()
@@ -584,14 +684,14 @@ static BenchResult bench_mul_nstd_i128()
         a = a * b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a = a * b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"nstd::int128_t (TC)", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"nstd::int128_t (TC)", cycles / ITERATIONS};
 }
 
 #ifdef HAS_BUILTIN_INT128
@@ -604,14 +704,14 @@ static BenchResult bench_mul_builtin_u128()
         a = a * b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a = a * b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"unsigned __int128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"unsigned __int128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_mul_builtin_i128()
@@ -623,14 +723,14 @@ static BenchResult bench_mul_builtin_i128()
         a = a * b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a = a * b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"__int128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"__int128", cycles / ITERATIONS};
 }
 #endif
 
@@ -643,14 +743,14 @@ static BenchResult bench_mul_boost_cpp_u128()
         a = a * b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a = a * b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::cpp_int u128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::cpp_int u128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_mul_boost_cpp_i128()
@@ -662,14 +762,14 @@ static BenchResult bench_mul_boost_cpp_i128()
         a = a * b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a = a * b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::cpp_int i128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::cpp_int i128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_mul_boost_chk_u128()
@@ -682,16 +782,17 @@ static BenchResult bench_mul_boost_chk_u128()
         auto r = a * b;
         doNotOptimize(r);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         auto r = a * b;
         doNotOptimize(r);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::checked_uint128(*)", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::checked_uint128(*)", cycles / ITERATIONS};
 }
 
+#ifdef BENCH_HAS_GMP_TOMMATH
 static BenchResult bench_mul_boost_gmp()
 {
     // Arbitrary precision: non-accumulating to avoid unbounded growth
@@ -702,14 +803,14 @@ static BenchResult bench_mul_boost_gmp()
         auto r = a * b;
         doNotOptimize(r);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         auto r = a * b;
         doNotOptimize(r);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::gmp_int(*)", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::gmp_int(*)", cycles / ITERATIONS};
 }
 
 static BenchResult bench_mul_boost_tom()
@@ -722,15 +823,54 @@ static BenchResult bench_mul_boost_tom()
         auto r = a * b;
         doNotOptimize(r);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         auto r = a * b;
         doNotOptimize(r);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::tom_int(*)", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::tom_int(*)", cycles / ITERATIONS};
 }
+
+static BenchResult bench_mul_boost_gmp128()
+{
+    boost_gmp_int a{123456789};
+    const boost_gmp_int b{987654321};
+    for (std::size_t i{0}; i < WARMUP; ++i)
+    {
+        a = (a * b) & gmp_mask128;
+        doNotOptimize(a);
+    }
+    CycleTimer t;
+    for (std::size_t i{0}; i < ITERATIONS; ++i)
+    {
+        a = (a * b) & gmp_mask128;
+        doNotOptimize(a);
+    }
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::gmp_int [128]", cycles / ITERATIONS};
+}
+
+static BenchResult bench_mul_boost_tom128()
+{
+    boost_tom_int a{123456789};
+    const boost_tom_int b{987654321};
+    for (std::size_t i{0}; i < WARMUP; ++i)
+    {
+        a = (a * b) & tom_mask128;
+        doNotOptimize(a);
+    }
+    CycleTimer t;
+    for (std::size_t i{0}; i < ITERATIONS; ++i)
+    {
+        a = (a * b) & tom_mask128;
+        doNotOptimize(a);
+    }
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::tom_int [128]", cycles / ITERATIONS};
+}
+#endif // BENCH_HAS_GMP_TOMMATH
 
 // ============================================================================
 // BENCHMARK: Division
@@ -746,15 +886,15 @@ static BenchResult bench_div_u64()
         doNotOptimize(q);
         a = q + 1;
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         auto q = a / b;
         doNotOptimize(q);
         a = q + 1;
     }
-    const double ns{t.elapsed_ns()};
-    return {"uint64_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"uint64_t", cycles / ITERATIONS};
 }
 
 static BenchResult bench_div_nstd_u128()
@@ -767,15 +907,15 @@ static BenchResult bench_div_nstd_u128()
         doNotOptimize(q);
         a = q + uint128_t{0, 1};
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         auto q = a / b;
         doNotOptimize(q);
         a = q + uint128_t{0, 1};
     }
-    const double ns{t.elapsed_ns()};
-    return {"nstd::uint128_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"nstd::uint128_t", cycles / ITERATIONS};
 }
 
 static BenchResult bench_div_nstd_i128()
@@ -788,15 +928,15 @@ static BenchResult bench_div_nstd_i128()
         doNotOptimize(q);
         a = q + int128_t{0, 1};
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         auto q = a / b;
         doNotOptimize(q);
         a = q + int128_t{0, 1};
     }
-    const double ns{t.elapsed_ns()};
-    return {"nstd::int128_t (TC)", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"nstd::int128_t (TC)", cycles / ITERATIONS};
 }
 
 #ifdef HAS_BUILTIN_INT128
@@ -810,15 +950,15 @@ static BenchResult bench_div_builtin_u128()
         doNotOptimize(q);
         a = q + 1;
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         auto q = a / b;
         doNotOptimize(q);
         a = q + 1;
     }
-    const double ns{t.elapsed_ns()};
-    return {"unsigned __int128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"unsigned __int128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_div_builtin_i128()
@@ -831,15 +971,15 @@ static BenchResult bench_div_builtin_i128()
         doNotOptimize(q);
         a = q + 1;
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         auto q = a / b;
         doNotOptimize(q);
         a = q + 1;
     }
-    const double ns{t.elapsed_ns()};
-    return {"__int128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"__int128", cycles / ITERATIONS};
 }
 #endif
 
@@ -853,15 +993,15 @@ static BenchResult bench_div_boost_cpp_u128()
         doNotOptimize(q);
         a = q + 1;
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         auto q = a / b;
         doNotOptimize(q);
         a = q + 1;
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::cpp_int u128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::cpp_int u128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_div_boost_cpp_i128()
@@ -874,15 +1014,15 @@ static BenchResult bench_div_boost_cpp_i128()
         doNotOptimize(q);
         a = q + 1;
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         auto q = a / b;
         doNotOptimize(q);
         a = q + 1;
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::cpp_int i128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::cpp_int i128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_div_boost_chk_u128()
@@ -895,17 +1035,18 @@ static BenchResult bench_div_boost_chk_u128()
         doNotOptimize(q);
         a = q + 1;
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         auto q = a / b;
         doNotOptimize(q);
         a = q + 1;
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::checked_uint128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::checked_uint128", cycles / ITERATIONS};
 }
 
+#ifdef BENCH_HAS_GMP_TOMMATH
 static BenchResult bench_div_boost_gmp()
 {
     boost_gmp_int a{"0xDEADBEEF12345678"};
@@ -916,15 +1057,15 @@ static BenchResult bench_div_boost_gmp()
         doNotOptimize(q);
         a = q + 1;
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         auto q = a / b;
         doNotOptimize(q);
         a = q + 1;
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::gmp_int", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::gmp_int", cycles / ITERATIONS};
 }
 
 static BenchResult bench_div_boost_tom()
@@ -937,16 +1078,59 @@ static BenchResult bench_div_boost_tom()
         doNotOptimize(q);
         a = q + 1;
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         auto q = a / b;
         doNotOptimize(q);
         a = q + 1;
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::tom_int", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::tom_int", cycles / ITERATIONS};
 }
+
+static BenchResult bench_div_boost_gmp128()
+{
+    boost_gmp_int a{"0xDEADBEEF12345678"};
+    boost_gmp_int b{12345};
+    for (std::size_t i{0}; i < WARMUP; ++i)
+    {
+        auto q = a / b;
+        doNotOptimize(q);
+        a = (q + 1) & gmp_mask128;
+    }
+    CycleTimer t;
+    for (std::size_t i{0}; i < ITERATIONS; ++i)
+    {
+        auto q = a / b;
+        doNotOptimize(q);
+        a = (q + 1) & gmp_mask128;
+    }
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::gmp_int [128]", cycles / ITERATIONS};
+}
+
+static BenchResult bench_div_boost_tom128()
+{
+    boost_tom_int a{"0xDEADBEEF12345678"};
+    boost_tom_int b{12345};
+    for (std::size_t i{0}; i < WARMUP; ++i)
+    {
+        auto q = a / b;
+        doNotOptimize(q);
+        a = (q + 1) & tom_mask128;
+    }
+    CycleTimer t;
+    for (std::size_t i{0}; i < ITERATIONS; ++i)
+    {
+        auto q = a / b;
+        doNotOptimize(q);
+        a = (q + 1) & tom_mask128;
+    }
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::tom_int [128]", cycles / ITERATIONS};
+}
+#endif // BENCH_HAS_GMP_TOMMATH
 
 // ============================================================================
 // BENCHMARK: Left Shift (rotate)
@@ -960,14 +1144,14 @@ static BenchResult bench_shl_u64()
         a = (a << 3) | (a >> 61);
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a = (a << 3) | (a >> 61);
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"uint64_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"uint64_t", cycles / ITERATIONS};
 }
 
 static BenchResult bench_shl_nstd_u128()
@@ -978,14 +1162,14 @@ static BenchResult bench_shl_nstd_u128()
         a = (a << 3) | (a >> 125);
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a = (a << 3) | (a >> 125);
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"nstd::uint128_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"nstd::uint128_t", cycles / ITERATIONS};
 }
 
 #ifdef HAS_BUILTIN_INT128
@@ -998,14 +1182,14 @@ static BenchResult bench_shl_builtin_u128()
         a = (a << 3) | (a >> 125);
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a = (a << 3) | (a >> 125);
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"unsigned __int128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"unsigned __int128", cycles / ITERATIONS};
 }
 #endif
 
@@ -1017,69 +1201,75 @@ static BenchResult bench_shl_boost_cpp_u128()
         a = (a << 3) | (a >> 125);
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a = (a << 3) | (a >> 125);
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::cpp_int u128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::cpp_int u128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_shl_boost_chk_u128()
 {
-    boost_checked_u128 a{"0xDEADBEEF0000000012345678"};
+    // (*) Non-accumulating: checked throws on shift overflow
+    const boost_checked_u128 a{"0x12345678"};
+    boost_checked_u128 r{0};
     for (std::size_t i{0}; i < WARMUP; ++i)
     {
-        a = (a << 3) | (a >> 125);
-        doNotOptimize(a);
+        r = a << (i % 97); // 29 bits + 96 = 125 bits, fits in 128
+        doNotOptimize(r);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
-        a = (a << 3) | (a >> 125);
-        doNotOptimize(a);
+        r = a << (i % 97);
+        doNotOptimize(r);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::checked_uint128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::checked_uint128 (*)", cycles / ITERATIONS};
 }
 
+#ifdef BENCH_HAS_GMP_TOMMATH
 static BenchResult bench_shl_boost_gmp()
 {
     boost_gmp_int a{"0xDEADBEEF0000000012345678"};
+    const boost_gmp_int mask128{"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"};
     for (std::size_t i{0}; i < WARMUP; ++i)
     {
-        a = (a << 3) | (a >> 125);
+        a = ((a << 3) | (a >> 125)) & mask128;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
-        a = (a << 3) | (a >> 125);
+        a = ((a << 3) | (a >> 125)) & mask128;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::gmp_int", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::gmp_int", cycles / ITERATIONS};
 }
 
 static BenchResult bench_shl_boost_tom()
 {
     boost_tom_int a{"0xDEADBEEF0000000012345678"};
+    const boost_tom_int mask128{"0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF"};
     for (std::size_t i{0}; i < WARMUP; ++i)
     {
-        a = (a << 3) | (a >> 125);
+        a = ((a << 3) | (a >> 125)) & mask128;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
-        a = (a << 3) | (a >> 125);
+        a = ((a << 3) | (a >> 125)) & mask128;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::tom_int", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::tom_int", cycles / ITERATIONS};
 }
+#endif // BENCH_HAS_GMP_TOMMATH
 
 // ============================================================================
 // BENCHMARK: XOR (bitwise)
@@ -1094,14 +1284,14 @@ static BenchResult bench_xor_u64()
         a ^= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a ^= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"uint64_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"uint64_t", cycles / ITERATIONS};
 }
 
 static BenchResult bench_xor_nstd_u128()
@@ -1113,14 +1303,14 @@ static BenchResult bench_xor_nstd_u128()
         a ^= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a ^= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"nstd::uint128_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"nstd::uint128_t", cycles / ITERATIONS};
 }
 
 #ifdef HAS_BUILTIN_INT128
@@ -1135,14 +1325,14 @@ static BenchResult bench_xor_builtin_u128()
         a ^= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a ^= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"unsigned __int128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"unsigned __int128", cycles / ITERATIONS};
 }
 #endif
 
@@ -1155,14 +1345,14 @@ static BenchResult bench_xor_boost_cpp_u128()
         a ^= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a ^= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::cpp_int u128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::cpp_int u128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_xor_boost_chk_u128()
@@ -1174,16 +1364,17 @@ static BenchResult bench_xor_boost_chk_u128()
         a ^= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a ^= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::checked_uint128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::checked_uint128", cycles / ITERATIONS};
 }
 
+#ifdef BENCH_HAS_GMP_TOMMATH
 static BenchResult bench_xor_boost_gmp()
 {
     boost_gmp_int a{"0xDEADBEEF0000000012345678"};
@@ -1193,14 +1384,14 @@ static BenchResult bench_xor_boost_gmp()
         a ^= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a ^= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::gmp_int", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::gmp_int", cycles / ITERATIONS};
 }
 
 static BenchResult bench_xor_boost_tom()
@@ -1212,15 +1403,16 @@ static BenchResult bench_xor_boost_tom()
         a ^= b;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         a ^= b;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::tom_int", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::tom_int", cycles / ITERATIONS};
 }
+#endif // BENCH_HAS_GMP_TOMMATH
 
 // ============================================================================
 // BENCHMARK: Comparison (<)
@@ -1237,15 +1429,15 @@ static BenchResult bench_cmp_u64()
         a += r;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         r = (a < b);
         a += r;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"uint64_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"uint64_t", cycles / ITERATIONS};
 }
 
 static BenchResult bench_cmp_nstd_u128()
@@ -1262,7 +1454,7 @@ static BenchResult bench_cmp_nstd_u128()
         }
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         r = (a < b);
@@ -1272,8 +1464,8 @@ static BenchResult bench_cmp_nstd_u128()
         }
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"nstd::uint128_t", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"nstd::uint128_t", cycles / ITERATIONS};
 }
 
 #ifdef HAS_BUILTIN_INT128
@@ -1290,15 +1482,15 @@ static BenchResult bench_cmp_builtin_u128()
         a += r;
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         r = (a < b);
         a += r;
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"unsigned __int128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"unsigned __int128", cycles / ITERATIONS};
 }
 #endif
 
@@ -1316,7 +1508,7 @@ static BenchResult bench_cmp_boost_cpp_u128()
         }
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         r = (a < b);
@@ -1326,8 +1518,8 @@ static BenchResult bench_cmp_boost_cpp_u128()
         }
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::cpp_int u128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::cpp_int u128", cycles / ITERATIONS};
 }
 
 static BenchResult bench_cmp_boost_chk_u128()
@@ -1344,7 +1536,7 @@ static BenchResult bench_cmp_boost_chk_u128()
         }
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         r = (a < b);
@@ -1354,10 +1546,11 @@ static BenchResult bench_cmp_boost_chk_u128()
         }
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::checked_uint128", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::checked_uint128", cycles / ITERATIONS};
 }
 
+#ifdef BENCH_HAS_GMP_TOMMATH
 static BenchResult bench_cmp_boost_gmp()
 {
     boost_gmp_int a{"0xDEADBEEF0000000012345678"};
@@ -1372,7 +1565,7 @@ static BenchResult bench_cmp_boost_gmp()
         }
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         r = (a < b);
@@ -1382,8 +1575,8 @@ static BenchResult bench_cmp_boost_gmp()
         }
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::gmp_int", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::gmp_int", cycles / ITERATIONS};
 }
 
 static BenchResult bench_cmp_boost_tom()
@@ -1400,7 +1593,7 @@ static BenchResult bench_cmp_boost_tom()
         }
         doNotOptimize(a);
     }
-    Timer t;
+    CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
         r = (a < b);
@@ -1410,9 +1603,10 @@ static BenchResult bench_cmp_boost_tom()
         }
         doNotOptimize(a);
     }
-    const double ns{t.elapsed_ns()};
-    return {"boost::tom_int", ns / ITERATIONS, ITERATIONS / (ns / 1e9)};
+    const double cycles{static_cast<double>(t.elapsed_cycles())};
+    return {"boost::tom_int", cycles / ITERATIONS};
 }
+#endif // BENCH_HAS_GMP_TOMMATH
 
 // ============================================================================
 // MAIN
@@ -1430,7 +1624,11 @@ int main()
 #else
     std::cout << "  __int128:   NOT available\n";
 #endif
-    std::cout << "  Boost:      cpp_int, checked, GMP, tommath\n";
+    std::cout << "  Boost:      cpp_int, checked";
+#ifdef BENCH_HAS_GMP_TOMMATH
+    std::cout << ", GMP, tommath";
+#endif
+    std::cout << "\n";
     std::cout << "================================================================\n";
 
     BenchResult r{};
@@ -1439,7 +1637,7 @@ int main()
     // --- Addition ---
     print_header("Addition (+)");
     r = bench_add_u64();
-    baseline = r.ns_per_op;
+    baseline = r.cycles_per_op;
     print_result(r, baseline);
     r = bench_add_nstd_u128();
     print_result(r, baseline);
@@ -1457,16 +1655,22 @@ int main()
     print_result(r, baseline);
     r = bench_add_boost_chk_u128();
     print_result(r, baseline);
+#ifdef BENCH_HAS_GMP_TOMMATH
     r = bench_add_boost_gmp();
+    print_result(r, baseline);
+    r = bench_add_boost_gmp128();
     print_result(r, baseline);
     r = bench_add_boost_tom();
     print_result(r, baseline);
+    r = bench_add_boost_tom128();
+    print_result(r, baseline);
+#endif
     print_separator();
 
     // --- Subtraction ---
     print_header("Subtraction (-)");
     r = bench_sub_u64();
-    baseline = r.ns_per_op;
+    baseline = r.cycles_per_op;
     print_result(r, baseline);
     r = bench_sub_nstd_u128();
     print_result(r, baseline);
@@ -1484,16 +1688,22 @@ int main()
     print_result(r, baseline);
     r = bench_sub_boost_chk_u128();
     print_result(r, baseline);
+#ifdef BENCH_HAS_GMP_TOMMATH
     r = bench_sub_boost_gmp();
+    print_result(r, baseline);
+    r = bench_sub_boost_gmp128();
     print_result(r, baseline);
     r = bench_sub_boost_tom();
     print_result(r, baseline);
+    r = bench_sub_boost_tom128();
+    print_result(r, baseline);
+#endif
     print_separator();
 
     // --- Multiplication ---
     print_header("Multiplication (*)");
     r = bench_mul_u64();
-    baseline = r.ns_per_op;
+    baseline = r.cycles_per_op;
     print_result(r, baseline);
     r = bench_mul_nstd_u128();
     print_result(r, baseline);
@@ -1511,16 +1721,22 @@ int main()
     print_result(r, baseline);
     r = bench_mul_boost_chk_u128();
     print_result(r, baseline);
+#ifdef BENCH_HAS_GMP_TOMMATH
     r = bench_mul_boost_gmp();
+    print_result(r, baseline);
+    r = bench_mul_boost_gmp128();
     print_result(r, baseline);
     r = bench_mul_boost_tom();
     print_result(r, baseline);
+    r = bench_mul_boost_tom128();
+    print_result(r, baseline);
+#endif
     print_separator();
 
     // --- Division ---
     print_header("Division (/)");
     r = bench_div_u64();
-    baseline = r.ns_per_op;
+    baseline = r.cycles_per_op;
     print_result(r, baseline);
     r = bench_div_nstd_u128();
     print_result(r, baseline);
@@ -1538,16 +1754,22 @@ int main()
     print_result(r, baseline);
     r = bench_div_boost_chk_u128();
     print_result(r, baseline);
+#ifdef BENCH_HAS_GMP_TOMMATH
     r = bench_div_boost_gmp();
+    print_result(r, baseline);
+    r = bench_div_boost_gmp128();
     print_result(r, baseline);
     r = bench_div_boost_tom();
     print_result(r, baseline);
+    r = bench_div_boost_tom128();
+    print_result(r, baseline);
+#endif
     print_separator();
 
     // --- Shift ---
     print_header("Shift (<<3 | >>125, rotate)");
     r = bench_shl_u64();
-    baseline = r.ns_per_op;
+    baseline = r.cycles_per_op;
     print_result(r, baseline);
     r = bench_shl_nstd_u128();
     print_result(r, baseline);
@@ -1559,16 +1781,18 @@ int main()
     print_result(r, baseline);
     r = bench_shl_boost_chk_u128();
     print_result(r, baseline);
+#ifdef BENCH_HAS_GMP_TOMMATH
     r = bench_shl_boost_gmp();
     print_result(r, baseline);
     r = bench_shl_boost_tom();
     print_result(r, baseline);
+#endif
     print_separator();
 
     // --- XOR ---
     print_header("Bitwise XOR (^)");
     r = bench_xor_u64();
-    baseline = r.ns_per_op;
+    baseline = r.cycles_per_op;
     print_result(r, baseline);
     r = bench_xor_nstd_u128();
     print_result(r, baseline);
@@ -1580,16 +1804,18 @@ int main()
     print_result(r, baseline);
     r = bench_xor_boost_chk_u128();
     print_result(r, baseline);
+#ifdef BENCH_HAS_GMP_TOMMATH
     r = bench_xor_boost_gmp();
     print_result(r, baseline);
     r = bench_xor_boost_tom();
     print_result(r, baseline);
+#endif
     print_separator();
 
     // --- Comparison ---
     print_header("Comparison (<)");
     r = bench_cmp_u64();
-    baseline = r.ns_per_op;
+    baseline = r.cycles_per_op;
     print_result(r, baseline);
     r = bench_cmp_nstd_u128();
     print_result(r, baseline);
@@ -1601,10 +1827,12 @@ int main()
     print_result(r, baseline);
     r = bench_cmp_boost_chk_u128();
     print_result(r, baseline);
+#ifdef BENCH_HAS_GMP_TOMMATH
     r = bench_cmp_boost_gmp();
     print_result(r, baseline);
     r = bench_cmp_boost_tom();
     print_result(r, baseline);
+#endif
     print_separator();
 
     std::cout << "\n================================================================\n";
@@ -1612,6 +1840,8 @@ int main()
     std::cout << "  Lower ratio = faster. >1.00x = slower than uint64_t.\n";
     std::cout << "  (*) = non-accumulating pattern (no loop dependency)\n";
     std::cout << "        used for arb-precision/checked to avoid overflow\n";
+    std::cout << "  [128] = arbitrary-precision backend masked to 128 bits\n";
+    std::cout << "          (& mask128 after each op) for fair comparison\n";
     std::cout << "================================================================\n";
 
     return 0;
