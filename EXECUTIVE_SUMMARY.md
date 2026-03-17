@@ -114,7 +114,7 @@
    - Added benchmarking framework status
    - Documented deferred Knuth D work
 
-4. **SESSION_STATUS_20260205.md**
+4. **docs/archive/SESSION_STATUS_20260205.md**
    - Comprehensive session report
    - Technical decisions documented
    - Timeline and next steps outlined

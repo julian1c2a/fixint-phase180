@@ -17,7 +17,7 @@
 | **Benchmarks Workflow** | [`AI_PROMPT/workflow/benchmarks.yml`](AI_PROMPT/workflow/benchmarks.yml) | Suite completa de benchmarks (semanal) |
 | **Release Workflow** | [`AI_PROMPT/workflow/release.yml`](AI_PROMPT/workflow/release.yml) | Empaquetado de release (tag v*.*.*) |
 | **ROADMAP.md** | [`ROADMAP.md`](ROADMAP.md) | Línea de tiempo: fases pasadas, presente y futuras |
-| **SESSION_STATE.md** | [`SESSION_STATE.md`](SESSION_STATE.md) | Contexto volátil: estado actual para onboarding rápido |
+| **docs/archive/SESSION_STATE.md** | [`docs/archive/SESSION_STATE.md`](docs/archive/SESSION_STATE.md) | Contexto volátil: estado actual para onboarding rápido |
 | **CONTRIBUTING.md** | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Guía de contribución para colaboradores externos |
 | **SECURITY.md** | [`SECURITY.md`](SECURITY.md) | Política de seguridad y reporte de vulnerabilidades |
 
@@ -404,7 +404,7 @@ const auto product{a * b};
 | `SECURITY.md` | Raíz | Política de seguridad |
 | `CHANGELOG.md` | Raíz | Historial de cambios con SemVer |
 | `ROADMAP.md` | Raíz | Línea de tiempo del proyecto |
-| `SESSION_STATE.md` | Raíz | Estado actual para onboarding rápido |
+| `docs/archive/SESSION_STATE.md` | Raíz | Estado actual para onboarding rápido |
 | `docs/decisions/ADR-NNN-*.md` | `docs/decisions/` | Architecture Decision Records |
 | `docs/guides/internals.md` | `docs/guides/` | Arquitectura interna, diseño de algoritmos |
 | `docs/guides/adding_features.md` | `docs/guides/` | Cómo añadir un nuevo módulo/feature |
@@ -674,7 +674,7 @@ Solo los estrictamente necesarios:
 | `LICENSE` o `LICENSE.txt` | Licencia del proyecto | Sí | — |
 | `AI-GUIDE.md` | Este archivo — guía maestra | Sí | — |
 | `ROADMAP.md` | Línea de tiempo del proyecto | Sí | [§25](#25-roadmap--línea-de-tiempo-del-proyecto) |
-| `SESSION_STATE.md` | Contexto volátil del estado actual | Sí | [§24](#24-session_state--contexto-persistente) |
+| `docs/archive/SESSION_STATE.md` | Contexto volátil del estado actual | Sí | [§24](#24-session_state--contexto-persistente) |
 | `CONTRIBUTING.md` | Guía de contribución externa | Sí | [Apéndice D](#apéndice-d--plantilla-contributingmd) |
 | `SECURITY.md` | Política de seguridad y vulnerabilidades | Recomendado | [Apéndice E](#apéndice-e--plantilla-securitymd) |
 

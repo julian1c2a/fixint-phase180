@@ -165,7 +165,7 @@ Created comprehensive STL type traits integration:
 
 - `include/int128_param_safe.hpp` (380 lines)
 - `tests/test_param_safe.cpp` (398 lines, 34 tests)
-- `PRIORITY_3_HEADER_1_COMPLETION.md` (~780 lines)
+- `docs/archive/PRIORITY_3_HEADER_1_COMPLETION.md` (~780 lines)
 
 **Files Modified:**
 
@@ -183,7 +183,7 @@ Created comprehensive STL type traits integration:
 - ⚠️ MS operator*= not implemented (multiplication gives wrong results)
 - ⚠️ EK arithmetic not supported (requires bias adjustment)
 
-**Documentation:** See `PRIORITY_3_HEADER_1_COMPLETION.md` for full report
+**Documentation:** See `docs/archive/PRIORITY_3_HEADER_1_COMPLETION.md` for full report
 
 ---
 

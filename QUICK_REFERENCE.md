@@ -210,9 +210,9 @@ tests/
   └─ test_divmod_suite.cpp       (larger suite, 24/27 passing)
 
 Documentation/
-  ├─ SESSION_COMPLETION_REPORT.md (this report)
-  ├─ NEXT_SESSION_RECOMMENDATIONS.md (action items)
-  ├─ DIVISION_VERIFICATION_COMPLETE.md (detailed analysis)
+  ├─ docs/archive/SESSION_COMPLETION_REPORT.md (this report)
+  ├─ docs/archive/NEXT_SESSION_RECOMMENDATIONS.md (action items)
+  ├─ docs/archive/DIVISION_VERIFICATION_COMPLETE.md (detailed analysis)
   └─ CHANGELOG.md (updated with session work)
 ```
 
@@ -297,4 +297,4 @@ Start next session with Priority 1: Multi-compiler testing.
 ---
 
 Generated: 5 February 2026 02:46 UTC  
-For more details, see: [SESSION_COMPLETION_REPORT.md](SESSION_COMPLETION_REPORT.md)
+For more details, see: [docs/archive/SESSION_COMPLETION_REPORT.md](docs/archive/SESSION_COMPLETION_REPORT.md)

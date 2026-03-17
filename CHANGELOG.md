@@ -154,7 +154,7 @@ nstd::uint128_t is **20x faster** than compiler `__int128` for division.
 **Files Created/Modified:**
 
 - tests/test_division_operators.cpp: 357 lines, 25 test cases
-- PHASE_4_DIVISION_OPERATORS_RESULTS.md: Comprehensive results document
+- docs/archive/PHASE_4_DIVISION_OPERATORS_RESULTS.md: Comprehensive results document
 
 **Compiler Status:**
 
@@ -694,13 +694,13 @@ test_msvc_intel.bat
 
 **Deliverables Created:**
 
-1. ✅ **START_HERE.md** - Quick continuation guide (how to resume)
+1. ✅ **docs/archive/START_HERE.md** - Quick continuation guide (how to resume)
 2. ✅ **QUICK_REFERENCE.md** - 5-minute rapid understanding
-3. ✅ **SESSION_STATE.md** - Full context for returning
-4. ✅ **SESSION_COMPLETION_REPORT.md** - Comprehensive session summary (700 lines)
-5. ✅ **DOCUMENTATION_INDEX.md** - Index of all documentation
-6. ✅ **NEXT_SESSION_RECOMMENDATIONS.md** - Actionable priorities
-7. ✅ **DIVISION_VERIFICATION_COMPLETE.md** - Technical deep-dive
+3. ✅ **docs/archive/SESSION_STATE.md** - Full context for returning
+4. ✅ **docs/archive/SESSION_COMPLETION_REPORT.md** - Comprehensive session summary (700 lines)
+5. ✅ **docs/archive/DOCUMENTATION_INDEX.md** - Index of all documentation
+6. ✅ **docs/archive/NEXT_SESSION_RECOMMENDATIONS.md** - Actionable priorities
+7. ✅ **docs/archive/DIVISION_VERIFICATION_COMPLETE.md** - Technical deep-dive
 
 **Key Updates:**
 
@@ -712,9 +712,9 @@ test_msvc_intel.bat
 
 **How to Continue:**
 
-1. Read: START_HERE.md (2 minutes)
+1. Read: docs/archive/START_HERE.md (2 minutes)
 2. Run: `.\build\test_divmod_final.exe` (should show 9/9 PASS)
-3. Follow: NEXT_SESSION_RECOMMENDATIONS.md (Priority 1-3)
+3. Follow: docs/archive/NEXT_SESSION_RECOMMENDATIONS.md (Priority 1-3)
 
 **Current State for Next Session:**
 
@@ -1859,8 +1859,8 @@ Test 10: -3 * 4 = -12      ✅ (unchanged, already worked)
 - `tests/test_param_algorithm.cpp` (380 lines, 9 tests)
 - `include/int128_param_format.hpp` (154 lines)
 - `tests/test_param_format.cpp` (278 lines, 10 tests)
-- `PRIORITY_3_HEADER_6_COMPLETION.md` (~1,200 lines)
-- `PRIORITY_3_HEADER_7_COMPLETION.md` (~800 lines)
+- `docs/archive/PRIORITY_3_HEADER_6_COMPLETION.md` (~1,200 lines)
+- `docs/archive/PRIORITY_3_HEADER_7_COMPLETION.md` (~800 lines)
 
 **Time Spent:** ~2.5 hours (algorithm 1h, format 1.5h including debugging)
 
@@ -1957,7 +1957,7 @@ RESULTS:
 **Archivos modificados:**
 
 - `tests/test_param_cmath.cpp` (reescrito, 300 líneas, 8 tests, ASCII-only)
-- `PRIORITY_3_HEADER_5_COMPLETION.md` (NEW, ~500 líneas)
+- `docs/archive/PRIORITY_3_HEADER_5_COMPLETION.md` (NEW, ~500 líneas)
 - Backup: `test_param_cmath.cpp.old`
 
 **Time Spent:** ~30 minutes (header ya existía desde 19 Jan, solo fix de formato)
@@ -2050,7 +2050,7 @@ RESULTS:
 **Archivos modificados:**
 
 - `tests/test_param_bits.cpp` (reescrito, 255 líneas, 8 tests)
-- `PRIORITY_3_HEADER_4_COMPLETION.md` (NEW, ~500 líneas)
+- `docs/archive/PRIORITY_3_HEADER_4_COMPLETION.md` (NEW, ~500 líneas)
 - Backup: `test_param_bits.cpp.old`
 
 **Time Spent:** ~1 hour (estimated 3-4h, header ya existía)
@@ -2144,7 +2144,7 @@ RESULTS:
 **Archivos modificados:**
 
 - `tests/test_param_numeric.cpp` (reescrito, 320 líneas, 11 tests)
-- `PRIORITY_3_HEADER_3_COMPLETION.md` (NEW, ~450 líneas)
+- `docs/archive/PRIORITY_3_HEADER_3_COMPLETION.md` (NEW, ~450 líneas)
 - Backup: `test_param_numeric.cpp.old`
 
 **Time Spent:** ~45 minutes (estimated 1.5-2h, ya existía implementación)
@@ -2224,7 +2224,7 @@ RESULTS:
 
 - `include/int128_param_limits.hpp` (NEW, 250 lines)
 - `tests/test_param_limits.cpp` (NEW, 280 lines)
-- `PRIORITY_3_HEADER_2_COMPLETION.md` (NEW, ~400 lines)
+- `docs/archive/PRIORITY_3_HEADER_2_COMPLETION.md` (NEW, ~400 lines)
 - Backup: `*.old` (versiones anteriores con 8 especializaciones inválidas)
 
 **Time Spent:** ~1.5 hours (estimated 2-3h)
@@ -2293,7 +2293,7 @@ While testing EK arithmetic operations, discovered that with GCC 15.2.0 and `-O2
 
 **Files Created:**
 
-- `GCC_OPTIMIZATION_BUG_EK_CONSTRUCTOR.md` - Complete bug report with reproducible test case
+- `docs/archive/GCC_OPTIMIZATION_BUG_EK_CONSTRUCTOR.md` - Complete bug report with reproducible test case
 
 **Next Steps:**
 
@@ -2403,7 +2403,7 @@ RESULTS:
 - `include/int128_param_safe.hpp` (NEW, 380 lines)
 - `include/int128_parameterized.hpp` (+152 lines: max/min, divmod fix)
 - `tests/test_param_safe.cpp` (NEW, 398 lines)
-- `PRIORITY_3_HEADER_1_COMPLETION.md` (NEW, ~780 lines)
+- `docs/archive/PRIORITY_3_HEADER_1_COMPLETION.md` (NEW, ~780 lines)
 
 **Time Spent:** ~3.5 hours (estimated 4h)
 
@@ -2670,7 +2670,7 @@ RESULTS:
 
 #### ✅ Documentation Update
 
-- Created a session report for today: `PHASE_175_SESSION_STATUS_20260119.md`.
+- Created a session report for today: `docs/archive/PHASE_175_SESSION_STATUS_20260119.md`.
 - Updated `PROJECT_STATUS.md` to reflect the project's completion and current maintenance status.
 - Updated `NEXT_STEPS.md` with a new plan for the next phase, focusing on test review, optimization, and refactoring.
 
@@ -2763,7 +2763,7 @@ Created comprehensive guide for EK arithmetic limitations:
 - What works vs what doesn't (comparison ✅, arithmetic ❌)
 - Code examples and best practices
 
-**File Created:** `EXCESS_K_ARITHMETIC_GUIDE.md` (~450 lines)
+**File Created:** `docs/archive/EXCESS_K_ARITHMETIC_GUIDE.md` (~450 lines)
 
 ---
 
@@ -2827,7 +2827,7 @@ Ported mathematical functions with representation awareness:
 **Files Created (6 total):**
 
 1. `tests/test_excess_k_comparison.cpp` - EK comparison tests
-2. `EXCESS_K_ARITHMETIC_GUIDE.md` - Comprehensive EK arithmetic documentation
+2. `docs/archive/EXCESS_K_ARITHMETIC_GUIDE.md` - Comprehensive EK arithmetic documentation
 3. `include/int128_param_bits.hpp` - Bit manipulation header
 4. `tests/test_param_bits.cpp` - Bit manipulation tests
 5. `include/int128_param_cmath.hpp` - Mathematical functions header
@@ -2959,7 +2959,7 @@ Test 5: Addition (documented limitation) ⚠️ Requires custom implementation
 **Created:**
 
 - `tests/test_excess_k_basic.cpp` (71 lines, 5 tests)
-- `EXCESS_K_IMPLEMENTATION_STATUS.md` (~900 lines)
+- `docs/archive/EXCESS_K_IMPLEMENTATION_STATUS.md` (~900 lines)
   - Complete implementation status
   - 13 pending feature headers from Phase 1.66
   - Work estimates: 32-44 hours remaining
@@ -3132,7 +3132,7 @@ uint128_tc_t reconstructed{bytes};
   - 15 comprehensive test cases
   - Array, bitset, mixed, and edge cases
 
-- `PRIORITY_11_COMPLETION.md` (~500 lines)
+- `docs/archive/PRIORITY_11_COMPLETION.md` (~500 lines)
   - Complete implementation report
   - Use cases (network I/O, file I/O, crypto)
   - Recommendations for future work
@@ -3287,7 +3287,7 @@ double d = static_cast<double>(x);  // d = -42.0
   - Tests for TC, MS, and edge cases
   - Round-trip conversion validation
 
-- `PRIORITY_10_COMPLETION.md` (~300 lines)
+- `docs/archive/PRIORITY_10_COMPLETION.md` (~300 lines)
   - Complete implementation report
   - Precision analysis and limitations
   - Recommendations for future work
@@ -3399,7 +3399,7 @@ swap(a, b);  // ADL finds nstd::swap(int128_param_t&, int128_param_t&)
   - Tests for TC, MS, and mixed-type operations
   - Validates symmetric behavior
 
-- `PRIORITY_9_COMPLETION.md` (~350 lines)
+- `docs/archive/PRIORITY_9_COMPLETION.md` (~350 lines)
   - Complete implementation report
   - Design patterns and technical analysis
   - Performance notes
@@ -3532,7 +3532,7 @@ swap(a, b);  // ADL finds nstd::swap(int128_param_t&, int128_param_t&)
   - Tests for TC, MS, unsigned, signed, and edge cases
   - Validates all representation forms
 
-- `PRIORITY_8_COMPLETION.md` (~400 lines)
+- `docs/archive/PRIORITY_8_COMPLETION.md` (~400 lines)
   - Complete implementation report
   - Technical analysis and performance notes
   - Recommendations for future work
@@ -3603,7 +3603,7 @@ swap(a, b);  // ADL finds nstd::swap(int128_param_t&, int128_param_t&)
   - Links to detailed documentation
   - Contributing guidelines
 
-- ✅ **MAGNITUDE_SIGN_IMPLEMENTATION.md** (350 lines)
+- ✅ **docs/archive/MAGNITUDE_SIGN_IMPLEMENTATION.md** (350 lines)
   - Magnitude-Sign representation overview
   - Implementation architecture & storage layout
   - Representation-specific methods (is_negative, magnitude, sign)
@@ -3876,7 +3876,7 @@ class int128_param_t { ... }
 ### 📝 Documentation Files Created
 
 1. **README.md** - Project overview, structure, builds, progress
-2. **MAGNITUDE_SIGN_IMPLEMENTATION.md** - Detailed implementation guide with code examples
+2. **docs/archive/MAGNITUDE_SIGN_IMPLEMENTATION.md** - Detailed implementation guide with code examples
 3. **CHANGELOG.md** (this file) - Hourly development log
 
 ---
