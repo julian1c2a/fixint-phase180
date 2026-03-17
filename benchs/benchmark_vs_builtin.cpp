@@ -134,8 +134,25 @@ static void doNotOptimize(T &val)
     // Forces the compiler to actually compute val (can't be eliminated).
     *reinterpret_cast<char volatile *>(&val) =
         *reinterpret_cast<char volatile *>(&val);
-#else
+#elif defined(__clang__)
+    // Clang: "+r,m" works well — Clang chooses memory operands for structs,
+    // which avoids register shuffling. Using split "+r" would cause
+    // redundant stores on Clang.
     asm volatile("" : "+r,m"(val) : : "memory");
+#else
+    // GCC: For 128-bit structs, "+r,m" causes 4 unnecessary register
+    // shuffles per iteration (GCC can't map a struct to a register pair).
+    // Fix: split into two separate "+r" constraints on each uint64_t half.
+    // This generates the same optimal addq/adcq or subq/sbbq as __int128.
+    if constexpr (sizeof(T) == 16 && alignof(T) >= alignof(std::uint64_t))
+    {
+        auto *p = reinterpret_cast<std::uint64_t *>(&val);
+        asm volatile("" : "+r"(p[0]), "+r"(p[1]) : : "memory");
+    }
+    else
+    {
+        asm volatile("" : "+r,m"(val) : : "memory");
+    }
 #endif
 }
 
