@@ -1,23 +1,29 @@
 # 🔮 NEXT STEPS - Post-Phase 1.75
 
-**Status:** P1 ✅ COMPLETE | P2 ✅ COMPLETE | P3 1/7 ✅ | P4 pending  
-**Last Updated:** February 4, 2026, 14:00 UTC  
-**Focus:** Complete feature parity with phase166 + intrinsics transplant
+**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 pending | P6 1/7 ✅  
+**Last Updated:** 17 March 2026  
+**Focus:** Phase 5 (Additional Operators) + Feature parity with phase166 + Intrinsics transplant
 
 ---
 
-## 🎯 IMMEDIATE PRIORITIES (Status Update)
+## 🎯 COMPLETED PRIORITIES
 
-Based on analysis comparing phase175 (parameterized) vs phase166 (baseline), three critical areas require attention:
+### ✅ Float/Double Assignment Operators - COMPLETE (25/25 tests)
 
-1. ✅ **Float/Double Assignment Operators** - COMPLETE (25/25 tests passing)
-2. ✅ **Type Traits Specializations** - COMPLETE (35/35 tests passing)
-3. ⏳ **Phase166 Feature Parity** (HIGH - 12-17 hours remaining) - **1/7 COMPLETE ✅**
-4. ⏳ **Intrinsics Transplant** (HIGH - 8-12 hours)
+### ✅ Type Traits Specializations - COMPLETE (35/35 tests)
+
+### ✅ Phase 3: Knuth Algorithm D - COMPLETE (17 March 2026)
+
+**Achievement:** D_knuth_divrem() with `__uint128_t` native division.
+
+- **6.24x faster** than binary long division (7.17 → 1.15 ns/op)
+- GCC-O2: **0.47x vs uint64_t** (faster than native 64-bit!)
+- nstd **20x faster** than `__int128` for division
+- 55/55 division tests passing (GCC + Clang)
 
 ---
 
-## ✅ PRIORITY 1: Float/Double Assignment Operators - COMPLETE
+## ⏳ CURRENT PRIORITIES
 
 ### Implementation
 
@@ -110,7 +116,16 @@ Created comprehensive STL type traits integration:
 
 ---
 
-## ⏳ PRIORITY 3: Phase166 Feature Parity - 1/7 COMPLETE ✅
+## ⏳ PRIORITY A: Phase 5 - Additional Operators (2-4 hours)
+
+- Increment/decrement operators (++/--)
+- Unary minus for all representations
+- Additional helper methods
+- Multi-compiler validation
+
+---
+
+## ⏳ PRIORITY B: Phase166 Feature Parity - 1/7 COMPLETE ✅
 
 ### Already Ported ✅
 
@@ -201,7 +216,7 @@ Created comprehensive STL type traits integration:
 
 ---
 
-## ⚡ PRIORITY 4: Intrinsics Transplant ⏰ 8-12 hours
+## ⚡ PRIORITY C: Intrinsics Transplant ⏰ 8-12 hours
 
 ### Available in legacy-code/int128-phase166/include/intrinsics/
 

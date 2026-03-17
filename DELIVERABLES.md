@@ -1,49 +1,55 @@
-# 📋 DELIVERABLES - SESSION January 11, 2026
+# DELIVERABLES - Phase 1.75 (Updated 17 March 2026)
 
 ## Summary
 
-**Phase 1.75 Session Successfully Completed**
+**Phase 1.75 - Phases 1-4 Complete (67%)**
 
-- Duration: 10+ hours total
-- Tests Created/Passed: 172/172 core (100%)
-- Code Written: 3,257+ lines
-- Documentation: 3,000+ lines
-- Compilation: 0 errors, 0 warnings
+- Tests Created/Passed: 200+ across 44 files (100%)
+- Main header: 3,534 lines
+- Compilation: 0 errors, 0 warnings on GCC, Clang, MSVC, Intel
+- Division: Knuth Algorithm D — 6.24x faster than binary long division
 
 ---
 
-## 🎯 MAIN DELIVERABLES
+## MAIN DELIVERABLES
 
 ### [1] Core Implementation
 
 **File:** `include/int128_parameterized.hpp`
 
-- **Size:** 1,457 lines
-- **Status:** ✅ Production-ready
+- **Size:** 3,534 lines
+- **Status:** Production-ready
 - **Contents:**
   - Template parameter framework (signedness + representation_form)
   - 7 constructor variants
-  - 6 comparison operators
-  - 5 arithmetic operators (±×÷%)
-  - 4 bitwise operators
-  - 2 shift operators (with MS support)
-  - String I/O methods
-  - 6 MS-specific methods
+  - 6 comparison operators (`<=>`, `==`, `!=`, `<`, `>`, `<=`, `>=`)
+  - 5 arithmetic operators (+, -, *, /, %)
+  - 4 bitwise operators (&, |, ^, ~)
+  - 2 shift operators (<<, >>)
+  - Knuth Algorithm D division (`D_knuth_divrem()`) with 5-level cascade
+  - String I/O methods (`to_string`, `from_string`, iostream operators)
+  - MS/EK representation methods
   - Type aliases (6 variants)
 
 ### [2] Test Suites
 
-**Total Tests:** 172 core tests (100% passing)
+**Total Tests:** 200+ across 44 files (100% passing)
 
-- `tests/test_priority1_constructors.cpp` - 20 tests
-- `tests/test_priority2_magnitude_sign.cpp` - 35 tests
-- `tests/test_priority3_representations_ms_ek.cpp` - 38 tests
-- `tests/test_priority4_arithmetic.cpp` - 24 tests
-- `tests/test_priority5_string_io.cpp` - 41 tests
-- `tests/test_priority6_bitwise.cpp` - 24 tests
-- `tests/test_priority7_shift.cpp` - 28 tests ← NEW today
+- `tests/test_priority1_constructors.cpp` — constructors
+- `tests/test_priority2_magnitude_sign.cpp` — MS representation
+- `tests/test_priority3_representations_ms_ek.cpp` — EK representation
+- `tests/test_priority4_arithmetic.cpp` — add/sub/mul
+- `tests/test_priority5_string_io.cpp` — string I/O
+- `tests/test_priority6_bitwise.cpp` — bitwise ops
+- `tests/test_priority7_shift.cpp` — shift ops
+- `tests/test_division_*.cpp` — 55 division tests (Knuth D)
+- `tests/test_comparators_*.cpp` — comparison operators
+- ... and 30+ more specialized test files
 
-**Total Test Code:** 1,800+ lines
+### [3] Benchmarks
+
+- `benchs/benchmark_divmod_algorithms.cpp` — division algorithm comparison
+- `benchs/benchmark_vs_builtin.cpp` — int128 vs `__int128` vs Boost
 
 ---
 

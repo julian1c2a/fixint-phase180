@@ -2,158 +2,108 @@
 
 ## Current Checkpoint
 
-**Date:** 5 February 2026 - 02:46 UTC  
-**Status:** ✅ Session complete - All critical work done  
-**Next Action:** Multi-compiler testing (MSVC, Intel ICX)
+**Date:** 17 March 2026  
+**Status:** ✅ Session complete — Knuth Algorithm D implemented  
+**Next Action:** Phase 5 (Additional Operators) or Feature Parity headers
 
 ---
 
 ## What's Done ✅
 
+### Phase 3: Knuth Algorithm D (COMPLETE — 17 March 2026)
+
+- ✅ D_knuth_divrem() with 5 fast paths + MSVC fallback
+- ✅ divmod() updated in all 3 code paths (unsigned, MS, TC/EK)
+- ✅ All division operators (/=, %=, /, %) use Knuth D by default
+- ✅ 55/55 division tests passing (GCC + Clang)
+- ✅ 6.24x faster than binary long division
+- ✅ GCC-O2: 0.47x vs uint64_t (faster than native!)
+- ✅ nstd 20x faster than __int128 for division
+- ✅ Commits: 3f68484, 53e1fbe (pushed to remote)
+
+### Phases 1, 2, 4 (COMPLETE — February 2026)
+
+- ✅ Multi-compiler validation: GCC, Clang, MSVC, Intel all pass
+- ✅ Benchmarking framework with vs-builtin benchmark
+- ✅ Division operators fully tested (25/25)
+
 ### Core Implementation (COMPLETE)
 
-- ✅ 6-level division optimization cascade implemented
+- ✅ 6-level division optimization cascade
 - ✅ All operations support TC, MS, EK representations
-- ✅ operator-() for unsigned two's complement negation
-- ✅ divmod() method fully functional
+- ✅ 200+ tests across 44 test files
+- ✅ Production-ready code with 0 errors, 0 warnings
 
-### Testing & Verification (COMPLETE)
+### Additional Features (COMPLETE)
 
-- ✅ 9 verified test cases created
-- ✅ All tests passing with GCC -O0 and Clang -O2
-- ✅ Constructor parameter order bug identified and documented
-- ✅ GCC optimizer bug isolated and documented
-
-### Documentation (COMPLETE)
-
-- ✅ Session completion report created
-- ✅ Quick reference guide created
-- ✅ Next session recommendations documented
-- ✅ Comprehensive analysis created
-
-### Code Quality (VERIFIED)
-
-- ✅ 0 compilation errors
-- ✅ 0 runtime errors in tests
-- ✅ Algorithm verified mathematically correct
-- ✅ Production-ready code
+- ✅ Float/double assignment operators (25/25 tests)
+- ✅ Type traits specializations (35/35 tests)
+- ✅ int128_param_safe.hpp (34/34 tests)
 
 ---
 
-## What's Ready to Test
+## What's Next
 
-### test_divmod_final.cpp
+### Priority A: Phase 5 — Additional Operators
 
-Location: `tests/test_divmod_final.cpp`  
-Status: ✅ Created, compiled, verified passing  
-Tests: 9 comprehensive test cases  
-Pass Rate: 9/9 (100%)
+- Increment/decrement (++/--)
+- Unary minus for all representations
+- Additional helper methods
 
-### How to Verify Locally
+### Priority B: Feature Parity Headers (6 remaining)
+
+- limits, format, numeric, algorithm, thread_safety, concepts/ranges
+
+### Priority C: Intrinsics Transplant
+
+- Port compiler_detection.hpp, arithmetic_operations.hpp, bit_operations.hpp
+
+### How to Verify
 
 ```bash
 cd c:\msys64\ucrt64\home\julian\CppProjects\int128-phase175
-.\build\test_divmod_final.exe
-```
 
-Expected output:
+# Quick verification: Knuth D correctness (30 tests)
+C:\msys64\ucrt64\bin\g++.exe -std=c++20 -O2 -Iinclude tests/test_knuth_d_correctness.cpp -o build_temp/test_knuth.exe
+.\build_temp\test_knuth.exe
 
-```
-RESULTS: 9 passed, 0 failed out of 9 tests
+# Division operators (25 tests)
+C:\msys64\ucrt64\bin\g++.exe -std=c++20 -O2 -Iinclude tests/test_division_operators.cpp -o build_temp/test_div.exe
+.\build_temp\test_div.exe
+
+# Benchmark: Knuth D vs Binary
+C:\msys64\ucrt64\bin\g++.exe -std=c++20 -O2 -Iinclude benchs/benchmark_divmod_algorithms.cpp -o build_temp/bench_divmod.exe
+.\build_temp\bench_divmod.exe
+
+# Benchmark: nstd vs builtin (requires libgmp, libtommath)
+C:\msys64\ucrt64\bin\g++.exe -std=c++20 -O2 -Iinclude benchs/benchmark_vs_builtin.cpp -lgmp -ltommath -o build_temp/bench_builtin.exe
+.\build_temp\bench_builtin.exe
 ```
 
 ---
 
-## What's Next (When You Return)
+## Known Issues (Historical)
 
-### Immediate (Same Session)
-
-**[PRIORITY 1] Multi-Compiler Testing** - 1-2 hours
-
-Test current code with MSVC and Intel:
-
-```bash
-# MSVC 2026 (from VS command prompt)
-cl /std:c++latest /O2 /Iinclude tests\test_divmod_final.cpp -o test_divmod_msvc.exe
-test_divmod_msvc.exe
-
-# Intel oneAPI ICX (from Intel command prompt)
-icx /std:c++20 /O2 /Iinclude tests\test_divmod_final.cpp -o test_divmod_intel.exe
-test_divmod_intel.exe
-```
-
-**Expected Result:** Both should show 9/9 PASS (code is correct)
-
-### Short Term (Next 2-3 hours)
-
-**[PRIORITY 2] Performance Benchmarking**
-
-- Create benchmark suite
-- Compare old vs new implementation
-- Document actual speedup
-
-### Medium Term (Next 4-6 hours, optional)
-
-**[PRIORITY 3] GCC Bug Report**
-
-- File bugzilla report with test case
-- Include error details and workaround
-
-### Future Work (20+ hours, optional)
-
-**[PRIORITY 4] Extended Features**
-
-- Review phase166 headers
-- Adapt to parameterized system
-- Create test suites
-
----
-
-## Known Issues (Documented)
-
-### GCC -O2/-O3 Compiler Bug
-
-```
-Compiler: GCC 15.2.0
-Version:  15.2.0
-Trigger:  -O2 or -O3 optimization
-Error:    no match for 'operator-' in complex templates
-Root:     C++20 constexpr-if semantic violation
-Status:   Documented workaround exists
-
-Workaround: Use Clang -O2 or GCC -O0/-O1
-```
-
-### Constructor Parameter Order Confusion
+### Constructor Parameter Order
 
 ```
 Issue:    int128_param_t(uint64_t high, uint64_t low) stores as data{low, high}
 Fix:      Documentation added with examples
-Lesson:   Use correct order when initializing (high=0, low=2) for value 2
 ```
 
 ### EK Arithmetic Limitations
 
 ```
-Current:  operator+= operates on stored values (with bias)
-Problem:  Results are mathematically incorrect for real values
-Status:   Known limitation, documented
+Status:   Known limitation — EK arithmetic operates on stored values with bias
 Solution: Convert to TC for arithmetic, use EK for comparisons
 ```
 
----
+### MSVC Division Fallback
 
-## Test Verification Checklist
-
-When you return, verify everything still works:
-
-- [ ] Run `.\build\test_divmod_final.exe` → 9/9 PASS
-- [ ] Verify GCC -O0 compilation: ✅ works
-- [ ] Verify Clang -O2 compilation: ✅ works
-- [ ] Check compiler detection working: ✅ yes
-- [ ] Build system functional: ✅ yes
-
-If all checks pass, system is in good state.
+```
+Issue:    MSVC has no __uint128_t, Knuth D falls back to big_bin_divrem()
+Impact:   Correct but slower division on MSVC
+```
 
 ---
 
@@ -161,64 +111,20 @@ If all checks pass, system is in good state.
 
 ### Main Code
 
-- `include/int128_parameterized.hpp` (3609 lines)
-  - Constructor (lines 252-280) - Updated with documentation
-  - divmod() (lines 3067-3142)
-  - big_bin_divrem() (lines 3143-3376)
+- `include/int128_parameterized.hpp` (3,534 lines) — Core library with Knuth D
+- `include/int128_param_safe.hpp` (380 lines) — Overflow-checked arithmetic
+- `include/int128_param_traits_specializations.hpp` (~474 lines) — STL traits
 
-### Test Suite
+### Key Test Files
 
-- `tests/test_divmod_final.cpp` - 9 verified tests (PRIMARY)
-- `tests/test_divmod_debug.cpp` - Single test case
-- `tests/test_divmod_suite.cpp` - Larger suite
+- `tests/test_knuth_d_correctness.cpp` — 30 Knuth D tests (6 groups)
+- `tests/test_division_operators.cpp` — 25 division operator tests
+- `tests/test_priority[1-11]_*.cpp` — 172 core tests
 
-### Documentation
+### Benchmarks
 
-- `QUICK_REFERENCE.md` - For rapid understanding
-- `SESSION_COMPLETION_REPORT.md` - Full details
-- `NEXT_SESSION_RECOMMENDATIONS.md` - Action items
-- `DIVISION_VERIFICATION_COMPLETE.md` - Technical analysis
-
----
-
-## Build Commands (Quick Copy-Paste)
-
-### Compile latest test with GCC -O0
-
-```bash
-g++ -std=c++20 -O0 -Iinclude tests\test_divmod_final.cpp -o build\test_divmod_final.exe && .\build\test_divmod_final.exe
-```
-
-### Compile latest test with Clang -O2
-
-```bash
-clang++ -std=c++20 -O2 -Iinclude tests\test_divmod_final.cpp -o build\test_divmod_clang.exe && .\build\test_divmod_clang.exe
-```
-
-### Clean build
-
-```bash
-cmake --build build --target clean
-cmake --build build --config Release
-```
-
----
-
-## Understanding the Context
-
-### The Problem We Solved
-
-- Naive division was O(quotient), could take 10^35+ iterations
-- Used 6-level optimization cascade from phase166
-- Achieved speedup from "hangs forever" to "nanoseconds"
-
-### What Went Wrong Initially
-
-- Tests appeared to fail
-- Seemed like algorithm bug
-- Actually: Test initialization bug (constructor parameter order)
-
-### How We Fixed It
+- `benchs/benchmark_divmod_algorithms.cpp` — Knuth D vs Binary comparison
+- `benchs/benchmark_vs_builtin.cpp` — nstd vs uint64_t/__int128/Boost
 
 1. Created 9 debug test programs
 2. Traced algorithm through 128 iterations
