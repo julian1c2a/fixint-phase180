@@ -5,7 +5,17 @@
 >
 > **Audiencia:** Agentes IA (Copilot, Gemini, Claude, etc.) y desarrolladores humanos.
 >
-> **Versión:** 1.0.0 — 17 marzo 2026
+> **Versión:** 1.1.0 — 17 marzo 2026
+
+### Guías Relacionadas
+
+| Documento | Ruta | Descripción |
+|---|---|---|
+| **ai-instructions.md** | [`AI_PROMPT/ai-instructions.md`](AI_PROMPT/ai-instructions.md) | Reglas críticas para agentes IA (rutas, workflow, std::byte, ASCII) |
+| **Explicación del Proyecto** | [`AI_PROMPT/GENERAL_GUIDES/Explicación_del_Proyecto.md`](AI_PROMPT/GENERAL_GUIDES/Explicaci%C3%B3n_del_Proyecto.md) | 12 objetivos y 9 etapas del proyecto |
+| **CI Workflow** | [`AI_PROMPT/workflow/ci.yml`](AI_PROMPT/workflow/ci.yml) | Build + test multi-compilador (push/PR) |
+| **Benchmarks Workflow** | [`AI_PROMPT/workflow/benchmarks.yml`](AI_PROMPT/workflow/benchmarks.yml) | Suite completa de benchmarks (semanal) |
+| **Release Workflow** | [`AI_PROMPT/workflow/release.yml`](AI_PROMPT/workflow/release.yml) | Empaquetado de release (tag v*.*.*) |
 
 ---
 
@@ -26,7 +36,7 @@
 13. [Sistema de Build — Jerarquía de 4 Capas](#13-sistema-de-build--jerarquía-de-4-capas)
 14. [Compiladores, Versiones y Plataformas](#14-compiladores-versiones-y-plataformas)
 15. [Sanitizers y Análisis Estático](#15-sanitizers-y-análisis-estático)
-16. [CI/CD — GitHub Actions](#16-cicd--github-actions)
+16. [CI/CD — GitHub Actions Workflows](#16-cicd--github-actions-workflows)
 17. [Convenciones de Nombrado de Archivos](#17-convenciones-de-nombrado-de-archivos)
 18. [Estándares de Codificación C++](#18-estándares-de-codificación-c)
 19. [Flujo de Trabajo del Desarrollador](#19-flujo-de-trabajo-del-desarrollador)
@@ -675,25 +685,66 @@ option(INT128_ENABLE_COVERAGE "Enable code coverage" OFF)
 
 ---
 
-## 16. CI/CD — GitHub Actions
+## 16. CI/CD — GitHub Actions Workflows
 
-### Workflows
+> Los archivos de workflow se encuentran en [`AI_PROMPT/workflow/`](AI_PROMPT/workflow/) y deben
+> copiarse a `.github/workflows/` al activar CI/CD en el repositorio.
 
-| Workflow | Trigger | Propósito |
-|---|---|---|
-| `ci.yml` | push/PR a main, develop, phase-* | Build + test multi-compilador |
-| `benchmarks.yml` | semanal + manual | Suite completa de benchmarks |
-| `release.yml` | tag `v*.*.*` | Build de release empaquetado |
+### Resumen de Workflows
 
-### Matriz CI mínima
+| Workflow | Archivo | Trigger | Propósito |
+|---|---|---|---|
+| **CI** | [`ci.yml`](AI_PROMPT/workflow/ci.yml) | push/PR a main, develop, phase-* | Build + test multi-compilador |
+| **Benchmarks** | [`benchmarks.yml`](AI_PROMPT/workflow/benchmarks.yml) | Semanal (dom 00:00 UTC) + manual | Suite completa de benchmarks |
+| **Release** | [`release.yml`](AI_PROMPT/workflow/release.yml) | Tag `v*.*.*` + manual | Empaquetado y publicación de release |
 
-```yaml
-strategy:
-  matrix:
-    compiler: [gcc-13, gcc-14, gcc-15, clang-18, clang-19, clang-20, msvc, intel]
-    build_type: [debug, release]
-    feature: [core, algorithm, traits, format, ...]
-```
+### Workflow 1: CI (`ci.yml`)
+
+**Trigger:** push/PR a ramas `main`, `develop`, `phase-*`; dispatch manual con selector de feature.
+
+**Jobs:**
+
+| Job | Runner | Matriz | Configs |
+|---|---|---|---|
+| `gcc-build` | ubuntu-24.04 | 3 versiones × 10 features × 2 modos | ~60 |
+| `clang-build` | ubuntu-24.04 | 4 versiones × 10 features × 2 modos | ~80 |
+| `msvc-build` | windows-latest | 1 versión × 2 modos | ~2 |
+| `intel-build` | windows-latest (MSYS2) | Solo en PRs, release only | ~1 |
+| `sanitizers` | ubuntu-24.04 | Clang-19, ASan + UBSan | features × 1 |
+| `benchmarks` | ubuntu-24.04 | GCC-14, solo en PRs | ~1 |
+| `code-quality` | ubuntu-24.04 | clang-format + clang-tidy | ~1 |
+| `ci-dashboard` | ubuntu-24.04 | Resumen de todos los jobs | ~1 |
+
+**Concurrencia:** cancela runs anteriores en el mismo branch.
+
+**Artefactos:** ejecutables + resultados con retención 7 días.
+
+### Workflow 2: Benchmarks (`benchmarks.yml`)
+
+**Trigger:** schedule semanal (domingos 00:00 UTC) + dispatch manual con selector de compilador.
+
+**Proceso:**
+1. Setup MSYS2 UCRT64 con GCC, Clang, CMake, Ninja.
+2. Ejecuta benchmarks para cada compilador de la matriz.
+3. Genera reporte de comparación entre compiladores.
+4. Si es PR: comenta los resultados directamente en el PR.
+
+**Compiladores en matriz:** `gcc`, `clang`, `msvc`, `intel`.
+
+### Workflow 3: Release (`release.yml`)
+
+**Trigger:** push de tag `v*.*.*` + dispatch manual.
+
+**Proceso:**
+1. Setup MSYS2 UCRT64 + MSVC + Intel oneAPI.
+2. Build con los 4 compiladores en modo release.
+3. Empaqueta en ZIP: headers, tests, benchmarks, documentación.
+4. Crea GitHub Release con changelog auto-generado.
+
+**Artefactos del release:**
+- `[lib]-[version]-headers.zip` — Solo headers (para header-only libs)
+- `[lib]-[version]-[compiler]-binaries.zip` — Binarios por compilador
+- `[lib]-[version]-docs.zip` — Documentación generada
 
 ### Principios CI/CD
 
@@ -701,6 +752,19 @@ strategy:
 - **Concurrencia:** cancelar runs anteriores si hay nuevo push al mismo branch.
 - **Artefactos:** subir ejecutables y resultados de test con retención de 7 días.
 - **El script CI llama a `python make.py`** — nunca compila directamente.
+- **Sanitizers en CI:** ASan + UBSan con Clang-19 en cada PR.
+- **Code Quality gate:** clang-format y clang-tidy deben pasar antes del merge.
+
+### Plantilla de matriz CI mínima
+
+```yaml
+strategy:
+  fail-fast: false
+  matrix:
+    compiler: [gcc-13, gcc-14, gcc-15, clang-18, clang-19, clang-20, msvc, intel]
+    build_type: [debug, release]
+    feature: [core, algorithm, traits, format, ...]
+```
 
 ---
 
@@ -839,12 +903,18 @@ build/build_demos/[compiler]/[mode]/[demo_name].[ext]
 
 ### Ciclo CI/CD completo
 
+> Ver [§16 CI/CD — GitHub Actions Workflows](#16-cicd--github-actions-workflows) para detalle
+> de cada workflow y sus jobs.
+
 ```
 1. Push a branch
-2. GitHub Actions ejecuta ci.yml
-3. Matriz: [gcc-13..15, clang-18..21, msvc, intel] x [debug, release] x [features]
-4. Todos los tests pasan -> merge permitido
-5. Tag v*.*.* -> release.yml empaqueta headers + docs
+2. GitHub Actions ejecuta ci.yml (~140 configs de compilador x feature x modo)
+3. Sanitizers (ASan+UBSan) corren en paralelo con Clang-19
+4. Code quality (clang-format, clang-tidy) ejecutado como gate
+5. CI Dashboard resume resultados de todos los jobs
+6. Todos los tests pasan -> merge permitido
+7. Tag v*.*.* -> release.yml empaqueta headers + docs + binarios
+8. Domingos: benchmarks.yml compara rendimiento entre compiladores
 ```
 
 ---
@@ -852,6 +922,9 @@ build/build_demos/[compiler]/[mode]/[demo_name].[ext]
 ## 20. Reglas para Agentes IA
 
 ### Reglas Críticas
+
+> **Referencia completa:** [`AI_PROMPT/ai-instructions.md`](AI_PROMPT/ai-instructions.md)
+> contiene todas las reglas con ejemplos detallados.
 
 1. **Nunca compilar manualmente.** Usar siempre `python make.py ...` o el workflow establecido.
 2. **Nunca crear archivos en raíz** salvo los listados en la sección 12.
@@ -974,6 +1047,23 @@ Thumbs.db
 - [ ] Escribir `README.md`
 - [ ] Escribir `CHANGELOG.md` con entrada inicial
 - [ ] Adaptar este `AI-GUIDE.md` al proyecto concreto
+
+---
+
+## Apéndice C — Documentos Vinculados
+
+Este archivo es el punto de entrada principal. Los siguientes documentos complementan
+y amplían la información aquí contenida:
+
+| Documento | Ruta | Relación con AI-GUIDE.md |
+|---|---|---|
+| **ai-instructions.md** | [`AI_PROMPT/ai-instructions.md`](AI_PROMPT/ai-instructions.md) | Reglas detalladas para agentes IA: rutas de compiladores, jerarquía de build, std::byte, byteswap, ASCII, licencias. Complementa §13, §18, §20. |
+| **Explicación del Proyecto** | [`AI_PROMPT/GENERAL_GUIDES/Explicación_del_Proyecto.md`](AI_PROMPT/GENERAL_GUIDES/Explicaci%C3%B3n_del_Proyecto.md) | Visión general del proyecto: 12 objetivos, 9 etapas (TC, MS, EK, fixed-point, big integers, etc.). Complementa §1. |
+| **CI Workflow** | [`AI_PROMPT/workflow/ci.yml`](AI_PROMPT/workflow/ci.yml) | Definición completa de CI multi-compilador (~400 líneas). Complementa §16. |
+| **Benchmarks Workflow** | [`AI_PROMPT/workflow/benchmarks.yml`](AI_PROMPT/workflow/benchmarks.yml) | Suite semanal de benchmarks (~170 líneas). Complementa §16. |
+| **Release Workflow** | [`AI_PROMPT/workflow/release.yml`](AI_PROMPT/workflow/release.yml) | Empaquetado automático de releases (~150 líneas). Complementa §16. |
+| **CHANGELOG.md** | [`CHANGELOG.md`](CHANGELOG.md) | Registro de cambios del proyecto. |
+| **README.md** | [`README.md`](README.md) | Presentación pública del proyecto. |
 
 ---
 
