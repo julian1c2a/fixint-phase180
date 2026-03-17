@@ -31,7 +31,8 @@ All C++ console output must use ASCII only:
 - Next steps planned
 - Wait for user feedback before major changes
 
-**User compiles in MSYS2 terminal** and reports logs back. Do NOT run long compilations autonomously.
+**Agent CAN compile and run tests/benchmarks autonomously** using the terminal.
+Keep output files in `build_temp/`. Report results when done.
 
 ### 5. std::byte for Byte Arrays (MANDATORY)
 **ALWAYS use std::byte for byte buffers, NEVER uint8_t:**
