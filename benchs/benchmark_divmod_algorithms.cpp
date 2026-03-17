@@ -186,12 +186,13 @@ void print_comparison(
     const BenchmarkResult &knuth)
 {
 
-    double speedup = binary.nanoseconds_per_operation / knuth.nanoseconds_per_operation;
-    const char *faster = speedup > 1.0 ? "Binary FASTER" : "Knuth FASTER";
+    const double speedup{binary.nanoseconds_per_operation / knuth.nanoseconds_per_operation};
+    const char *faster{speedup > 1.0 ? "Knuth D FASTER" : "Binary FASTER"};
+    const double ratio{speedup > 1.0 ? speedup : 1.0 / speedup};
 
     std::cout << std::setw(20) << binary.test_name << " | "
               << "COMPARISON: "
-              << std::fixed << std::setprecision(2) << std::abs(speedup - 1.0)
+              << std::fixed << std::setprecision(2) << ratio
               << "x | " << faster
               << std::endl;
 }
@@ -295,36 +296,30 @@ int main()
               << "  D_knuth_divrem:  " << std::fixed << std::setprecision(2)
               << avg_knuth_ns << " ns/op\n";
 
-    double avg_speedup = avg_binary_ns / avg_knuth_ns;
+    const double avg_speedup{avg_binary_ns / avg_knuth_ns};
+    const double avg_ratio{avg_speedup > 1.0 ? avg_speedup : 1.0 / avg_speedup};
     std::cout << "  Average speedup: " << std::fixed << std::setprecision(2)
-              << (avg_speedup > 1.0 ? "big_bin is " : "Knuth is ")
-              << std::abs(avg_speedup - 1.0) << "x faster\n\n";
+              << (avg_speedup > 1.0 ? "Knuth D is " : "Binary is ")
+              << avg_ratio << "x faster\n\n";
 
     // ====================================================================
     // PHASE 1 STATUS
     // ====================================================================
 
     std::cout << "====================================================================\n"
-              << "PHASE 1 STATUS\n"
+              << "IMPLEMENTATION STATUS\n"
               << "====================================================================\n\n"
-              << "Current Implementation Status:\n"
-              << "  - D_knuth_divrem delegates to big_bin_divrem (Phase 1)\n"
-              << "  - Both algorithms SHOULD show identical performance\n"
-              << "  - Benchmarking infrastructure is NOW READY\n\n"
+              << "D_knuth_divrem: Implemented with optimized fast paths:\n"
+              << "  - Power-of-2 divisor: single shift operation\n"
+              << "  - 64/64 division: native CPU div instruction\n"
+              << "  - 128/64 division: intrinsics::div128_64_composed()\n"
+              << "  - 128/128 division: __uint128_t native (GCC/Clang)\n"
+              << "  - MSVC fallback: delegates to big_bin_divrem()\n\n"
 
-              << "Expected Results:\n"
-              << "  - Performance difference < 5% (same code path)\n"
-              << "  - Proves benchmarking framework is working correctly\n\n"
-
-              << "Next Steps (Phase 2+):\n"
-              << "  1. Implement true Knuth D algorithm (with __uint128_t)\n"
-              << "  2. Re-run benchmarking for real performance comparison\n"
-              << "  3. Analyze which algorithm is faster for different test cases\n"
-              << "  4. Based on results, implement /= and %= operators\n"
-              << "  5. Final benchmarking of new operators\n\n"
+              << "big_bin_divrem: Binary long division O(128) baseline\n\n"
 
               << "====================================================================\n"
-              << "BENCHMARK COMPLETE - READY FOR PHASE 2\n"
+              << "BENCHMARK COMPLETE\n"
               << "====================================================================\n";
 
     return 0;
