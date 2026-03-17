@@ -5,7 +5,7 @@
 >
 > **Audiencia:** Agentes IA (Copilot, Gemini, Claude, etc.) y desarrolladores humanos.
 >
-> **Versión:** 1.1.0 — 17 marzo 2026
+> **Versión:** 2.0.0 — 17 marzo 2026
 
 ### Guías Relacionadas
 
@@ -16,10 +16,16 @@
 | **CI Workflow** | [`AI_PROMPT/workflow/ci.yml`](AI_PROMPT/workflow/ci.yml) | Build + test multi-compilador (push/PR) |
 | **Benchmarks Workflow** | [`AI_PROMPT/workflow/benchmarks.yml`](AI_PROMPT/workflow/benchmarks.yml) | Suite completa de benchmarks (semanal) |
 | **Release Workflow** | [`AI_PROMPT/workflow/release.yml`](AI_PROMPT/workflow/release.yml) | Empaquetado de release (tag v*.*.*) |
+| **ROADMAP.md** | [`ROADMAP.md`](ROADMAP.md) | Línea de tiempo: fases pasadas, presente y futuras |
+| **SESSION_STATE.md** | [`SESSION_STATE.md`](SESSION_STATE.md) | Contexto volátil: estado actual para onboarding rápido |
+| **CONTRIBUTING.md** | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Guía de contribución para colaboradores externos |
+| **SECURITY.md** | [`SECURITY.md`](SECURITY.md) | Política de seguridad y reporte de vulnerabilidades |
 
 ---
 
 ## Tabla de Contenidos
+
+**Parte I — Estructura del Proyecto**
 
 1. [Filosofía y Reglas Fundamentales](#1-filosofía-y-reglas-fundamentales)
 2. [Estructura de Directorios](#2-estructura-de-directorios)
@@ -27,20 +33,42 @@
 4. [Directorio `tests/`](#4-directorio-tests)
 5. [Directorio `benchs/`](#5-directorio-benchs)
 6. [Directorio `demos/`](#6-directorio-demos)
-7. [Directorio `docs/`](#7-directorio-docs)
+7. [Directorio `docs/` — Estrategia de Documentación](#7-directorio-docs--estrategia-de-documentación)
 8. [Directorio `scripts/`](#8-directorio-scripts)
 9. [Directorio `build/`](#9-directorio-build)
 10. [Directorio `debugging/`](#10-directorio-debugging)
 11. [Directorio `legacy-code/`](#11-directorio-legacy-code)
 12. [Archivos del Directorio Raíz](#12-archivos-del-directorio-raíz)
-13. [Sistema de Build — Jerarquía de 4 Capas](#13-sistema-de-build--jerarquía-de-4-capas)
-14. [Compiladores, Versiones y Plataformas](#14-compiladores-versiones-y-plataformas)
-15. [Sanitizers y Análisis Estático](#15-sanitizers-y-análisis-estático)
-16. [CI/CD — GitHub Actions Workflows](#16-cicd--github-actions-workflows)
-17. [Convenciones de Nombrado de Archivos](#17-convenciones-de-nombrado-de-archivos)
-18. [Estándares de Codificación C++](#18-estándares-de-codificación-c)
-19. [Flujo de Trabajo del Desarrollador](#19-flujo-de-trabajo-del-desarrollador)
-20. [Reglas para Agentes IA](#20-reglas-para-agentes-ia)
+
+**Parte II — Build, Compiladores y CI/CD**
+
+1. [Sistema de Build — Jerarquía de 4 Capas](#13-sistema-de-build--jerarquía-de-4-capas)
+2. [Compiladores, Versiones y Plataformas](#14-compiladores-versiones-y-plataformas)
+3. [Sanitizers y Análisis Estático](#15-sanitizers-y-análisis-estático)
+4. [CI/CD — GitHub Actions Workflows](#16-cicd--github-actions-workflows)
+5. [Gestión de Dependencias](#17-gestión-de-dependencias)
+
+**Parte III — Estándares y Convenciones**
+
+1. [Convenciones de Nombrado de Archivos](#18-convenciones-de-nombrado-de-archivos)
+2. [Estándares de Codificación C++](#19-estándares-de-codificación-c)
+3. [CHANGELOG y Versionado Semántico](#20-changelog-y-versionado-semántico)
+4. [Conventional Commits](#21-conventional-commits)
+5. [Estrategia de Branching](#22-estrategia-de-branching)
+6. [Política de Estabilidad de API](#23-política-de-estabilidad-de-api)
+
+**Parte IV — Gestión del Proyecto**
+
+1. [SESSION_STATE — Contexto Persistente](#24-session_state--contexto-persistente)
+2. [ROADMAP — Línea de Tiempo del Proyecto](#25-roadmap--línea-de-tiempo-del-proyecto)
+3. [Architecture Decision Records (ADRs)](#26-architecture-decision-records-adrs)
+4. [Known Issues por Plataforma](#27-known-issues-por-plataforma)
+5. [Métricas de Calidad Mínimas](#28-métricas-de-calidad-mínimas)
+
+**Parte V — Flujo de Trabajo y Reglas**
+
+1. [Flujo de Trabajo del Desarrollador](#29-flujo-de-trabajo-del-desarrollador)
+2. [Reglas para Agentes IA](#30-reglas-para-agentes-ia)
 
 ---
 
@@ -313,18 +341,117 @@ Programas de ejemplo organizados por categoría.
 
 ---
 
-## 7. Directorio `docs/`
+## 7. Directorio `docs/` — Estrategia de Documentación
 
 Toda la documentación que **no sea** README.md, CHANGELOG.md o LICENSE.
 
-### Subdirectorios
+La documentación se organiza en **tres niveles** con audiencias distintas:
 
-| Subdirectorio | Contenido |
-|---|---|
-| `api/` | Referencia API estilo cppreference (archivos `API_[header].md`) |
-| `guides/` | Guías de usuario, migración, buenas prácticas |
-| `ai-prompts/` | Instrucciones contextuales para agentes IA, mensajes temporales |
-| `generated/` | Salida de Doxygen (añadir a `.gitignore`) |
+### Nivel 1 — Documentación Interna (en el código)
+
+**Audiencia:** Mantenedores y contribuidores que leen el código fuente.
+
+| Elemento | Ubicación | Formato | Obligatoriedad |
+|---|---|---|---|
+| Comentarios Doxygen de API pública | Headers en `include/` | `/** @brief ... */` | Obligatorio en toda función/clase pública |
+| Comentarios `@internal` | Headers en `include/` | `/** @internal ... */` | Obligatorio en funciones no-triviales de `detail/` |
+| Comentarios de implementación | Dentro de funciones | `// Explicación de por qué` | Solo cuando la lógica no es evidente |
+| `@file` header | Inicio de cada `.hpp` | Doxygen file-level | Obligatorio |
+| License header | Inicio de cada `.hpp`/`.cpp` | SPDX + copyright | Obligatorio en lib, simplificado en tests |
+
+**Reglas de documentación interna:**
+
+- **Documentar el "por qué", no el "qué".** El código dice qué hace; el comentario dice por qué.
+- **Toda función pública** debe tener: `@brief`, `@param`, `@return`, `@throws`/`noexcept`, `@code` ejemplo.
+- **Toda función interna no-trivial** debe tener: `@internal`, `@brief`, `@par Implementation Notes`.
+- **No documentar lo obvio:** `/// Returns the value` sobre `getValue()` es ruido.
+- **Mantener sincronizado:** documentación desactualizada es peor que ninguna documentación.
+
+```cpp
+// CORRECTO — documenta decisión no obvia
+// Usamos Karatsuba para multiplicación porque threshold > 64 bits
+// reduce operaciones de O(n^2) a O(n^1.585)
+const auto product{karatsuba_multiply(a, b)};
+
+// INCORRECTO — documenta lo obvio
+// Multiplica a por b
+const auto product{a * b};
+```
+
+### Nivel 2 — Documentación para Usuarios de la Biblioteca
+
+**Audiencia:** Desarrolladores que usan la biblioteca en sus proyectos.
+
+| Documento | Ubicación | Propósito |
+|---|---|---|
+| `README.md` | Raíz | Introducción, instalación rápida, ejemplo mínimo |
+| `docs/api/API_[header].md` | `docs/api/` | Referencia API estilo cppreference |
+| `docs/guides/getting_started.md` | `docs/guides/` | Tutorial de inicio paso a paso |
+| `docs/guides/migration_guide.md` | `docs/guides/` | Migración desde versión anterior u otra lib |
+| `docs/guides/best_practices.md` | `docs/guides/` | Patrones recomendados, anti-patrones |
+| `docs/guides/faq.md` | `docs/guides/` | Preguntas frecuentes |
+| `demos/tutorials/` | `demos/` | Código de ejemplo ejecutable |
+| `docs/generated/` | `docs/generated/` | Doxygen HTML (auto-generado, en `.gitignore`) |
+
+### Nivel 3 — Documentación para Desarrolladores/Mantenedores
+
+**Audiencia:** Contribuidores al propio proyecto, agentes IA.
+
+| Documento | Ubicación | Propósito |
+|---|---|---|
+| `AI-GUIDE.md` | Raíz | Este archivo — guía maestra del proyecto |
+| `CONTRIBUTING.md` | Raíz | Cómo contribuir, code review, estilo |
+| `SECURITY.md` | Raíz | Política de seguridad |
+| `CHANGELOG.md` | Raíz | Historial de cambios con SemVer |
+| `ROADMAP.md` | Raíz | Línea de tiempo del proyecto |
+| `SESSION_STATE.md` | Raíz | Estado actual para onboarding rápido |
+| `docs/decisions/ADR-NNN-*.md` | `docs/decisions/` | Architecture Decision Records |
+| `docs/guides/internals.md` | `docs/guides/` | Arquitectura interna, diseño de algoritmos |
+| `docs/guides/adding_features.md` | `docs/guides/` | Cómo añadir un nuevo módulo/feature |
+| `docs/guides/compiler_notes.md` | `docs/guides/` | Notas específicas por compilador/plataforma |
+| `AI_PROMPT/ai-instructions.md` | `AI_PROMPT/` | Reglas específicas para agentes IA |
+
+### Subdirectorios de `docs/`
+
+```
+docs/
++-- api/                  # Referencia API (estilo cppreference)
+|   +-- API_CORE.md
+|   +-- API_ALGORITHM.md
+|   +-- API_FORMAT.md
+|   +-- ...
++-- guides/               # Guías narrativas
+|   +-- getting_started.md
+|   +-- best_practices.md
+|   +-- migration_guide.md
+|   +-- internals.md
+|   +-- adding_features.md
+|   +-- compiler_notes.md
+|   +-- faq.md
++-- decisions/            # Architecture Decision Records
+|   +-- ADR-001-explicit-constructors.md
+|   +-- ADR-002-little-endian-storage.md
+|   +-- TEMPLATE.md
++-- generated/            # Salida de Doxygen (en .gitignore)
+```
+
+### Configuración Doxygen
+
+El `Doxyfile` en raíz debe configurar:
+
+```
+INPUT                  = include/
+RECURSIVE              = YES
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+GENERATE_HTML          = YES
+HTML_OUTPUT            = docs/generated
+USE_MDFILE_AS_MAINPAGE = README.md
+WARN_IF_UNDOCUMENTED   = YES
+```
+
+**Regla:** `WARN_IF_UNDOCUMENTED = YES` asegura que Doxygen avise de funciones públicas
+sin documentar. El CI puede fallar si hay warnings de Doxygen.
 
 ### Formato API (estilo cppreference)
 
@@ -348,6 +475,8 @@ constexpr int popcount(uint128_t x) noexcept;
 **Parameters:** `x` — Value to examine
 **Return value:** Number of 1-bits
 **Complexity:** O(1)
+**Since:** v1.0.0
+**Stability:** Stable
 
 **Example:**
 ```cpp
@@ -355,6 +484,17 @@ const uint128_t val{0b11110000};
 assert(nstd::popcount(val) == 4);
 ```
 ````
+
+### Reglas de Sincronización de Documentación
+
+| Evento | Documentación a actualizar |
+|---|---|
+| Nueva función pública | Doxygen en header + `docs/api/API_[FEATURE].md` |
+| Cambio de firma/comportamiento | Doxygen + API doc + `CHANGELOG.md` |
+| Nueva feature/módulo | Todo lo anterior + `docs/guides/getting_started.md` si aplica |
+| Decisión de diseño importante | `docs/decisions/ADR-NNN-*.md` |
+| Fix de bug | `CHANGELOG.md` + comentario en código si es sutil |
+| Deprecación | `[[deprecated]]` en código + API doc + `CHANGELOG.md` + migration guide |
 
 ---
 
@@ -512,20 +652,31 @@ legacy-code/
 
 Solo los estrictamente necesarios:
 
+### Archivos de configuración de build
+
 | Archivo | Propósito | Obligatorio |
 |---|---|---|
-| `CMakeLists.txt` | Configuración raíz CMake | Si |
-| `Makefile` | Interfaz Make (delega a scripts/) | Si |
-| `make.py` | Orquestador Python principal | Si |
-| `README.md` | Presentación del proyecto | Si |
-| `CHANGELOG.md` | Registro de cambios (actualizar frecuentemente) | Si |
-| `LICENSE` o `LICENSE.txt` | Licencia del proyecto | Si |
-| `AI-GUIDE.md` | Este archivo | Si |
-| `.gitignore` | Exclusiones de git | Si |
+| `CMakeLists.txt` | Configuración raíz CMake | Sí |
+| `Makefile` | Interfaz Make (delega a scripts/) | Sí |
+| `make.py` | Orquestador Python principal | Sí |
 | `Doxyfile` | Configuración Doxygen | Opcional |
 | `conanfile.txt` | Dependencias Conan | Opcional |
 | `.clang-format` | Estilo de formateo | Recomendado |
 | `.clang-tidy` | Reglas clang-tidy | Recomendado |
+| `.gitignore` | Exclusiones de git | Sí |
+
+### Documentación del proyecto
+
+| Archivo | Propósito | Obligatorio | Ver sección |
+|---|---|---|---|
+| `README.md` | Presentación del proyecto | Sí | — |
+| `CHANGELOG.md` | Registro de cambios con SemVer | Sí | [§20](#20-changelog-y-versionado-semántico) |
+| `LICENSE` o `LICENSE.txt` | Licencia del proyecto | Sí | — |
+| `AI-GUIDE.md` | Este archivo — guía maestra | Sí | — |
+| `ROADMAP.md` | Línea de tiempo del proyecto | Sí | [§25](#25-roadmap--línea-de-tiempo-del-proyecto) |
+| `SESSION_STATE.md` | Contexto volátil del estado actual | Sí | [§24](#24-session_state--contexto-persistente) |
+| `CONTRIBUTING.md` | Guía de contribución externa | Sí | [Apéndice D](#apéndice-d--plantilla-contributingmd) |
+| `SECURITY.md` | Política de seguridad y vulnerabilidades | Recomendado | [Apéndice E](#apéndice-e--plantilla-securitymd) |
 
 **Cualquier otro archivo `.md`, `.py`, `.bash`, `.bat`, `.cpp` debe ubicarse en su directorio correcto.**
 
@@ -724,6 +875,7 @@ option(INT128_ENABLE_COVERAGE "Enable code coverage" OFF)
 **Trigger:** schedule semanal (domingos 00:00 UTC) + dispatch manual con selector de compilador.
 
 **Proceso:**
+
 1. Setup MSYS2 UCRT64 con GCC, Clang, CMake, Ninja.
 2. Ejecuta benchmarks para cada compilador de la matriz.
 3. Genera reporte de comparación entre compiladores.
@@ -736,12 +888,14 @@ option(INT128_ENABLE_COVERAGE "Enable code coverage" OFF)
 **Trigger:** push de tag `v*.*.*` + dispatch manual.
 
 **Proceso:**
+
 1. Setup MSYS2 UCRT64 + MSVC + Intel oneAPI.
 2. Build con los 4 compiladores en modo release.
 3. Empaqueta en ZIP: headers, tests, benchmarks, documentación.
 4. Crea GitHub Release con changelog auto-generado.
 
 **Artefactos del release:**
+
 - `[lib]-[version]-headers.zip` — Solo headers (para header-only libs)
 - `[lib]-[version]-[compiler]-binaries.zip` — Binarios por compilador
 - `[lib]-[version]-docs.zip` — Documentación generada
@@ -768,7 +922,60 @@ strategy:
 
 ---
 
-## 17. Convenciones de Nombrado de Archivos
+## 17. Gestión de Dependencias
+
+### Filosofía
+
+Para bibliotecas header-only, las dependencias en runtime deben ser **cero**.
+Las dependencias se clasifican en:
+
+| Categoría | Ejemplos | Gestionada con | Obligatoria |
+|---|---|---|---|
+| **Runtime (biblioteca)** | Ninguna (header-only) | — | 0 dependencias |
+| **Build** | CMake, Ninja, Python | Sistema / MSYS2 | Sí |
+| **Test** | Framework propio (sin deps) | Ninguna | Solo para tests |
+| **Benchmark** | Boost.Multiprecision, GMP | Conan / sistema | Solo para benchmarks |
+| **Docs** | Doxygen, Graphviz | Sistema | Solo para generación |
+| **Análisis** | cppcheck, clang-tidy, Infer | Sistema | Solo para CI/quality |
+
+### Conan (dependencias de benchmark/test)
+
+```ini
+# conanfile.txt
+[requires]
+boost/1.85.0
+gmp/6.3.0
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[options]
+boost/*:header_only=True
+```
+
+### CMake FetchContent (alternativa sin Conan)
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+  boost_multiprecision
+  GIT_REPOSITORY https://github.com/boostorg/multiprecision.git
+  GIT_TAG boost-1.85.0
+)
+FetchContent_MakeAvailable(boost_multiprecision)
+```
+
+### Reglas
+
+- **La biblioteca en sí NUNCA depende de Boost, GMP, ni ninguna otra lib externa.**
+- Las dependencias externas solo se usan en `benchs/` y opcionalmente en `demos/comparison/`.
+- Toda dependencia debe estar documentada en `conanfile.txt` o en `CMakeLists.txt`.
+- El CI debe poder ejecutar tests sin dependencias externas.
+
+---
+
+## 18. Convenciones de Nombrado de Archivos
 
 ### Headers
 
@@ -802,7 +1009,7 @@ build/build_demos/[compiler]/[mode]/[demo_name].[ext]
 
 ---
 
-## 18. Estándares de Codificación C++
+## 19. Estándares de Codificación C++
 
 ### Resumen de Reglas
 
@@ -874,7 +1081,421 @@ build/build_demos/[compiler]/[mode]/[demo_name].[ext]
 
 ---
 
-## 19. Flujo de Trabajo del Desarrollador
+## 20. CHANGELOG y Versionado Semantico
+
+### Formato del CHANGELOG
+
+Seguir estrictamente [Keep a Changelog](https://keepachangelog.com/) v1.1.0:
+
+```markdown
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- New feature X for module Y
+
+### Changed
+- Modified behavior of Z
+
+## [1.2.0] - 2026-03-15
+
+### Added
+- New `popcount()` function for uint128_t
+
+### Fixed
+- Division by zero edge case in signed division
+```
+
+### Categorias permitidas
+
+| Categoria | Cuando usar |
+|---|---|
+| `Added` | Nuevas funcionalidades |
+| `Changed` | Cambios en funcionalidad existente |
+| `Deprecated` | Funcionalidades que se eliminaran en el futuro |
+| `Removed` | Funcionalidades eliminadas |
+| `Fixed` | Correcciones de bugs |
+| `Security` | Correcciones de vulnerabilidades |
+
+### Versionado Semantico (SemVer 2.0)
+
+```
+MAJOR.MINOR.PATCH
+
+MAJOR: cambio incompatible de API (breaking change)
+MINOR: nueva funcionalidad compatible hacia atras
+PATCH: correccion de bug compatible hacia atras
+```
+
+| Cambio | Ejemplo | Version bump |
+|---|---|---|
+| Eliminar funcion publica | Quitar `to_cstr()` | MAJOR |
+| Cambiar firma de funcion | `to_string()` ahora retorna `std::string_view` | MAJOR |
+| Nueva funcion | Agregar `bit_ceil()` | MINOR |
+| Nuevo modulo/header | `mi_lib_ranges.hpp` | MINOR |
+| Fix de bug sin cambio de API | Corregir division signed | PATCH |
+| Mejora de rendimiento | Optimizar multiplicacion | PATCH |
+
+### Reglas
+
+- **`[Unreleased]`** siempre existe al inicio — acumula cambios pre-release.
+- **Fecha en formato ISO 8601:** `YYYY-MM-DD`.
+- **Una entrada por cambio** — no agrupar multiples cambios en una linea.
+- **Actualizar en cada commit significativo** — no al final de la sesion.
+- **Pre-release:** usar sufijos como `1.0.0-alpha`, `1.0.0-beta.1`, `1.0.0-rc.1`.
+
+---
+
+## 21. Conventional Commits
+
+### Formato
+
+```
+<type>(<scope>): <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+### Tipos permitidos
+
+| Tipo | Proposito | Ejemplo |
+|---|---|---|
+| `feat` | Nueva funcionalidad | `feat(algorithm): add constexpr sort for uint128_t` |
+| `fix` | Correccion de bug | `fix(division): correct signed division for INT_MIN` |
+| `perf` | Mejora de rendimiento | `perf(multiply): optimize karatsuba threshold` |
+| `test` | Agregar/modificar tests | `test(format): add edge cases for hex formatting` |
+| `docs` | Documentacion | `docs(api): update API_CORE.md with new functions` |
+| `chore` | Mantenimiento | `chore(ci): update GCC matrix to v15` |
+| `refactor` | Refactorizacion sin cambio funcional | `refactor(intrinsics): extract common pattern` |
+| `style` | Formato/estilo (no cambia logica) | `style: apply clang-format to all headers` |
+| `build` | Sistema de build | `build(cmake): add sanitizer detection module` |
+| `ci` | CI/CD | `ci: add Clang-21 to test matrix` |
+
+### Scopes validos
+
+Nombres de features (`algorithm`, `bits`, `format`, `traits`, `division`, etc.)
+mas scopes generales: `ci`, `build`, `docs`, `deps`, `core`.
+
+### Breaking changes
+
+```
+feat(core)!: change storage layout to big-endian
+
+BREAKING CHANGE: data[0] is now the most significant limb.
+All serialization code must be updated.
+```
+
+### Reglas
+
+- **Primera linea:** maximo 72 caracteres.
+- **Body:** separado por linea en blanco, explica el "por que".
+- **Footer:** `BREAKING CHANGE:`, `Fixes #123`, `Refs #456`.
+- **Un commit = un cambio logico** — no mezclar feat + fix en un commit.
+
+---
+
+## 22. Estrategia de Branching
+
+### Modelo de Ramas
+
+| Branch | Proposito | Protegido | Merge a |
+|---|---|---|---|
+| `main` | Release estable | Si (requiere PR + CI green) | — |
+| `develop` | Integracion de features | Si (requiere CI green) | `main` |
+| `phase-X.YZ` | Fase de desarrollo activa | No | `develop` |
+| `feature/nombre` | Feature individual | No | `develop` o `phase-*` |
+| `fix/nombre` | Correccion de bug | No | `develop` o `main` |
+| `experiment/nombre` | Pruebas exploratorias | No | Se descarta o merge |
+| `release/vX.Y.Z` | Preparacion de release | No | `main` + tag |
+
+### Flujo tipico
+
+```
+feature/new-algorithm --> develop --> release/v1.2.0 --> main (tag v1.2.0)
+                               \                          /
+                                +--- fix/hotfix-xxx ------+
+```
+
+### Reglas
+
+- **`main` siempre compila** con todos los compiladores.
+- **`develop`** puede tener features incompletos pero debe compilar.
+- **Branches de feature** se eliminan tras merge.
+- **Tags** solo en `main`: `v1.0.0`, `v1.1.0-beta.1`.
+- **Nunca force-push** a `main` o `develop`.
+
+---
+
+## 23. Politica de Estabilidad de API
+
+### Niveles de estabilidad
+
+| Nivel | Significado | Marcado en codigo | Garantia |
+|---|---|---|---|
+| **Stable** | No cambiara sin MAJOR bump | Sin marca (default) | Compatible dentro de MAJOR |
+| **Provisional** | Puede cambiar en MINOR | `// @stability provisional` | Sin garantia entre MINOR |
+| **Experimental** | Puede desaparecer | `// @stability experimental` | Sin garantia |
+| **Deprecated** | Se eliminara en proxima MAJOR | `[[deprecated("use X")]]` | Funciona pero con warning |
+
+### Ciclo de vida de una funcion publica
+
+```
+Experimental --> Provisional --> Stable --> Deprecated --> Removed
+    (0.x)          (1.x)         (1.x+)      (N.x)       (N+1.0)
+```
+
+### Reglas de deprecacion
+
+1. **Marcar con `[[deprecated]]`** y mensaje indicando el reemplazo.
+2. **Documentar en CHANGELOG** bajo `Deprecated`.
+3. **Mantener al menos 1 version MINOR** antes de eliminar.
+4. **Documentar en migration guide** (`docs/guides/migration_guide.md`).
+
+```cpp
+// CORRECTO - deprecar con reemplazo claro
+[[deprecated("Use to_string() instead. Will be removed in v3.0.0")]]
+constexpr const char* to_cstr() const noexcept;
+```
+
+---
+
+## 24. SESSION_STATE -- Contexto Persistente
+
+### Proposito
+
+Archivo volatil que mantiene un **snapshot del estado actual** del proyecto.
+Permite que cualquier agente IA o desarrollador que entre "en frio" sepa
+exactamente donde esta todo sin leer el CHANGELOG completo.
+
+### Contenido obligatorio
+
+```markdown
+# SESSION_STATE - [Nombre del Proyecto]
+
+**Ultima actualizacion:** YYYY-MM-DD HH:MM
+
+## Estado Actual
+- **Fase:** X.YZ (branch: phase-X.YZ)
+- **Ultimo cambio:** [descripcion breve]
+- **Compiladores verificados:** GCC 15 [OK], Clang 19 [OK], MSVC [OK], Intel [PENDING]
+
+## Lo que funciona
+- [Feature A]: completo, tests pasan en todos los compiladores
+- [Feature B]: completo excepto Intel
+
+## Lo que esta roto / pendiente
+- [Bug X]: division signed falla con -O3 en GCC 14
+- [Feature C]: implementacion al 60%, faltan tests
+
+## Proximos pasos (1-3 acciones inmediatas)
+1. Corregir bug X
+2. Completar tests de Feature C
+3. Actualizar documentacion API
+
+## Decisiones recientes
+- Se decidio usar Karatsuba para multiplicacion (ver ADR-005)
+```
+
+### Diferencia con CHANGELOG
+
+| CHANGELOG | SESSION_STATE |
+|---|---|
+| Historico y acumulativo | Snapshot volatil del presente |
+| Nunca se borra contenido | Se sobrescribe en cada sesion |
+| Para usuarios y releases | Para onboarding rapido de agentes/devs |
+| Formato rigido (Keep a Changelog) | Formato libre pero con secciones fijas |
+
+### Reglas
+
+- **Actualizar al inicio y final** de cada sesion de desarrollo.
+- **Sobrescribir** — no acumular. Solo refleja el estado actual.
+- **Versionado en git** — pero el historial no importa (el CHANGELOG tiene eso).
+
+---
+
+## 25. ROADMAP -- Linea de Tiempo del Proyecto
+
+### Proposito
+
+Mapa cronologico con tres zonas: completado, en curso, y futuro.
+Permite ver de un vistazo el progreso del proyecto y las metas pendientes.
+
+### Formato
+
+```markdown
+# ROADMAP - [Nombre del Proyecto]
+
+## Completado
+
+### Phase 1.0 - Tipo base (completado YYYY-MM)
+- [x] Tipo base con almacenamiento uint64_t[2]
+- [x] Operadores aritmeticos basicos (+, -, *, /)
+- [x] Operadores de comparacion
+- [x] Conversion a/desde string
+
+### Phase 1.5 - Unificacion template (completado YYYY-MM)
+- [x] Template parametrizado por signedness
+- [x] Type traits y conceptos
+
+## En Curso
+
+### Phase 1.75 - Representaciones parametrizadas (inicio YYYY-MM)
+- [x] Two's Complement (TC)
+- [ ] Magnitude-Sign (MS) - 80% completado
+- [ ] Excess-K (EK) - pendiente
+- [ ] Safe arithmetic wrappers
+
+## Futuro
+
+### Phase 2.0 - Fixed-point (estimado YYYY)
+- [ ] Tipos fixed-point parametrizados
+- [ ] Operadores aritmeticos fixed-point
+
+### Phase 3.0 - Big integers (estimado YYYY)
+- [ ] Enteros de precision arbitraria
+- [ ] Algoritmos de Karatsuba, Toom-Cook
+```
+
+### Reglas
+
+- **Cada fase tiene:** nombre, estado, fecha de inicio/cierre.
+- **Criterios de completitud** explicitos (checkboxes).
+- **Actualizar al completar cada milestone.**
+- **No eliminar fases completadas** — son registro historico.
+
+---
+
+## 26. Architecture Decision Records (ADRs)
+
+### Proposito
+
+Documentar decisiones de diseno importantes, su contexto, y las alternativas
+consideradas. Permite entender el "por que" detras del codigo.
+
+### Ubicacion
+
+```
+docs/decisions/
++-- TEMPLATE.md
++-- ADR-001-explicit-constructors.md
++-- ADR-002-little-endian-storage.md
++-- ADR-003-stdbyte-for-buffers.md
++-- ADR-004-no-exceptions-in-core.md
++-- ADR-005-parameterized-representation.md
+```
+
+### Formato (plantilla)
+
+```markdown
+# ADR-NNN: Titulo de la Decision
+
+**Estado:** Aceptado | Propuesto | Deprecado | Reemplazado por ADR-XXX
+**Fecha:** YYYY-MM-DD
+**Autor:** Nombre
+
+## Contexto
+Que problema o necesidad motiva esta decision.
+
+## Decision
+Que se decidio hacer.
+
+## Consecuencias
+### Positivas
+- Beneficio 1
+- Beneficio 2
+
+### Negativas
+- Coste/tradeoff 1
+
+## Alternativas Consideradas
+### Alternativa A
+- Descripcion y por que se descarto
+
+### Alternativa B
+- Descripcion y por que se descarto
+```
+
+### Reglas
+
+- **Numeracion secuencial:** ADR-001, ADR-002, ADR-003...
+- **Inmutables una vez aceptados** — si cambia la decision, crear un nuevo ADR
+  que referencie al anterior.
+- **Referenciar desde el codigo** con `// See ADR-NNN`.
+- **No requiere consenso formal** — documentar la decision tomada es suficiente.
+
+---
+
+## 27. Known Issues por Plataforma
+
+### Proposito
+
+Tabla centralizada de problemas conocidos por compilador/plataforma con su
+estado y workaround.
+
+### Formato
+
+| ID | Problema | Compilador | Version | Plataforma | Estado | Workaround |
+|---|---|---|---|---|---|---|
+| KI-001 | constexpr-if bug at -O2 | GCC | 14.x | Linux | Reportado | Usar -O1 o -O3 |
+| KI-002 | Intel linking en MSYS2 | ICX | all | Windows | Permanente | `source setup_intel.bash` |
+| KI-003 | TSan false positive en atomic | Clang | 18 | Linux | Upstream bug | Suprimir con `__tsan_annotate` |
+| KI-004 | `/std:c++20` vs `/std:c++latest` | MSVC | 2026 | Windows | Documentado | Usar `/std:c++latest` |
+
+### Reglas
+
+- **ID unico** por issue: `KI-NNN`.
+- **Estados:** `Reportado`, `Workaround`, `Permanente`, `Resuelto en vX.Y`.
+- **Actualizar** cuando se resuelva o cambie el workaround.
+- **Referenciar desde tests** que se saltan: `// Skip: see KI-003`.
+
+---
+
+## 28. Metricas de Calidad Minimas
+
+### Umbrales obligatorios
+
+| Metrica | Umbral minimo | Herramienta | Cuando |
+|---|---|---|---|
+| **Compilacion limpia** | 0 warnings (con `-Wall -Wextra -Wpedantic`) | Compilador | Cada build |
+| **Tests passing** | 100% en todos los compiladores | CTest | Cada PR |
+| **Sanitizers** | 0 errores ASan + UBSan | Clang | Cada PR |
+| **Cobertura de tests** | >= 90% lineas en modulos core | GCov/llvm-cov | Semanal |
+| **Analisis estatico** | 0 errores nivel error/warning | cppcheck | Cada PR |
+| **Formato** | 100% conforme a .clang-format | clang-format | Cada PR |
+| **Documentacion** | 0 warnings Doxygen en API publica | Doxygen | Cada PR |
+
+### Benchmarks (regresiones)
+
+| Metrica | Umbral | Accion |
+|---|---|---|
+| Regresion > 5% en operacion critica | Warning en PR | Investigar causa |
+| Regresion > 15% | Bloquea merge | Requiere justificacion o fix |
+| Mejora > 10% | Informativo | Actualizar baseline |
+
+### Baselines de rendimiento
+
+```
+benchs/baselines/
++-- baseline_gcc-15_release-O2.json
++-- baseline_clang-19_release-O2.json
++-- baseline_msvc_release.json
+```
+
+- **Formato JSON** con ns/operacion para cada benchmark.
+- **Actualizar baselines** solo en releases tag (nunca automaticamente).
+- **Comparar en CI** contra el baseline del compilador correspondiente.
+
+---
+
+## 29. Flujo de Trabajo del Desarrollador
 
 ### Agregar una nueva feature
 
@@ -919,7 +1540,7 @@ build/build_demos/[compiler]/[mode]/[demo_name].[ext]
 
 ---
 
-## 20. Reglas para Agentes IA
+## 30. Reglas para Agentes IA
 
 ### Reglas Críticas
 
