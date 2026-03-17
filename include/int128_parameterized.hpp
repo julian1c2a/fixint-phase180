@@ -980,6 +980,94 @@ namespace nstd
             target = (target & ~(0xFFULL << shift)) | (std::to_integer<std::uint64_t>(value) << shift);
         }
 
+        /// @brief Reverse the byte order of the 128-bit value
+        /// @return New value with bytes in reversed order
+        constexpr int128_param_t byteswap() const noexcept
+        {
+            int128_param_t result{};
+#if __has_include("intrinsics/byte_operations.hpp")
+            result.data[0] = intrinsics::bswap64(data[1]);
+            result.data[1] = intrinsics::bswap64(data[0]);
+#else
+            // Portable fallback: reverse 16 bytes manually
+            for (std::size_t i{0}; i < 16; ++i)
+            {
+                const std::byte b{get_byte(15 - i)};
+                std::uint64_t &target = (i < 8) ? result.data[0] : result.data[1];
+                const int shift = (i < 8) ? static_cast<int>(i * 8) : static_cast<int>((i - 8) * 8);
+                target |= (std::to_integer<std::uint64_t>(b) << shift);
+            }
+#endif
+            return result;
+        }
+
+        /// @brief Convert to big-endian byte order (network byte order)
+        /// @return Byte array in big-endian order (MSB first)
+        constexpr std::array<std::byte, 16> to_big_endian() const noexcept
+        {
+            const int128_param_t swapped{byteswap()};
+            std::array<std::byte, 16> result{};
+            for (std::size_t i{0}; i < 8; ++i)
+            {
+                result[i] = static_cast<std::byte>((swapped.data[0] >> (i * 8)) & 0xFFu);
+            }
+            for (std::size_t i{0}; i < 8; ++i)
+            {
+                result[i + 8] = static_cast<std::byte>((swapped.data[1] >> (i * 8)) & 0xFFu);
+            }
+            return result;
+        }
+
+        /// @brief Construct from big-endian byte array (network byte order)
+        /// @param bytes 16-byte array in big-endian order (MSB first)
+        /// @return Value reconstructed from big-endian bytes
+        static constexpr int128_param_t from_big_endian(const std::array<std::byte, 16> &bytes) noexcept
+        {
+            int128_param_t tmp{};
+            for (std::size_t i{0}; i < 8; ++i)
+            {
+                tmp.data[0] |= (std::to_integer<std::uint64_t>(bytes[i]) << (i * 8));
+            }
+            for (std::size_t i{0}; i < 8; ++i)
+            {
+                tmp.data[1] |= (std::to_integer<std::uint64_t>(bytes[i + 8]) << (i * 8));
+            }
+            return tmp.byteswap();
+        }
+
+        /// @brief Convert to little-endian byte array (native x86 order)
+        /// @return Byte array in little-endian order (LSB first)
+        constexpr std::array<std::byte, 16> to_little_endian() const noexcept
+        {
+            std::array<std::byte, 16> result{};
+            for (std::size_t i{0}; i < 8; ++i)
+            {
+                result[i] = static_cast<std::byte>((data[0] >> (i * 8)) & 0xFFu);
+            }
+            for (std::size_t i{0}; i < 8; ++i)
+            {
+                result[i + 8] = static_cast<std::byte>((data[1] >> (i * 8)) & 0xFFu);
+            }
+            return result;
+        }
+
+        /// @brief Construct from little-endian byte array (native x86 order)
+        /// @param bytes 16-byte array in little-endian order (LSB first)
+        /// @return Value reconstructed from little-endian bytes
+        static constexpr int128_param_t from_little_endian(const std::array<std::byte, 16> &bytes) noexcept
+        {
+            int128_param_t result{};
+            for (std::size_t i{0}; i < 8; ++i)
+            {
+                result.data[0] |= (std::to_integer<std::uint64_t>(bytes[i]) << (i * 8));
+            }
+            for (std::size_t i{0}; i < 8; ++i)
+            {
+                result.data[1] |= (std::to_integer<std::uint64_t>(bytes[i + 8]) << (i * 8));
+            }
+            return result;
+        }
+
         // ========================================================================
         // Comparison Operators
         // ========================================================================
