@@ -1,9 +1,9 @@
-# PROJECT STATUS: Phases 1-6 Complete
+# PROJECT STATUS: All Phases Complete + Comprehensive Validation
 
-**Date:** 18 March 2026  
-**Last Session:** Intrinsics Audit + Documentation Update  
-**Overall Progress:** Phases 1-6 Complete ✅ (100% of 6 phases) + Intrinsics Audit ✅  
-**Current Status:** 🎉 **ALL PHASES COMPLETE - 12 headers validated on 11 compilers, intrinsics fully unified**
+**Date:** 18 March 2026 (Session 2)  
+**Last Session:** MS/EK Issues Fixed + 11-Compiler Validation  
+**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅  
+**Current Status:** 🎉 **154/154 tests pass across 14 test files × 11 compilers**
 
 ## Phase Status Summary
 
@@ -56,7 +56,7 @@ All 12 feature headers validated across 11 compilers (4 Windows + 7 WSL):
 
 | Header | Tests | Windows (4) | WSL (7) |
 |--------|-------|-------------|---------|
-| safe | 34/34 | ✅ ALL PASS | ✅ ALL PASS |
+| safe | 37/37 | ✅ ALL PASS | ✅ ALL PASS |
 | limits | 34/34 | ✅ ALL PASS | ✅ ALL PASS |
 | bits | 8/8 | ✅ ALL PASS | ✅ ALL PASS |
 | cmath | 8/8 | ✅ ALL PASS | ✅ ALL PASS |
@@ -69,12 +69,23 @@ All 12 feature headers validated across 11 compilers (4 Windows + 7 WSL):
 | ranges | 13/13 | ✅ ALL PASS | ✅ ALL PASS |
 | thread_safety | 43/43 | ✅ GCC/Clang | ✅ ALL PASS |
 
+**Additional test files (all representations):**
+
+| Test File | Tests | Windows (4) | WSL (7) |
+|-----------|-------|-------------|---------|
+| core_operators | 134/134 | ✅ ALL PASS | ✅ ALL PASS |
+| ms_ek_operators | 37/37 | ✅ ALL PASS | ✅ ALL PASS |
+| priority3_ms_ek | 42/42 | ✅ ALL PASS | ✅ ALL PASS |
+
 **Bugs fixed during sweep:**
 
 1. `test_param_iostreams.cpp`: Replaced invalid `uint128_tc_t` with `uint128_t` (~20 instances)
 2. `int128_param_numeric.hpp`: MSVC portability (initially `portable_clzll()`, later replaced by `intrinsics::clz64()` in intrinsics audit)
 3. `int128_param_bits.hpp`: 6 direct `__builtin_*` calls replaced with `intrinsics::popcount64/clz64/ctz64` (broken on MSVC/Intel)
 4. `int128_param_numeric.hpp`: Removed duplicate `detail::portable_clzll()`, unified via `intrinsics::clz64()`
+5. `int128_parameterized.hpp`: 3 ternary `value >> 64` → `if constexpr` to eliminate MSVC C4293 warning
+6. `int128_param_safe.hpp`: MS-specific overflow detection in checked_add/checked_sub (magnitude wrap check)
+7. `test_param_safe.cpp`: Clang 21 constant-folding workaround (non-const inputs for overflow tests)
 
 **Compilers validated:** GCC 13/14/15, Clang 18/19/20/21, MSVC 19.50, Intel ICX 2025.3.0
 

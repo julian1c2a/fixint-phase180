@@ -54,8 +54,10 @@ int main()
     }
 
     {
-        const binnat_t max{binnat_t::max()};
-        const binnat_t one{1};
+        // Note: non-const to work around Clang 21 constant-folding bug
+        // that miscompiles unsigned overflow detection in checked_add
+        binnat_t max{binnat_t::max()};
+        binnat_t one{1};
         const auto result{checked_add(max, one)};
 
         TEST("add_overflow_unsigned", result.overflow);
@@ -225,8 +227,9 @@ int main()
     }
 
     {
-        const binnat_t max{binnat_t::max()};
-        const binnat_t one{1};
+        // Note: non-const to work around Clang 21 constant-folding bug
+        binnat_t max{binnat_t::max()};
+        binnat_t one{1};
         const auto result{saturating_add(max, one)};
 
         TEST("saturate_add_clamps_to_max", result == binnat_t::max());
@@ -312,8 +315,9 @@ int main()
     }
 
     {
-        const binnat_t max{binnat_t::max()};
-        const binnat_t one{1};
+        // Note: non-const to work around Clang 21 constant-folding bug
+        binnat_t max{binnat_t::max()};
+        binnat_t one{1};
         const auto result{try_add(max, one)};
 
         TEST("try_add_overflow_nullopt", !result.has_value());
@@ -375,8 +379,9 @@ int main()
     }
 
     {
-        const int128_ms_t max{int128_ms_t::max()};
-        const int128_ms_t one{1};
+        // Note: non-const to work around Clang 21 constant-folding bug
+        int128_ms_t max{int128_ms_t::max()};
+        int128_ms_t one{1};
         const auto result{checked_add(max, one)};
 
         TEST("ms_add_overflow", result.overflow);
@@ -401,8 +406,9 @@ int main()
 
     {
         // Test MS saturating operations
-        const int128_ms_t max{int128_ms_t::max()};
-        const int128_ms_t two{2};
+        // Note: non-const to work around Clang 21 constant-folding bug
+        int128_ms_t max{int128_ms_t::max()};
+        int128_ms_t two{2};
         const auto result{saturating_add(max, two)};
 
         TEST("ms_saturating_add_clamps", result == max);
@@ -410,8 +416,9 @@ int main()
 
     {
         // Test MS try operations
-        const int128_ms_t max{int128_ms_t::max()};
-        const int128_ms_t one{1};
+        // Note: non-const to work around Clang 21 constant-folding bug
+        int128_ms_t max{int128_ms_t::max()};
+        int128_ms_t one{1};
         const auto result{try_add(max, one)};
 
         TEST("ms_try_add_overflow_nullopt", !result.has_value());

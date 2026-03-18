@@ -81,9 +81,37 @@ namespace nstd
             const bool overflow{result < lhs};
             return {result, overflow};
         }
+        else if constexpr (Form == representation_form::magnitude_sign)
+        {
+            // MS overflow: sign-flip check doesn't work because operator+=
+            // preserves the sign bit explicitly. Instead, check if the
+            // magnitude wrapped around during same-sign addition.
+            const bool lhs_neg{lhs.is_negative()};
+            const bool rhs_neg{rhs.is_negative()};
+
+            if (lhs_neg != rhs_neg)
+            {
+                // Different signs: subtraction of magnitudes, can't overflow
+                return {result, false};
+            }
+
+            // Same signs: overflow if result magnitude < lhs magnitude
+            const std::uint64_t lhs_mag_high{lhs.high() & 0x7FFFFFFFFFFFFFFFULL};
+            const std::uint64_t res_mag_high{result.high() & 0x7FFFFFFFFFFFFFFFULL};
+            bool overflow{false};
+            if (res_mag_high != lhs_mag_high)
+            {
+                overflow = res_mag_high < lhs_mag_high;
+            }
+            else
+            {
+                overflow = result.low() < lhs.low();
+            }
+            return {result, overflow};
+        }
         else
         {
-            // Signed overflow detection (representation-independent)
+            // Two's Complement signed overflow detection
             const bool lhs_neg{lhs.is_negative()};
             const bool rhs_neg{rhs.is_negative()};
             const bool result_neg{result.is_negative()};
@@ -118,9 +146,36 @@ namespace nstd
             const bool overflow{result > lhs};
             return {result, overflow};
         }
+        else if constexpr (Form == representation_form::magnitude_sign)
+        {
+            // MS subtraction overflow: different-sign subtraction effectively
+            // adds magnitudes, which can overflow the 127-bit magnitude range.
+            const bool lhs_neg{lhs.is_negative()};
+            const bool rhs_neg{rhs.is_negative()};
+
+            if (lhs_neg == rhs_neg)
+            {
+                // Same signs: magnitude subtraction, can't overflow
+                return {result, false};
+            }
+
+            // Different signs: magnitude addition, check for magnitude wrap
+            const std::uint64_t lhs_mag_high{lhs.high() & 0x7FFFFFFFFFFFFFFFULL};
+            const std::uint64_t res_mag_high{result.high() & 0x7FFFFFFFFFFFFFFFULL};
+            bool overflow{false};
+            if (res_mag_high != lhs_mag_high)
+            {
+                overflow = res_mag_high < lhs_mag_high;
+            }
+            else
+            {
+                overflow = result.low() < lhs.low();
+            }
+            return {result, overflow};
+        }
         else
         {
-            // Signed overflow: opposite signs and result differs from lhs
+            // Two's Complement signed overflow: opposite signs and result differs from lhs
             const bool lhs_neg{lhs.is_negative()};
             const bool rhs_neg{rhs.is_negative()};
             const bool result_neg{result.is_negative()};

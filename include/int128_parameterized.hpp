@@ -316,7 +316,11 @@ namespace nstd
                 {
                     // Zero-extend to 128 bits
                     const std::uint64_t value_low{static_cast<std::uint64_t>(value)};
-                    const std::uint64_t value_high{(sizeof(T) > sizeof(std::uint64_t)) ? static_cast<std::uint64_t>(value >> 64) : std::uint64_t{0}};
+                    std::uint64_t value_high{0};
+                    if constexpr (sizeof(T) > sizeof(std::uint64_t))
+                    {
+                        value_high = static_cast<std::uint64_t>(value >> 64);
+                    }
 
                     // Add bias - Use volatile to prevent optimizer from eliminating this
                     volatile std::uint64_t vtemp_low{value_low};
@@ -350,7 +354,14 @@ namespace nstd
                 else
                 {
                     data[0] = static_cast<std::uint64_t>(value);
-                    data[1] = (sizeof(T) > sizeof(std::uint64_t)) ? static_cast<std::uint64_t>(value >> 64) : std::uint64_t{0};
+                    if constexpr (sizeof(T) > sizeof(std::uint64_t))
+                    {
+                        data[1] = static_cast<std::uint64_t>(value >> 64);
+                    }
+                    else
+                    {
+                        data[1] = std::uint64_t{0};
+                    }
                 }
                 return; // Early return
             }
@@ -368,7 +379,14 @@ namespace nstd
             else
             {
                 data[0] = static_cast<std::uint64_t>(value);
-                data[1] = (sizeof(T) > sizeof(std::uint64_t)) ? static_cast<std::uint64_t>(value >> 64) : std::uint64_t{0};
+                if constexpr (sizeof(T) > sizeof(std::uint64_t))
+                {
+                    data[1] = static_cast<std::uint64_t>(value >> 64);
+                }
+                else
+                {
+                    data[1] = std::uint64_t{0};
+                }
             }
         }
 #pragma GCC pop_options
