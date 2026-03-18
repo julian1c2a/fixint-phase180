@@ -257,9 +257,10 @@ Created comprehensive STL type traits integration:
 - **EK arithmetic**: *, /, % require bias adjustment — currently syntactic, not semantic
 - See [OPERATOR_SEMANTICS.md](OPERATOR_SEMANTICS.md) for details
 
-### 4. Phase 5 WSL Validation
+### 4. Phase 5 WSL Validation — ✅ COMPLETE
 
-- Run 55 Phase 5 operator tests on 7 WSL compilers (GCC 13/14/15, Clang 18/19/20/21)
+- 14 test files × 8 WSL compilers (GCC 13/14/15, Clang 18/19/20/21, Intel icpx 2025.3.2) — ALL PASS
+- icpx WSL -O2 inlining bug in multi-arg `std::format` — workaround applied (split format calls)
 
 ---
 
@@ -273,7 +274,7 @@ Phase 1.75 has achieved:
 - ✅ **Full STL integration** (traits, concepts, algorithms)
 - ✅ **Production-ready** (safe arithmetic, thread safety)
 - ✅ **Modern C++20** (format, ranges, concepts)
-- ✅ **11-compiler validation** (4 Windows + 7 WSL)
+- ✅ **12-compiler validation** (4 Windows + 8 WSL)
 - ✅ **Intrinsics unified** (cross-compiler abstraction layer)
 
 ---

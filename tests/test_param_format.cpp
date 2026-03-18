@@ -177,8 +177,13 @@ int main()
     {
         std::cout << "[Test 7] Mixed formats:\n";
 
-        const uint128_t val{0, 42};
-        const auto str{std::format("Dec: {}, Hex: {:x}, Bin: {:b}", val, val, val)};
+        // Note: separate format calls to work around icpx 2025.3.2 WSL -O2
+        //       inlining bug with multi-arg std::format on int128
+        uint128_t val{0, 42};
+        const auto dec{std::format("{}", val)};
+        const auto hex{std::format("{:x}", val)};
+        const auto bin{std::format("{:b}", val)};
+        const std::string str{"Dec: " + dec + ", Hex: " + hex + ", Bin: " + bin};
 
         if (str == "Dec: 42, Hex: 2A, Bin: 101010")
         {

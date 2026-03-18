@@ -24,9 +24,9 @@
 - Workaround: removed `const` from overflow-detection test inputs (6 tests)
 - Documented as known Clang 21 bug
 
-### ✅ Comprehensive Validation — 154/154 PASS
+### ✅ Comprehensive Validation — 168/168 PASS
 
-**14 test files × 11 compilers = 154 tests total, ALL PASS:**
+**14 test files × 12 compilers = 168 tests total, ALL PASS:**
 
 | Compiler | Platform | Tests |
 |----------|----------|-------|
@@ -41,12 +41,14 @@
 | Clang 19 | WSL Ubuntu 25.04 | 14/14 ✅ |
 | Clang 20 | WSL Ubuntu 25.04 | 14/14 ✅ |
 | Clang 21 | WSL Ubuntu 25.04 | 14/14 ✅ |
+| Intel icpx 2025.3.2 | WSL Ubuntu 25.04 | 14/14 ✅ |
 
 ### 📝 Known Issues (documented, not blocking)
 
 - **EK constructor GCC optimization bug**: `#pragma GCC optimize("O0")` + volatile workaround in place
 - **MS operator*= not implemented**: bitwise multiply for magnitude-sign representation (SKIP in tests)
 - **Clang 21 const-folding bug**: unsigned overflow detection miscompiled when inputs are `const`
+- **icpx 2025.3.2 WSL -O2 inlining bug**: multi-arg `std::format` with int128 miscompiled; workaround: split into separate format calls
 
 ---
 
