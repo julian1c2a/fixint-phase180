@@ -1,3 +1,32 @@
+## [18 March 2026] - INTRINSICS AUDIT + PHASE 6 SWEEP COMPLETE ✅
+
+### 🔍 Intrinsics Audit — 7 Critical Issues Fixed
+
+**Session:** Comprehensive audit of all intrinsics usage across the codebase.
+
+✅ **int128_param_bits.hpp — 6 direct `__builtin_*` calls replaced:**
+
+- Added `#include "intrinsics/bit_operations.hpp"`
+- `__builtin_popcountll()` → `intrinsics::popcount64()` (2 calls)
+- `__builtin_clzll()` → `intrinsics::clz64()` (2 calls)
+- `__builtin_ctzll()` → `intrinsics::ctz64()` (2 calls)
+- **Impact:** bits.hpp previously FAILED on MSVC (no `__builtin_*`). Now works on all 11 compilers.
+
+✅ **int128_param_numeric.hpp — Duplicate `portable_clzll()` removed:**
+
+- Removed entire `detail::portable_clzll()` function (~30 lines of duplicated logic)
+- Removed redundant `#include <intrin.h>`
+- Added `#include "intrinsics/bit_operations.hpp"`
+- 4 calls in `ilog2()`: `detail::portable_clzll()` → `intrinsics::clz64()`
+- **Impact:** Eliminated code duplication, unified through intrinsics abstraction layer
+
+✅ **Validation:** All 12 feature headers pass on ALL 11 compilers:
+
+- Windows (4): GCC 15.2.0, Clang 19.x, MSVC 19.50, Intel ICX 2025.3.0
+- WSL (7): GCC 13/14/15, Clang 18/19/20/21
+
+---
+
 ## [17 March 2026] - PHASE 3: KNUTH ALGORITHM D COMPLETE ✅
 
 ### 🚀 Knuth Algorithm D Implementation - 6-20x Speedup

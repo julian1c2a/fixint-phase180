@@ -1825,6 +1825,36 @@ namespace nstd
         }
 
         /**
+         * @brief Pure increment — returns value + 1 without modifying the original
+         *
+         * Equivalent to `x + 1` but implemented via ++copy for correctness
+         * across all representations (TC, MS, EK, unsigned).
+         *
+         * @return New value equal to this + 1
+         */
+        [[nodiscard]] constexpr int128_param_t incr() const noexcept
+        {
+            int128_param_t result{*this};
+            ++result;
+            return result;
+        }
+
+        /**
+         * @brief Pure decrement — returns value - 1 without modifying the original
+         *
+         * Equivalent to `x - 1` but implemented via --copy for correctness
+         * across all representations (TC, MS, EK, unsigned).
+         *
+         * @return New value equal to this - 1
+         */
+        [[nodiscard]] constexpr int128_param_t decr() const noexcept
+        {
+            int128_param_t result{*this};
+            --result;
+            return result;
+        }
+
+        /**
          * @brief Addition assignment operator (SEMANTIC for all representations)
          *
          * **Two's Complement (TC):** SEMANTIC - Binary addition matches real value addition

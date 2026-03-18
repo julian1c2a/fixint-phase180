@@ -205,8 +205,8 @@ namespace std
         static constexpr bool is_iec559 = false;
         static constexpr bool is_bounded = true;
         static constexpr bool is_modulo = false; // Signed overflow is UB
-        static constexpr int digits = 127;       // Effective range after bias
-        static constexpr int digits10 = 38;
+        static constexpr int digits = 126;       // max = 2^126-1 (bias K=2^126)
+        static constexpr int digits10 = 37;      // floor(126 * log10(2))
         static constexpr int max_digits10 = 0;
         static constexpr int radix = 2;
         static constexpr int min_exponent = 0;

@@ -23,6 +23,7 @@
 #define INT128_PARAM_BITS_HPP
 
 #include "int128_parameterized.hpp"
+#include "intrinsics/bit_operations.hpp"
 #include <bitset>
 #include <type_traits>
 
@@ -55,14 +56,14 @@ namespace nstd
         {
             // MS: Count only magnitude bits (127 bits)
             const std::uint64_t magnitude_mask = (1ULL << 63) - 1;
-            const int high_count = __builtin_popcountll(value.high() & magnitude_mask);
-            const int low_count = __builtin_popcountll(value.low());
+            const int high_count = intrinsics::popcount64(value.high() & magnitude_mask);
+            const int low_count = intrinsics::popcount64(value.low());
             return high_count + low_count;
         }
         else
         {
             // TC and EK: Count all 128 bits
-            return __builtin_popcountll(value.high()) + __builtin_popcountll(value.low());
+            return intrinsics::popcount64(value.high()) + intrinsics::popcount64(value.low());
         }
     }
 
@@ -92,11 +93,11 @@ namespace nstd
 
             if (high_mag != 0)
             {
-                return __builtin_clzll(high_mag) - 1; // -1 because only 63 bits used
+                return intrinsics::clz64(high_mag) - 1; // -1 because only 63 bits used
             }
             else if (value.low() != 0)
             {
-                return 63 + __builtin_clzll(value.low());
+                return 63 + intrinsics::clz64(value.low());
             }
             else
             {
@@ -113,11 +114,11 @@ namespace nstd
 
             if (value.high() != 0)
             {
-                return __builtin_clzll(value.high());
+                return intrinsics::clz64(value.high());
             }
             else if (value.low() != 0)
             {
-                return 64 + __builtin_clzll(value.low());
+                return 64 + intrinsics::clz64(value.low());
             }
             else
             {
@@ -129,11 +130,11 @@ namespace nstd
             // TC unsigned, EK: Standard 128-bit count
             if (value.high() != 0)
             {
-                return __builtin_clzll(value.high());
+                return intrinsics::clz64(value.high());
             }
             else if (value.low() != 0)
             {
-                return 64 + __builtin_clzll(value.low());
+                return 64 + intrinsics::clz64(value.low());
             }
             else
             {
@@ -165,7 +166,7 @@ namespace nstd
             // MS: Count in 127-bit magnitude space
             if (value.low() != 0)
             {
-                return __builtin_ctzll(value.low());
+                return intrinsics::ctz64(value.low());
             }
 
             const std::uint64_t magnitude_mask = (1ULL << 63) - 1;
@@ -173,7 +174,7 @@ namespace nstd
 
             if (high_mag != 0)
             {
-                return 64 + __builtin_ctzll(high_mag);
+                return 64 + intrinsics::ctz64(high_mag);
             }
             else
             {
@@ -185,11 +186,11 @@ namespace nstd
             // TC and EK: Standard 128-bit count
             if (value.low() != 0)
             {
-                return __builtin_ctzll(value.low());
+                return intrinsics::ctz64(value.low());
             }
             else if (value.high() != 0)
             {
-                return 64 + __builtin_ctzll(value.high());
+                return 64 + intrinsics::ctz64(value.high());
             }
             else
             {

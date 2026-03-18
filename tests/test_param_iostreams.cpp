@@ -22,7 +22,7 @@ int main()
     {
         std::cout << "Test 1: Basic output (operator<<)\n";
 
-        const uint128_tc_t val{0, 42};
+        const uint128_t val{0, 42};
         std::ostringstream oss;
         oss << val;
 
@@ -50,7 +50,7 @@ int main()
     {
         std::cout << "\nTest 3: Hexadecimal output\n";
 
-        const uint128_tc_t val{0, 255};
+        const uint128_t val{0, 255};
         std::ostringstream oss;
         oss << std::hex << val;
 
@@ -64,7 +64,7 @@ int main()
     {
         std::cout << "\nTest 4: Hex with showbase\n";
 
-        const uint128_tc_t val{0, 255};
+        const uint128_t val{0, 255};
         std::ostringstream oss;
         oss << std::hex << std::showbase << val;
 
@@ -78,7 +78,7 @@ int main()
     {
         std::cout << "\nTest 5: Hex uppercase\n";
 
-        const uint128_tc_t val{0, 255};
+        const uint128_t val{0, 255};
         std::ostringstream oss;
         oss << std::hex << std::uppercase << std::showbase << val;
 
@@ -92,7 +92,7 @@ int main()
     {
         std::cout << "\nTest 6: Octal output\n";
 
-        const uint128_tc_t val{0, 64};
+        const uint128_t val{0, 64};
         std::ostringstream oss;
         oss << std::oct << std::showbase << val;
 
@@ -106,7 +106,7 @@ int main()
     {
         std::cout << "\nTest 7: Width and fill\n";
 
-        const uint128_tc_t val{0, 42};
+        const uint128_t val{0, 42};
         std::ostringstream oss;
         oss << std::setw(10) << std::setfill('0') << val;
 
@@ -120,7 +120,7 @@ int main()
     {
         std::cout << "\nTest 8: Left alignment\n";
 
-        const uint128_tc_t val{0, 42};
+        const uint128_t val{0, 42};
         std::ostringstream oss;
         oss << std::left << std::setw(10) << std::setfill('*') << val;
 
@@ -134,7 +134,7 @@ int main()
     {
         std::cout << "\nTest 9: showpos flag\n";
 
-        const uint128_tc_t val{0, 42};
+        const uint128_t val{0, 42};
         std::ostringstream oss;
         oss << std::showpos << val;
 
@@ -149,10 +149,10 @@ int main()
         std::cout << "\nTest 10: Basic input (operator>>)\n";
 
         std::istringstream iss("42");
-        uint128_tc_t val{0, 0};
+        uint128_t val{0, 0};
         iss >> val;
 
-        assert((val == uint128_tc_t{0, 42}));
+        assert((val == uint128_t{0, 42}));
         std::cout << "  OK: Basic input: 42\n";
     }
 
@@ -177,10 +177,10 @@ int main()
         std::cout << "\nTest 12: Hex input\n";
 
         std::istringstream iss("0xff");
-        uint128_tc_t val{0, 0};
+        uint128_t val{0, 0};
         iss >> val;
 
-        assert((val == uint128_tc_t{0, 255}));
+        assert((val == uint128_t{0, 255}));
         std::cout << "  OK: Hex input: 0xff = 255\n";
     }
 
@@ -190,12 +190,12 @@ int main()
     {
         std::cout << "\nTest 13: Round-trip conversion\n";
 
-        const uint128_tc_t original{0, 123456789};
+        const uint128_t original{0, 123456789};
         std::ostringstream oss;
         oss << original;
 
         std::istringstream iss(oss.str());
-        uint128_tc_t result{0, 0};
+        uint128_t result{0, 0};
         iss >> result;
 
         assert((result == original));
@@ -209,12 +209,12 @@ int main()
         std::cout << "\nTest 14: Multiple values in stream\n";
 
         std::istringstream iss("100 200 300");
-        uint128_tc_t a{0, 0}, b{0, 0}, c{0, 0};
+        uint128_t a{0, 0}, b{0, 0}, c{0, 0};
         iss >> a >> b >> c;
 
-        assert((a == uint128_tc_t{0, 100}));
-        assert((b == uint128_tc_t{0, 200}));
-        assert((c == uint128_tc_t{0, 300}));
+        assert((a == uint128_t{0, 100}));
+        assert((b == uint128_t{0, 200}));
+        assert((c == uint128_t{0, 300}));
 
         std::cout << "  OK: Multiple values: 100, 200, 300\n";
     }
@@ -225,7 +225,7 @@ int main()
     {
         std::cout << "\nTest 15: Convenience function format()\n";
 
-        const uint128_tc_t val{0, 42};
+        const uint128_t val{0, 42};
         const auto str1 = iostreams::format(val, 10, 8, '0', false, true, false, false);
 
         assert(str1 == "00000+42");
@@ -238,7 +238,7 @@ int main()
     {
         std::cout << "\nTest 16: Convenience function hex()\n";
 
-        const uint128_tc_t val{0, 255};
+        const uint128_t val{0, 255};
         const auto str = iostreams::hex(val, true, true);
 
         assert(str == "0XFF");
@@ -251,7 +251,7 @@ int main()
     {
         std::cout << "\nTest 17: Convenience function oct()\n";
 
-        const uint128_tc_t val{0, 64};
+        const uint128_t val{0, 64};
         const auto str = iostreams::oct(val, true);
 
         assert(str == "0100");
@@ -264,7 +264,7 @@ int main()
     {
         std::cout << "\nTest 18: Convenience function dec()\n";
 
-        const uint128_tc_t val{0, 42};
+        const uint128_t val{0, 42};
         const auto str = iostreams::dec(val, true);
 
         assert(str == "+42");
@@ -277,7 +277,7 @@ int main()
     {
         std::cout << "\nTest 19: Convenience function bin()\n";
 
-        const uint128_tc_t val{0, 5};
+        const uint128_t val{0, 5};
         const auto str = iostreams::bin(val, true);
 
         assert(str == "0b101");

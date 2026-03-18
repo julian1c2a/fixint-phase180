@@ -24,6 +24,7 @@
 
 #include "int128_parameterized.hpp"
 #include "int128_param_cmath.hpp" // For abs, gcd, etc.
+#include "intrinsics/bit_operations.hpp"
 #include <utility>
 #include <cstdint>
 
@@ -142,11 +143,11 @@ namespace nstd
             const uint64_t mag_high = high & ~(1ULL << 63); // Clear sign bit
             if (mag_high != 0)
             {
-                return 63 + (63 - __builtin_clzll(mag_high));
+                return 63 + (63 - intrinsics::clz64(mag_high));
             }
             else if (low != 0)
             {
-                return 63 - __builtin_clzll(low);
+                return 63 - intrinsics::clz64(low);
             }
             return -1;
         }
@@ -155,11 +156,11 @@ namespace nstd
             // TC/EK: Full 128 bits
             if (high != 0)
             {
-                return 64 + (63 - __builtin_clzll(high));
+                return 64 + (63 - intrinsics::clz64(high));
             }
             else if (low != 0)
             {
-                return 63 - __builtin_clzll(low);
+                return 63 - intrinsics::clz64(low);
             }
             return -1;
         }

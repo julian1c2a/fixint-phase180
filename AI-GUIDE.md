@@ -5,7 +5,7 @@
 >
 > **Audiencia:** Agentes IA (Copilot, Gemini, Claude, etc.) y desarrolladores humanos.
 >
-> **Versión:** 2.0.0 — 17 marzo 2026
+> **Versión:** 2.0.1 — 18 marzo 2026
 
 ### Guías Relacionadas
 
