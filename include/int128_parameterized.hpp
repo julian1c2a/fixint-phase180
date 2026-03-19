@@ -2168,11 +2168,8 @@ namespace nstd
          *
          * **Two's Complement (TC):** SEMANTIC - Binary multiplication matches real value multiplication
          * **Magnitude-Sign (MS):** SEMANTIC - Extracts magnitudes, multiplies, applies sign rule
-         * **Excess-K (EK):** ⚠️ SYNTACTIC (NOT SEMANTIC) - Operates on stored values
-         *   - Real: (x) * (y) = (xy)
-         *   - Stored: (x+K) * (y+K) = xy + K(x+y) + K² ≠ (xy) + K
-         *   - ❌ Cannot be corrected without knowing x and y (real values)
-         *   - ⚠️ For semantic multiplication in EK: Convert to TC, multiply, convert back
+         * **Excess-K (EK):** DELETED - Multiplication has no meaningful semantics for biased exponents.
+         *   Use operator+ / operator- for IEEE 754 exponent arithmetic.
          *
          * Note: Only handles 64-bit × 64-bit → 128-bit products efficiently.
          * Full 128-bit × 128-bit requires more complex logic.
@@ -2180,7 +2177,11 @@ namespace nstd
          * @param other Value to multiply
          * @return Reference to this (modified)
          */
+        constexpr int128_param_t &operator*=(const int128_param_t &) noexcept
+            requires(is_excess_k) = delete;
+
         constexpr int128_param_t &operator*=(const int128_param_t &other) noexcept
+            requires(!is_excess_k)
         {
             if constexpr (is_magnitude_sign && is_signed)
             {
@@ -2212,16 +2213,20 @@ namespace nstd
 #endif
                 {
                     // Portable fallback for constexpr contexts
-                    // Multiply magnitudes (unsigned multiplication)
-                    std::uint64_t product_low_low = a_low * b_low;
-                    std::uint64_t cross_1 = a_high * b_low;
-                    std::uint64_t cross_2 = a_low * b_high;
-
-                    data[0] = product_low_low;
-                    data[1] = cross_1 + cross_2 + (a_high * b_high);
+                    // Compute high 64 bits of a_low × b_low via schoolbook on 32-bit halves
+                    const std::uint64_t a_lo32 = a_low & 0xFFFFFFFFULL;
+                    const std::uint64_t a_hi32 = a_low >> 32;
+                    const std::uint64_t b_lo32 = b_low & 0xFFFFFFFFULL;
+                    const std::uint64_t b_hi32 = b_low >> 32;
+                    const std::uint64_t t0     = a_lo32 * b_lo32;
+                    const std::uint64_t t1     = a_lo32 * b_hi32 + (t0 >> 32);
+                    const std::uint64_t t2     = a_hi32 * b_lo32 + (t1 & 0xFFFFFFFFULL);
+                    const std::uint64_t p00_hi = a_hi32 * b_hi32 + (t1 >> 32) + (t2 >> 32);
+                    data[0] = (t2 << 32) | (t0 & 0xFFFFFFFFULL);
+                    data[1] = p00_hi + (a_high * b_low) + (a_low * b_high);
                 }
 
-                // Apply sign (set sign bit if negative)
+                // Apply sign (set sign bit if result is negative)
                 if (result_neg)
                 {
                     data[1] |= (1ULL << 63);
@@ -2229,7 +2234,7 @@ namespace nstd
             }
             else
             {
-                // TC, EK, unsigned: binary multiplication
+                // TC and unsigned: binary multiplication
                 std::uint64_t a_low = data[0];
                 std::uint64_t a_high = data[1];
                 std::uint64_t b_low = other.data[0];
@@ -2246,12 +2251,22 @@ namespace nstd
                 }
 #endif
                 // Portable fallback for constexpr contexts
-                std::uint64_t product_low_low = a_low * b_low;
-                std::uint64_t cross_1 = a_high * b_low;
-                std::uint64_t cross_2 = a_low * b_high;
-
-                data[0] = product_low_low;
-                data[1] = cross_1 + cross_2 + (a_high * b_high);
+#if defined(__SIZEOF_INT128__)
+                const __uint128_t p00 = static_cast<__uint128_t>(a_low) * b_low;
+                data[0] = static_cast<std::uint64_t>(p00);
+                data[1] = static_cast<std::uint64_t>(p00 >> 64) + (a_high * b_low) + (a_low * b_high);
+#else
+                const std::uint64_t a_lo32 = a_low & 0xFFFFFFFFULL;
+                const std::uint64_t a_hi32 = a_low >> 32;
+                const std::uint64_t b_lo32 = b_low & 0xFFFFFFFFULL;
+                const std::uint64_t b_hi32 = b_low >> 32;
+                const std::uint64_t t0     = a_lo32 * b_lo32;
+                const std::uint64_t t1     = a_lo32 * b_hi32 + (t0 >> 32);
+                const std::uint64_t t2     = a_hi32 * b_lo32 + (t1 & 0xFFFFFFFFULL);
+                data[0] = (t2 << 32) | (t0 & 0xFFFFFFFFULL);
+                data[1] = a_hi32 * b_hi32 + (t1 >> 32) + (t2 >> 32)
+                          + (a_high * b_low) + (a_low * b_high);
+#endif
             }
 
             return *this;
@@ -2259,10 +2274,14 @@ namespace nstd
 
         /**
          * @brief Multiplication operator
-         * @param other Value to multiply
-         * @return Product of this and other
+         *
+         * **Excess-K (EK):** DELETED — see operator*= for rationale.
          */
+        constexpr int128_param_t operator*(const int128_param_t &) const noexcept
+            requires(is_excess_k) = delete;
+
         constexpr int128_param_t operator*(const int128_param_t &other) const noexcept
+            requires(!is_excess_k)
         {
             int128_param_t result = *this;
             result *= other;
@@ -2270,15 +2289,18 @@ namespace nstd
         }
 
         /**
-         * @brief Division assignment operator (representation-agnostic)
+         * @brief Division assignment operator
          *
-         * Performs 128-bit integer division.
-         * Note: Full implementation is complex; this is a stub.
+         * **Excess-K (EK):** DELETED — division has no meaningful semantics for biased exponents.
          *
          * @param other Divisor (must be non-zero)
          * @return Reference to this (modified)
          */
+        constexpr int128_param_t &operator/=(const int128_param_t &) noexcept
+            requires(is_excess_k) = delete;
+
         constexpr int128_param_t &operator/=(const int128_param_t &other) noexcept
+            requires(!is_excess_k)
         {
             auto qr = this->divmod(other);
             *this = qr.first;
@@ -2287,10 +2309,14 @@ namespace nstd
 
         /**
          * @brief Division operator
-         * @param other Divisor
-         * @return Quotient of this divided by other
+         *
+         * **Excess-K (EK):** DELETED — see operator/= for rationale.
          */
+        constexpr int128_param_t operator/(const int128_param_t &) const noexcept
+            requires(is_excess_k) = delete;
+
         constexpr int128_param_t operator/(const int128_param_t &other) const noexcept
+            requires(!is_excess_k)
         {
             int128_param_t result = *this;
             result /= other;
@@ -2300,10 +2326,13 @@ namespace nstd
         /**
          * @brief Modulo assignment operator
          *
-         * @param other Divisor
-         * @return Reference to this (modified)
+         * **Excess-K (EK):** DELETED — modulo has no meaningful semantics for biased exponents.
          */
+        constexpr int128_param_t &operator%=(const int128_param_t &) noexcept
+            requires(is_excess_k) = delete;
+
         constexpr int128_param_t &operator%=(const int128_param_t &other) noexcept
+            requires(!is_excess_k)
         {
             auto qr = this->divmod(other);
             *this = qr.second;
@@ -2312,10 +2341,14 @@ namespace nstd
 
         /**
          * @brief Modulo operator
-         * @param other Divisor
-         * @return Remainder of this divided by other
+         *
+         * **Excess-K (EK):** DELETED — see operator%= for rationale.
          */
+        constexpr int128_param_t operator%(const int128_param_t &) const noexcept
+            requires(is_excess_k) = delete;
+
         constexpr int128_param_t operator%(const int128_param_t &other) const noexcept
+            requires(!is_excess_k)
         {
             int128_param_t result = *this;
             result %= other;
@@ -3219,7 +3252,12 @@ namespace nstd
          * // quot = 14, rem = 2
          */
         [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t>
+        divmod(const int128_param_t &) const noexcept
+            requires(is_excess_k) = delete;
+
+        [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t>
         divmod(const int128_param_t &other) const noexcept
+            requires(!is_excess_k)
         {
             if constexpr (!is_signed)
             {

@@ -94,7 +94,17 @@
       "Bash(./bench_p175_gcc_O3.exe)",
       "Bash(wsl -e bash -c \":*)",
       "Bash(wsl -e bash -c \"/home/earendil/bench_O3_noISRA.exe 2>&1 | grep -A6 ''Division''\")",
-      "Bash(wsl -e bash -c \"rm -f /home/earendil/bench_O2.s /home/earendil/bench_O3.s /home/earendil/bench_O3_noISRA.s /home/earendil/bench_O3_noISRA.exe /home/earendil/bench_O3_forceinline.exe /home/earendil/bench_O3_single.exe /home/earendil/bench_O2_wsl.s /home/earendil/bench_O2_wsl.exe 2>/dev/null\")"
+      "Bash(wsl -e bash -c \"rm -f /home/earendil/bench_O2.s /home/earendil/bench_O3.s /home/earendil/bench_O3_noISRA.s /home/earendil/bench_O3_noISRA.exe /home/earendil/bench_O3_forceinline.exe /home/earendil/bench_O3_single.exe /home/earendil/bench_O2_wsl.s /home/earendil/bench_O2_wsl.exe 2>/dev/null\")",
+      "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 /c/msys64/ucrt64/bin/g++ -std=c++20 -O2 -Wall -Wextra -I include -c include/int128_parameterized.hpp -o /dev/null)",
+      "Bash(/c/msys64/ucrt64/bin/g++ -std=c++20 -O2 -Wall -Wextra -I include -c include/int128_parameterized.hpp -o /dev/null)",
+      "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 /c/msys64/ucrt64/bin/g++ -std=c++20 -O2 -I include tests/test_priority1_constructors.cpp -o /tmp/t1.exe)",
+      "Bash(ls /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175/tests/*.cpp)",
+      "Bash(wc -l ls /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175/tests/*.cpp)",
+      "Read(//c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 GCC=/c/msys64/ucrt64/bin/g++ $GCC -std=c++20 -O2 -I include tests/test_priority3_representations_ms_ek.cpp -o /tmp/**)",
+      "Bash(/dev/null /tmp/t3.exe)",
+      "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 /tmp/t3.exe)",
+      "Bash(/tmp/t3.exe)",
+      "Bash(echo \"exit=$?\")"
     ],
     "additionalDirectories": [
       "\\tmp"
