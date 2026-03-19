@@ -60,7 +60,8 @@
       "Bash(powershell.exe -NoProfile -NonInteractive -Command \":*)",
       "Bash(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175\\\\icpx_bench.ps1\")",
       "Bash(grep -v \"^$\\\\|deprecated\\\\|warning.*pragma\\\\|warning.*unknown pragma\\\\|icpx: warning\")",
-      "Read(//c/Program Files \\(x86\\)/Intel/oneAPI/**)"
+      "Read(//c/Program Files \\(x86\\)/Intel/oneAPI/**)",
+      "Bash(wsl bash:*)"
     ]
   }
 }
