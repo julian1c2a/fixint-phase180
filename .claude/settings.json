@@ -46,7 +46,21 @@
       "Bash(find \"/c/Program Files \\(x86\\)/Windows Kits/10/Include/10.0.26100.0\" -name \"float.h\")",
       "Bash(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175\\\\msvc_build.ps1\")",
       "Bash(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175\\\\msvc_build.ps1\" \"tests\\\\test_division_operators.cpp\")",
-      "Bash(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175\\\\msvc_build.ps1\" \"tests\\\\test_param_bits.cpp\")"
+      "Bash(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175\\\\msvc_build.ps1\" \"tests\\\\test_param_bits.cpp\")",
+      "Bash(/tmp/bench_gcc_O3.exe)",
+      "Bash(/tmp/bench_gcc_O2.exe)",
+      "Bash(grep -v \"^.*//.*\")",
+      "Bash(git stash:*)",
+      "Bash(/c/msys64/ucrt64/bin/g++.exe -std=c++20 -O3 -I include -I /c/msys64/ucrt64/include -L /c/msys64/ucrt64/lib benchs/benchmark_vs_builtin.cpp -o /tmp/bench_gcc_O3_old.exe -lgmp -ltommath)",
+      "Read(//tmp/**)",
+      "Bash(/tmp/bench_clang_O2.exe)",
+      "Bash(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175\\\\msvc_bench.ps1\" \"/O2\")",
+      "Bash(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175\\\\msvc_bench.ps1\")",
+      "Bash(powershell.exe -NoProfile -NonInteractive -Command \"& ''C:\\\\Temp\\\\bench_msvc_O2.exe''\")",
+      "Bash(powershell.exe -NoProfile -NonInteractive -Command \":*)",
+      "Bash(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175\\\\icpx_bench.ps1\")",
+      "Bash(grep -v \"^$\\\\|deprecated\\\\|warning.*pragma\\\\|warning.*unknown pragma\\\\|icpx: warning\")",
+      "Read(//c/Program Files \\(x86\\)/Intel/oneAPI/**)"
     ]
   }
 }
