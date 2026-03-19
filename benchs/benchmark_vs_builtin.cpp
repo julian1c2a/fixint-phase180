@@ -32,8 +32,11 @@
 #include <string>
 
 // RDTSC: cycle-accurate timing independent of clock frequency
-#if defined(_MSC_VER) || defined(__INTEL_LLVM_COMPILER)
+#if defined(_MSC_VER) || (defined(__INTEL_LLVM_COMPILER) && defined(_WIN32))
 #include <intrin.h>
+static inline std::uint64_t rdtsc() { return __rdtsc(); }
+#elif defined(__INTEL_LLVM_COMPILER)
+#include <x86intrin.h>
 static inline std::uint64_t rdtsc() { return __rdtsc(); }
 #else
 static inline std::uint64_t rdtsc() { return __builtin_ia32_rdtsc(); }

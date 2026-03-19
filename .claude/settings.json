@@ -61,7 +61,41 @@
       "Bash(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175\\\\icpx_bench.ps1\")",
       "Bash(grep -v \"^$\\\\|deprecated\\\\|warning.*pragma\\\\|warning.*unknown pragma\\\\|icpx: warning\")",
       "Read(//c/Program Files \\(x86\\)/Intel/oneAPI/**)",
-      "Bash(wsl bash:*)"
+      "Bash(wsl bash:*)",
+      "Read(//c/msys64/ucrt64/home/julian/CppProjects/**)",
+      "Bash(find /c/msys64/ucrt64/home/julian/CppProjects/int128-phase166 -name *benchmark* -o -name *bench*)",
+      "Bash(grep -v disabled find /c/msys64/ucrt64/home/julian/CppProjects/int128-phase166 -name *vs_builtin* -o -name *comparative* -o -name *comparison_boost*)",
+      "Bash(head -10 find /c/msys64/ucrt64/home/julian/CppProjects/int128-phase166 -name *.csv -o -name *.json)",
+      "Bash(xargs head:*)",
+      "Bash(/tmp/bench_p175_O2.exe)",
+      "Read(//mnt/c/msys64/ucrt64/home/julian/CppProjects/int128-phase166/**)",
+      "Read(//mnt/c/msys64/ucrt64/home/julian/**)",
+      "Read(//mnt/**)",
+      "Bash(find /mnt/c/ -maxdepth 6 -name *phase166* -type d)",
+      "Read(//c/Users/julia/**)",
+      "Bash(echo $HOME)",
+      "Bash(g++ -O2 -std=c++20 -I/c/msys64/ucrt64/home/julian/CppProjects/int128-phase166/include /tmp/bench_p166_full.cpp -o /tmp/bench_p166_full_O2.exe)",
+      "Bash(echo $TEMP)",
+      "Bash(g++ -O2 -std=c++20 -I/c/msys64/ucrt64/home/julian/CppProjects/int128-phase166/include bench_p166_full.cpp -o bench_p166_full_O2.exe)",
+      "Bash(g++ --version)",
+      "Bash(g++ -O2 -std=c++23 -I/c/msys64/ucrt64/home/julian/CppProjects/int128-phase166/include bench_p166_full.cpp -o bench_p166_full_O2.exe)",
+      "Read(//c/msys64/ucrt64/include/c++/15.2.0//**)",
+      "Bash(g++ -O2 -std=c++20 -v /dev/null)",
+      "Bash(/c/msys64/ucrt64/bin/g++ --version)",
+      "Bash(/c/msys64/ucrt64/bin/g++ -O2 -std=c++20 -I/c/msys64/ucrt64/home/julian/CppProjects/int128-phase166/include bench_p166_full.cpp -o bench_p166_full_O2.exe)",
+      "Bash(./bench_p166_full_O2.exe)",
+      "Bash(/c/msys64/ucrt64/bin/g++ -O2 -std=c++20 -I include benchs/benchmark_vs_builtin.cpp -o bench_p175_gcc_O2.exe)",
+      "Bash(/c/msys64/ucrt64/bin/g++ -O2 -std=c++20 -I include benchs/benchmark_vs_builtin.cpp -o bench_p175_gcc_O2.exe -v)",
+      "Read(//c/msys64/ucrt64/lib/**)",
+      "Bash(ls /c/msys64/ucrt64/lib/libtommath*)",
+      "Bash(pacman -Q mingw-w64-ucrt-x86_64-libtommath)",
+      "Bash(/c/msys64/ucrt64/bin/g++ -O2 -std=c++20 -I include -I /c/msys64/ucrt64/include -DFORCE_GMP_TOMMATH benchs/benchmark_vs_builtin.cpp -o bench_p175_gcc_O2.exe -L /c/msys64/ucrt64/lib -lgmp -ltommath)",
+      "Bash(./bench_p175_gcc_O2.exe)",
+      "Bash(./bench_p175_gcc_O3.exe)",
+      "Bash(wsl -e bash -c \":*)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
     ]
   }
 }

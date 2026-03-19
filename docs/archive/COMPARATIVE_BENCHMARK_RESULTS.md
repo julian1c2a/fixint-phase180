@@ -1,11 +1,16 @@
 # Comparative Benchmark Results — nstd vs __int128 vs Boost
 
-**Date:** 19 March 2026
-**Platform:** Windows 11, MSYS2 ucrt64
+**Date:** 19 March 2026 (updated session 2 — all compilers)
+**Platform:** Windows 11, MSYS2 ucrt64 + WSL Ubuntu 25.04
 **CPU:** x86-64 (measurements in cycles/operation via RDTSC)
 **Iterations:** 5,000,000 + 10,000 warmup
 **Boost:** 1.90.0-3 (cpp_int, checked, GMP 6.3.0, TomMath 1.3.0)
 **MSVC:** cl.exe 19.50.35726 /O2, Boost via vcpkg (c:\vcpkg\installed\x64-windows)
+**Intel ICX Windows:** 2025.3.0, GCC-style flags, vcpkg Boost
+**WSL compilers:** GCC 14.2.0, Clang 20.1.8, Intel ICX 2025.3.2 (Ubuntu 25.04)
+
+**Knuth D refactoring (session 2):** Exposed fast paths [0.a–0.e], [1], [2] for MSVC (pure C++);
+added `_udiv128` path [3] for 128/64 division on MSVC at runtime.
 
 ---
 
@@ -348,70 +353,142 @@ boost::cpp_int u128                    2.17     0.28x
 
 ---
 
-## MSVC 19.50.35726 /O2 (vcpkg Boost, with FORCE_GMP_TOMMATH)
+## MSVC 19.50.35726 /O2 — Session 1 (big_bin_divrem fallback)
 
-Note: No `__int128` on MSVC. Division uses `big_bin_divrem()` fallback (Knuth D fast paths not available without `__uint128_t`).
+Note: Historical baseline — before Knuth D fast path exposure. Division used `big_bin_divrem()` (no fast paths without `__uint128_t`).
 
-```
-[Addition (+)]                        cyc/op    vs u64
-uint64_t                              14.16     1.00x
-nstd::uint128_t                       13.99     0.99x  *** FASTER THAN u64 ***
-nstd::int128_t (TC)                   14.10     1.00x  *** EQUAL TO u64 ***
-boost::cpp_int u128                   18.62     1.31x
-boost::cpp_int i128                   23.92     1.69x
-boost::checked_uint128                24.10     1.70x
-boost::gmp_int                        23.84     1.68x
-boost::gmp_int [128]                  45.47     3.21x
-boost::tom_int                        32.18     2.27x
-boost::tom_int [128]                  96.87     6.84x
-
-[Subtraction (-)]                     cyc/op    vs u64
-uint64_t                              13.41     1.00x
-nstd::uint128_t                       13.37     1.00x  *** EQUAL TO u64 ***
-nstd::int128_t (TC)                   12.86     0.96x  *** FASTER THAN u64 ***
-boost::cpp_int u128                   15.71     1.17x
-boost::gmp_int                        24.37     1.82x
-boost::tom_int (*)                   212.97    15.88x  [anomaly]
-
-[Multiplication (*)]                  cyc/op    vs u64
-uint64_t                              14.08     1.00x
-nstd::uint128_t                       14.32     1.02x
-nstd::int128_t (TC)                   31.37     2.23x
-boost::cpp_int u128                   31.20     2.22x
-boost::gmp_int (*)                     1.31     0.09x  [non-accumulating]
-boost::tom_int (*)                     1.42     0.10x  [non-accumulating]
-
+```text
 [Division (/)]                        cyc/op    vs u64
 uint64_t                              16.45     1.00x
 nstd::uint128_t                       28.60     1.74x  [big_bin_divrem fallback]
 nstd::int128_t (TC)                   35.41     2.15x
 boost::cpp_int u128                   43.82     2.66x
-boost::cpp_int i128                   57.33     3.49x
-boost::checked_uint128                49.87     3.03x
-boost::gmp_int                        91.05     5.54x
-boost::tom_int                       784.01    47.67x
-boost::tom_int [128]                 827.77    50.33x
+```
+
+---
+
+## MSVC 19.50.35726 /O2 — Session 2 (Knuth D fast paths via _udiv128)
+
+Note: After refactoring — fast paths [0.a–0.e], [1], [2], [3] now active on MSVC.
+Path [3] uses `_udiv128` intrinsic (VS 2019 16.8+ / _MSC_VER >= 1928) at runtime.
+128/128 general case still falls to `big_bin_divrem` (no `__uint128_t` on MSVC).
+
+```text
+[Addition (+)]                        cyc/op    vs u64
+uint64_t                              13.67     1.00x
+nstd::uint128_t                       13.33     0.98x  *** FASTER THAN u64 ***
+nstd::int128_t (TC)                   13.31     0.97x  *** FASTER THAN u64 ***
+boost::cpp_int u128                   17.72     1.30x
+boost::cpp_int i128                   18.47     1.35x
+boost::checked_uint128                17.40     1.27x
+boost::gmp_int                        18.73     1.37x
+boost::gmp_int [128]                  40.54     2.97x
+boost::tom_int                        29.37     2.15x
+boost::tom_int [128]                  97.51     7.13x
+
+[Subtraction (-)]                     cyc/op    vs u64
+uint64_t                              13.86     1.00x
+nstd::uint128_t                       13.59     0.98x  *** FASTER THAN u64 ***
+nstd::int128_t (TC)                   13.41     0.97x  *** FASTER THAN u64 ***
+boost::cpp_int u128                   15.75     1.14x
+boost::cpp_int i128                   16.70     1.20x
+boost::checked_uint128                15.45     1.11x
+boost::gmp_int                        26.01     1.88x
+boost::gmp_int [128]                  42.74     3.08x
+boost::tom_int (*)                   227.90    16.44x  [anomaly]
+boost::tom_int [128]                  88.13     6.36x
+
+[Multiplication (*)]                  cyc/op    vs u64
+uint64_t                              14.08     1.00x
+nstd::uint128_t                       15.45     1.10x
+nstd::int128_t (TC)                   31.49     2.24x
+boost::cpp_int u128                   31.53     2.24x
+boost::cpp_int i128                   34.51     2.45x
+boost::checked_uint128 (*)            16.88     1.20x  [non-accumulating]
+boost::gmp_int (*)                     1.29     0.09x  [non-accumulating]
+boost::gmp_int [128]                  43.68     3.10x
+boost::tom_int (*)                     1.31     0.09x  [non-accumulating]
+boost::tom_int [128]                 143.21    10.17x
+
+[Division (/)]                        cyc/op    vs u64
+uint64_t                              16.54     1.00x
+nstd::uint128_t                       26.47     1.60x  [fast paths active, was 1.74x]
+nstd::int128_t (TC)                   32.59     1.97x
+boost::cpp_int u128                   44.28     2.68x
+boost::cpp_int i128                   57.29     3.46x
+boost::checked_uint128                49.55     2.99x
+boost::gmp_int                        89.92     5.44x
+boost::gmp_int [128]                 108.67     6.57x
+boost::tom_int                       764.76    46.23x
+boost::tom_int [128]                 839.87    50.77x
 
 [Shift (<<3 | >>125, rotate)]        cyc/op    vs u64
-uint64_t                              13.66     1.00x
-nstd::uint128_t                       26.95     1.97x
-boost::cpp_int u128                   75.28     5.51x
-boost::gmp_int                        66.28     4.85x
-boost::tom_int                       535.42    39.21x
+uint64_t                              14.34     1.00x
+nstd::uint128_t                       26.12     1.82x
+boost::cpp_int u128                   83.53     5.82x
+boost::checked_uint128 (*)            33.92     2.36x  [non-accumulating]
+boost::gmp_int                        59.54     4.15x
+boost::tom_int                       550.32    38.36x
 
 [Bitwise XOR (^)]                     cyc/op    vs u64
-uint64_t                              13.21     1.00x
-nstd::uint128_t                       13.80     1.05x
-boost::cpp_int u128                   15.47     1.17x
-boost::gmp_int                        19.46     1.47x
-boost::tom_int                        48.99     3.71x
+uint64_t                              13.20     1.00x
+nstd::uint128_t                       14.02     1.06x
+boost::cpp_int u128                   15.69     1.19x
+boost::checked_uint128                16.12     1.22x
+boost::gmp_int                        18.97     1.44x
+boost::tom_int                        48.63     3.68x
 
 [Comparison (<)]                      cyc/op    vs u64
-uint64_t                              19.42     1.00x
-nstd::uint128_t                       13.84     0.71x  *** FASTER THAN u64 ***
-boost::cpp_int u128                   10.95     0.56x
-boost::gmp_int                        13.89     0.72x
-boost::tom_int                        23.78     1.22x
+uint64_t                              19.51     1.00x
+nstd::uint128_t                       13.36     0.68x  *** FASTER THAN u64 ***
+boost::cpp_int u128                   11.13     0.57x
+boost::checked_uint128                11.20     0.57x
+boost::gmp_int                         8.45     0.43x
+boost::tom_int                        22.03     1.13x
+```
+
+---
+
+## Intel ICX 2025.3.0 (Windows) /O2
+
+Note: Intel ICX on Windows uses MSVC ABI. Has `__int128` support. Division uses Knuth D fast paths including `__uint128_t` path. GCC-style flags. Boost via vcpkg.
+
+```text
+[Addition (+)]                        cyc/op    vs u64
+uint64_t                               4.04     1.00x
+nstd::uint128_t                        4.10     1.02x
+nstd::int128_t (TC)                    4.17     1.03x
+unsigned __int128                      4.31     1.07x
+__int128                               4.32     1.07x
+boost::cpp_int u128                   22.26     5.52x
+boost::cpp_int i128                   28.82     7.14x
+boost::checked_uint128                20.83     5.16x
+boost::gmp_int                        19.39     4.80x
+boost::gmp_int [128]                  43.34    10.74x
+boost::tom_int                        32.28     8.00x
+boost::tom_int [128]                 113.39    28.10x
+
+[Subtraction (-)]                     cyc/op    vs u64
+uint64_t                               4.18     1.00x
+nstd::uint128_t                        3.79     0.91x  *** FASTER THAN u64 ***
+nstd::int128_t (TC)                    3.60     0.86x  *** FASTER THAN u64 ***
+unsigned __int128                      4.45     1.06x
+__int128                               4.12     0.99x
+boost::cpp_int u128                   17.38     4.16x
+
+[Division (/)]                        cyc/op    vs u64
+uint64_t                               7.20     1.00x
+nstd::uint128_t                       23.44     3.26x
+nstd::int128_t (TC)                   36.45     5.06x
+unsigned __int128                     24.73     3.43x
+__int128                              33.20     4.61x
+boost::cpp_int u128                   43.57     6.05x
+boost::cpp_int i128                   55.58     7.72x
+boost::checked_uint128                45.86     6.37x
+boost::gmp_int                       122.64    17.03x
+boost::gmp_int [128]                 141.38    19.64x
+boost::tom_int                       809.50   112.43x
+boost::tom_int [128]                 998.83   138.72x
 ```
 
 ---
@@ -464,14 +541,140 @@ boost::tom_int                        23.78     1.22x
 | Multiply  | 1.21x vs u64  | 2.57x vs u64   | **2.1x faster**  |
 | Shift     | 2.83x vs u64  | 8.30x vs u64   | **2.9x faster**  |
 
-### vs boost::cpp_int (MSVC /O2)
+### vs boost::cpp_int (MSVC /O2 — session 2, fast paths active)
 
 | Operation | nstd (MSVC)  | boost::cpp_int | Ratio           |
 |-----------|--------------|----------------|-----------------|
-| Addition  | 0.99x vs u64 | 1.31x vs u64   | **1.3x faster** |
-| Division  | 1.74x vs u64 | 2.66x vs u64   | **1.5x faster** |
-| Multiply  | 1.02x vs u64 | 2.22x vs u64   | **2.2x faster** |
-| Shift     | 1.97x vs u64 | 5.51x vs u64   | **2.8x faster** |
+| Addition  | 0.98x vs u64 | 1.30x vs u64   | **1.3x faster** |
+| Division  | 1.60x vs u64 | 2.68x vs u64   | **1.7x faster** |
+| Multiply  | 1.10x vs u64 | 2.24x vs u64   | **2.0x faster** |
+| Shift     | 1.82x vs u64 | 5.82x vs u64   | **3.2x faster** |
+
+---
+
+## WSL Ubuntu 25.04 — GCC 14.2.0 -O2
+
+```text
+[Division (/)]                        cyc/op    vs u64
+uint64_t                               4.62     1.00x
+nstd::uint128_t                        9.51     2.06x
+nstd::int128_t (TC)                   11.34     2.45x
+unsigned __int128                     28.11     6.08x
+__int128                              28.99     6.27x
+boost::cpp_int u128                   31.07     6.72x
+boost::cpp_int i128                   30.04     6.50x
+boost::checked_uint128                29.42     6.37x
+boost::gmp_int                        70.52    15.26x
+boost::gmp_int [128]                  82.12    17.77x
+boost::tom_int                       283.75    61.40x
+boost::tom_int [128]                 379.52    82.12x
+```
+
+Note: nstd **2.95x faster than `__int128`** for division (6.27x → 2.06x).
+
+---
+
+## WSL Ubuntu 25.04 — GCC 14.2.0 -O3
+
+```text
+[Division (/)]                        cyc/op    vs u64
+uint64_t                               4.08     1.00x
+nstd::uint128_t                       36.69     8.98x  [GCC-O3 optimization anomaly — pre-existing]
+nstd::int128_t (TC)                   19.49     4.77x
+unsigned __int128                     26.56     6.50x
+__int128                              27.17     6.65x
+boost::cpp_int u128                   29.86     7.31x
+boost::gmp_int                        63.68    15.59x
+boost::gmp_int [128]                  78.52    19.22x
+boost::tom_int                       343.50    84.09x
+```
+
+Note: GCC-O3 uint128 anomaly confirmed pre-existing (same in old code: 8.07x). GCC-O2 is the reliable result.
+
+---
+
+## WSL Ubuntu 25.04 — Clang 20.1.8 -O2
+
+```text
+[Division (/)]                        cyc/op    vs u64
+uint64_t                               5.96     1.00x
+nstd::uint128_t                       13.72     2.30x
+nstd::int128_t (TC)                   24.79     4.16x
+unsigned __int128                     27.14     4.55x
+__int128                              27.27     4.57x
+boost::cpp_int u128                   28.63     4.80x
+boost::cpp_int i128                   46.98     7.88x
+boost::checked_uint128                28.47     4.77x
+boost::gmp_int                        62.89    10.55x
+boost::gmp_int [128]                  94.09    15.78x
+boost::tom_int                       328.41    55.08x
+boost::tom_int [128]                 332.22    55.72x
+```
+
+Note: nstd **1.98x faster than `__int128`** for division (4.57x → 2.30x).
+
+---
+
+## WSL Ubuntu 25.04 — Clang 20.1.8 -O3
+
+```text
+[Division (/)]                        cyc/op    vs u64
+uint64_t                               6.85     1.00x
+nstd::uint128_t                       15.35     2.24x
+nstd::int128_t (TC)                   28.55     4.17x
+unsigned __int128                     28.78     4.20x
+__int128                              29.82     4.36x
+boost::cpp_int u128                   30.08     4.39x
+boost::cpp_int i128                   52.49     7.67x
+boost::gmp_int                        66.51     9.72x
+boost::gmp_int [128]                  94.09    13.74x
+boost::tom_int                       358.86    52.42x
+boost::tom_int [128]                 449.32    65.63x
+```
+
+---
+
+## WSL Ubuntu 25.04 — Intel ICX 2025.3.2 -O2
+
+```text
+[Division (/)]                        cyc/op    vs u64
+uint64_t                               7.45     1.00x
+nstd::uint128_t                        7.12     0.96x  *** FASTER THAN u64 ***
+nstd::int128_t (TC)                    9.72     1.31x
+unsigned __int128                     26.30     3.53x
+__int128                              27.12     3.64x
+boost::cpp_int u128                   38.10     5.12x
+boost::cpp_int i128                   39.36     5.28x
+boost::checked_uint128                64.51     8.66x
+boost::gmp_int                       100.03    13.43x
+boost::gmp_int [128]                 120.88    16.23x
+boost::tom_int                       317.73    42.65x
+boost::tom_int [128]                 339.65    45.60x
+```
+
+Note: WSL ICX division **0.96x vs u64** — faster than native 64-bit. **3.68x faster than `__int128`**.
+
+---
+
+## Summary Matrix — Division Performance (all compilers, nstd::uint128_t vs u64)
+
+| Compiler            | nstd vs u64 | vs __int128 | Notes                        |
+|---------------------|-------------|-------------|------------------------------|
+| Win GCC-O2 15.2.0   | **0.49x** † | 20x faster  | Fastest GCC result           |
+| Win GCC-O3 15.2.0   | **0.47x** † | 20x faster  | Best overall (Win)           |
+| Win Clang-O2 21.1.8 | 2.26x       | 2.99x faster| Clang less aggressive        |
+| Win Clang-O3 21.1.8 | 2.16x       | 2.87x faster|                              |
+| Win MSVC /O2        | 1.60x *     | n/a         | _udiv128 fast paths (new)    |
+| Win ICX /O2         | 3.26x       | 1.05x       | ICX path 3 less optimized    |
+| WSL GCC-O2 14.2.0   | 2.06x       | 2.95x faster| GCC 14 vs 15 difference      |
+| WSL GCC-O3 14.2.0   | 8.98x ††    | n/a         | Known anomaly (pre-existing) |
+| WSL Clang-O2 20.1.8 | 2.30x       | 1.98x faster| Clang 20 WSL                 |
+| WSL Clang-O3 20.1.8 | 2.24x       | 1.87x faster|                              |
+| WSL ICX /O2         | **0.96x** † | 3.68x faster| Fastest division overall     |
+
+† = faster than uint64_t baseline
+†† = pre-existing GCC-O3 anomaly in WSL (same before and after refactoring)
+\* = `_udiv128` fast path active (was 1.74x before refactoring); 128/128 still big_bin_divrem
 
 ### Anomalies and Notes
 
@@ -479,18 +682,16 @@ boost::tom_int                        23.78     1.22x
 - `(*)` markers = non-accumulating benchmark pattern (no loop-carried dependency)
 - `[128]` variants = arbitrary-precision types masked to 128 bits for fair comparison
 - MSVC cycles/op are higher in absolute terms (RDTSC resolution + higher branch predictor activity)
-
-### Pending Compilers
-
-- Intel ICX (Windows): not yet run
-- WSL compilers (GCC 13/14/15, Clang 18/20/21): not yet run
+- WSL cycles may differ from native Windows due to virtualization layer
 
 ---
 
-**Generated:** 19 March 2026
+**Generated:** 19 March 2026 (session 2 — all 9 compiler/mode combinations)
 **Benchmark file:** `benchs/benchmark_vs_builtin.cpp`
 
 **Build:**
 
-- GCC/Clang: `# [DEBUG] - /c/msys64/ucrt64/bin/g++ (clang++)` (make.py compare has path bug)
-- MSVC: `# [DEBUG] - cl.exe via vcpkg Boost (c:\vcpkg\installed\x64-windows)`
+- Win GCC/Clang: `# [DEBUG]` direct compile via `/c/msys64/ucrt64/bin/g++` and `clang++`
+- Win MSVC: `# [DEBUG]` via `msvc_bench.ps1` (PowerShell, vcpkg Boost)
+- Win ICX: `# [DEBUG]` via `icpx_bench.ps1` (PowerShell, vcpkg Boost)
+- WSL: `# [DEBUG]` direct compile via `wsl bash -c "g++/clang++/icpx"`

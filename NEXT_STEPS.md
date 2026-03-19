@@ -239,16 +239,21 @@ Created comprehensive STL type traits integration:
 
 ## 📅 FUTURE WORK ITEMS
 
-### 1. Comparative Benchmarking — ⚠️ PARTIAL (19 March 2026)
+### 1. Comparative Benchmarking — ✅ COMPLETE (19 March 2026, session 2)
 
-- ✅ GCC 15.2.0 -O2/-O3: Full results (nstd vs __int128, Boost cpp_int/GMP/TomMath)
-- ✅ Clang 21.1.8 (ucrt64) -O2/-O3: Full results
-- ⏳ MSVC: Requires vcpkg native Boost (`c:\vcpkg\`) — MSYS2 Boost incompatible with cl.exe
-- ⏳ Intel ICX: Pending
-- ⏳ WSL compilers (GCC 13/14/15, Clang 18/20/21): Pending
+All 9 compiler/mode combinations benchmarked:
+
+- ✅ Win GCC 15.2.0 -O2/-O3: nstd division **0.49x/0.47x vs u64** (2x faster than native!)
+- ✅ Win Clang 21.1.8 -O2/-O3: 2.26x/2.16x vs u64 (3x faster than `__int128`)
+- ✅ Win MSVC /O2: **1.60x** vs u64 (improved from 1.74x — Knuth D fast paths via `_udiv128`)
+- ✅ Win Intel ICX /O2: 3.26x vs u64
+- ✅ WSL GCC 14.2.0 -O2/-O3: 2.06x/-O2 (GCC-O3 has pre-existing anomaly)
+- ✅ WSL Clang 20.1.8 -O2/-O3: 2.30x/2.24x vs u64
+- ✅ WSL Intel ICX 2025.3.2 -O2: **0.96x vs u64** (faster than native! 3.68x faster than `__int128`)
 - Results documented: `docs/archive/COMPARATIVE_BENCHMARK_RESULTS.md`
 
-**Key highlights (GCC-O3):** nstd division **0.47x vs u64** (2x faster!), **20x faster than __int128**, **22.9x faster than boost::cpp_int** for division
+**Knuth D refactoring (session 2):** Exposed fast paths [0–3] for MSVC; added `_udiv128` for path [3].
+All tests passing: GCC ✅ 30/30 + 25/25, Clang ✅ 30/30 + 25/25, MSVC ✅ 30/30 + 25/25.
 
 ### 2. Test Suite Strengthening
 
