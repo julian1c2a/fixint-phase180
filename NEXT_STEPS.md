@@ -239,11 +239,16 @@ Created comprehensive STL type traits integration:
 
 ## 📅 FUTURE WORK ITEMS
 
-### 1. Comparative Benchmarking
+### 1. Comparative Benchmarking — ⚠️ PARTIAL (19 March 2026)
 
-- Run full benchmark suite across all 11 compilers
-- Compare nstd::uint128_t vs `__int128`, Boost, uint64_t
-- Document performance matrix
+- ✅ GCC 15.2.0 -O2/-O3: Full results (nstd vs __int128, Boost cpp_int/GMP/TomMath)
+- ✅ Clang 21.1.8 (ucrt64) -O2/-O3: Full results
+- ⏳ MSVC: Requires vcpkg native Boost (`c:\vcpkg\`) — MSYS2 Boost incompatible with cl.exe
+- ⏳ Intel ICX: Pending
+- ⏳ WSL compilers (GCC 13/14/15, Clang 18/20/21): Pending
+- Results documented: `docs/archive/COMPARATIVE_BENCHMARK_RESULTS.md`
+
+**Key highlights (GCC-O3):** nstd division **0.47x vs u64** (2x faster!), **20x faster than __int128**, **22.9x faster than boost::cpp_int** for division
 
 ### 2. Test Suite Strengthening
 

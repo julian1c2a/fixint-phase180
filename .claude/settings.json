@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/julian/CppProjects/**)",
+      "Bash(ls \"c:/msys64/ucrt64/home/julian/CppProjects/int128-phase175/\"*.md)",
+      "Bash(find c:/msys64/ucrt64/home/julian/CppProjects/int128-phase175/AI_PROMPT -maxdepth 2 -name *.md)",
+      "Bash(python make.py --help)",
+      "Bash(python make.py compare --help)",
+      "Bash(python make.py compare gcc release-O2)",
+      "Bash(bash scripts/benchmark_comparison.bash gcc release-O2 100000)",
+      "Bash(pacman -Q mingw-w64-ucrt-x86_64-boost)",
+      "Bash(pkg-config --exists boost)",
+      "Read(//ucrt64/include/boost/**)",
+      "Bash(pacman -Ql mingw-w64-ucrt-x86_64-boost)",
+      "Bash(pacman -Q mingw-w64-ucrt-x86_64-gmp)",
+      "Bash(/ucrt64/bin/g++ --version)",
+      "Bash(ls /c/msys64/ucrt64/bin/g++*)",
+      "Bash(head -3 ls /c/msys64/ucrt64/bin/*.exe)",
+      "Bash(./build/bench_compare/bench_vs_builtin_gcc_O2.exe)",
+      "Bash(/c/msys64/ucrt64/bin/g++ -std=c++20 -O3 -Iinclude -I/c/msys64/ucrt64/include benchs/benchmark_vs_builtin.cpp -o build/bench_compare/bench_vs_builtin_gcc_O3.exe -lgmp -ltommath -L/c/msys64/ucrt64/lib)",
+      "Bash(./build/bench_compare/bench_vs_builtin_gcc_O3.exe)",
+      "Bash(/c/msys64/clang64/bin/clang++ --version)",
+      "Bash(/c/msys64/clang64/bin/clang++ -std=c++20 -O2 -Iinclude -I/c/msys64/ucrt64/include benchs/benchmark_vs_builtin.cpp -o build/bench_compare/bench_vs_builtin_clang_O2.exe -lgmp -ltommath -L/c/msys64/ucrt64/lib)",
+      "Bash(./build/bench_compare/bench_vs_builtin_clang_O2.exe)",
+      "Bash(ls /c/msys64/ucrt64/bin/clang++*)",
+      "Bash(/c/msys64/ucrt64/bin/clang++ -std=c++20 -O3 -Iinclude -I/c/msys64/ucrt64/include benchs/benchmark_vs_builtin.cpp -o build/bench_compare/bench_vs_builtin_clang_O3.exe -lgmp -ltommath -L/c/msys64/ucrt64/lib)",
+      "Bash(./build/bench_compare/bench_vs_builtin_clang_O3.exe)",
+      "Read(//c/Program Files/Microsoft Visual Studio/18/Community/VC/Auxiliary/Build//**)",
+      "Read(//c/Program Files/Microsoft Visual Studio/2022/Community/VC/Auxiliary/**)",
+      "Bash(head -10 ls c:/msys64/ucrt64/home/julian/CppProjects/int128-phase175/*.bat)",
+      "Read(//c/vcpkg//**)",
+      "Read(//c/vcpkg/**)",
+      "Bash(PATH=\"/c/vcpkg/installed/x64-windows/bin:$PATH\" ./build/bench_compare/bench_vs_builtin_msvc_O2.exe)",
+      "Bash(PATH=\"/c/vcpkg/installed/x64-windows/bin:$PATH\" ./build/bench_compare/bench_vs_builtin_msvc_O2_full.exe)",
+      "Bash(grep -n \"ctz64\\\\|div128_64_composed\" \"c:/msys64/ucrt64/home/julian/CppProjects/int128-phase175/include/intrinsics/\"*.hpp)"
+    ]
+  }
+}
