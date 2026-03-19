@@ -251,6 +251,8 @@ All 9 compiler/mode combinations benchmarked:
 - ✅ WSL Clang 20.1.8 -O2/-O3: 2.30x/2.24x vs u64
 - ✅ WSL Intel ICX 2025.3.2 -O2: **0.96x vs u64** (faster than native! 3.68x faster than `__int128`)
 - Results documented: `docs/archive/COMPARATIVE_BENCHMARK_RESULTS.md`
+- Phase166 vs phase175 regression analysis: `docs/archive/PHASE166_VS_PHASE175_REGRESSION_ANALYSIS.md`
+- GCC -O3 WSL anomaly root cause: `docs/archive/GCC_O3_DIVISION_ANOMALY.md`
 
 **Knuth D refactoring (session 2):** Exposed fast paths [0–3] for MSVC; added `_udiv128` for path [3].
 All tests passing: GCC ✅ 30/30 + 25/25, Clang ✅ 30/30 + 25/25, MSVC ✅ 30/30 + 25/25.

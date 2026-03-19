@@ -590,6 +590,7 @@ boost::tom_int                       343.50    84.09x
 ```
 
 Note: GCC-O3 uint128 anomaly confirmed pre-existing (same in old code: 8.07x). GCC-O2 is the reliable result.
+Root cause investigated via assembly analysis — see `GCC_O3_DIVISION_ANOMALY.md`.
 
 ---
 
