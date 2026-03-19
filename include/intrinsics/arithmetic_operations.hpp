@@ -482,9 +482,21 @@ namespace intrinsics
         const uint64_t q_lo = static_cast<uint64_t>(dividend_composed / divisor);
         *remainder_final = static_cast<uint64_t>(dividend_composed % divisor);
         return q_lo;
+#elif INTRINSICS_COMPILER_MSVC
+        // MSVC: _udiv128 intrinsic (VS 2019 16.8+ / _MSC_VER >= 1928)
+        // Precondition: r_hi < divisor (guaranteed by caller — r_hi is a remainder from data[1]/d)
+        if (INTRINSICS_IS_CONSTANT_EVALUATED())
+        {
+            // Unreachable at constexpr: D_knuth_divrem routes to big_bin_divrem for MSVC constexpr
+            *remainder_final = 0;
+            return 0;
+        }
+        else
+        {
+            return _udiv128(r_hi, data_low, divisor, remainder_final);
+        }
 #else
-        // Sin __uint128_t: retornar 0 (el caller debe usar fallback iterativo)
-        // Esto indica al caller que debe usar divrem(uint128_t) como fallback
+        // Sin __uint128_t ni _udiv128: retornar 0 (el caller debe usar fallback iterativo)
         (void)r_hi;
         (void)data_low;
         (void)divisor;

@@ -32,7 +32,21 @@
       "Read(//c/vcpkg/**)",
       "Bash(PATH=\"/c/vcpkg/installed/x64-windows/bin:$PATH\" ./build/bench_compare/bench_vs_builtin_msvc_O2.exe)",
       "Bash(PATH=\"/c/vcpkg/installed/x64-windows/bin:$PATH\" ./build/bench_compare/bench_vs_builtin_msvc_O2_full.exe)",
-      "Bash(grep -n \"ctz64\\\\|div128_64_composed\" \"c:/msys64/ucrt64/home/julian/CppProjects/int128-phase175/include/intrinsics/\"*.hpp)"
+      "Bash(grep -n \"ctz64\\\\|div128_64_composed\" \"c:/msys64/ucrt64/home/julian/CppProjects/int128-phase175/include/intrinsics/\"*.hpp)",
+      "Bash(python make.py build param division gcc release)",
+      "Bash(python make.py build uint128 division tests gcc release)",
+      "Bash(python make.py test)",
+      "Bash(python make.py list)",
+      "Bash(mkdir -p /c/Temp)",
+      "Bash(cmd.exe /c build_msvc_test.bat)",
+      "Bash(cmd.exe /c \"cd /d C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175 && build_msvc_test.bat\")",
+      "Bash(cmd.exe /c \"cd /d C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175 && build_msvc_test.bat > C:\\\\Temp\\\\msvc_build_output.txt 2>&1\")",
+      "Read(//c/Temp/**)",
+      "Read(//c/Program Files \\(x86\\)/Windows Kits/10/Include//**)",
+      "Bash(find \"/c/Program Files \\(x86\\)/Windows Kits/10/Include/10.0.26100.0\" -name \"float.h\")",
+      "Bash(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175\\\\msvc_build.ps1\")",
+      "Bash(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175\\\\msvc_build.ps1\" \"tests\\\\test_division_operators.cpp\")",
+      "Bash(powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175\\\\msvc_build.ps1\" \"tests\\\\test_param_bits.cpp\")"
     ]
   }
 }

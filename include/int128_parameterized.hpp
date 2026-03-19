@@ -3554,10 +3554,11 @@ namespace nstd
         [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t>
         D_knuth_divrem(const int128_param_t &divisor) const noexcept
         {
-#if defined(__SIZEOF_INT128__) && !defined(_MSC_VER)
             // ================================================================
             // Knuth Algorithm D - Optimized 128-bit unsigned division
-            // Uses __uint128_t for GCC/Clang (Knuth D via __udivti3 internally)
+            // Fast paths [0-2] are pure C++ and available on all compilers.
+            // Path [3] uses _udiv128 on MSVC, __uint128_t on GCC/Clang.
+            // 128/128 general case uses __uint128_t (GCC/Clang only).
             // ================================================================
 
             // [0.a] Fast path: divisor is 0
@@ -3594,16 +3595,16 @@ namespace nstd
             }
 
             // ================================================================
-            // 64-bit divisor optimizations
+            // 64-bit divisor optimizations (all compilers)
             // ================================================================
             if (divisor.data[1] == 0)
             {
                 const uint64_t d = divisor.data[0];
 
-                // [1] Power-of-2: shift right O(1)
+                // [1] Power-of-2: shift right O(1) — portable via intrinsics::ctz64
                 if ((d & (d - 1)) == 0)
                 {
-                    const int shift = __builtin_ctzll(d);
+                    const int shift = intrinsics::ctz64(d);
                     const uint64_t mask = d - 1;
                     const uint64_t rem = data[0] & mask;
 
@@ -3628,7 +3629,7 @@ namespace nstd
                     return {quotient, rem_obj};
                 }
 
-                // [2] Both fit in 64 bits: native CPU division
+                // [2] Both fit in 64 bits: native CPU division — portable
                 if (data[1] == 0)
                 {
                     const uint64_t q = data[0] / d;
@@ -3636,37 +3637,53 @@ namespace nstd
                     return {int128_param_t{0ull, q}, int128_param_t{0ull, r}};
                 }
 
-                // [3] 128-bit dividend / 64-bit divisor: Knuth D with 1-digit divisor
-                //     Two native 64-bit divisions instead of 64-iteration bit loop
-                const uint64_t q_hi = data[1] / d;
-                const uint64_t r_hi = data[1] % d;
-                uint64_t r_final;
-                const uint64_t q_lo = intrinsics::div128_64_composed(r_hi, data[0], d, &r_final);
-                return {int128_param_t{q_hi, q_lo}, int128_param_t{0ull, r_final}};
+                // [3] 128-bit dividend / 64-bit divisor: two native divisions
+                //     GCC/Clang: via __uint128_t; MSVC: via _udiv128 (runtime only)
+#if defined(INTRINSICS_COMPILER_MSVC) && INTRINSICS_COMPILER_MSVC
+                if (!INTRINSICS_IS_CONSTANT_EVALUATED())
+                {
+                    const uint64_t q_hi = data[1] / d;
+                    const uint64_t r_hi = data[1] % d;
+                    uint64_t r_final;
+                    const uint64_t q_lo = intrinsics::div128_64_composed(r_hi, data[0], d, &r_final);
+                    return {int128_param_t{q_hi, q_lo}, int128_param_t{0ull, r_final}};
+                }
+                // MSVC constexpr: fall through to big_bin_divrem below
+#else
+                {
+                    const uint64_t q_hi = data[1] / d;
+                    const uint64_t r_hi = data[1] % d;
+                    uint64_t r_final;
+                    const uint64_t q_lo = intrinsics::div128_64_composed(r_hi, data[0], d, &r_final);
+                    return {int128_param_t{q_hi, q_lo}, int128_param_t{0ull, r_final}};
+                }
+#endif
             }
 
+#if defined(__SIZEOF_INT128__) && !defined(_MSC_VER)
             // ================================================================
             // 128/128 general case: Knuth Algorithm D via __uint128_t
             // GCC/Clang implement __udivti3 using Knuth D internally
             // ================================================================
-            const __uint128_t u = (static_cast<__uint128_t>(data[1]) << 64) | data[0];
-            const __uint128_t v = (static_cast<__uint128_t>(divisor.data[1]) << 64) | divisor.data[0];
-            const __uint128_t q = u / v;
-            const __uint128_t r = u - q * v;
+            {
+                const __uint128_t u = (static_cast<__uint128_t>(data[1]) << 64) | data[0];
+                const __uint128_t v = (static_cast<__uint128_t>(divisor.data[1]) << 64) | divisor.data[0];
+                const __uint128_t q = u / v;
+                const __uint128_t r = u - q * v;
 
-            int128_param_t quotient{0};
-            quotient.data[0] = static_cast<uint64_t>(q);
-            quotient.data[1] = static_cast<uint64_t>(q >> 64);
+                int128_param_t quotient{0};
+                quotient.data[0] = static_cast<uint64_t>(q);
+                quotient.data[1] = static_cast<uint64_t>(q >> 64);
 
-            int128_param_t remainder{0};
-            remainder.data[0] = static_cast<uint64_t>(r);
-            remainder.data[1] = static_cast<uint64_t>(r >> 64);
+                int128_param_t remainder{0};
+                remainder.data[0] = static_cast<uint64_t>(r);
+                remainder.data[1] = static_cast<uint64_t>(r >> 64);
 
-            return {quotient, remainder};
-#else
-            // Fallback: MSVC or no __uint128_t → use binary long division
-            return big_bin_divrem(divisor);
+                return {quotient, remainder};
+            }
 #endif
+            // Fallback: MSVC (128/128 case or constexpr) → binary long division
+            return big_bin_divrem(divisor);
         }
 
     public:
