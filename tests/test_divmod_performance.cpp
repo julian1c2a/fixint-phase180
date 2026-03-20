@@ -81,13 +81,13 @@ void test_divmod_128_by_64()
 void test_divmod_128_by_128()
 {
     // Full 128-bit division
-    // Constructor is (high, low), stores as data{low, high}
-    // dividend{0x8000000000000000, 0x0} = data{0x0, 0x8000000000000000} = 2^127
-    // divisor{0x2, 0x0} = data{0x0, 0x2} = 2
+    // Constructor is (high, low)
+    // dividend{0x8000000000000000, 0x0} = high=2^63, low=0 = 2^127
+    // divisor{0x0, 0x2} = high=0, low=2 = 2
     // Expected: quotient = 2^126, remainder = 0
 
     const uint128_t dividend{0x8000000000000000ULL, 0x0};
-    const uint128_t divisor{0x2, 0x0};
+    const uint128_t divisor{0x0, 0x2};
 
     auto [quotient, remainder] = dividend.divmod(divisor);
 
@@ -104,30 +104,47 @@ void test_divmod_128_by_128()
     std::cerr << "  Quotient bits:    low_bits=" << (quotient.low() & 0xFF) << " high_bits=" << (quotient.high() & 0xFF) << "\n";
     std::cerr << "  Expected bits:    low_bits=" << (expected_quotient.low() & 0xFF) << " high_bits=" << (expected_quotient.high() & 0xFF) << "\n";
     std::cerr << std::dec;
-    const uint128_t expected_quotient{0x0, 100ULL};
-    const uint128_t expected_remainder{0x0, 0ULL};
 
     if (quotient != expected_quotient || remainder != expected_remainder)
     {
-        std::cerr << "\n[FAIL] Division by 10 incorrect\n";
+        std::cerr << "\n[FAIL] 128-by-128 division incorrect\n";
         std::exit(1);
     }
 }
 
-// Test division by 3
+void test_divmod_small_divisors()
 {
-    const uint128_t divisor{0x0, 3ULL};
-    auto [quotient, remainder] = dividend.divmod(divisor);
+    const uint128_t dividend{0x0, 1000ULL};
 
-    const uint128_t expected_quotient{0x0, 333ULL};
-    const uint128_t expected_remainder{0x0, 1ULL};
-
-    if (quotient != expected_quotient || remainder != expected_remainder)
+    // Test division by 10
     {
-        std::cerr << "\n[FAIL] Division by 3 incorrect\n";
-        std::exit(1);
+        const uint128_t divisor{0x0, 10ULL};
+        auto [quotient, remainder] = dividend.divmod(divisor);
+
+        const uint128_t expected_quotient{0x0, 100ULL};
+        const uint128_t expected_remainder{0x0, 0ULL};
+
+        if (quotient != expected_quotient || remainder != expected_remainder)
+        {
+            std::cerr << "\n[FAIL] Division by 10 incorrect\n";
+            std::exit(1);
+        }
     }
-}
+
+    // Test division by 3
+    {
+        const uint128_t divisor{0x0, 3ULL};
+        auto [quotient, remainder] = dividend.divmod(divisor);
+
+        const uint128_t expected_quotient{0x0, 333ULL};
+        const uint128_t expected_remainder{0x0, 1ULL};
+
+        if (quotient != expected_quotient || remainder != expected_remainder)
+        {
+            std::cerr << "\n[FAIL] Division by 3 incorrect\n";
+            std::exit(1);
+        }
+    }
 }
 
 void test_divmod_trailing_zeros_optimization()

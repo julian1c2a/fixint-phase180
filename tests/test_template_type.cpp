@@ -5,39 +5,23 @@
 
 using namespace nstd;
 
-// Helper to print type name
-template <typename T>
-const char *type_name()
-{
-    if constexpr (std::is_same_v<T, int>)
-        return "int";
-    if constexpr (std::is_same_v<T, long>)
-        return "long";
-    if constexpr (std::is_same_v<T, long long>)
-        return "long long";
-    if constexpr (std::is_same_v<T, unsigned int>)
-        return "unsigned int";
-    if constexpr (std::is_same_v<T, unsigned long>)
-        return "unsigned long";
-    if constexpr (std::is_same_v<T, unsigned long long>)
-        return "unsigned long long";
-    return "unknown";
-}
-
-// Modified constructor for testing
-template <signedness Sign, representation_form Form>
-template <typename T, typename>
-constexpr int128_param_t<Sign, Form>::int128_param_t(T value) noexcept : data{0, 0}
-{
-    // This won't compile, but shows concept - we need to add diagnostics to actual constructor
-    std::cout << "Constructor called with T = " << type_name<T>() << std::endl;
-    std::cout << "is_signed_v<T> = " << std::is_signed_v<T> << std::endl;
-    std::cout << "is_excess_k = " << int128_param_t<Sign, Form>::is_excess_k << std::endl;
-}
-
 int main()
 {
-    // This should instantiate int128_param_t(int)
-    int128_ek_t value{100};
+    // Verify that int128_ek_t can be constructed from int
+    const int128_ek_t value{100};
+
+    std::cout << "int128_ek_t{100} constructed successfully\n";
+    std::cout << "  low()  = " << value.low() << "\n";
+    std::cout << "  high() = " << value.high() << "\n";
+    std::cout << "  is_zero() = " << value.is_zero() << "\n";
+
+    // Verify basic type traits
+    std::cout << "\nType traits:\n";
+    std::cout << "  uint128_t is int128_param_t<unsigned_type, binnat>: "
+              << std::is_same_v<uint128_t, int128_param_t<signedness::unsigned_type, representation_form::binnat>> << "\n";
+    std::cout << "  int128_tc_t is int128_param_t<signed_type, twos_complement>: "
+              << std::is_same_v<int128_tc_t, int128_param_t<signedness::signed_type, representation_form::twos_complement>> << "\n";
+
+    std::cout << "\n[OK] Template type test passed\n";
     return 0;
 }
