@@ -1,5 +1,10 @@
 # AI Agent Instructions for int128 Project
 
+> **⚠️ SYNC NOTE — MASTER FILE**
+> Este archivo es la **fuente canónica** de reglas para agentes IA.
+> Existe una copia hermana en `.github/copilot-instructions.md` (requerida por GitHub Copilot).
+> **Cualquier edición debe hacerse AQUÍ PRIMERO y luego replicarse en la copia.**
+
 ## ⚠️ CRITICAL RULES
 
 ### 0. Compiler Paths (CRITICAL - DO NOT CHANGE)

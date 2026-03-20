@@ -1,5 +1,10 @@
 # AI Agent Instructions for int128 Project
 
+> **⚠️ SYNC NOTE — MIRROR FILE**
+> Este archivo es una copia de `AI_PROMPT/ai-instructions.md` (el master).
+> GitHub Copilot requiere este archivo en `.github/copilot-instructions.md`.
+> **NO editar directamente — editar el master y replicar aquí.**
+
 ## ⚠️ CRITICAL RULES
 
 ### 0. Compiler Paths (CRITICAL - DO NOT CHANGE)
