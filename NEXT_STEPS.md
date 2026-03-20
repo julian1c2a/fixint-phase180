@@ -1,7 +1,7 @@
 # 🔮 NEXT STEPS - Post-Phase 1.75
 
 **Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 12/12 ✅ | Intrinsics ✅ | Cross-Repr ✅ | API Docs ✅
-**Last Updated:** 27 June 2026
+**Last Updated:** 21 March 2026
 **Focus:** All phases complete — Future work: BCD types, benchmark methodology, Granlund-Montgomery, Karatsuba
 
 ---
@@ -261,10 +261,12 @@ Created comprehensive STL type traits integration:
 
 ### NEW: Benchmark & Testing Methodology Overhaul
 
-**Status:** Planned | **Priority:** High | **Docs:** `docs/PLAN_BENCHMARK_AND_TESTING_METHODOLOGY.md`
+**Status:** In Progress | **Priority:** High | **Docs:** `docs/PLAN_BENCHMARK_AND_TESTING_METHODOLOGY.md`
 
 1. **RDTSC-only benchmarks:** Migrar todos los benchmarks a medición de ciclos CPU directos (RDTSC).
-   `benchmark_divmod_algorithms.cpp` aún usa `std::chrono` y debe migrarse.
+   - ✅ `benchmark_vs_builtin.cpp` -- ya usa RDTSC.
+   - ✅ `benchmark_divmod_algorithms.cpp` -- migrado a `bench_common.hpp` (sesión 21 Mar 2026).
+   - ⬜ Validar `bench_common.hpp` con MSVC e Intel (Crítica 5).
 2. **Cobertura sistemática 3-regiones:**
    - 1-arg: primeros 2^21, últimos 2^21, 2^21 aleatorios + edge cases (~6.3M valores)
    - 2-arg: 6 combinaciones de las 3 regiones (~12.6M pares + edge cases)
@@ -449,4 +451,4 @@ See `docs/archive/` for historical session documentation.
 
 ---
 
-**Report generated:** 20 March 2026
+**Report generated:** 21 March 2026
