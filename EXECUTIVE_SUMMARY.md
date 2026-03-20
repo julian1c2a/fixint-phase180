@@ -1,8 +1,8 @@
 # Executive Summary - Phase 1.75 int128 Library
 
-## Last Updated: 18 March 2026
+## Last Updated: 20 March 2026
 
-## 🎯 Project Status: ALL 6 PHASES COMPLETE ✅
+## 🎯 Project Status: ALL 6 PHASES COMPLETE + TEST SUITE FIXED ✅
 
 ### Total Achievements
 
@@ -17,6 +17,7 @@
 | vs __int128 | **20x faster** |
 | Intrinsics Audit | ✅ All `__builtin_*` unified |
 | Code Size | 3,534 lines (main header) |
+| run_all_tests.bash | **23/23 PASS** (GCC ucrt64 -O2) |
 
 ### Phase Completion
 
@@ -82,10 +83,18 @@
 - 7 critical issues fixed in bits.hpp and numeric.hpp
 - Full cross-compiler portability verified
 
+### Bug Fixed (20 March 2026)
+
+**MS `operator++` -0→+1 special case** (`include/int128_parameterized.hpp`):
+
+- `++(-0)` previously corrupted the magnitude, producing a huge positive value
+- Fixed by adding the symmetric guard to the existing `+0 → -1` case in `operator--`
+
 ### Known Limitations
 
 - ⚠️ MS operator*= not implemented (multiplication gives wrong results)
-- ⚠️ EK arithmetic not supported for *, /, % (requires bias adjustment)
+- ⚠️ EK arithmetic not supported for `*`, `/`, `%` (requires bias adjustment)
+- ⚠️ Cross-representation casts (MS↔TC↔EK) not implemented
 
 ---
 

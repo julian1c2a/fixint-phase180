@@ -1,7 +1,7 @@
 # 🔮 NEXT STEPS - Post-Phase 1.75
 
-**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 12/12 ✅ | Intrinsics Audit ✅  
-**Last Updated:** 18 March 2026  
+**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 12/12 ✅ | Intrinsics Audit ✅ | Test Suite Fixed ✅
+**Last Updated:** 20 March 2026
 **Focus:** All phases complete — Future work items below
 
 ---
@@ -266,8 +266,16 @@ All tests passing: GCC ✅ 30/30 + 25/25, Clang ✅ 30/30 + 25/25, MSVC ✅ 30/3
 ### 3. Known Issues: MS/EK
 
 - **MS operator*=**: Not implemented (multiplication gives wrong results)
-- **EK arithmetic**: *, /, % require bias adjustment — currently syntactic, not semantic
+- **EK arithmetic**: `*`, `/`, `%` require bias adjustment — currently syntactic, not semantic
+- **Cross-representation casts (MS↔TC↔EK)**: Not implemented — no constructor or conversion operator between different `representation_form` instantiations (`test_casts_between_representations` disabled with `#if 0`)
 - See [OPERATOR_SEMANTICS.md](OPERATOR_SEMANTICS.md) for details
+
+### 4. MSYS2 ucrt64 GCC Platform Issue (documented)
+
+- `std::ofstream` inside a non-main function at -O1+ causes segfault on MSYS2 ucrt64 GCC 15.2.0
+- Root cause: Windows C++ runtime initialization order with MSYS2 ucrt64 runtime
+- Workaround: avoid `std::ofstream` in non-main functions in test files
+- `-fno-inline` suppresses the crash but is not a fix
 
 ### 4. Phase 5 WSL Validation — ✅ COMPLETE
 
@@ -296,9 +304,6 @@ Phase 1.75 has achieved:
 Previous session plans, execution plans, and recommendations have been archived.
 See `docs/archive/` for historical session documentation.
 
-**First task for tomorrow:**
-Start reviewing `test_priority1_constructors.cpp` and proceed sequentially through all test files.
-
 ---
 
-**Report generated:** January 19, 2026
+**Report generated:** 20 March 2026
