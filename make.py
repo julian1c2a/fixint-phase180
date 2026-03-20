@@ -248,17 +248,46 @@ def cmd_clean(args: argparse.Namespace) -> int:
     return 0
 
 
+def discover_tests() -> Dict[str, Path]:
+    """Discover all test .cpp files in tests/ directory.
+    Returns dict mapping feature_name -> source file path.
+    """
+    tests = {}
+
+    # test_param_*.cpp -> feature name (parameterized feature tests)
+    for f in sorted(TESTS_DIR.glob("test_param_*.cpp")):
+        feature = f.stem[len("test_param_"):]
+        tests[feature] = f
+
+    # test_*.cpp (non-param) -> feature name (priority + standalone tests)
+    for f in sorted(TESTS_DIR.glob("test_*.cpp")):
+        if f.stem.startswith("test_param_"):
+            continue
+        feature = f.stem[len("test_"):]
+        tests[feature] = f
+
+    return tests
+
+
+def discover_benchmarks() -> Dict[str, Path]:
+    """Discover all benchmark .cpp files in benchs/ directory."""
+    benchs = {}
+    for f in sorted(BENCHS_DIR.glob("*.cpp")):
+        if f.stem.startswith("benchmark_"):
+            name = f.stem[len("benchmark_"):]
+        else:
+            name = f.stem
+        benchs[name] = f
+    return benchs
+
+
 def get_all_combinations() -> List[Tuple[str, str]]:
-    """Obtiene todas las combinaciones type-feature disponibles"""
-    combinations = []
-    
-    for tests_file in TESTS_DIR.glob("*_*_extracted_tests.cpp"):
-        name = tests_file.stem
-        parts = name.replace("_extracted_tests", "").split("_", 1)
-        if len(parts) == 2:
-            combinations.append((parts[0], parts[1]))
-    
-    return sorted(set(combinations))
+    """Get all (type, feature) combinations for build/check commands.
+    Type is always 'uint128' since Phase 1.75 tests are type-agnostic
+    (the parameterized template handles all representations).
+    """
+    tests = discover_tests()
+    return [("uint128", feature) for feature in sorted(tests.keys())]
 
 
 def cmd_all(args: argparse.Namespace) -> int:
@@ -571,30 +600,72 @@ def cmd_compare(args: argparse.Namespace) -> int:
 
 def cmd_list(args: argparse.Namespace) -> int:
     """Lista todas las combinaciones disponibles"""
+    tests = discover_tests()
+    benchs = discover_benchmarks()
+
+    # Categorize tests
+    param_tests = {}
+    priority_tests = {}
+    standalone_tests = {}
+    for name, path in tests.items():
+        if (TESTS_DIR / f"test_param_{name}.cpp").exists():
+            param_tests[name] = path
+        elif name.startswith("priority"):
+            priority_tests[name] = path
+        else:
+            standalone_tests[name] = path
+
     echo_header("=" * 60)
-    echo_header("  TESTS/BENCHMARKS DISPONIBLES")
+    echo_header("  PARAMETERIZED FEATURE TESTS")
     echo_header("=" * 60)
     print()
-    
-    combinations = get_all_combinations()
-    
-    if combinations:
-        echo_info(f"Encontradas {len(combinations)} combinaciones:")
-        for type_name, feature in combinations:
-            print(f"  • {type_name}_{feature}")
+    if param_tests:
+        echo_info(f"{len(param_tests)} tests:")
+        for name in sorted(param_tests):
+            print(f"  - {name:30s} ({param_tests[name].name})")
+    print()
+
+    echo_header("=" * 60)
+    echo_header("  PRIORITY TESTS")
+    echo_header("=" * 60)
+    print()
+    if priority_tests:
+        echo_info(f"{len(priority_tests)} tests:")
+        for name in sorted(priority_tests, key=lambda x: (len(x), x)):
+            print(f"  - {name:30s} ({priority_tests[name].name})")
+    print()
+
+    echo_header("=" * 60)
+    echo_header("  STANDALONE TESTS")
+    echo_header("=" * 60)
+    print()
+    if standalone_tests:
+        echo_info(f"{len(standalone_tests)} tests:")
+        for name in sorted(standalone_tests):
+            print(f"  - {name:30s} ({standalone_tests[name].name})")
+    print()
+
+    echo_header("=" * 60)
+    echo_header("  BENCHMARKS")
+    echo_header("=" * 60)
+    print()
+    if benchs:
+        echo_info(f"{len(benchs)} benchmarks:")
+        for name in sorted(benchs):
+            print(f"  - {name:30s} ({benchs[name].name})")
     else:
-        echo_warning("No se encontraron archivos de tests/benchs")
-    
+        echo_warning("No benchmarks found")
+    print()
+
     # Listar demos
-    print()
     echo_header("=" * 60)
-    echo_header("  DEMOS DISPONIBLES")
+    echo_header("  DEMOS")
     echo_header("=" * 60)
     print()
-    
+
     categories = ["general", "tutorials", "examples", "showcase", "comparison", "performance", "integration"]
     total_demos = 0
-    
+
     for category in categories:
         category_dir = DEMOS_DIR / category
         if category_dir.exists():
@@ -602,12 +673,15 @@ def cmd_list(args: argparse.Namespace) -> int:
             if demos:
                 echo_info(f"{category}/ ({len(demos)} demos):")
                 for demo in sorted(demos):
-                    print(f"  • {demo.stem}")
+                    print(f"  - {demo.stem}")
                 total_demos += len(demos)
-    
+
+    if total_demos == 0:
+        echo_warning("No demos found")
     print()
-    echo_success(f"Total: {len(combinations)} tests/benchs + {total_demos} demos")
-    
+
+    echo_success(f"Total: {len(tests)} tests + {len(benchs)} benchmarks + {total_demos} demos")
+
     # Mostrar compiladores disponibles
     if COMPILER_ENVS_DIR.exists():
         configs = list(COMPILER_ENVS_DIR.glob("*_env.json"))
@@ -616,8 +690,8 @@ def cmd_list(args: argparse.Namespace) -> int:
             echo_info("Compiladores configurados:")
             for config in sorted(configs):
                 compiler = config.stem.replace("_env", "")
-                print(f"  • {compiler}")
-    
+                print(f"  - {compiler}")
+
     return 0
 
 

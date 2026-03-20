@@ -297,13 +297,6 @@ def main():
             print("Error: TYPE debe ser 'uint128' o 'int128'")
             sys.exit(1)
         
-        valid_features = ["t", "tt", "traits", "limits", "concepts", "algorithm", "algorithms", "iostreams",
-                          "bits", "cmath", "numeric", "ranges", "format", "safe",
-                          "thread_safety", "comparison_boost", "interop", "priority6_bitwise"]
-        if feature not in valid_features:
-            print(f"Error: FEATURE debe ser uno de: {', '.join(valid_features)}")
-            sys.exit(1)
-        
         if target not in ["tests", "benchs"]:
             print("Error: TARGET debe ser 'tests' o 'benchs'")
             sys.exit(1)
@@ -330,17 +323,37 @@ def main():
         output_suffix = demo_name  # Output name is the demo name
         echo_info(f"Building demo: {category}/{demo_name}...")
     elif target == "tests":
-        if feature in ["bits", "cmath", "iostreams", "limits", "numeric", "traits", "concepts", "algorithm"]:
-            source_file = f"tests/test_param_{feature}.cpp"
-        elif feature == "priority6_bitwise":
-            source_file = "tests/test_priority6_bitwise.cpp"
+        # Dynamic source file discovery: try test_param_, test_, then legacy pattern
+        param_file = Path(f"tests/test_param_{feature}.cpp")
+        direct_file = Path(f"tests/test_{feature}.cpp")
+        legacy_file = Path(f"tests/{type_name}_{feature}_extracted_tests.cpp")
+
+        if param_file.exists():
+            source_file = str(param_file)
+        elif direct_file.exists():
+            source_file = str(direct_file)
+        elif legacy_file.exists():
+            source_file = str(legacy_file)
         else:
-            source_file = f"tests/{type_name}_{feature}_extracted_tests.cpp"
+            echo_error(f"No test file found for feature '{feature}'")
+            echo_error(f"  Tried: {param_file}, {direct_file}, {legacy_file}")
+            sys.exit(1)
         build_dir = "build/build_tests"
         output_suffix = "tests"
         echo_info(f"Building {type_name} {feature} {target} for all compilers...")
     else:  # benchs
-        source_file = f"benchs/{type_name}_{feature}_extracted_benchs.cpp"
+        # Dynamic benchmark file discovery
+        bench_file = Path(f"benchs/benchmark_{feature}.cpp")
+        legacy_bench = Path(f"benchs/{type_name}_{feature}_extracted_benchs.cpp")
+
+        if bench_file.exists():
+            source_file = str(bench_file)
+        elif legacy_bench.exists():
+            source_file = str(legacy_bench)
+        else:
+            echo_error(f"No benchmark file found for feature '{feature}'")
+            echo_error(f"  Tried: {bench_file}, {legacy_bench}")
+            sys.exit(1)
         build_dir = "build/build_benchs"
         output_suffix = "benchs"
         echo_info(f"Building {type_name} {feature} {target} for all compilers...")
