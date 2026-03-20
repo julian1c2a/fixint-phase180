@@ -208,7 +208,7 @@ namespace nstd
          * @details For unsigned: 0
          *          For TC signed: 0x8000... (-2^127)
          *          For MS signed: magnitude 0x7FFF..., sign=1 (-2^127 + 1 because no -0)
-         *          For EK signed: stored value = -2^127 + K (real min = -2^127)
+         *          For EK signed: stored value = 0 (real min = -K = -2^126)
          */
         static constexpr int128_param_t min() noexcept
         {
@@ -539,6 +539,42 @@ namespace nstd
 
         constexpr int128_param_t &operator=(const int128_param_t &) noexcept = default;
         constexpr int128_param_t &operator=(int128_param_t &&) noexcept = default;
+
+        // ===================== Cross-Representation Assignment Operators =====================
+
+        /// @brief Cross-representation copy assignment operator
+        ///
+        /// Converts and assigns from any other valid int128_param_t instantiation.
+        /// Uses the same conversion strategy as the cross-representation constructors:
+        ///   binnat ↔ TC: C++20 modular bit reinterpretation
+        ///   TC ↔ MS, TC ↔ EK, MS ↔ EK: via representation.hpp conversion functions
+        ///   binnat ↔ MS, binnat ↔ EK: via TC as pivot
+        ///
+        /// @tparam S2 Source signedness
+        /// @tparam F2 Source representation form
+        /// @note Use: target = static_cast<target_t>(source); or target = target_t{source};
+        template <signedness S2, representation_form F2,
+                  typename = std::enable_if_t<(S2 != Sign) || (F2 != Form)>>
+        constexpr int128_param_t &operator=(const int128_param_t<S2, F2> &other) noexcept
+        {
+            convert_from<S2, F2>(other.high(), other.low());
+            return *this;
+        }
+
+        /// @brief Cross-representation move assignment operator
+        ///
+        /// Same semantics as copy — for trivial types move == copy,
+        /// but provided for completeness and API symmetry.
+        ///
+        /// @tparam S2 Source signedness
+        /// @tparam F2 Source representation form
+        template <signedness S2, representation_form F2,
+                  typename = std::enable_if_t<(S2 != Sign) || (F2 != Form)>>
+        constexpr int128_param_t &operator=(int128_param_t<S2, F2> &&other) noexcept
+        {
+            convert_from<S2, F2>(other.high(), other.low());
+            return *this;
+        }
 
         // ===================== Public API =====================
 
@@ -1421,6 +1457,80 @@ namespace nstd
         }
 
         // ========================================================================
+        // Integral Conversions
+        // ========================================================================
+
+        /// @brief Explicit conversion to bool
+        ///
+        /// @return true if value is non-zero, false if zero
+        /// @note Representation-aware: uses is_zero() which handles EK/MS/TC/binnat
+        [[nodiscard]] explicit constexpr operator bool() const noexcept
+        {
+            return !is_zero();
+        }
+
+        /// @brief Explicit conversion to built-in integral type
+        ///
+        /// @tparam T Target integral type (uint64_t, int64_t, uint32_t, int, etc.)
+        /// @return Truncated value in target type
+        ///
+        /// @details Semantics mirror standard C++ narrowing conversions:
+        ///   - For unsigned targets: modular truncation of the magnitude
+        ///   - For signed targets: implementation-defined (C++20: modular)
+        ///   - For MS/EK: converts to real value first, then truncates
+        ///   - Values exceeding target range are truncated (no saturation)
+        ///
+        /// @example
+        /// @code
+        ///   const uint128_t big{0x1, 0x00000000DEADBEEF};
+        ///   const auto lo = static_cast<uint64_t>(big);  // 0x00000000DEADBEEF
+        ///   const auto lo32 = static_cast<uint32_t>(big); // 0xDEADBEEF
+        /// @endcode
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        [[nodiscard]] explicit constexpr operator T() const noexcept
+        {
+            if constexpr (is_magnitude_sign && is_signed)
+            {
+                // MS: extract magnitude, apply sign
+                const std::uint64_t mag_low{data[0]};
+                const bool negative{(data[1] & (1ULL << 63)) != 0};
+                if constexpr (std::is_signed_v<T>)
+                {
+                    const auto unsigned_val{static_cast<std::make_unsigned_t<T>>(mag_low)};
+                    return negative
+                               ? static_cast<T>(-static_cast<std::make_unsigned_t<T>>(unsigned_val))
+                               : static_cast<T>(unsigned_val);
+                }
+                else
+                {
+                    // unsigned target from signed source: modular
+                    if (negative)
+                    {
+                        return static_cast<T>(-static_cast<std::uint64_t>(mag_low));
+                    }
+                    return static_cast<T>(mag_low);
+                }
+            }
+            else if constexpr (is_excess_k && is_signed)
+            {
+                // EK: stored - bias = real value
+                constexpr std::uint64_t bias_high{1ULL << 62};
+                // Subtract bias to get TC-like value
+                const std::uint64_t borrow{(data[0] < 0ULL) ? 1ULL : 0ULL};
+                const std::uint64_t real_low{data[0] - 0ULL}; // bias_low == 0
+                const std::uint64_t real_high{data[1] - bias_high - borrow};
+                // Now real_high:real_low is in TC interpretation
+                return static_cast<T>(real_low);
+            }
+            else
+            {
+                // TC and binnat: direct truncation (C++20 modular semantics)
+                return static_cast<T>(data[0]);
+            }
+        }
+
+        // ========================================================================
         // Float/Double Conversions (Priority 10)
         // ========================================================================
 
@@ -1493,6 +1603,31 @@ namespace nstd
             }
             return static_cast<long double>(data[1]) * 18446744073709551616.0L +
                    static_cast<long double>(data[0]);
+        }
+
+        // ========================================================================
+        // Cross-Representation Explicit Cast Operators
+        // ========================================================================
+
+        /// @brief Explicit conversion to another int128_param_t representation
+        ///
+        /// Enables: static_cast<int128_tc_t>(ms_value)
+        ///          static_cast<uint128_t>(tc_value)
+        ///          etc.
+        ///
+        /// Uses the same conversion strategy as cross-representation constructors:
+        ///   binnat ↔ TC: C++20 modular bit reinterpretation
+        ///   TC ↔ MS, TC ↔ EK, MS ↔ EK: via representation.hpp conversion functions
+        ///   binnat ↔ MS, binnat ↔ EK: via TC as pivot
+        ///
+        /// @tparam S2 Target signedness
+        /// @tparam F2 Target representation form
+        /// @return New int128_param_t<S2, F2> with converted value
+        template <signedness S2, representation_form F2,
+                  typename = std::enable_if_t<(S2 != Sign) || (F2 != Form)>>
+        [[nodiscard]] explicit constexpr operator int128_param_t<S2, F2>() const noexcept
+        {
+            return int128_param_t<S2, F2>{*this};
         }
 
         /**
