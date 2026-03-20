@@ -258,6 +258,70 @@ Ver [WORKFLOW_OBLIGATORIO.md](../WORKFLOW_OBLIGATORIO.md) para:
 
 ---
 
+### 8. Test & Benchmark Methodology (MANDATORY) 🔴
+
+**⚠️ CRITICAL — La metodología de testing y benchmarking es NO NEGOCIABLE.**
+
+#### 8a. Benchmarks: Medir Ciclos CPU (RDTSC), NO Tiempo
+
+**NUNCA usar `std::chrono` para benchmarks. SIEMPRE usar `rdtsc()` (ciclos CPU directos):**
+
+```cpp
+// ✅ CORRECTO - Ciclos directos:
+CycleTimer timer;
+timer.start();
+for (uint64_t i{0}; i < BENCH_ITERATIONS; ++i) {
+    doNotOptimize(operation(value));
+}
+const uint64_t cycles{timer.elapsed_cycles()};
+const double cycles_per_op{static_cast<double>(cycles) / BENCH_ITERATIONS};
+
+// ❌ INCORRECTO - Tiempo dividido por periodo:
+auto start = std::chrono::high_resolution_clock::now();
+// ... iterations ...
+auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+```
+
+**Protocolo obligatorio:**
+
+- **Warmup:** 10,000 iteraciones mínimo
+- **Medición:** 5,000,000 iteraciones mínimo
+- **Anti-optimize:** Toda operación DEBE pasar por `doNotOptimize()`
+- **Baseline:** Siempre medir `uint64_t` como referencia
+- **Reporte:** ciclos/op + ratio vs baseline
+
+**Infraestructura de referencia:** `benchs/benchmark_vs_builtin.cpp` (CycleTimer, rdtsc(), doNotOptimize)
+
+#### 8b. Cobertura Sistemática de Tests y Benchmarks
+
+**Para funciones de 1 argumento f(x):**
+
+| Región | Rango | Cantidad |
+|--------|-------|----------|
+| Primeros | `[0, 2^21 - 1]` | 2,097,152 |
+| Últimos | `[MAX - 2^21 + 1, MAX]` | 2,097,152 |
+| Aleatorios | Distribución uniforme intermedia | 2,097,152 |
+| Edge cases | 0, 1, MAX, MAX-1, 2^64-1, 2^64, potencias de 2 | Variable |
+
+**Para funciones de 2 argumentos g(x,y) — las 6 combinaciones:**
+
+| # | x | y |
+|---|---|---|
+| 1 | Primeros | Primeros |
+| 2 | Primeros | Últimos |
+| 3 | Primeros | Aleatorio |
+| 4 | Últimos | Últimos |
+| 5 | Últimos | Aleatorio |
+| 6 | Aleatorio | Aleatorio |
+
+**Total mínimo:** ~6.3M valores (1-arg) o ~12.6M pares (2-arg) + edge cases.
+
+**PRNG determinista obligatorio** (semilla fija) para reproducibilidad de tests.
+
+**Documentación completa:** [PLAN_BENCHMARK_AND_TESTING_METHODOLOGY.md](../docs/PLAN_BENCHMARK_AND_TESTING_METHODOLOGY.md)
+
+---
+
 ## 📜 License Header (MANDATORY)
 
 **ALL headers (.hpp) and library source files (.cpp) MUST include this header:**

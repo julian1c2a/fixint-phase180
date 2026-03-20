@@ -1,8 +1,8 @@
 # 🔮 NEXT STEPS - Post-Phase 1.75
 
 **Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 12/12 ✅ | Intrinsics ✅ | Cross-Repr ✅ | API Docs ✅
-**Last Updated:** 25 June 2026
-**Focus:** All phases complete — Future work items below
+**Last Updated:** 26 June 2026
+**Focus:** All phases complete — Future work: BCD types, benchmark methodology, Granlund-Montgomery
 
 ---
 
@@ -259,6 +259,37 @@ Created comprehensive STL type traits integration:
 
 ## 📅 FUTURE WORK ITEMS
 
+### NEW: Benchmark & Testing Methodology Overhaul
+
+**Status:** Planned | **Priority:** High | **Docs:** `docs/PLAN_BENCHMARK_AND_TESTING_METHODOLOGY.md`
+
+1. **RDTSC-only benchmarks:** Migrar todos los benchmarks a medición de ciclos CPU directos (RDTSC).
+   `benchmark_divmod_algorithms.cpp` aún usa `std::chrono` y debe migrarse.
+2. **Cobertura sistemática 3-regiones:**
+   - 1-arg: primeros 2^21, últimos 2^21, 2^21 aleatorios + edge cases (~6.3M valores)
+   - 2-arg: 6 combinaciones de las 3 regiones (~12.6M pares + edge cases)
+3. **Regla formalizada** en `AI_PROMPT/ai-instructions.md` como Regla 8 (Test & Benchmark Methodology).
+
+### NEW: BCD Decimal Types (Base-10 Parameterized)
+
+**Status:** Planned | **Priority:** Medium-High | **Docs:** `docs/PLAN_BCD_DECIMAL_TYPES.md`
+
+Tipo parametrizado en base 10 con codificación BCD dentro de 128 bits (32 dígitos decimales):
+
+- **BCD Natural (8-4-2-1):** Para unsigned y Excess-K — aritmética decimal estándar.
+- **BCD Aiken (2-4-2-1):** Para signed (TC, MS) — auto-complementario: `~d = 9-d`.
+- **Proyección futura:** Base para punto flotante decimal (IEEE 754-2008 decimal128).
+- **Casos de uso:** Aritmética financiera, protocolos telecom/banking, conversión string O(n).
+
+### NEW: Granlund-Montgomery Division Optimization
+
+**Status:** Planned | **Docs:** `docs/PLAN_DIVMOD_CONSTEXPR.md`
+
+División constexpr por constantes en tiempo de compilación usando multiplicación recíproca.
+17 headers legacy analizados en `legacy-code/divmod_by_constexpr/`.
+
+---
+
 ### 1. Comparative Benchmarking — ✅ COMPLETE (19 March 2026, session 2)
 
 All 9 compiler/mode combinations benchmarked:
@@ -320,6 +351,35 @@ Phase 1.75 has achieved:
 - ✅ **Modern C++20** (format, ranges, concepts)
 - ✅ **12-compiler validation** (4 Windows + 8 WSL)
 - ✅ **Intrinsics unified** (cross-compiler abstraction layer)
+- ✅ **14 API reference docs** (~280 public symbols documented)
+
+## 📊 PROJECT PROJECTIONS
+
+### Roadmap Estimado
+
+| Phase | Contenido | Estado |
+|-------|-----------|--------|
+| **1.75** | Parameterized type (4 reprs), 12 feature headers, Knuth D, intrinsics, cross-repr, API docs | ✅ **COMPLETE** |
+| **1.80** | BCD base-10 types (Natural + Aiken), benchmark methodology overhaul, Granlund-Montgomery | 📋 PLANNED |
+| **1.85** | Decimal128 floating point (IEEE 754-2008), DPD/BID encoding | 📋 FUTURE |
+| **2.0** | Production release: full numeric tower (binary + decimal, integer + float) | 📋 FUTURE |
+
+### Objetivos Pendientes (del plan original de 12)
+
+- **Objetivo 9 (Etapa 9):** Diseño e implementación de tipos BCD → Phase 1.80
+- **Objetivo 12:** Punto flotante decimal → Phase 1.85
+- **Objetivo 10:** Benchmark methodology sistemática → Phase 1.80
+
+### Métricas de Progreso Global
+
+| Métrica | Actual | Objetivo 2.0 |
+|---------|--------|-------------|
+| Representaciones binarias | 4/4 ✅ | 4/4 |
+| Feature headers (binario) | 12/12 ✅ | 12/12 |
+| Tipos BCD | 0/3 | 3/3 (Natural, Aiken-TC, Aiken-MS) |
+| Decimal float | 0/1 | 1/1 (decimal128) |
+| Compiladores validados | 12 | 12+ |
+| API docs coverage | ~280 symbols | 400+ |
 
 ---
 
