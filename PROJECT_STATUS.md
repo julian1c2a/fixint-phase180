@@ -1,8 +1,8 @@
-# PROJECT STATUS: All Phases Complete + API Documentation + Cross-Repr Operators
+# PROJECT STATUS: All Phases Complete + Benchmark Methodology In Progress
 
-**Date:** 25 June 2026
-**Last Session:** API Reference Docs (14 files) + Cross-Repr Operators + Root Doc Updates
-**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅ + Test Suite Fixed ✅ + API Docs ✅ + Cross-Repr Operators ✅
+**Date:** 21 March 2026
+**Last Session:** Benchmark Methodology Overhaul (divmod migrated to RDTSC)
+**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅ + Test Suite Fixed ✅ + API Docs ✅ + Cross-Repr Operators ✅ + Benchmark Methodology ⏳
 **Current Status:** 🎉 **23/23 tests pass (run_all_tests.bash, GCC ucrt64 -O2) | 168/168 across 12 compilers (18 March)**
 
 ## Phase Status Summary
@@ -235,12 +235,20 @@ All 6 phases, 12 feature headers, and intrinsics audit are complete.
 
 ### Potential Future Work
 
-1. **Granlund-Montgomery constexpr division** — Fast division by compile-time constants (plan ready)
-2. **MS operator*= implementation** — Currently gives wrong results for magnitude-sign
-3. **EK arithmetic** — Requires bias adjustment for *, /, % operators
-4. **CI/CD pipeline** — GitHub Actions for automated builds/tests
-5. **Phase 1.80: N×64-bit generalization** — Arbitrary width integers
-6. **Comparative benchmarking** — Full benchmark suite across all 11 compilers
+1. **Benchmark methodology: validate bench_common.hpp with MSVC/Intel** — Critical portability gap (Crítica 5)
+2. **Benchmark methodology: 3-region systematic coverage** — `test_sweep_framework.hpp` (Crítica 3)
+3. **BCD Decimal Types** — Base-10 parameterized types (Natural + Aiken), plan in `docs/PLAN_BCD_DECIMAL_TYPES.md`
+4. **Granlund-Montgomery constexpr division** — Fast division by compile-time constants (plan ready)
+5. **Karatsuba multiplication** — Sub-quadratic O(n^1.585) for future larger types
+6. **Test runner unificado** — Single script for all tests with global pass/fail (Crítica 2)
+
+### Benchmark Methodology Overhaul (In Progress)
+
+| Benchmark File | RDTSC Status | Notes |
+|----------------|-------------|-------|
+| `benchmark_vs_builtin.cpp` | ✅ RDTSC | Already used `bench_common.hpp` |
+| `benchmark_divmod_algorithms.cpp` | ✅ RDTSC | Migrated 21 Mar 2026 (5M iter, cyc/op) |
+| `bench_common.hpp` cross-compiler | ⚠️ Pending | Only validated GCC + Clang (need MSVC, Intel) |
 
 ## File Status
 
@@ -249,8 +257,8 @@ All 6 phases, 12 feature headers, and intrinsics audit are complete.
 | include/int128_parameterized.hpp | 4,345 | ✅ Production | Knuth D + cross-repr operators |
 | tests/test_knuth_d_correctness.cpp | ~200 | ✅ Production | 30 tests, 6 groups |
 | tests/test_division_operators.cpp | 357 | ✅ Production | 25 tests |
-| benchs/benchmark_divmod_algorithms.cpp | ~330 | ✅ Production | Labels fixed |
-| benchs/benchmark_vs_builtin.cpp | ~500 | ✅ Production | v9 results |
+| benchs/benchmark_divmod_algorithms.cpp | ~250 | ✅ Production | RDTSC (bench_common.hpp), 21 Mar 2026 |
+| benchs/benchmark_vs_builtin.cpp | ~500 | ✅ Production | v9 results, RDTSC |
 | include/int128_param_safe.hpp | 380 | ✅ Production | 34/34 tests |
 
 ## 20 March 2026 — Test Suite & Library Fixes

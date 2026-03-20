@@ -1,3 +1,24 @@
+## [21 March 2026] - Benchmark Methodology Overhaul (session 2)
+
+### 🔄 Migrated: benchmark_divmod_algorithms.cpp to RDTSC
+
+- **Complete rewrite** of measurement infrastructure: `std::chrono` -> `bench_common.hpp`
+- Removed: `<chrono>`, `<sstream>`, `BenchmarkResult` (6 fields), `BenchmarkTimer` class
+- Added: `DivmodResult` struct, `run_divmod_bench()` using `CycleTimer` + `doNotOptimize()`
+- **5M iterations** (was 10K), **10K warmup** (was 1K), configurable via macros
+- Output: tabular cyc/op + ratio vs baseline + winner column (ASCII-only)
+- **Result:** Knuth D 1.92x faster than big_bin on average (GCC -O2)
+- Best fast path: "Divide by one" at 5.70 cyc/op (0.17x ratio)
+- Compiled clean: GCC 15.2.0 ✅, Clang 21.1.8 ✅
+
+### 📝 Documentation Updates
+
+- **NEXT_STEPS.md**: Critica 1 marked as resolved; Benchmark Methodology status -> "In Progress"
+- **PLAN_BENCHMARK_AND_TESTING_METHODOLOGY.md**: Migration table updated (divmod -> RDTSC ✅),
+  section 1 changed from "Migracion Pendiente" to "Migracion Completada"
+
+---
+
 ## [27 June 2026] - Documentation & Infrastructure Update
 
 ### 🆕 New Files

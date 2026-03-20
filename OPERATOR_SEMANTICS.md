@@ -30,9 +30,9 @@ El operador opera sobre los **valores almacenados** sin considerar la semántica
 | **`--`** | ✅ SEMÁNTICO | ✅ SEMÁNTICO | ✅ SEMÁNTICO | EK: decremento binario simple `(x+K)-1 = (x-1)+K` |
 | **`+=`** | ✅ SEMÁNTICO | ✅ SEMÁNTICO | ✅ SEMÁNTICO | EK: `(x+K) + (y+K) = (x+y) + 2K` → resta K |
 | **`-=`** | ✅ SEMÁNTICO | ✅ SEMÁNTICO | ✅ SEMÁNTICO | EK: `(x+K) - (y+K) = (x-y)` → suma K |
-| **`*=`** | ✅ SEMÁNTICO | ✅ SEMÁNTICO | ❌ **SINTÁCTICO** | EK: `(x+K) * (y+K) = xy + K(x+y) + K²` ≠ `xy + K` |
-| **`/=`** | ✅ SEMÁNTICO | ✅ SEMÁNTICO | ❌ **SINTÁCTICO** | Similar a multiplicación, bias contamina resultado |
-| **`%=`** | ✅ SEMÁNTICO | ✅ SEMÁNTICO | ❌ **SINTÁCTICO** | Similar a división |
+| **`*=`** | ✅ SEMÁNTICO | ✅ SEMÁNTICO | 🚫 **`= delete`** | EK: error de compilación (bias contamina resultado) |
+| **`/=`** | ✅ SEMÁNTICO | ✅ SEMÁNTICO | 🚫 **`= delete`** | EK: error de compilación (bias contamina resultado) |
+| **`%=`** | ✅ SEMÁNTICO | ✅ SEMÁNTICO | 🚫 **`= delete`** | EK: error de compilación (bias contamina resultado) |
 | **`<<`** | ✅ SEMÁNTICO | ⚠️ ESPECIAL | ⚠️ SINTÁCTICO | MS preserva bit de signo, EK desplaza valor con bias |
 | **`>>`** | ✅ SEMÁNTICO | ⚠️ ESPECIAL | ⚠️ SINTÁCTICO | MS: aritmético en magnitud, EK: desplaza valor con bias |
 | **`&`** | ✅ SEMÁNTICO | ⚠️ SINTÁCTICO | ⚠️ SINTÁCTICO | MS/EK: opera sobre bits almacenados |
@@ -94,7 +94,7 @@ auto shifted = x << 1;  // ⚠️ Desplaza magnitud, preserva signo (comportamie
 
 - ✅ `++`, `--` son **SEMÁNTICOS** (incremento/decremento binario simple)
 - ✅ `+=`, `-=` son **SEMÁNTICOS** (con compensación de bias para suma de dos valores EK)
-- ❌ `*=`, `/=`, `%=` son **SINTÁCTICOS** (bias contamina resultado)
+- 🚫 `*=`, `/=`, `%=` (y `*`, `/`, `%`) están **`= delete`** — error de compilación si se intentan usar
 - ⚠️ Para multiplicación/división semántica: **convertir a TC, operar, reconvertir**
 
 **Matemática del Bias:**
@@ -123,9 +123,9 @@ int128_ek_t y{20};   // stored: 20 + 2^126
 // ✅ SEMÁNTICOS (con compensación de bias para suma de dos EK)
 auto sum = x + y;    // ✅ sum == 30: (10+K) + (20+K) = 30+2K → subtract K → 30+K
 
-// ❌ SINTÁCTICOS (operan sobre valores con bias)
-auto product = x * y;  // ❌ product ≠ 200 (INCORRECTO)
-                       // Resultado: (10+K) * (20+K) = 200 + K(10+20) + K²
+// 🚫 ERROR DE COMPILACIÓN (operadores eliminados con = delete)
+auto product = x * y;  // 🚫 NO COMPILA (= delete desde Phase 1.75)
+                       // Razón: (10+K) * (20+K) = 200 + K(10+20) + K² ≠ 200+K
 
 // ✅ Multiplicación SEMÁNTICA (requiere conversión):
 int128_tc_t x_tc = convert_to_tc(x);
@@ -164,7 +164,7 @@ int128_ek_t product_ek = convert_to_ek(product_tc);  // ✅ product_ek == 200
 | Necesitas... | Usa TC | Usa MS | Usa EK |
 |-------------|--------|--------|--------|
 | Aritmética general | ✅ | ✅ | ⚠️ |
-| Multiplicación/división | ✅ | ✅ | ❌ |
+| Multiplicación/división | ✅ | ✅ | 🚫 `= delete` |
 | Comparaciones frecuentes | ✅ | ✅ | ✅✅ |
 | Manipulación de bits | ✅ | ❌ | ❌ |
 | Acceso a magnitud/signo por separado | ⚠️ | ✅✅ | ❌ |
@@ -181,8 +181,8 @@ Para operaciones no semánticas en MS o EK, **convierte a TC:**
 // Multiplicación semántica en EK
 int128_ek_t x{10}, y{20};
 
-// ❌ INCORRECTO:
-auto wrong = x * y;  // Sintáctico, resultado incorrecto
+// ❌ INCORRECTO (no compila):
+auto wrong = x * y;  // 🚫 = delete, error de compilación
 
 // ✅ CORRECTO:
 int128_tc_t x_tc{x.to_tc()};        // Conversión a TC
@@ -201,5 +201,5 @@ int128_ek_t product = int128_ek_t::from_tc(product_tc);  // ✅ product == 200
 
 ---
 
-**Última actualización:** 3 February 2026  
+**Última actualización:** 21 March 2026  
 **Autor:** Phase 1.75 Development Team

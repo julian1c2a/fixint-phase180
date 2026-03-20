@@ -1,8 +1,8 @@
 # Executive Summary - Phase 1.75 int128 Library
 
-## Last Updated: 25 June 2026
+## Last Updated: 21 March 2026
 
-## 🎯 Project Status: ALL 6 PHASES COMPLETE + API DOCS + CROSS-REPR OPERATORS ✅
+## 🎯 Project Status: ALL 6 PHASES COMPLETE + BENCHMARK METHODOLOGY IN PROGRESS ✅
 
 ### Total Achievements
 
@@ -96,10 +96,10 @@
 
 ### Known Limitations
 
-- ⚠️ MS operator*= not implemented (multiplication gives wrong results)
-- ⚠️ EK arithmetic not supported for `*`, `/`, `%` (requires bias adjustment)
+- ✅ MS `operator*=` **FIXED** (20 March 2026) — semantic multiplication with magnitude extraction + sign rule
+- 🚫 EK `*`, `/`, `%` are `= delete` (compile-time error by design — bias makes these operations meaningless)
 
-### Recent Additions (March–June 2026)
+### Recent Additions (March 2026)
 
 - ✅ **Cross-representation operators:** Full interop between binnat/TC/MS/EK (copy/move constructors, assignment, explicit conversion methods, built-in integral interop)
 - ✅ **API Reference Documentation:** 14 cppreference-style docs covering ~280 public symbols
@@ -197,6 +197,5 @@
 
 ---
 
-*Report Generated: 5 February 2026 23:59 UTC*
-*Session Duration: 1 hour 48 minutes*
-*Next Milestone: Phase 2 Benchmarking Complete (~30 minutes from now)*
+*Report Generated: 5 February 2026 (original) — Updated: 21 March 2026*
+*Phase 1.75: COMPLETE — Benchmark Methodology Overhaul: IN PROGRESS*
