@@ -1555,14 +1555,27 @@ benchs/baselines/
 6. **ASCII-only en output** de consola C++ — sin Unicode.
 7. **Actualizar CHANGELOG.md** tras cada cambio significativo.
 
-### Modo Interactivo
+### Modo de Trabajo Autónomo
 
-El usuario compila en su terminal (MSYS2, WSL, PowerShell) y reporta logs.
-El agente IA:
+El agente IA tiene **autonomía completa** para ejecutar Python y compilar:
 
-- Propone cambios en código.
-- Espera confirmación antes de cambios mayores.
-- No ejecuta compilaciones largas autónomamente.
+- **Ejecutar Python sin supervisión:** `python make.py ...`, scripts de utilidad, etc.
+- **Compilar sin supervisión:** build, check, test, demo, benchmarks — todo via `make.py`.
+- **Ejecutar tests y reportar resultados** sin esperar confirmación del usuario.
+- **Iterar autónomamente:** editar código → compilar → ejecutar tests → corregir errores.
+
+El agente **NO necesita pedir permiso** para:
+
+- Ejecutar `python make.py build/check/test/demo/run ...`
+- Ejecutar scripts Python auxiliares del proyecto
+- Compilar con cualquier compilador/modo disponible
+- Ejecutar la suite completa de tests
+
+El agente **SÍ debe pedir confirmación** para:
+
+- Operaciones destructivas (`git push --force`, `git reset --hard`, borrar archivos)
+- Cambios arquitecturales mayores que afecten múltiples módulos
+- Operaciones que afecten repositorios remotos o sistemas compartidos
 
 ### Estructura de Respuesta del Agente
 

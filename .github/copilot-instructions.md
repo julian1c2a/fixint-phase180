@@ -24,14 +24,26 @@ All C++ console output must use ASCII only:
 - **CHANGELOG.md**: Update hourly during active development
 - **PROMPT.md**: Reference for all build conventions and naming patterns
 
-### 4. Interactive Work Mode
+### 4. Autonomous Work Mode
+**Agent has FULL AUTONOMY to execute Python and compile without supervision.**
+
 **Report status every ~3 minutes** during active development:
 - Brief summary of progress
 - Any issues encountered
 - Next steps planned
-- Wait for user feedback before major changes
 
-**Agent CAN compile and run tests/benchmarks autonomously** using the terminal.
+**Autonomous actions (NO permission needed):**
+- Execute `python make.py build/check/test/demo/run ...`
+- Run any Python scripts (make.py, utility scripts, etc.)
+- Compile with any compiler/mode
+- Run full test suites and iterate on failures
+- Edit code → compile → test → fix errors autonomously
+
+**Requires user confirmation:**
+- Destructive ops (git push --force, git reset --hard, delete files)
+- Major architectural changes across multiple modules
+- Operations affecting remote repos or shared systems
+
 Keep output files in `build_temp/`. Report results when done.
 
 ### 5. std::byte for Byte Arrays (MANDATORY)
