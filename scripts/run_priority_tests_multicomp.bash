@@ -40,7 +40,7 @@ GCC_EXE="/c/msys64/ucrt64/bin/g++.exe"
 CLANG_EXE="/c/msys64/clang64/bin/clang++.exe"
 
 # vcvarsall.bat paths
-VCVARS_2022="C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat"
+VCVARS_2022="D:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat"
 VCVARS_2026_COMM="C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\VC\\Auxiliary\\Build\\vcvarsall.bat"
 VCVARS_2026_INS="C:\\Program Files\\Microsoft Visual Studio\\18\\Insiders\\VC\\Auxiliary\\Build\\vcvarsall.bat"
 
@@ -106,6 +106,11 @@ run_gcc_clang() {
         debug)   cxxflags="$cxxflags -O0 -g -DDEBUG" ;;
     esac
 
+    # Prepend the compiler's own bin dir so its runtime DLLs (e.g. libc++.dll
+    # for clang64) are found when executing the compiled binary on Windows.
+    local comp_bin_dir
+    comp_bin_dir="$(dirname "$cxx_exe")"
+
     header "  ── $comp_label [$mode] ──"
 
     local pass=0 fail=0
@@ -121,7 +126,7 @@ run_gcc_clang() {
         fi
 
         if "$cxx_exe" $cxxflags "$src" -o "$exe" 2>/dev/null; then
-            if "$exe" >/dev/null 2>&1; then
+            if PATH="${comp_bin_dir}:${PATH}" "$exe" >/dev/null 2>&1; then
                 ok "$test_name"
                 RESULTS["${comp_label}_${mode}_${test_name}"]="PASS"
                 ((pass++)); ((TOTAL_PASS++))
@@ -163,10 +168,14 @@ run_msvc() {
 
     for test_file in "${TEST_FILES[@]}"; do
         local test_name="${test_file%.cpp}"
+        # Use absolute paths: vcvarsall.bat can change cmd.exe's working dir,
+        # so relative paths would resolve incorrectly.
         local src_win
-        src_win="$(cygpath -w "$TEST_DIR/$test_file" 2>/dev/null || echo "$TEST_DIR\\$test_file")"
+        src_win="$(cygpath -w "$PROJECT_ROOT/$TEST_DIR/$test_file" 2>/dev/null || echo "$PROJECT_ROOT\\$TEST_DIR\\$test_file")"
         local exe_win
-        exe_win="$(cygpath -w "$build_subdir/${test_name}.exe" 2>/dev/null || echo "$build_subdir\\${test_name}.exe")"
+        exe_win="$(cygpath -w "$PROJECT_ROOT/$build_subdir/${test_name}.exe" 2>/dev/null || echo "$PROJECT_ROOT\\$build_subdir\\${test_name}.exe")"
+        local inc_win
+        inc_win="$(cygpath -w "$PROJECT_ROOT/include" 2>/dev/null || echo "$PROJECT_ROOT\\include")"
         local exe_unix="$build_subdir/${test_name}.exe"
 
         if [[ ! -f "$TEST_DIR/$test_file" ]]; then
@@ -174,8 +183,14 @@ run_msvc() {
             continue
         fi
 
+        # Rebuild cl_flags with absolute include path
+        local cl_flags_abs="${cl_flags/\/I include/\/I \"$inc_win\"}"
+
         local compile_ok=0
-        cmd.exe /c "call \"$vcvars_path\" x64 >nul 2>&1 && cl $cl_flags \"$src_win\" /Fe:\"$exe_win\" >nul 2>&1" \
+        # Use & (not &&) so cl runs even if vcvarsall.bat exits non-zero
+        # (vcvarsall.bat can exit with error when vswhere.exe is missing but
+        #  still initializes the environment correctly).
+        cmd.exe /c "call \"$vcvars_path\" x64 >nul 2>&1 & cl $cl_flags_abs \"$src_win\" /Fe:\"$exe_win\" >nul 2>&1" \
             && compile_ok=1 || true
 
         if [[ $compile_ok -eq 1 && -f "$exe_unix" ]]; then
@@ -232,7 +247,8 @@ run_intel() {
         fi
 
         local compile_ok=0
-        cmd.exe /c "call \"$INTEL_SETVARS\" --force >nul 2>&1 && \"$ICX_EXE\" $icx_flags \"$src_win\" -o \"$exe_win\" >nul 2>&1" \
+        # Use & (not &&) — setvars.bat can exit non-zero but still sets env.
+        cmd.exe /c "call \"$INTEL_SETVARS\" --force >nul 2>&1 & \"$ICX_EXE\" $icx_flags \"$src_win\" -o \"$exe_win\" >nul 2>&1" \
             && compile_ok=1 || true
 
         if [[ $compile_ok -eq 1 && -f "$exe_unix" ]]; then
