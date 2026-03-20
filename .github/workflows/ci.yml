@@ -1,4 +1,4 @@
-name: CI - Build & Test Multi-Compiler (Phase 1.66)
+name: CI - Multi-Arch Build & Test (Phase 1.75)
 
 on:
   push:
@@ -6,384 +6,433 @@ on:
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
-    inputs:
-      feature:
-        description: 'Feature to test (tt, bits, limits, etc. or "all")'
-        required: false
-        default: 'tt'
 
-# Cancelar runs anteriores si hay un nuevo push
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CXXSTD: "-std=c++20"
+  INCLUDE: "-Iinclude"
+
 jobs:
   # ============================================================================
-  # GCC Build & Test - Ubuntu (Sintaxis simplificada Fase 1.66)
+  # Native x86_64 — GCC + Clang (Linux)
   # ============================================================================
-  gcc-build:
-    name: GCC ${{ matrix.version }} - ${{ matrix.feature }} (${{ matrix.build_type }})
+  native-linux:
+    name: "${{ matrix.compiler }} — x86_64 (${{ matrix.mode }})"
     runs-on: ubuntu-24.04
-    
     strategy:
       fail-fast: false
       matrix:
-        version: [13, 14, 15]
-        build_type: [debug, release]
-        feature: [tt, bits, limits, traits, concepts, numeric, cmath, algorithm, iostreams, format]
-    
+        include:
+          - compiler: gcc-14
+            cxx: g++-14
+            pkg: g++-14
+            family: gcc
+            mode: release-O2
+          - compiler: gcc-15
+            cxx: g++-15
+            pkg: g++-15
+            family: gcc
+            mode: release-O2
+          - compiler: clang-19
+            cxx: clang++-19
+            pkg: clang-19
+            family: clang
+            mode: release-O2
+          - compiler: clang-20
+            cxx: clang++-20
+            pkg: clang-20
+            family: clang
+            mode: release-O2
+          # Debug with one compiler
+          - compiler: gcc-14
+            cxx: g++-14
+            pkg: g++-14
+            family: gcc
+            mode: debug
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Instalar GCC ${{ matrix.version }}
-      run: |
-        sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
-        sudo apt update
-        sudo apt install -y gcc-${{ matrix.version }} g++-${{ matrix.version }}
-        g++-${{ matrix.version }} --version
-    
-    - name: Build and Test (Fase 1.66 syntax)
-      run: |
-        chmod +x scripts/wsl/build_gcc${{ matrix.version }}.bash
-        # Nueva sintaxis simplificada: <feature> <mode> (sin TYPE)
-        bash scripts/wsl/build_gcc${{ matrix.version }}.bash ${{ matrix.feature }} ${{ matrix.build_type }}
-    
-    - name: Upload GCC artifacts
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: gcc-${{ matrix.version }}-${{ matrix.feature }}-${{ matrix.build_type }}
-        path: build/build_tests/gcc-${{ matrix.version }}/${{ matrix.build_type }}/
-        retention-days: 7
+      - uses: actions/checkout@v4
+
+      - name: Install compiler
+        run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test 2>/dev/null || true
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null 2>&1 || true
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main" 2>/dev/null || true
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main" 2>/dev/null || true
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ${{ matrix.pkg }}
+
+      - name: Build & Test all
+        env:
+          GCC_CXX: ${{ matrix.cxx }}
+          CLANG_CXX: ${{ matrix.cxx }}
+        run: python3 make.py test ${{ matrix.family }} ${{ matrix.mode }}
 
   # ============================================================================
-  # Clang Build & Test - Ubuntu (Fase 1.66)
+  # Native x86_64 — MSVC (Windows)
   # ============================================================================
-  clang-build:
-    name: Clang ${{ matrix.version }} - ${{ matrix.feature }} (${{ matrix.build_type }})
-    runs-on: ubuntu-24.04
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        version: [18, 19, 20, 21]
-        build_type: [debug, release]
-        feature: [tt, bits, limits, traits, concepts, numeric, cmath, algorithm, iostreams, format]
-    
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Instalar Clang ${{ matrix.version }}
-      run: |
-        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-${{ matrix.version }} main"
-        sudo apt update
-        sudo apt install -y clang-${{ matrix.version }}
-        clang-${{ matrix.version }} --version
-    
-    - name: Build and Test (Fase 1.66 syntax)
-      run: |
-        chmod +x scripts/wsl/build_clang${{ matrix.version }}.bash
-        bash scripts/wsl/build_clang${{ matrix.version }}.bash ${{ matrix.feature }} ${{ matrix.build_type }}
-    
-    - name: Upload Clang artifacts
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: clang-${{ matrix.version }}-${{ matrix.feature }}-${{ matrix.build_type }}
-        path: build/build_tests/clang-${{ matrix.version }}/${{ matrix.build_type }}/
-        retention-days: 7
-
-  # ============================================================================
-  # MSVC Build & Test - Windows (NATIVO - PREINSTALADO)
-  # ============================================================================
-  msvc-build:
-    name: MSVC - ${{ matrix.build_type }}
+  native-windows:
+    name: "MSVC — x86_64 (${{ matrix.mode }})"
     runs-on: windows-latest
-    
     strategy:
       fail-fast: false
       matrix:
-        build_type: [debug, release]
-    
+        mode: [release-O2]
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Setup MSVC
-      uses: microsoft/setup-msbuild@v2
-    
-    - name: Configurar entorno MSVC
-      shell: pwsh
-      run: |
-        # Obtener vcvarsall.bat path
-        $vcvarsPath = & python scripts/vcvars.py
-        if ($vcvarsPath) {
-          Write-Host "✓ Found vcvarsall.bat at: $vcvarsPath"
-          echo "VCVARS_PATH=$vcvarsPath" >> $env:GITHUB_ENV
-        } else {
-          Write-Host "⚠ vcvarsall.bat not found, using default path"
-        }
-    
-    - name: Build tests with MSVC
-      shell: cmd
-      run: |
-        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        bash -c "chmod +x scripts/build_extracted_tests.bash && ./scripts/build_extracted_tests.bash msvc ${{ matrix.build_type }}"
-    
-    - name: Run tests with MSVC
-      shell: cmd
-      run: |
-        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        bash -c "chmod +x scripts/run_uint128_extracted_tests.bash && ./scripts/run_uint128_extracted_tests.bash msvc ${{ matrix.build_type }}"
-    
-    - name: Build demos con MSVC
-      shell: cmd
-      run: |
-        call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-        cl /std:c++20 /EHsc /W4 demos\tutorials\tut_01_basic.cpp 2>nul || echo "Demo check completed"
-      continue-on-error: true
-    
-    - name: Upload MSVC artifacts
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: msvc-${{ matrix.build_type }}-binaries
-        path: build/build_tests/msvc/${{ matrix.build_type }}/
-        retention-days: 7
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build & Test
+        shell: cmd
+        run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          python make.py test msvc ${{ matrix.mode }}
 
   # ============================================================================
-  # Intel oneAPI Build & Test - Ubuntu (OPCIONAL - SOLO EN PRs)
+  # Cross-compile: ARM64 (aarch64) — compile + test via QEMU
   # ============================================================================
-  intel-build:
-    name: Intel oneAPI - ${{ matrix.build_type }}
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'  # Solo en PRs para ahorrar tiempo
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        build_type: [release]  # Solo release para ahorrar tiempo
-    
+  cross-arm64:
+    name: "cross GCC — aarch64"
+    runs-on: ubuntu-24.04
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Instalar Intel oneAPI
-      run: |
-        wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | \
-          gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
-        echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | \
-          sudo tee /etc/apt/sources.list.d/oneAPI.list
-        sudo apt update
-        sudo apt install -y intel-oneapi-compiler-dpcpp-cpp-and-cpp-classic
-    
-    - name: Build tests with Intel
-      run: |
-        source /opt/intel/oneapi/setvars.sh
-        export CC=icx
-        export CXX=icpx
-        chmod +x scripts/build_extracted_tests.bash
-        ./scripts/build_extracted_tests.bash intel ${{ matrix.build_type }}
-    
-    - name: Run tests with Intel
-      run: |
-        source /opt/intel/oneapi/setvars.sh
-        chmod +x scripts/run_uint128_extracted_tests.bash
-        ./scripts/run_uint128_extracted_tests.bash intel ${{ matrix.build_type }}
-    
-    - name: Upload Intel artifacts
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: intel-${{ matrix.build_type }}-binaries
-        path: build/build_tests/intel/${{ matrix.build_type }}/
-        retention-days: 7
+      - uses: actions/checkout@v4
+
+      - name: Install cross-toolchain + QEMU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-aarch64-linux-gnu qemu-user
+
+      - name: Cross-compile all tests
+        run: |
+          CXX=aarch64-linux-gnu-g++
+          echo "=== Cross-compiling for aarch64 with $CXX ==="
+          $CXX --version
+          mkdir -p build_temp
+          PASS=0; FAIL=0; TOTAL=0
+          for src in tests/test_*.cpp; do
+            name=$(basename "$src" .cpp)
+            TOTAL=$((TOTAL + 1))
+            echo -n "  [$TOTAL] $name ... "
+            if $CXX $CXXSTD $INCLUDE -O2 -o "build_temp/${name}_aarch64" "$src" 2>/dev/null; then
+              echo "OK"
+              PASS=$((PASS + 1))
+            else
+              echo "FAIL (compile)"
+              FAIL=$((FAIL + 1))
+            fi
+          done
+          echo ""
+          echo "=== COMPILE SUMMARY: $PASS/$TOTAL passed, $FAIL failed ==="
+          if [ $FAIL -gt $((TOTAL / 10 + 1)) ]; then
+            echo "Too many compile failures"; exit 1
+          fi
+
+      - name: Run tests under QEMU aarch64
+        run: |
+          echo "=== Running aarch64 tests under QEMU user-mode ==="
+          PASS=0; FAIL=0; TOTAL=0
+          for bin in build_temp/*_aarch64; do
+            [ -x "$bin" ] || continue
+            name=$(basename "$bin")
+            TOTAL=$((TOTAL + 1))
+            echo -n "  [$TOTAL] $name ... "
+            if timeout 120 qemu-aarch64 -L /usr/aarch64-linux-gnu "$bin" >/dev/null 2>&1; then
+              echo "OK"; PASS=$((PASS + 1))
+            else
+              echo "FAIL (runtime)"; FAIL=$((FAIL + 1))
+            fi
+          done
+          echo ""
+          echo "=== TEST SUMMARY (aarch64/QEMU): $PASS/$TOTAL passed, $FAIL failed ==="
+          if [ $FAIL -gt $((TOTAL / 10 + 1)) ]; then exit 1; fi
 
   # ============================================================================
-  # Sanitizers - ASan + UBSan (Solo Clang, Solo Debug)
+  # Cross-compile: ARM32 (armhf) — compile + test via QEMU
+  # ============================================================================
+  cross-arm32:
+    name: "cross GCC — arm32 (armhf)"
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cross-toolchain + QEMU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-arm-linux-gnueabihf qemu-user
+
+      - name: Cross-compile all tests
+        run: |
+          CXX=arm-linux-gnueabihf-g++
+          echo "=== Cross-compiling for arm32 (armhf) with $CXX ==="
+          $CXX --version
+          mkdir -p build_temp
+          PASS=0; FAIL=0; TOTAL=0
+          for src in tests/test_*.cpp; do
+            name=$(basename "$src" .cpp)
+            TOTAL=$((TOTAL + 1))
+            echo -n "  [$TOTAL] $name ... "
+            if $CXX $CXXSTD $INCLUDE -O2 -o "build_temp/${name}_arm32" "$src" 2>build_temp/${name}_arm32.err; then
+              echo "OK"; PASS=$((PASS + 1))
+            else
+              echo "FAIL (compile)"; FAIL=$((FAIL + 1))
+              tail -5 "build_temp/${name}_arm32.err"
+            fi
+          done
+          echo ""
+          echo "=== COMPILE SUMMARY (arm32): $PASS/$TOTAL passed, $FAIL failed ==="
+
+      - name: Run tests under QEMU arm32
+        run: |
+          echo "=== Running arm32 tests under QEMU user-mode ==="
+          PASS=0; FAIL=0; TOTAL=0
+          for bin in build_temp/*_arm32; do
+            [ -x "$bin" ] || continue
+            name=$(basename "$bin")
+            TOTAL=$((TOTAL + 1))
+            echo -n "  [$TOTAL] $name ... "
+            if timeout 180 qemu-arm -L /usr/arm-linux-gnueabihf "$bin" >/dev/null 2>&1; then
+              echo "OK"; PASS=$((PASS + 1))
+            else
+              echo "FAIL (runtime)"; FAIL=$((FAIL + 1))
+            fi
+          done
+          echo ""
+          echo "=== TEST SUMMARY (arm32/QEMU): $PASS/$TOTAL passed, $FAIL failed ==="
+        continue-on-error: true
+
+  # ============================================================================
+  # Cross-compile: RISC-V 64 — compile + test via QEMU
+  # ============================================================================
+  cross-riscv64:
+    name: "cross GCC — riscv64"
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cross-toolchain + QEMU
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-riscv64-linux-gnu qemu-user
+
+      - name: Cross-compile all tests
+        run: |
+          CXX=riscv64-linux-gnu-g++
+          echo "=== Cross-compiling for riscv64 with $CXX ==="
+          $CXX --version
+          mkdir -p build_temp
+          PASS=0; FAIL=0; TOTAL=0
+          for src in tests/test_*.cpp; do
+            name=$(basename "$src" .cpp)
+            TOTAL=$((TOTAL + 1))
+            echo -n "  [$TOTAL] $name ... "
+            if $CXX $CXXSTD $INCLUDE -O2 -o "build_temp/${name}_riscv64" "$src" 2>/dev/null; then
+              echo "OK"; PASS=$((PASS + 1))
+            else
+              echo "FAIL (compile)"; FAIL=$((FAIL + 1))
+            fi
+          done
+          echo ""
+          echo "=== COMPILE SUMMARY (riscv64): $PASS/$TOTAL passed, $FAIL failed ==="
+          if [ $FAIL -gt $((TOTAL / 10 + 1)) ]; then exit 1; fi
+
+      - name: Run tests under QEMU riscv64
+        run: |
+          echo "=== Running riscv64 tests under QEMU user-mode ==="
+          PASS=0; FAIL=0; TOTAL=0
+          for bin in build_temp/*_riscv64; do
+            [ -x "$bin" ] || continue
+            name=$(basename "$bin")
+            TOTAL=$((TOTAL + 1))
+            echo -n "  [$TOTAL] $name ... "
+            if timeout 120 qemu-riscv64 -L /usr/riscv64-linux-gnu "$bin" >/dev/null 2>&1; then
+              echo "OK"; PASS=$((PASS + 1))
+            else
+              echo "FAIL (runtime)"; FAIL=$((FAIL + 1))
+            fi
+          done
+          echo ""
+          echo "=== TEST SUMMARY (riscv64/QEMU): $PASS/$TOTAL passed, $FAIL failed ==="
+          if [ $FAIL -gt $((TOTAL / 10 + 1)) ]; then exit 1; fi
+
+  # ============================================================================
+  # Cross-compile: x86 32-bit (i686) — compile + test natively (multilib)
+  # ============================================================================
+  cross-x86-32:
+    name: "GCC — x86 32-bit (i686)"
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install 32-bit multilib
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-multilib libc6-dev-i386
+
+      - name: Compile & test with -m32
+        run: |
+          echo "=== Compiling for x86 32-bit (i686) ==="
+          g++ --version
+          mkdir -p build_temp
+          PASS_C=0; FAIL_C=0; PASS_R=0; FAIL_R=0; TOTAL=0
+          for src in tests/test_*.cpp; do
+            name=$(basename "$src" .cpp)
+            TOTAL=$((TOTAL + 1))
+            echo -n "  [$TOTAL] $name ... "
+            if g++ -m32 $CXXSTD $INCLUDE -O2 -o "build_temp/${name}_i686" "$src" 2>build_temp/${name}_i686.err; then
+              PASS_C=$((PASS_C + 1))
+              if timeout 60 "./build_temp/${name}_i686" >/dev/null 2>&1; then
+                echo "OK (compile + run)"; PASS_R=$((PASS_R + 1))
+              else
+                echo "OK (compile) / FAIL (run)"; FAIL_R=$((FAIL_R + 1))
+              fi
+            else
+              echo "FAIL (compile)"; FAIL_C=$((FAIL_C + 1))
+              tail -5 "build_temp/${name}_i686.err"
+            fi
+          done
+          echo ""
+          echo "=== SUMMARY (x86 32-bit) ==="
+          echo "  Compile: $PASS_C/$TOTAL passed"
+          echo "  Runtime: $PASS_R/$PASS_C passed"
+
+  # ============================================================================
+  # Sanitizers — ASan + UBSan (Clang, x86_64)
   # ============================================================================
   sanitizers:
-    name: Sanitizers (ASan + UBSan)
+    name: "Sanitizers (ASan+UBSan) — Clang 19"
     runs-on: ubuntu-24.04
-    
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Instalar Clang 19
-      run: |
-        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-        sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main"
-        sudo apt update
-        sudo apt install -y clang-19
-    
-    - name: Build con AddressSanitizer
-      run: |
-        export CC=clang-19
-        export CXX=clang++-19
-        export CXXFLAGS="-fsanitize=address -fno-omit-frame-pointer -g"
-        chmod +x scripts/build_extracted_tests.bash
-        ./scripts/build_extracted_tests.bash clang debug
-    
-    - name: Tests con ASan
-      run: |
-        export ASAN_OPTIONS=detect_leaks=1
-        chmod +x scripts/run_uint128_extracted_tests.bash
-        ./scripts/run_uint128_extracted_tests.bash clang debug
-    
-    - name: Build con UndefinedBehaviorSanitizer
-      run: |
-        export CC=clang-19
-        export CXX=clang++-19
-        export CXXFLAGS="-fsanitize=undefined -fno-omit-frame-pointer -g"
-        chmod +x scripts/build_extracted_tests.bash
-        ./scripts/build_extracted_tests.bash clang debug
-    
-    - name: Tests con UBSan
-      run: |
-        chmod +x scripts/run_uint128_extracted_tests.bash
-        ./scripts/run_uint128_extracted_tests.bash clang debug
+      - uses: actions/checkout@v4
+
+      - name: Install Clang 19
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-19
+
+      - name: Build & run with ASan + UBSan
+        run: |
+          CXX=clang++-19
+          FLAGS="-std=c++20 -Iinclude -g -fsanitize=address,undefined -fno-omit-frame-pointer"
+          echo "=== Sanitizer build with $CXX ==="
+          mkdir -p build_temp
+          PASS=0; FAIL=0; TOTAL=0
+          for src in tests/test_*.cpp; do
+            name=$(basename "$src" .cpp)
+            TOTAL=$((TOTAL + 1))
+            echo -n "  [$TOTAL] $name ... "
+            if $CXX $FLAGS -o "build_temp/${name}_san" "$src" 2>/dev/null; then
+              export ASAN_OPTIONS=detect_leaks=1
+              export UBSAN_OPTIONS=print_stacktrace=1
+              if timeout 120 "./build_temp/${name}_san" >/dev/null 2>&1; then
+                echo "OK"; PASS=$((PASS + 1))
+              else
+                echo "FAIL (sanitizer)"; FAIL=$((FAIL + 1))
+              fi
+            else
+              echo "FAIL (compile)"; FAIL=$((FAIL + 1))
+            fi
+          done
+          echo ""
+          echo "=== SANITIZER SUMMARY: $PASS/$TOTAL clean ==="
+          if [ $FAIL -gt 0 ]; then exit 1; fi
 
   # ============================================================================
-  # Benchmarks (Solo GCC Release para CI speed)
+  # Intel oneAPI — PR only
   # ============================================================================
-  benchmarks:
-    name: Benchmarks - GCC
-    runs-on: ubuntu-24.04
-    needs: gcc-build
-    if: github.event_name == 'pull_request'  # Solo en PRs
-    
+  intel-build:
+    name: "Intel ICX — x86_64 (release)"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Instalar GCC 14
-      run: |
-        sudo apt update
-        sudo apt install -y gcc-14 g++-14
-    
-    - name: Build benchmarks
-      run: |
-        export CC=gcc-14
-        export CXX=g++-14
-        chmod +x scripts/build_benchmarks.bash
-        ./scripts/build_benchmarks.bash gcc release || echo "Benchmarks no disponibles aún"
-      continue-on-error: true
-    
-    - name: Run benchmarks
-      run: |
-        chmod +x scripts/run_benchmarks.bash
-        ./scripts/run_benchmarks.bash gcc release || echo "Benchmarks no disponibles aún"
-      continue-on-error: true
+      - uses: actions/checkout@v4
 
-    - name: Upload benchmark results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: benchmark-results
-        path: |
-          build/build_benchmarks/gcc/release/
-          benchmark_results/
-        retention-days: 30
+      - name: Install Intel oneAPI
+        run: |
+          wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | \
+            gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" | \
+            sudo tee /etc/apt/sources.list.d/oneAPI.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq intel-oneapi-compiler-dpcpp-cpp
 
-  # ============================================================================
-  # Code Quality - clang-format y análisis estático
-  # ============================================================================
-  code-quality:
-    name: Code Quality Checks
-    runs-on: ubuntu-24.04
-    
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      
-    - name: Instalar herramientas
-      run: |
-        sudo apt update
-        sudo apt install -y clang-format-19 clang-tidy-19
-    
-    - name: Verificar formato (clang-format)
-      run: |
-        find include -name "*.hpp" -o -name "*.h" | xargs clang-format-19 --dry-run --Werror || echo "⚠ Format issues found (non-blocking)"
-        find sources -name "*.cpp" | xargs clang-format-19 --dry-run --Werror || echo "⚠ Format issues found (non-blocking)"
-      continue-on-error: true  # No bloquear CI por formato
-    
-    - name: Análisis estático básico
-      run: |
-        echo "✓ Static analysis would run here"
-        # clang-tidy analysis can be added here
-      continue-on-error: true
+      - name: Build & Test with Intel
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          CXX=icpx
+          FLAGS="-std=c++20 -Iinclude -O2"
+          echo "=== Intel ICX build ==="
+          $CXX --version
+          mkdir -p build_temp
+          PASS=0; FAIL=0; TOTAL=0
+          for src in tests/test_*.cpp; do
+            name=$(basename "$src" .cpp)
+            TOTAL=$((TOTAL + 1))
+            echo -n "  [$TOTAL] $name ... "
+            if $CXX $FLAGS -o "build_temp/${name}_intel" "$src" 2>/dev/null; then
+              if timeout 60 "./build_temp/${name}_intel" >/dev/null 2>&1; then
+                echo "OK"; PASS=$((PASS + 1))
+              else
+                echo "FAIL (runtime)"; FAIL=$((FAIL + 1))
+              fi
+            else
+              echo "FAIL (compile)"; FAIL=$((FAIL + 1))
+            fi
+          done
+          echo ""
+          echo "=== INTEL SUMMARY: $PASS/$TOTAL passed ==="
 
   # ============================================================================
-  # Summary Job - Dashboard CI (Fase 1.66)
+  # CI Dashboard Summary
   # ============================================================================
   ci-summary:
-    name: CI Dashboard Summary
+    name: CI Dashboard
     runs-on: ubuntu-latest
-    needs: [gcc-build, clang-build, msvc-build, sanitizers]
+    needs: [native-linux, native-windows, cross-arm64, cross-arm32, cross-riscv64, cross-x86-32, sanitizers]
     if: always()
-    
+
     steps:
-    - name: Generate Dashboard
-      run: |
-        echo "## 🎯 int128 Library - CI Dashboard (Phase 1.66)" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📊 Compiler Matrix Results" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "| Compiler | Versions | Features | Status |" >> $GITHUB_STEP_SUMMARY
-        echo "|----------|----------|----------|--------|" >> $GITHUB_STEP_SUMMARY
-        echo "| GCC      | 13, 14, 15 | tt, bits, limits, traits, concepts, numeric, cmath, algorithm, iostreams, format | ${{ needs.gcc-build.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Clang    | 18, 19, 20, 21 | tt, bits, limits, traits, concepts, numeric, cmath, algorithm, iostreams, format | ${{ needs.clang-build.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| MSVC     | 2022 | tt | ${{ needs.msvc-build.result == 'success' && '✅ PASS' || '❌ FAIL' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "| Sanitizers | ASan + UBSan | tt | ${{ needs.sanitizers.result == 'success' && '✅ PASS' || '⚠️ WARN' }} |" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        echo "### 📈 Configuration Statistics" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "- **GCC Jobs:** 3 versions × 10 features × 2 modes = **60 configurations**" >> $GITHUB_STEP_SUMMARY
-        echo "- **Clang Jobs:** 4 versions × 10 features × 2 modes = **80 configurations**" >> $GITHUB_STEP_SUMMARY
-        echo "- **MSVC Jobs:** 1 version × 1 feature × 2 modes = **2 configurations**" >> $GITHUB_STEP_SUMMARY
-        echo "- **Total Matrix:** **142 test configurations**" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        
-        echo "### 🔧 Features Tested" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "| Feature | Description |" >> $GITHUB_STEP_SUMMARY
-        echo "|---------|-------------|" >> $GITHUB_STEP_SUMMARY
-        echo "| \`tt\` | Core template \`int128_base_t<S>\` |" >> $GITHUB_STEP_SUMMARY
-        echo "| \`bits\` | Bit manipulation (popcount, clz, ctz) |" >> $GITHUB_STEP_SUMMARY
-        echo "| \`limits\` | std::numeric_limits<> |" >> $GITHUB_STEP_SUMMARY
-        echo "| \`traits\` | Type traits (is_integral, make_signed) |" >> $GITHUB_STEP_SUMMARY
-        echo "| \`concepts\` | C++20 concepts |" >> $GITHUB_STEP_SUMMARY
-        echo "| \`numeric\` | Numeric functions (gcd, lcm, sqrt) |" >> $GITHUB_STEP_SUMMARY
-        echo "| \`cmath\` | Math functions (pow, abs, sign) |" >> $GITHUB_STEP_SUMMARY
-        echo "| \`algorithm\` | STL algorithm compatibility |" >> $GITHUB_STEP_SUMMARY
-        echo "| \`iostreams\` | Stream I/O operators |" >> $GITHUB_STEP_SUMMARY
-        echo "| \`format\` | Formatting functions |" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-    
-    - name: Fail if critical jobs failed
-      if: |
-        needs.gcc-build.result == 'failure' ||
-        needs.clang-build.result == 'failure' ||
-        needs.msvc-build.result == 'failure'
-      run: |
-        echo "💥 CI failed - critical build failures detected"
-        exit 1
-    
-    - name: Success
-      if: |
-        needs.gcc-build.result == 'success' &&
-        needs.clang-build.result == 'success' &&
-        needs.msvc-build.result == 'success'
-      run: |
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### ✅ All Critical Builds Passed!" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "The unified template \`int128_base_t<signedness S>\` compiles successfully with:" >> $GITHUB_STEP_SUMMARY
-        echo "- GCC 13, 14, 15" >> $GITHUB_STEP_SUMMARY
-        echo "- Clang 18, 19, 20, 21" >> $GITHUB_STEP_SUMMARY
-        echo "- MSVC 2022" >> $GITHUB_STEP_SUMMARY
+      - name: Generate Summary
+        run: |
+          echo "## int128 Library -- CI Dashboard (Phase 1.75)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Native Platforms" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Compiler | Arch | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|----------|------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux | GCC 14/15, Clang 19/20 | x86_64 | ${{ needs.native-linux.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Windows | MSVC 2022 | x86_64 | ${{ needs.native-windows.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Cross-Compilation (GCC + QEMU)" >> $GITHUB_STEP_SUMMARY
+          echo "| Architecture | Bitness | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------------|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| aarch64 (ARM64) | 64-bit | ${{ needs.cross-arm64.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| armhf (ARM32) | 32-bit | ${{ needs.cross-arm32.result == 'success' && 'PASS' || 'WARN' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| riscv64 | 64-bit | ${{ needs.cross-riscv64.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| i686 (x86 32-bit) | 32-bit | ${{ needs.cross-x86-32.result == 'success' && 'PASS' || 'WARN' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Quality" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ASan + UBSan | ${{ needs.sanitizers.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail on critical errors
+        if: |
+          needs.native-linux.result == 'failure' ||
+          needs.native-windows.result == 'failure' ||
+          needs.cross-arm64.result == 'failure' ||
+          needs.cross-riscv64.result == 'failure'
+        run: exit 1

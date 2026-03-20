@@ -51,167 +51,167 @@
 namespace intrinsics
 {
 
-    // ============================================================================
-    // POPCOUNT - Cuenta bits establecidos
-    // ============================================================================
+        // ============================================================================
+        // POPCOUNT - Cuenta bits establecidos
+        // ============================================================================
 
-    /**
-     * @brief Cuenta el número de bits establecidos en un uint64_t
-     *
-     * Implementación optimizada según compilador/arquitectura disponible.
-     *
-     * @param x Valor a examinar
-     * @return Número de bits establecidos (0-64)
-     */
-    inline constexpr int popcount64(uint64_t x) noexcept
-    {
-#if INTRINSICS_COMPILER_MSVC
-        if (INTRINSICS_IS_CONSTANT_EVALUATED())
+        /**
+         * @brief Cuenta el número de bits establecidos en un uint64_t
+         *
+         * Implementación optimizada según compilador/arquitectura disponible.
+         *
+         * @param x Valor a examinar
+         * @return Número de bits establecidos (0-64)
+         */
+        inline constexpr int popcount64(uint64_t x) noexcept
         {
-            return fallback::popcount64_portable(x);
-        }
-        else
-        {
-            return static_cast<int>(__popcnt64(x));
-        }
+#if INTRINSICS_COMPILER_MSVC && INTRINSICS_ARCH_X86_64
+                if (INTRINSICS_IS_CONSTANT_EVALUATED())
+                {
+                        return fallback::popcount64_portable(x);
+                }
+                else
+                {
+                        return static_cast<int>(__popcnt64(x));
+                }
 #elif INTRINSICS_COMPILER_INTEL
-        // Intel icpx soporta __builtin_popcountll
-        return __builtin_popcountll(x);
+                // Intel icpx soporta __builtin_popcountll
+                return __builtin_popcountll(x);
 #elif INTRINSICS_COMPILER_CLANG || INTRINSICS_COMPILER_GCC
-        // GCC/Clang: constexpr desde GCC 5 / Clang 3.4
-        return __builtin_popcountll(x);
+                // GCC/Clang: constexpr desde GCC 5 / Clang 3.4
+                return __builtin_popcountll(x);
 #else
-        // Fallback: C++ puro portable
-        return fallback::popcount64_portable(x);
+                // Fallback: C++ puro portable
+                return fallback::popcount64_portable(x);
 #endif
-    }
-
-    // ============================================================================
-    // CLZ - Count Leading Zeros
-    // ============================================================================
-
-    /**
-     * @brief Cuenta los ceros a la izquierda en un uint64_t
-     *
-     * @param x Valor a examinar (debe ser != 0)
-     * @return Número de ceros a la izquierda (0-63)
-     *
-     * @warning Comportamiento indefinido si x == 0
-     */
-    inline constexpr int clz64(uint64_t x) noexcept
-    {
-#if INTRINSICS_COMPILER_MSVC
-        if (INTRINSICS_IS_CONSTANT_EVALUATED())
-        {
-            return fallback::clz64_portable(x);
         }
-        else
+
+        // ============================================================================
+        // CLZ - Count Leading Zeros
+        // ============================================================================
+
+        /**
+         * @brief Cuenta los ceros a la izquierda en un uint64_t
+         *
+         * @param x Valor a examinar (debe ser != 0)
+         * @return Número de ceros a la izquierda (0-63)
+         *
+         * @warning Comportamiento indefinido si x == 0
+         */
+        inline constexpr int clz64(uint64_t x) noexcept
         {
-            unsigned long index;
-            _BitScanReverse64(&index, x);
-            return 63 - static_cast<int>(index);
-        }
+#if INTRINSICS_COMPILER_MSVC && INTRINSICS_ARCH_X86_64
+                if (INTRINSICS_IS_CONSTANT_EVALUATED())
+                {
+                        return fallback::clz64_portable(x);
+                }
+                else
+                {
+                        unsigned long index;
+                        _BitScanReverse64(&index, x);
+                        return 63 - static_cast<int>(index);
+                }
 #elif INTRINSICS_COMPILER_INTEL
-        // Intel icpx soporta __builtin_clzll
-        return __builtin_clzll(x);
+                // Intel icpx soporta __builtin_clzll
+                return __builtin_clzll(x);
 #elif INTRINSICS_COMPILER_CLANG || INTRINSICS_COMPILER_GCC
 // GCC/Clang: __builtin_clzll
 #if INTRINSICS_ARCH_ARM64 || INTRINSICS_ARCH_ARM32
-        // ARM: podría usar CLZ instruction directamente
-        return __builtin_clzll(x);
+                // ARM: podría usar CLZ instruction directamente
+                return __builtin_clzll(x);
 #elif INTRINSICS_ARCH_RISCV64 || INTRINSICS_ARCH_RISCV32
-        // RISC-V: extensión B (Zbb) tiene clz
-        return __builtin_clzll(x);
+                // RISC-V: extensión B (Zbb) tiene clz
+                return __builtin_clzll(x);
 #else
-        return __builtin_clzll(x);
+                return __builtin_clzll(x);
 #endif
 #else
-        // Fallback: C++ puro portable
-        return fallback::clz64_portable(x);
+                // Fallback: C++ puro portable
+                return fallback::clz64_portable(x);
 #endif
-    }
-
-    // ============================================================================
-    // CTZ - Count Trailing Zeros
-    // ============================================================================
-
-    /**
-     * @brief Cuenta los ceros a la derecha en un uint64_t
-     *
-     * @param x Valor a examinar (debe ser != 0)
-     * @return Número de ceros a la derecha (0-63)
-     *
-     * @warning Comportamiento indefinido si x == 0
-     */
-    inline constexpr int ctz64(uint64_t x) noexcept
-    {
-#if INTRINSICS_COMPILER_MSVC
-        if (INTRINSICS_IS_CONSTANT_EVALUATED())
-        {
-            return fallback::ctz64_portable(x);
         }
-        else
+
+        // ============================================================================
+        // CTZ - Count Trailing Zeros
+        // ============================================================================
+
+        /**
+         * @brief Cuenta los ceros a la derecha en un uint64_t
+         *
+         * @param x Valor a examinar (debe ser != 0)
+         * @return Número de ceros a la derecha (0-63)
+         *
+         * @warning Comportamiento indefinido si x == 0
+         */
+        inline constexpr int ctz64(uint64_t x) noexcept
         {
-            unsigned long index;
-            _BitScanForward64(&index, x);
-            return static_cast<int>(index);
-        }
+#if INTRINSICS_COMPILER_MSVC && INTRINSICS_ARCH_X86_64
+                if (INTRINSICS_IS_CONSTANT_EVALUATED())
+                {
+                        return fallback::ctz64_portable(x);
+                }
+                else
+                {
+                        unsigned long index;
+                        _BitScanForward64(&index, x);
+                        return static_cast<int>(index);
+                }
 #elif INTRINSICS_COMPILER_INTEL
-        // Intel icpx soporta __builtin_ctzll
-        return __builtin_ctzll(x);
+                // Intel icpx soporta __builtin_ctzll
+                return __builtin_ctzll(x);
 #elif INTRINSICS_COMPILER_CLANG || INTRINSICS_COMPILER_GCC
 // GCC/Clang: __builtin_ctzll
 #if INTRINSICS_ARCH_ARM64 || INTRINSICS_ARCH_ARM32
-        // ARM: podría usar RBIT + CLZ para simular CTZ
-        return __builtin_ctzll(x);
+                // ARM: podría usar RBIT + CLZ para simular CTZ
+                return __builtin_ctzll(x);
 #elif INTRINSICS_ARCH_RISCV64 || INTRINSICS_ARCH_RISCV32
-        // RISC-V: extensión B (Zbb) tiene ctz
-        return __builtin_ctzll(x);
+                // RISC-V: extensión B (Zbb) tiene ctz
+                return __builtin_ctzll(x);
 #else
-        return __builtin_ctzll(x);
+                return __builtin_ctzll(x);
 #endif
 #else
-        // Fallback: C++ puro portable
-        return fallback::ctz64_portable(x);
+                // Fallback: C++ puro portable
+                return fallback::ctz64_portable(x);
 #endif
-    }
+        }
 
-    // ============================================================================
-    // FFS - Find First Set (similar a CTZ pero 1-indexed)
-    // ============================================================================
+        // ============================================================================
+        // FFS - Find First Set (similar a CTZ pero 1-indexed)
+        // ============================================================================
 
-    /**
-     * @brief Encuentra la posición del primer bit establecido (1-indexed)
-     *
-     * @param x Valor a examinar
-     * @return Posición del primer bit establecido (1-64), o 0 si x == 0
-     */
-    inline constexpr int ffs64(uint64_t x) noexcept
-    {
-        if (x == 0)
-            return 0;
-        return ctz64(x) + 1;
-    }
+        /**
+         * @brief Encuentra la posición del primer bit establecido (1-indexed)
+         *
+         * @param x Valor a examinar
+         * @return Posición del primer bit establecido (1-64), o 0 si x == 0
+         */
+        inline constexpr int ffs64(uint64_t x) noexcept
+        {
+                if (x == 0)
+                        return 0;
+                return ctz64(x) + 1;
+        }
 
-    // ============================================================================
-    // PARITY - Paridad (XOR de todos los bits)
-    // ============================================================================
+        // ============================================================================
+        // PARITY - Paridad (XOR de todos los bits)
+        // ============================================================================
 
-    /**
-     * @brief Calcula la paridad (XOR de todos los bits)
-     *
-     * @param x Valor a examinar
-     * @return 1 si número impar de bits establecidos, 0 si par
-     */
-    inline constexpr int parity64(uint64_t x) noexcept
-    {
+        /**
+         * @brief Calcula la paridad (XOR de todos los bits)
+         *
+         * @param x Valor a examinar
+         * @return 1 si número impar de bits establecidos, 0 si par
+         */
+        inline constexpr int parity64(uint64_t x) noexcept
+        {
 #if INTRINSICS_COMPILER_GCC || INTRINSICS_COMPILER_CLANG || INTRINSICS_COMPILER_INTEL
-        return __builtin_parityll(x);
+                return __builtin_parityll(x);
 #else
-        // Fallback: popcount % 2
-        return popcount64(x) & 1;
+                // Fallback: popcount % 2
+                return popcount64(x) & 1;
 #endif
-    }
+        }
 
 } // namespace intrinsics
 

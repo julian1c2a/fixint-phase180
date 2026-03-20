@@ -76,8 +76,8 @@ namespace intrinsics
     inline constexpr unsigned char addcarry_u64(unsigned char carry_in, uint64_t a, uint64_t b,
                                                 uint64_t *result) noexcept
     {
-#if INTRINSICS_USES_MSVC_ABI
-        // MSVC y Intel ICX en Windows: usar intrínsecos de MSVC
+#if INTRINSICS_USES_MSVC_ABI && INTRINSICS_ARCH_X86_64
+        // MSVC y Intel ICX en Windows (x64 only): usar intrínsecos de MSVC
         if (INTRINSICS_IS_CONSTANT_EVALUATED())
         {
             // Versión constexpr portable
@@ -164,8 +164,8 @@ namespace intrinsics
     inline constexpr unsigned char subborrow_u64(unsigned char borrow_in, uint64_t a, uint64_t b,
                                                  uint64_t *result) noexcept
     {
-#if INTRINSICS_USES_MSVC_ABI
-        // MSVC y Intel ICX en Windows: usar intrínsecos de MSVC
+#if INTRINSICS_USES_MSVC_ABI && INTRINSICS_ARCH_X86_64
+        // MSVC y Intel ICX en Windows (x64 only): usar intrínsecos de MSVC
         if (INTRINSICS_IS_CONSTANT_EVALUATED())
         {
             // Versión constexpr portable
@@ -224,8 +224,8 @@ namespace intrinsics
     inline constexpr void mulx_u64(uint64_t a, uint64_t b, uint64_t *result_high,
                                    uint64_t *result_low) noexcept
     {
-#if INTRINSICS_USES_MSVC_ABI
-        // MSVC y Intel ICX en Windows: usar _umul128
+#if INTRINSICS_USES_MSVC_ABI && INTRINSICS_ARCH_X86_64
+        // MSVC y Intel ICX en Windows (x64 only): usar _umul128
         if (INTRINSICS_IS_CONSTANT_EVALUATED())
         {
             // Versión constexpr: multiplicación de 64x64 -> 128 bits
@@ -482,8 +482,8 @@ namespace intrinsics
         const uint64_t q_lo = static_cast<uint64_t>(dividend_composed / divisor);
         *remainder_final = static_cast<uint64_t>(dividend_composed % divisor);
         return q_lo;
-#elif INTRINSICS_COMPILER_MSVC
-        // MSVC: _udiv128 intrinsic (VS 2019 16.8+ / _MSC_VER >= 1928)
+#elif INTRINSICS_COMPILER_MSVC && INTRINSICS_ARCH_X86_64
+        // MSVC (x64 only): _udiv128 intrinsic (VS 2019 16.8+ / _MSC_VER >= 1928)
         // Precondition: r_hi < divisor (guaranteed by caller — r_hi is a remainder from data[1]/d)
         if (INTRINSICS_IS_CONSTANT_EVALUATED())
         {
