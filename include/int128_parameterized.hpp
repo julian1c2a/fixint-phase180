@@ -2189,7 +2189,8 @@ namespace nstd
          * @return Reference to this (modified)
          */
         constexpr int128_param_t &operator*=(const int128_param_t &) noexcept
-            requires(is_excess_k) = delete;
+            requires(is_excess_k)
+        = delete;
 
         constexpr int128_param_t &operator*=(const int128_param_t &other) noexcept
             requires(!is_excess_k)
@@ -2229,18 +2230,21 @@ namespace nstd
                     const std::uint64_t a_hi32 = a_low >> 32;
                     const std::uint64_t b_lo32 = b_low & 0xFFFFFFFFULL;
                     const std::uint64_t b_hi32 = b_low >> 32;
-                    const std::uint64_t t0     = a_lo32 * b_lo32;
-                    const std::uint64_t t1     = a_lo32 * b_hi32 + (t0 >> 32);
-                    const std::uint64_t t2     = a_hi32 * b_lo32 + (t1 & 0xFFFFFFFFULL);
+                    const std::uint64_t t0 = a_lo32 * b_lo32;
+                    const std::uint64_t t1 = a_lo32 * b_hi32 + (t0 >> 32);
+                    const std::uint64_t t2 = a_hi32 * b_lo32 + (t1 & 0xFFFFFFFFULL);
                     const std::uint64_t p00_hi = a_hi32 * b_hi32 + (t1 >> 32) + (t2 >> 32);
                     data[0] = (t2 << 32) | (t0 & 0xFFFFFFFFULL);
                     data[1] = p00_hi + (a_high * b_low) + (a_low * b_high);
                 }
 
-                // Apply sign (set sign bit if result is negative)
-                if (result_neg)
+                // Clear sign bit (magnitude multiplication may overflow into it)
+                data[1] &= ~(std::uint64_t{1} << 63);
+
+                // Apply sign only if result is non-zero and sign rule says negative
+                if (result_neg && (data[0] != 0 || data[1] != 0))
                 {
-                    data[1] |= (1ULL << 63);
+                    data[1] |= (std::uint64_t{1} << 63);
                 }
             }
             else
@@ -2271,12 +2275,11 @@ namespace nstd
                 const std::uint64_t a_hi32 = a_low >> 32;
                 const std::uint64_t b_lo32 = b_low & 0xFFFFFFFFULL;
                 const std::uint64_t b_hi32 = b_low >> 32;
-                const std::uint64_t t0     = a_lo32 * b_lo32;
-                const std::uint64_t t1     = a_lo32 * b_hi32 + (t0 >> 32);
-                const std::uint64_t t2     = a_hi32 * b_lo32 + (t1 & 0xFFFFFFFFULL);
+                const std::uint64_t t0 = a_lo32 * b_lo32;
+                const std::uint64_t t1 = a_lo32 * b_hi32 + (t0 >> 32);
+                const std::uint64_t t2 = a_hi32 * b_lo32 + (t1 & 0xFFFFFFFFULL);
                 data[0] = (t2 << 32) | (t0 & 0xFFFFFFFFULL);
-                data[1] = a_hi32 * b_hi32 + (t1 >> 32) + (t2 >> 32)
-                          + (a_high * b_low) + (a_low * b_high);
+                data[1] = a_hi32 * b_hi32 + (t1 >> 32) + (t2 >> 32) + (a_high * b_low) + (a_low * b_high);
 #endif
             }
 
@@ -2289,7 +2292,8 @@ namespace nstd
          * **Excess-K (EK):** DELETED — see operator*= for rationale.
          */
         constexpr int128_param_t operator*(const int128_param_t &) const noexcept
-            requires(is_excess_k) = delete;
+            requires(is_excess_k)
+        = delete;
 
         constexpr int128_param_t operator*(const int128_param_t &other) const noexcept
             requires(!is_excess_k)
@@ -2308,7 +2312,8 @@ namespace nstd
          * @return Reference to this (modified)
          */
         constexpr int128_param_t &operator/=(const int128_param_t &) noexcept
-            requires(is_excess_k) = delete;
+            requires(is_excess_k)
+        = delete;
 
         constexpr int128_param_t &operator/=(const int128_param_t &other) noexcept
             requires(!is_excess_k)
@@ -2324,7 +2329,8 @@ namespace nstd
          * **Excess-K (EK):** DELETED — see operator/= for rationale.
          */
         constexpr int128_param_t operator/(const int128_param_t &) const noexcept
-            requires(is_excess_k) = delete;
+            requires(is_excess_k)
+        = delete;
 
         constexpr int128_param_t operator/(const int128_param_t &other) const noexcept
             requires(!is_excess_k)
@@ -2340,7 +2346,8 @@ namespace nstd
          * **Excess-K (EK):** DELETED — modulo has no meaningful semantics for biased exponents.
          */
         constexpr int128_param_t &operator%=(const int128_param_t &) noexcept
-            requires(is_excess_k) = delete;
+            requires(is_excess_k)
+        = delete;
 
         constexpr int128_param_t &operator%=(const int128_param_t &other) noexcept
             requires(!is_excess_k)
@@ -2356,7 +2363,8 @@ namespace nstd
          * **Excess-K (EK):** DELETED — see operator%= for rationale.
          */
         constexpr int128_param_t operator%(const int128_param_t &) const noexcept
-            requires(is_excess_k) = delete;
+            requires(is_excess_k)
+        = delete;
 
         constexpr int128_param_t operator%(const int128_param_t &other) const noexcept
             requires(!is_excess_k)
@@ -3264,7 +3272,8 @@ namespace nstd
          */
         [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t>
         divmod(const int128_param_t &) const noexcept
-            requires(is_excess_k) = delete;
+            requires(is_excess_k)
+        = delete;
 
         [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t>
         divmod(const int128_param_t &other) const noexcept

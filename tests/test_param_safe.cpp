@@ -390,20 +390,12 @@ int main()
     }
 
     {
-        // [WARN] KNOWN ISSUE: MS multiplication not yet implemented correctly
-        // The base operator*= doesn't handle MS representation semantics
-        // (extract magnitudes, multiply, apply sign rule)
-        // This test documents the expected behavior for when it's fixed.
+        // MS multiplication now works correctly (operator*= fixed)
         const int128_ms_t a{-50};
         const int128_ms_t b{100};
         const auto result{checked_mul(a, b)};
 
-        // TODO: Uncomment when MS multiplication is fixed in operator*=
-        // TEST("ms_mul_mixed_signs", !result.overflow && result.value == int128_ms_t{-5000});
-
-        // For now, just verify no crash
-        (void)result; // Suppress unused variable warning
-        std::cout << "  [SKIP] ms_mul_mixed_signs (MS operator*= not implemented)\n";
+        TEST("ms_mul_mixed_signs", !result.overflow && result.value == int128_ms_t{-5000});
     }
 
     {

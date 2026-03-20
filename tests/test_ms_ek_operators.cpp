@@ -83,6 +83,79 @@ int main()
         TEST("ms_mul_negative_one", result == int128_ms_t{-1000});
     }
 
+    // --- Edge cases: zero × negative must give +0, not -0 ---
+    {
+        const int128_ms_t a{0};
+        const int128_ms_t b{-100};
+        const auto result{a * b};
+
+        TEST("ms_mul_zero_times_neg", result.is_zero() && !result.is_negative());
+    }
+
+    {
+        const int128_ms_t a{-100};
+        const int128_ms_t b{0};
+        const auto result{a * b};
+
+        TEST("ms_mul_neg_times_zero", result.is_zero() && !result.is_negative());
+    }
+
+    // --- Cross-word multiplication (result spans both data words) ---
+    {
+        const int128_ms_t a{0xFFFFFFFFULL}; // 2^32 - 1
+        const int128_ms_t b{0xFFFFFFFFULL}; // 2^32 - 1
+        const auto result{a * b};
+        // (2^32-1)^2 = 2^64 - 2^33 + 1 = 0xFFFFFFFE00000001
+
+        TEST("ms_mul_cross_word", result.low() == 0xFFFFFFFE00000001ULL && result.high() == 0);
+    }
+
+    {
+        const int128_ms_t a{static_cast<std::int64_t>(-0xFFFFFFFFLL)};
+        const int128_ms_t b{0xFFFFFFFFULL};
+        const auto result{a * b};
+        // -(2^32-1)^2: negative, magnitude = 0xFFFFFFFE00000001
+
+        TEST("ms_mul_cross_word_neg", result.is_negative() && (result.high() & ~(1ULL << 63)) == 0 && result.low() == 0xFFFFFFFE00000001ULL);
+    }
+
+    // --- 64-bit boundary ---
+    {
+        const int128_ms_t a{0xFFFFFFFFFFFFFFFFULL}; // 2^64 - 1
+        const int128_ms_t b{2};
+        const auto result{a * b}; // 2*(2^64-1) = 2^65 - 2
+
+        TEST("ms_mul_64bit_boundary", result.low() == 0xFFFFFFFFFFFFFFFEULL && result.high() == 1);
+    }
+
+    // --- Large product: 10^9 * 10^9 = 10^18 ---
+    {
+        const int128_ms_t a{1000000000LL};
+        const int128_ms_t b{-1000000000LL};
+        const auto result{a * b};
+
+        TEST("ms_mul_billion_squared", result == int128_ms_t{-1000000000000000000LL});
+    }
+
+    // --- Magnitude overflow into sign bit area ---
+    {
+        // 2^126 * 2 => 2^127 overflows 127-bit magnitude, wraps to 0
+        const int128_ms_t a{0x4000000000000000ULL, 0};
+        const int128_ms_t b{2};
+        const auto result{a * b};
+
+        TEST("ms_mul_magnitude_overflow_wraps", result.is_zero() && !result.is_negative());
+    }
+
+    // --- Identity multiplication ---
+    {
+        const int128_ms_t a{-999999999LL};
+        const int128_ms_t one{1};
+        const auto result{a * one};
+
+        TEST("ms_mul_identity", result == a);
+    }
+
     // ========================================================================
     // Group 2: MS Division (divmod, operator/=, operator%=)
     // ========================================================================
