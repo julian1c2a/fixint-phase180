@@ -190,7 +190,7 @@ Created comprehensive STL type traits integration:
 **Known Issues:**
 
 - ✅ MS operator*= — FIXED (20 March 2026): zero×neg=-0 bug and magnitude overflow into sign bit
-- ⚠️ EK arithmetic not supported (requires bias adjustment)
+- ✅ EK arithmetic — VERIFIED: `*`, `/`, `%` and compound variants are `= delete` (compile-time error)
 
 **Documentation:** See `docs/archive/PRIORITY_3_HEADER_1_COMPLETION.md` for full report
 
@@ -270,7 +270,7 @@ All tests passing: GCC ✅ 30/30 + 25/25, Clang ✅ 30/30 + 25/25, MSVC ✅ 30/3
   2. Magnitude overflow into sign bit (bit 63) corrupted sign for large products
   - Fix: Clear sign bit after magnitude multiplication, only set if result non-zero
   - Tests: 13 MS multiplication tests + safe.hpp `ms_mul_mixed_signs` enabled
-- **EK arithmetic**: `*`, `/`, `%` require bias adjustment — currently syntactic, not semantic
+- **EK arithmetic**: ✅ VERIFIED (20 March 2026) — `*`, `*=`, `/`, `/=`, `%`, `%=` are `= delete` with `requires(is_excess_k)`. All 8 operator forms (including friend `operator*` with builtins) produce compile-time errors. Validated GCC + Clang.
 - **Cross-representation casts (MS↔TC↔EK)**: Low-level conversion functions exist in `representation.hpp`, but no constructor or conversion operator between `int128_param_t` instantiations (`test_casts_between_representations` disabled with `#if 0`)
 - See [OPERATOR_SEMANTICS.md](OPERATOR_SEMANTICS.md) for details
 
