@@ -134,8 +134,8 @@ def compile_with_compiler(
             # Demos: just <demo_name>
             output = output_dir / output_suffix
         
-        # Add .exe extension for Windows compilers
-        if compiler_name in ["msvc", "intel"]:
+        # Add .exe extension for Windows compilers (MSVC and Intel-clang-cl)
+        if compiler_name == "msvc" or (compiler_name == "intel" and sys.platform == "win32"):
             output = output.with_suffix(".exe")
         
         # Check if source file uses threading (for pthread flag)
@@ -157,10 +157,16 @@ def compile_with_compiler(
         source_str = str(source_file).replace("\\", "/")
         output_str = str(output).replace("\\", "/")
         
+        # Detect if Intel is running in clang-cl mode (Windows)
+        intel_windows = (compiler_name == "intel" and sys.platform == "win32")
+        
         # Set compiler-specific flags
-        if compiler_name == "msvc":
-            # MSVC flags
-            common_flags = ["/std:c++20", "/W4", "/EHsc", "/I./include"]
+        if compiler_name == "msvc" or intel_windows:
+            # MSVC / Intel-clang-cl flags
+            if intel_windows:
+                common_flags = ["/Qstd:c++20", "/W4", "/EHsc", "/I./include"]
+            else:
+                common_flags = ["/std:c++20", "/W4", "/EHsc", "/I./include"]
             
             if mode == "debug":
                 mode_flags = ["/Od", "/Zi", "/DDEBUG"]
@@ -181,10 +187,10 @@ def compile_with_compiler(
                 # Default release
                 mode_flags = ["/O2", "/DNDEBUG"]
             
-            # MSVC uses /Fe: for output
+            # MSVC-style uses /Fe: for output
             cmd = [compiler_cmd] + common_flags + mode_flags + [source_str, f"/Fe:{output_str}"]
         else:
-            # GCC/Clang/Intel flags
+            # GCC/Clang/Intel-Linux flags
             common_flags = ["-std=c++20", "-Wall", "-Wextra", "-pedantic", "-I./include"]
             
             if needs_pthread and compiler_name in ["gcc", "clang", "intel"]:
