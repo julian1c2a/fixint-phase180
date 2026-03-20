@@ -159,7 +159,16 @@
       "Bash(/tmp/test_p3_O1.exe)",
       "Bash(/c/msys64/ucrt64/bin/g++.exe -std=c++23 -O1 -I include tests/test_priority3_representations_ms_ek.cpp -o /tmp/test_p3_O1.exe -g)",
       "Bash(/c/msys64/ucrt64/bin/g++.exe -std=c++23 -O1 -fno-inline -I include tests/test_priority3_representations_ms_ek.cpp -o /tmp/test_p3_noinline.exe)",
-      "Bash(/tmp/test_p3_noinline.exe)"
+      "Bash(/tmp/test_p3_noinline.exe)",
+      "Bash(/c/msys64/ucrt64/bin/g++.exe -std=c++23 -O0 -I include /tmp/test_p3_mini8.cpp -o /tmp/test_mini8_O0.exe)",
+      "Bash(/tmp/test_mini8_O0.exe)",
+      "Bash(/c/msys64/ucrt64/bin/g++.exe -std=c++23 -O1 -mno-sse2 -I include /tmp/test_p3_mini8.cpp -o /tmp/test_mini8_nosse.exe)",
+      "Bash(/tmp/test_mini8_nosse.exe)",
+      "Bash(/c/msys64/ucrt64/bin/g++.exe -std=c++23 -O1 -mstackrealign -I include /tmp/test_p3_mini8.cpp -o /tmp/test_mini8_stackalign.exe)",
+      "Bash(/tmp/test_mini8_stackalign.exe)",
+      "Bash(/c/msys64/ucrt64/bin/g++.exe -std=c++23 -O1 -I include /tmp/test_p3_mini8.cpp -S -o /tmp/test_mini8.s)",
+      "Bash(/c/msys64/ucrt64/bin/g++.exe -std=c++23 -O0 /tmp/test_fstream_only.cpp -o /tmp/test_fstream_O0.exe)",
+      "Bash(/tmp/test_fstream_O0.exe)"
     ],
     "additionalDirectories": [
       "\\tmp",

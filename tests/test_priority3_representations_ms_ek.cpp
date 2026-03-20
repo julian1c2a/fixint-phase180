@@ -10,7 +10,6 @@
 
 #include <string>
 #include <vector>
-#include <fstream>
 
 using namespace std;
 
@@ -138,15 +137,6 @@ void test_group_1()
     cout << "\n[Group 1] Magnitude-Sign Fundamentals:" << endl;
     nstd::int128_ms_t neg{-1};
     auto mag = neg.magnitude();
-    {
-        std::ofstream dbg("ms_debug.txt", std::ios::app);
-        dbg << "neg.data[0]: 0x" << std::hex << neg.low() << std::endl;
-        dbg << "neg.data[1]: 0x" << std::hex << neg.high() << std::endl;
-        dbg << "mag.data[0]: 0x" << std::hex << mag.low() << std::endl;
-        dbg << "mag.data[1]: 0x" << std::hex << mag.high() << std::endl;
-        dbg << std::dec;
-        dbg << "neg.is_negative(): " << neg.is_negative() << std::endl;
-    }
     assert_equal("ms_zero", RepresentationHelper::to_ms_representation(int128_t{0, 0}), uint128_t{0, 0});
     assert_equal("ms_pos_byte", RepresentationHelper::to_ms_representation(int128_t{0, 42}), uint128_t{0, 42});
     assert_equal("ms_pos_large", RepresentationHelper::to_ms_representation(int128_t{0x7FFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}), uint128_t{0x7FFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL});
