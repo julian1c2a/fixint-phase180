@@ -104,7 +104,11 @@
       "Bash(/dev/null /tmp/t3.exe)",
       "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 /tmp/t3.exe)",
       "Bash(/tmp/t3.exe)",
-      "Bash(echo \"exit=$?\")"
+      "Bash(echo \"exit=$?\")",
+      "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 grep -n \"requires\\(is_excess_k\\) = delete\" include/int128_parameterized.hpp)",
+      "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 git show 01c750d --stat)",
+      "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 /tmp/test_divmod_suite.exe)",
+      "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 git stash pop)"
     ],
     "additionalDirectories": [
       "\\tmp"
