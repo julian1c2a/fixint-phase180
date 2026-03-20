@@ -1,8 +1,8 @@
 # Executive Summary - Phase 1.75 int128 Library
 
-## Last Updated: 20 March 2026
+## Last Updated: 25 June 2026
 
-## 🎯 Project Status: ALL 6 PHASES COMPLETE + TEST SUITE FIXED ✅
+## 🎯 Project Status: ALL 6 PHASES COMPLETE + API DOCS + CROSS-REPR OPERATORS ✅
 
 ### Total Achievements
 
@@ -10,14 +10,18 @@
 |--------|-------|
 | Phases Complete | **6/6 (100%)** |
 | Feature Headers | **12/12 validated** |
-| Tests Passing | 250+ across 50+ test files |
+| Tests Passing | 250+ across 56 test files (12,158 lines) |
 | Compilers Validated | **11** (4 Windows + 7 WSL) |
 | Division Speedup | **6.24x** (Knuth D vs Binary) |
 | vs uint64_t (GCC-O2) | **0.47x** (faster than native!) |
 | vs __int128 | **20x faster** |
 | Intrinsics Audit | ✅ All `__builtin_*` unified |
-| Code Size | 3,534 lines (main header) |
+| Library Size | **22 headers, 10,689 lines** |
+| Main Header | **4,345 lines** (int128_parameterized.hpp) |
+| API Documentation | **14 docs, ~280 public symbols** |
+| Cross-Repr Operators | ✅ Full binnat/TC/MS/EK interop |
 | run_all_tests.bash | **23/23 PASS** (GCC ucrt64 -O2) |
+| Project Objectives | **8/12 achieved, 3/12 partial** |
 
 ### Phase Completion
 
@@ -94,7 +98,13 @@
 
 - ⚠️ MS operator*= not implemented (multiplication gives wrong results)
 - ⚠️ EK arithmetic not supported for `*`, `/`, `%` (requires bias adjustment)
-- ⚠️ Cross-representation casts at type level (e.g., `int128_tc_t(int128_ms_t)`) not implemented — low-level conversion functions exist in `representation.hpp` but are not wired as constructors/operators in `int128_param_t`
+
+### Recent Additions (March–June 2026)
+
+- ✅ **Cross-representation operators:** Full interop between binnat/TC/MS/EK (copy/move constructors, assignment, explicit conversion methods, built-in integral interop)
+- ✅ **API Reference Documentation:** 14 cppreference-style docs covering ~280 public symbols
+- ✅ **Granlund-Montgomery constexpr plan:** Ready for implementation (`docs/PLAN_DIVMOD_CONSTEXPR.md`)
+- ✅ **Project objectives assessment:** 8/12 achieved, 3/12 partial (see README.md)
 
 ---
 

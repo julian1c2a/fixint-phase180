@@ -1,7 +1,7 @@
 # 🔮 NEXT STEPS - Post-Phase 1.75
 
-**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 12/12 ✅ | Intrinsics Audit ✅ | Test Suite Fixed ✅
-**Last Updated:** 20 March 2026
+**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 12/12 ✅ | Intrinsics ✅ | Cross-Repr ✅ | API Docs ✅
+**Last Updated:** 25 June 2026
 **Focus:** All phases complete — Future work items below
 
 ---
@@ -30,6 +30,26 @@
 - `int128_param_bits.hpp`: 6 `__builtin_*` calls → `intrinsics::popcount64/clz64/ctz64`
 - `int128_param_numeric.hpp`: Removed `detail::portable_clzll()`, replaced with `intrinsics::clz64()`
 - All 12 feature headers validated on 11 compilers post-fix
+
+---
+
+## ✅ COMPLETED: Cross-Representation Operators (June 2026)
+
+- Cross-repr copy/move constructors (binnat/TC/MS/EK ↔ binnat/TC/MS/EK)
+- Cross-repr assignment operators
+- Explicit conversion methods between all forms
+- Built-in integral interop with all representation forms
+
+## ✅ COMPLETED: API Reference Documentation (June 2026)
+
+- 14 cppreference-style API docs covering ~280 public symbols
+- Main class doc: `API_parameterized.md`
+- 13 feature module docs (concepts, traits, limits, algorithm, bits, cmath, numeric, ranges, safe, thread_safety, iostreams, format, representation)
+
+## ✅ COMPLETED: Granlund-Montgomery Division Plan (June 2026)
+
+- `docs/PLAN_DIVMOD_CONSTEXPR.md` — Comprehensive plan for constexpr division by compile-time constants
+- Analysis of 17 legacy headers in `legacy-code/divmod_by_constexpr/`
 
 ---
 

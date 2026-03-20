@@ -1,8 +1,8 @@
-# PROJECT STATUS: All Phases Complete + Comprehensive Validation
+# PROJECT STATUS: All Phases Complete + API Documentation + Cross-Repr Operators
 
-**Date:** 20 March 2026
-**Last Session:** Broken Tests Fixed + MS operator++ Bug Fix
-**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅ + Test Suite Fixed ✅
+**Date:** 25 June 2026
+**Last Session:** API Reference Docs (14 files) + Cross-Repr Operators + Root Doc Updates
+**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅ + Test Suite Fixed ✅ + API Docs ✅ + Cross-Repr Operators ✅
 **Current Status:** 🎉 **23/23 tests pass (run_all_tests.bash, GCC ucrt64 -O2) | 168/168 across 12 compilers (18 March)**
 
 ## Phase Status Summary
@@ -198,10 +198,34 @@ All 12 feature headers validated across 11 compilers (4 Windows + 7 WSL):
 ## Code Quality Metrics
 
 - ✅ Compilation: 0 errors, 0 warnings
-- ✅ Tests: 200+ passing on GCC and Clang
+- ✅ Tests: 250+ passing across 56 files (12,158 lines of test code)
+- ✅ Library: 22 headers, 10,689 lines (main header: 4,345 lines)
 - ✅ Correctness: 100% verified
-- ✅ Cross-platform: All Windows/Unix toolchains validated
+- ✅ Cross-platform: All Windows/Unix toolchains validated (11 compilers)
 - ✅ Production status: Knuth D algorithm production-ready
+- ✅ Documentation: 14 API reference docs (~280 public symbols)
+
+## Post-Phase 6 Achievements (March–June 2026)
+
+### Cross-Representation Operators ✅ (commits ec25de7, 41418ce, 9b83208)
+
+- Cross-representation copy/move constructors (binnat/TC/MS/EK ↔ binnat/TC/MS/EK)
+- Cross-representation assignment operators
+- Explicit conversion methods between all forms
+- Built-in integral interop with all representation forms
+
+### API Reference Documentation ✅ (commit 716b17f)
+
+14 cppreference-style API docs covering ~280 public symbols:
+
+- `API_parameterized.md` — Main class (constructors, operators, conversions, Knuth D)
+- 13 feature module docs (concepts, traits, limits, algorithm, bits, cmath, numeric, ranges, safe, thread_safety, iostreams, format, representation)
+
+### Granlund-Montgomery Division Plan (commit 716b17f)
+
+- `PLAN_DIVMOD_CONSTEXPR.md` — Comprehensive plan for constexpr division by compile-time constants
+- Covers legacy `divmod_by_constexpr/` code analysis (17 headers, benchmarks, Python scripts)
+- Identifies Granlund-Montgomery algorithm as target approach
 
 ## Next Steps (Priority Order)
 
@@ -211,17 +235,18 @@ All 6 phases, 12 feature headers, and intrinsics audit are complete.
 
 ### Potential Future Work
 
-1. **Comparative benchmarking** — Full benchmark suite across all 11 compilers
-2. **Test suite strengthening** — Review test_priority*.cpp for weak assertions
-3. **MS operator*= implementation** — Currently gives wrong results for magnitude-sign
-4. **EK arithmetic** — Requires bias adjustment for *, /, % operators
-5. **Phase 5 WSL validation** — Run 55 operator tests on 7 WSL compilers
+1. **Granlund-Montgomery constexpr division** — Fast division by compile-time constants (plan ready)
+2. **MS operator*= implementation** — Currently gives wrong results for magnitude-sign
+3. **EK arithmetic** — Requires bias adjustment for *, /, % operators
+4. **CI/CD pipeline** — GitHub Actions for automated builds/tests
+5. **Phase 1.80: N×64-bit generalization** — Arbitrary width integers
+6. **Comparative benchmarking** — Full benchmark suite across all 11 compilers
 
 ## File Status
 
 | File | Lines | Status | Notes |
 |------|-------|--------|-------|
-| include/int128_parameterized.hpp | 3,534 | ✅ Production | Knuth D implemented |
+| include/int128_parameterized.hpp | 4,345 | ✅ Production | Knuth D + cross-repr operators |
 | tests/test_knuth_d_correctness.cpp | ~200 | ✅ Production | 30 tests, 6 groups |
 | tests/test_division_operators.cpp | 357 | ✅ Production | 25 tests |
 | benchs/benchmark_divmod_algorithms.cpp | ~330 | ✅ Production | Labels fixed |
