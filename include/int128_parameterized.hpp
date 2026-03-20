@@ -1729,16 +1729,25 @@ namespace nstd
                 // MS signed: check if negative
                 if (is_negative())
                 {
-                    // Negative: decrement magnitude (moves toward zero)
-                    if (data[0] == 0)
-                    {
-                        --data[1];
-                    }
-                    --data[0];
-                    // Clear sign bit if magnitude becomes zero
+                    // Special case: -0 → +1 (symmetric to -- handling +0 → -1)
                     if (data[0] == 0 && (data[1] & ~(1ULL << 63)) == 0)
                     {
-                        data[1] &= ~(1ULL << 63);
+                        data[0] = 1;
+                        data[1] = 0; // clear sign bit, magnitude = 1 → value = +1
+                    }
+                    else
+                    {
+                        // Negative: decrement magnitude (moves toward zero)
+                        if (data[0] == 0)
+                        {
+                            --data[1];
+                        }
+                        --data[0];
+                        // Clear sign bit if magnitude becomes zero
+                        if (data[0] == 0 && (data[1] & ~(1ULL << 63)) == 0)
+                        {
+                            data[1] &= ~(1ULL << 63);
+                        }
                     }
                 }
                 else

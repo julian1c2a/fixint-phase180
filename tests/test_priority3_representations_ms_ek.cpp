@@ -340,7 +340,7 @@ void test_group_7()
         g_tests_passed++;
     }
     auto mag = min_val.magnitude();
-    nstd::int128_ms_t abs_min{static_cast<uint64_t>(-(std::numeric_limits<int64_t>::min()))};
+    nstd::int128_ms_t abs_min{static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) + 1ULL};
     if (!(mag == abs_min))
     {
         std::cout << "  [FAIL] cross_min_ms_mag" << std::endl;

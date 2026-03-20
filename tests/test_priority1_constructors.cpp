@@ -183,7 +183,7 @@ void test_type_traits_signedness()
 // TEST 18: Type traits - representation form
 void test_type_traits_form()
 {
-    ASSERT_EQ(uint128_t::form, representation_form::twos_complement);
+    ASSERT_EQ(uint128_t::form, representation_form::binnat);
     ASSERT_EQ(int128_t::form, representation_form::twos_complement);
 }
 
@@ -198,7 +198,7 @@ void test_type_traits_is_signed()
 void test_type_aliases()
 {
     uint128_t x(42ULL);
-    ASSERT_EQ(x.form, representation_form::magnitude_sign);
+    ASSERT_EQ(x.form, representation_form::binnat);
 
     int128_ek_t y(42LL);
     ASSERT_EQ(y.form, representation_form::excess_k);

@@ -60,3 +60,4 @@ Thumbs.db
 *.temp
 *.log
 ms_debug.txt
+ms_debug_narrow.txt

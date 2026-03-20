@@ -78,8 +78,8 @@ int g_failed = 0;
 
 TEST(divmod_simple_tc)
 {
-    const uint128_tc_t dividend{0, 100};
-    const uint128_tc_t divisor{0, 7};
+    const uint128_t dividend{0, 100};
+    const uint128_t divisor{0, 7};
     const auto [quot, rem] = dividend.divmod(divisor);
 
     ASSERT_EQ(quot.low(), 14);
@@ -88,8 +88,8 @@ TEST(divmod_simple_tc)
 
 TEST(divmod_large_tc)
 {
-    const uint128_tc_t dividend{0, 0xFFFFFFFFFFFFFFFFULL};
-    const uint128_tc_t divisor{0, 1000};
+    const uint128_t dividend{0, 0xFFFFFFFFFFFFFFFFULL};
+    const uint128_t divisor{0, 1000};
     const auto [quot, rem] = dividend.divmod(divisor);
 
     // 2^64 - 1 = 18446744073709551615
@@ -117,8 +117,8 @@ TEST(abs_negative_tc)
 
 TEST(swap_simple)
 {
-    uint128_tc_t a{0x1234, 0x5678};
-    uint128_tc_t b{0xABCD, 0xEF01};
+    uint128_t a{0x1234, 0x5678};
+    uint128_t b{0xABCD, 0xEF01};
 
     a.swap(b);
 
@@ -134,21 +134,21 @@ TEST(swap_simple)
 
 TEST(friend_add_int128_plus_int)
 {
-    const uint128_tc_t x{0, 100};
+    const uint128_t x{0, 100};
     const auto result = x + 50; // int128 + int
     ASSERT_EQ(result.low(), 150);
 }
 
 TEST(friend_add_int_plus_int128)
 {
-    const uint128_tc_t x{0, 100};
+    const uint128_t x{0, 100};
     const auto result = 50 + x; // int + int128 (symmetric)
     ASSERT_EQ(result.low(), 150);
 }
 
 TEST(friend_add_uint64_plus_int128)
 {
-    const uint128_tc_t x{0, 0xFFFFFFFFFFFFFF00ULL};
+    const uint128_t x{0, 0xFFFFFFFFFFFFFF00ULL};
     const auto result = 0x100ULL + x;
     ASSERT_EQ(result.low(), 0);
     ASSERT_EQ(result.high(), 1); // Overflow to high limb
@@ -160,14 +160,14 @@ TEST(friend_add_uint64_plus_int128)
 
 TEST(friend_sub_int128_minus_int)
 {
-    const uint128_tc_t x{0, 100};
+    const uint128_t x{0, 100};
     const auto result = x - 30;
     ASSERT_EQ(result.low(), 70);
 }
 
 TEST(friend_sub_int_minus_int128)
 {
-    const uint128_tc_t x{0, 30};
+    const uint128_t x{0, 30};
     const auto result = 100 - x; // int - int128
     ASSERT_EQ(result.low(), 70);
 }
@@ -178,14 +178,14 @@ TEST(friend_sub_int_minus_int128)
 
 TEST(friend_mul_int128_times_int)
 {
-    const uint128_tc_t x{0, 10};
+    const uint128_t x{0, 10};
     const auto result = x * 5;
     ASSERT_EQ(result.low(), 50);
 }
 
 TEST(friend_mul_int_times_int128)
 {
-    const uint128_tc_t x{0, 10};
+    const uint128_t x{0, 10};
     const auto result = 5 * x; // int * int128
     ASSERT_EQ(result.low(), 50);
 }
@@ -196,40 +196,40 @@ TEST(friend_mul_int_times_int128)
 
 TEST(friend_eq_int128_eq_int)
 {
-    const uint128_tc_t x{0, 42};
+    const uint128_t x{0, 42};
     ASSERT_TRUE(x == 42);
 }
 
 TEST(friend_eq_int_eq_int128)
 {
-    const uint128_tc_t x{0, 42};
+    const uint128_t x{0, 42};
     ASSERT_TRUE(42 == x);
 }
 
 TEST(friend_lt_int128_lt_int)
 {
-    const uint128_tc_t x{0, 10};
+    const uint128_t x{0, 10};
     ASSERT_TRUE(x < 20);
     ASSERT_FALSE(x < 5);
 }
 
 TEST(friend_lt_int_lt_int128)
 {
-    const uint128_tc_t x{0, 10};
+    const uint128_t x{0, 10};
     ASSERT_TRUE(5 < x);
     ASSERT_FALSE(20 < x);
 }
 
 TEST(friend_gt_int128_gt_int)
 {
-    const uint128_tc_t x{0, 20};
+    const uint128_t x{0, 20};
     ASSERT_TRUE(x > 10);
     ASSERT_FALSE(x > 30);
 }
 
 TEST(friend_gt_int_gt_int128)
 {
-    const uint128_tc_t x{0, 10};
+    const uint128_t x{0, 10};
     ASSERT_TRUE(20 > x);
     ASSERT_FALSE(5 > x);
 }
@@ -240,21 +240,21 @@ TEST(friend_gt_int_gt_int128)
 
 TEST(friend_and_int128_and_int)
 {
-    const uint128_tc_t x{0, 0xFF};
+    const uint128_t x{0, 0xFF};
     const auto result = x & 0x0F;
     ASSERT_EQ(result.low(), 0x0F);
 }
 
 TEST(friend_or_int_or_int128)
 {
-    const uint128_tc_t x{0, 0xF0};
+    const uint128_t x{0, 0xF0};
     const auto result = 0x0F | x;
     ASSERT_EQ(result.low(), 0xFF);
 }
 
 TEST(friend_xor_int128_xor_int)
 {
-    const uint128_tc_t x{0, 0xFF};
+    const uint128_t x{0, 0xFF};
     const auto result = x ^ 0x0F;
     ASSERT_EQ(result.low(), 0xF0);
 }
@@ -265,8 +265,8 @@ TEST(friend_xor_int128_xor_int)
 
 TEST(adl_swap)
 {
-    uint128_tc_t a{0x1234, 0x5678};
-    uint128_tc_t b{0xABCD, 0xEF01};
+    uint128_t a{0x1234, 0x5678};
+    uint128_t b{0xABCD, 0xEF01};
 
     using std::swap; // Enable ADL
     swap(a, b);
