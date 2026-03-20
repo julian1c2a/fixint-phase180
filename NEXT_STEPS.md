@@ -1,8 +1,8 @@
 # 🔮 NEXT STEPS - Post-Phase 1.75
 
 **Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 12/12 ✅ | Intrinsics ✅ | Cross-Repr ✅ | API Docs ✅
-**Last Updated:** 26 June 2026
-**Focus:** All phases complete — Future work: BCD types, benchmark methodology, Granlund-Montgomery
+**Last Updated:** 27 June 2026
+**Focus:** All phases complete — Future work: BCD types, benchmark methodology, Granlund-Montgomery, Karatsuba
 
 ---
 
@@ -287,6 +287,63 @@ Tipo parametrizado en base 10 con codificación BCD dentro de 128 bits (32 dígi
 
 División constexpr por constantes en tiempo de compilación usando multiplicación recíproca.
 17 headers legacy analizados en `legacy-code/divmod_by_constexpr/`.
+
+### NEW: Multiplicación Karatsuba
+
+**Status:** Planned | **Priority:** Medium | **Docs:** `docs/PLAN_BCD_DECIMAL_TYPES.md` §11
+
+Algoritmo Karatsuba para multiplicación sub-cuadrática O(n^1.585). Necesario para:
+
+- Tipos BCD más grandes (bcd256_t, bcd512_t) donde schoolbook O(n²) es costoso.
+- Futuro `uint256_t` binario.
+- Umbral schoolbook/Karatsuba a determinar empíricamente con benchmarks RDTSC.
+- Plan detallado: header genérico `include/algorithms/karatsuba.hpp`.
+
+---
+
+## 🔴 CRÍTICAS ATACABLES (Action Items)
+
+Puntos débiles identificados que deben abordarse en futuras sesiones:
+
+### Crítica 1: benchmark_divmod_algorithms.cpp aún usa std::chrono
+
+- **Problema:** El benchmark de algoritmos de división (`benchs/benchmark_divmod_algorithms.cpp`)
+  mide con `std::chrono::high_resolution_clock`, no con RDTSC, incumpliendo la Regla 8.
+- **Acción:** Migrar a `#include "bench_common.hpp"` y reportar ciclos/op.
+- **Prioridad:** Alta — incoherencia con la metodología documentada.
+
+### Crítica 2: No existe un test runner unificado
+
+- **Problema:** Los tests se ejecutan individualmente; no hay un único ejecutable
+  o script que corra todos los tests y reporte pass/fail global.
+- **Acción:** Crear script `scripts/run_all_tests.py` o target `make test_all`
+  que encuentre todos los `*_tests.cpp`, compile, ejecute y reporte resumen.
+- **Prioridad:** Media — afecta DX pero no corrección.
+
+### Crítica 3: Cobertura de tests no sigue 3-regiones sistemáticamente
+
+- **Problema:** Los tests existentes usan valores ad-hoc, no la cobertura de
+  3 regiones × 2^21 valores descrita en la metodología.
+- **Acción:** Implementar `test_sweep_framework.hpp` (documentado en
+  `PLAN_BENCHMARK_AND_TESTING_METHODOLOGY.md` §6) y migrar tests gradualmente.
+- **Prioridad:** Media — la metodología existe pero no se aplica aún.
+
+### Crítica 4: Conversiones BCD ↔ binario no implementadas
+
+- **Problema:** El plan BCD documenta double-dabble e inverso multiplicativo,
+  pero no hay implementación ni prototipo que valide la viabilidad constexpr.
+- **Acción:** Crear prototipo en `build_temp/prototype_bcd_conversion.cpp`
+  que implemente double-dabble y Horner constexpr. Verificar compilabilidad en 4 compiladores.
+- **Prioridad:** Media — necesario antes de empezar BCD en serio.
+
+### Crítica 5: bench_common.hpp no se ha compilado con MSVC ni Intel
+
+- **Problema:** El header compartido de benchmarks se creó y refactorizó
+  `benchmark_vs_builtin.cpp`, pero no se ha validado la compilación con los
+  4 compiladores (GCC, Clang, MSVC, Intel).
+- **Acción:** Compilar `benchmark_vs_builtin.cpp` con los 4 compiladores y
+  corregir cualquier issue de portabilidad en `bench_common.hpp`.
+- **Prioridad:** Alta — el header debe ser cross-compiler desde el inicio.
 
 ---
 

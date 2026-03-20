@@ -210,8 +210,107 @@ Cada benchmark debe producir una tabla como:
 
 ---
 
+## 6. Framework de Sweep Templatizado
+
+### Motivación
+
+Cada test de una operación unaria o binaria repite la misma estructura:
+generar valores de cada región, aplicar la función, verificar resultado.
+Un **framework templatizado** elimina esta duplicación.
+
+### Diseño
+
+```cpp
+/// Sweep para funciones unarias f(x) → result
+/// Aplica f a 2^21 valores de cada región + edge cases
+/// Verifica resultado contra oracle (función de referencia)
+template <typename F, typename Oracle>
+bool sweep_unary(F&& func, Oracle&& oracle, const char* name) {
+    constexpr uint64_t N{TestRegion::REGION_SIZE};
+    uint64_t pass{0}, fail{0};
+
+    // Región 1: primeros
+    for (uint64_t i{0}; i < N; ++i) {
+        const auto x{TestRegion::first_region(i)};
+        if (func(x) != oracle(x)) { ++fail; log_failure(name, x); }
+        else { ++pass; }
+    }
+
+    // Región 2: últimos
+    for (uint64_t i{0}; i < N; ++i) {
+        const auto x{TestRegion::last_region(i)};
+        if (func(x) != oracle(x)) { ++fail; log_failure(name, x); }
+        else { ++pass; }
+    }
+
+    // Región 3: aleatorios
+    for (uint64_t i{0}; i < N; ++i) {
+        const auto x{TestRegion::random_region(i, FIXED_SEED)};
+        if (func(x) != oracle(x)) { ++fail; log_failure(name, x); }
+        else { ++pass; }
+    }
+
+    // Edge cases
+    for (const auto& x : UNARY_EDGE_CASES) {
+        if (func(x) != oracle(x)) { ++fail; log_failure(name, x); }
+        else { ++pass; }
+    }
+
+    print_sweep_result(name, pass, fail);
+    return fail == 0;
+}
+
+/// Sweep para funciones binarias g(x, y) → result
+/// Aplica g a las 6 combinaciones de regiones + edge cases
+template <typename G, typename Oracle>
+bool sweep_binary(G&& func, Oracle&& oracle, const char* name);
+```
+
+### Uso
+
+```cpp
+// Ejemplo: test de popcount
+const bool ok{sweep_unary(
+    [](const uint128_t& x) { return nstd::popcount(x); },
+    [](const uint128_t& x) {
+        return __builtin_popcountll(x.low()) + __builtin_popcountll(x.high());
+    },
+    "popcount"
+)};
+
+// Ejemplo: test de suma
+const bool ok2{sweep_binary(
+    [](const uint128_t& a, const uint128_t& b) { return a + b; },
+    [](const uint128_t& a, const uint128_t& b) {
+        // oracle usando __int128
+        const unsigned __int128 ra{to_builtin(a)};
+        const unsigned __int128 rb{to_builtin(b)};
+        return from_builtin(ra + rb);
+    },
+    "operator+"
+)};
+```
+
+### Beneficios
+
+- **Reducción de boilerplate:** Cada test se reduce a 2 lambdas + 1 llamada
+- **Consistencia:** Todas las funciones se prueban con las mismas regiones
+- **Extensibilidad:** Añadir nuevas regiones afecta todos los tests automáticamente
+- **Reporte unificado:** Formato consistente de pass/fail/total
+
+### Plan de Implementación
+
+1. Crear `tests/test_sweep_framework.hpp` — header compartido con `sweep_unary`,
+   `sweep_binary`, `TestRegion`, `PRNG`, y edge cases.
+2. Archivo de test correspondiente: `tests/test_sweep_framework_tests.cpp` para
+   validar que el propio framework funciona correctamente.
+3. Migrar tests existentes gradualmente al framework.
+
+---
+
 **Documentación relacionada:**
 
-- `benchs/benchmark_vs_builtin.cpp` — Referencia de RDTSC
-- `AI_PROMPT/ai-instructions.md` — Regla 15 (Test & Benchmark Methodology)
+- `benchs/bench_common.hpp` — Infraestructura compartida de benchmarks (RDTSC, CycleTimer, doNotOptimize)
+- `benchs/benchmark_vs_builtin.cpp` — Benchmark de referencia (usa bench_common.hpp)
+- `AI_PROMPT/ai-instructions.md` — Regla 8 (Test & Benchmark Methodology)
 - `NEXT_STEPS.md` — Sección de trabajo futuro

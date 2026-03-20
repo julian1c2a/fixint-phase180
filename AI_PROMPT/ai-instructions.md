@@ -290,7 +290,8 @@ auto ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).coun
 - **Baseline:** Siempre medir `uint64_t` como referencia
 - **Reporte:** ciclos/op + ratio vs baseline
 
-**Infraestructura de referencia:** `benchs/benchmark_vs_builtin.cpp` (CycleTimer, rdtsc(), doNotOptimize)
+**Infraestructura compartida:** `benchs/bench_common.hpp` (CycleTimer, rdtsc(), doNotOptimize, BenchResult, print helpers).
+Todos los benchmarks DEBEN usar `#include "bench_common.hpp"` en lugar de reimplementar la infraestructura.
 
 #### 8b. Cobertura Sistemática de Tests y Benchmarks
 

@@ -28,21 +28,7 @@
 // =============================================================================
 
 #include "int128_parameterized.hpp"
-#include <iostream>
-#include <iomanip>
-#include <cstdint>
-#include <string>
-
-// RDTSC: cycle-accurate timing independent of clock frequency
-#if defined(_MSC_VER) || (defined(__INTEL_LLVM_COMPILER) && defined(_WIN32))
-#include <intrin.h>
-static inline std::uint64_t rdtsc() { return __rdtsc(); }
-#elif defined(__INTEL_LLVM_COMPILER)
-#include <x86intrin.h>
-static inline std::uint64_t rdtsc() { return __rdtsc(); }
-#else
-static inline std::uint64_t rdtsc() { return __builtin_ia32_rdtsc(); }
-#endif
+#include "bench_common.hpp"
 
 // Boost.Multiprecision backends
 #include <boost/multiprecision/cpp_int.hpp>
@@ -68,98 +54,6 @@ using boost_checked_u128 = bmp::checked_uint128_t;
 using boost_gmp_int = bmp::mpz_int;
 using boost_tom_int = bmp::tom_int;
 #endif
-
-// ============================================================================
-// Configuration
-// ============================================================================
-
-#ifndef BENCH_ITERATIONS
-#define BENCH_ITERATIONS 5000000
-#endif
-
-static constexpr std::size_t ITERATIONS{BENCH_ITERATIONS};
-static constexpr std::size_t WARMUP{10000};
-
-// ============================================================================
-// Cycle counter (RDTSC-based, clock-frequency independent)
-// ============================================================================
-
-class CycleTimer
-{
-    std::uint64_t start_;
-
-public:
-    CycleTimer() : start_{rdtsc()} {}
-    std::uint64_t elapsed_cycles() const
-    {
-        return rdtsc() - start_;
-    }
-};
-
-// ============================================================================
-// Result formatting
-// ============================================================================
-
-struct BenchResult
-{
-    std::string name;
-    double cycles_per_op;
-};
-
-static void print_separator()
-{
-    std::cout << "+-------------------------------+--------------+-----------+\n";
-}
-
-static void print_header(const char *operation)
-{
-    std::cout << "\n[" << operation << "]\n";
-    print_separator();
-    std::cout << "| Type                          |  cyc/op      | vs u64    |\n";
-    print_separator();
-}
-
-static void print_result(const BenchResult &r, double baseline_cyc)
-{
-    const double ratio{(baseline_cyc > 0.0) ? r.cycles_per_op / baseline_cyc : 0.0};
-    std::cout << "| " << std::left << std::setw(29) << r.name << " | "
-              << std::right << std::fixed << std::setprecision(2) << std::setw(12) << r.cycles_per_op << " | "
-              << std::fixed << std::setprecision(2) << std::setw(6) << ratio << "x   |\n";
-}
-
-// ============================================================================
-// Prevent optimization (volatile sink)
-// ============================================================================
-
-template <typename T>
-static void doNotOptimize(T &val)
-{
-#if defined(_MSC_VER) || defined(__INTEL_LLVM_COMPILER)
-    // MSVC/Intel-Windows: read+write one byte through volatile pointer.
-    // Forces the compiler to actually compute val (can't be eliminated).
-    *reinterpret_cast<char volatile *>(&val) =
-        *reinterpret_cast<char volatile *>(&val);
-#elif defined(__clang__)
-    // Clang: "+r,m" works well — Clang chooses memory operands for structs,
-    // which avoids register shuffling. Using split "+r" would cause
-    // redundant stores on Clang.
-    asm volatile("" : "+r,m"(val) : : "memory");
-#else
-    // GCC: For 128-bit structs, "+r,m" causes 4 unnecessary register
-    // shuffles per iteration (GCC can't map a struct to a register pair).
-    // Fix: split into two separate "+r" constraints on each uint64_t half.
-    // This generates the same optimal addq/adcq or subq/sbbq as __int128.
-    if constexpr (sizeof(T) == 16 && alignof(T) >= alignof(std::uint64_t))
-    {
-        auto *p = reinterpret_cast<std::uint64_t *>(&val);
-        asm volatile("" : "+r"(p[0]), "+r"(p[1]) : : "memory");
-    }
-    else
-    {
-        asm volatile("" : "+r,m"(val) : : "memory");
-    }
-#endif
-}
 
 // ============================================================================
 // BENCHMARK: Addition

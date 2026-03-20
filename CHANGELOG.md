@@ -1,3 +1,39 @@
+## [27 June 2026] - Documentation & Infrastructure Update
+
+### 🆕 New Files
+
+- **`benchs/bench_common.hpp`**: Shared benchmark infrastructure header extracted from
+  `benchmark_vs_builtin.cpp`. Provides `rdtsc()`, `CycleTimer`, `doNotOptimize<T>()`,
+  `BenchResult`, print helpers. Cross-compiler (MSVC, Intel, GCC, Clang) with 128-bit
+  optimized `doNotOptimize` for GCC.
+
+### 📝 Documentation Updates
+
+- **`docs/PLAN_BCD_DECIMAL_TYPES.md`**:
+  - §9: Validación de Nibbles BCD Aiken (códigos inválidos 0x5-0xA, `is_valid_aiken()`)
+  - §10: Conversiones Binario ↔ BCD (Double-Dabble, Horner con inv. multiplicativo, estrategia)
+  - §11: Multiplicación Karatsuba (algoritmo, aplicabilidad, plan de implementación)
+  - §12: Reorganización de Consideraciones de Diseño (decisiones tomadas + abiertas)
+
+- **`docs/PLAN_BENCHMARK_AND_TESTING_METHODOLOGY.md`**:
+  - §6: Framework de Sweep Templatizado (`sweep_unary`, `sweep_binary`, TestRegion, plan impl.)
+
+- **`NEXT_STEPS.md`**:
+  - Nuevo item: Multiplicación Karatsuba (Phase 1.80)
+  - Nueva sección: 🔴 CRÍTICAS ATACABLES — 5 action items con prioridad y acciones concretas
+
+### 🔄 Refactoring
+
+- `benchs/benchmark_vs_builtin.cpp`: Replaced ~140 lines of inline RDTSC infrastructure with
+  `#include "bench_common.hpp"`.
+
+### 📋 Rule Updates
+
+- `AI_PROMPT/ai-instructions.md` + `.github/copilot-instructions.md`: Rule 8 now references
+  `benchs/bench_common.hpp` as shared infrastructure instead of inline code in benchmark files.
+
+---
+
 ## [20 March 2026] - BROKEN TESTS FIXED + MS OPERATOR++ BUG FIX ✅
 
 ### 🔧 Bug Fixes
