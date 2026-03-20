@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // =============================================================================
 // Priority 4 Tests: Arithmetic and ±0 Methods (Phase 1.75)
 // =============================================================================

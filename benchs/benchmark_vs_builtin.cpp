@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // =============================================================================
 // Benchmark: nstd::uint128_t vs builtin types vs __int128 vs Boost
 // Part of int128 Library - Phase 1.75

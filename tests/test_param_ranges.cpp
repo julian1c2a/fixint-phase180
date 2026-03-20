@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 /**
  * @file test_param_ranges.cpp
  * @brief Tests for int128_param_ranges.hpp - Range auxiliary functions

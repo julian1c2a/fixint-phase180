@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // =============================================================================
 // Priority 3 Tests: Magnitude-Sign & Excess-K Representations
 // Part of int128 Phase 1.75 - Feature #2205

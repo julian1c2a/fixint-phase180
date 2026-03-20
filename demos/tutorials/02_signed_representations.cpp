@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // =============================================================================
 // Tutorial 02: Signed Types and Representations
 // Part of int128 Library - https://github.com/julian1c2a/int128-phase175

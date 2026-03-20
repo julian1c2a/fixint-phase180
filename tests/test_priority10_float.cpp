@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // =============================================================================
 // Test Suite: Priority 10 - Float/Double Conversions
 // Part of int128 Library - Phase 1.75

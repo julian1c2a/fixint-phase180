@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // =============================================================================
 // Test: Core Operators - Arithmetic, Bitwise, Comparison, Unary, Construction
 // Part of int128 Library - Phase 1.75

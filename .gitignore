@@ -64,3 +64,4 @@ Thumbs.db
 *.log
 ms_debug.txt
 ms_debug_narrow.txt
+compile_commands.json

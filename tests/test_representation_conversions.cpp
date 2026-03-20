@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // =============================================================================
 // Test: representation.hpp - Conversiones entre representaciones 128 bits
 // Part of int128 Library - https://github.com/[repo]

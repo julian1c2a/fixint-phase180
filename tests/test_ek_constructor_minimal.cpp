@@ -1,3 +1,5 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // Minimal test to debug EK constructor with optimization
 #include "int128_parameterized.hpp"
 #include <iostream>
