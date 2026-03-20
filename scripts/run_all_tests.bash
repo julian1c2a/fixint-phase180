@@ -6,8 +6,8 @@
 INCLUDE_DIR="include"
 TEST_DIR="tests"
 BUILD_DIR="build"
-CXX="g++"
-CXXFLAGS="-std=c++20 -O2 -I$INCLUDE_DIR"
+CXX="${GCC_CXX:-/c/msys64/ucrt64/bin/g++.exe}"
+CXXFLAGS="-std=c++20 -O2 -I$INCLUDE_DIR -Wno-unknown-pragmas"
 
 # Create build directory
 mkdir -p "$BUILD_DIR"
@@ -35,6 +35,8 @@ TEST_FILES=(
     "test_excess_k_comparison.cpp"
     "test_ms_storage.cpp"
     "test_representation_conversions.cpp"
+    "test_ms_multiplication.cpp"
+    "test_ek_operator_semantics.cpp"
 )
 
 # Counters

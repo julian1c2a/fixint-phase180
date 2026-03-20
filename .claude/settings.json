@@ -108,10 +108,44 @@
       "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 grep -n \"requires\\(is_excess_k\\) = delete\" include/int128_parameterized.hpp)",
       "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 git show 01c750d --stat)",
       "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 /tmp/test_divmod_suite.exe)",
-      "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 git stash pop)"
+      "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 git stash pop)",
+      "Bash(/tmp/t3g.exe)",
+      "Bash(/tmp/t3_O2.exe)",
+      "Bash(/c/msys64/ucrt64/bin/g++ -std=c++20 -O1 -I include tests/test_priority3_representations_ms_ek.cpp -o /tmp/t3_O1.exe)",
+      "Bash(/tmp/t3_O1.exe)",
+      "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 grep -n \"test_group_1\\\\|Group 1\\\\|ms_zero\\\\|ms_pos_byte\" tests/test_priority3_representations_ms_ek.cpp)",
+      "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 grep -n \"RepresentationHelper\\\\|to_ms_representation\" tests/test_priority3_representations_ms_ek.cpp)",
+      "Bash(cd /c/msys64/ucrt64/home/julian/CppProjects/int128-phase175 /c/msys64/ucrt64/bin/g++ -std=c++20 -O2 -I include tests/test_priority10_float.cpp -o /tmp/t10.exe)",
+      "Bash(/c/msys64/ucrt64/bin/g++ -std=c++20 -O2 -I include -I include/intrinsics tests/test_ms_multiplication.cpp -o /tmp/test_ms_mul.exe)",
+      "Bash(/tmp/test_ms_mul.exe)",
+      "Bash(/c/msys64/ucrt64/bin/g++ -std=c++20 -O2 -I include -I include/intrinsics tests/test_ek_operator_semantics.cpp -o /tmp/test_ek_semantics.exe)",
+      "Bash(/tmp/test_ek_semantics.exe)",
+      "Bash(cmd.exe /c \"cd /d C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175 && cl /std:c++20 /O2 /I include /I include/intrinsics tests/test_ms_multiplication.cpp /Fe:C:\\\\Windows\\\\Temp\\\\test_ms_mul_msvc.exe /EHsc 2>&1 && C:\\\\Windows\\\\Temp\\\\test_ms_mul_msvc.exe\")",
+      "Bash(cmd.exe /c \"cd /d C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175 && call \"\"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\2022\\\\Community\\\\VC\\\\Auxiliary\\\\Build\\\\vcvars64.bat\"\" && cl /std:c++20 /O2 /I include /I include/intrinsics tests/test_ms_multiplication.cpp /FeC:\\\\Windows\\\\Temp\\\\ms_mul.exe /EHsc && C:\\\\Windows\\\\Temp\\\\ms_mul.exe\")",
+      "Bash(cmd.exe /c \"cd /d C:\\\\msys64\\\\ucrt64\\\\home\\\\julian\\\\CppProjects\\\\int128-phase175 && call \"\"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\2022\\\\Community\\\\VC\\\\Auxiliary\\\\Build\\\\vcvars64.bat\"\" 2>nul && cl /std:c++20 /O2 /I include /I include/intrinsics tests/test_ms_multiplication.cpp /FeC:\\\\Temp\\\\ms_mul.exe /EHsc 2>&1 && C:\\\\Temp\\\\ms_mul.exe 2>&1\")",
+      "Bash(cmd.exe /c \"call \"\"C:\\\\Program Files\\\\Microsoft Visual Studio\\\\18\\\\Community\\\\VC\\\\Auxiliary\\\\Build\\\\vcvarsall.bat\"\" x64 2>nul && cl /std:c++20 /O2 /EHsc /W3 /I include /I include/intrinsics tests\\\\test_ms_multiplication.cpp /Fe:C:\\\\Temp\\\\test_ms_mul.exe && C:\\\\Temp\\\\test_ms_mul.exe\")",
+      "Bash(cmd.exe /c \"call C:\\\\Program Files\\\\Microsoft Visual Studio\\\\18\\\\Community\\\\VC\\\\Auxiliary\\\\Build\\\\vcvarsall.bat x64 2>nul && cl /std:c++20 /O2 /EHsc /W3 /I include /I include/intrinsics tests\\\\test_ms_multiplication.cpp /Fe:C:\\\\Temp\\\\test_ms_mul.exe 2>C:\\\\Temp\\\\msvc_build.txt && C:\\\\Temp\\\\test_ms_mul.exe >C:\\\\Temp\\\\msvc_run.txt 2>&1\" 2)",
+      "Bash(1 cat:*)",
+      "Bash(cmd.exe /c \"build\\\\run_ms_mul_test.bat\")",
+      "Bash(cmd.exe /c \"build\\\\run_ms_mul_test.bat > C:\\\\Temp\\\\msvc_out.txt 2>&1\" sleep 3 cat /c/Temp/msvc_out.txt)",
+      "Read(//c/dev/**)",
+      "Read(//c/Program Files/Microsoft Visual Studio//**)",
+      "Read(//c/Program Files \\(x86\\)/Microsoft Visual Studio//**)",
+      "Bash(ls \"/c/Program Files \\(x86\\)/Intel/oneAPI/compiler/latest/bin/icpx.exe\")",
+      "Read(//d/Program Files/Microsoft Visual Studio//**)",
+      "Bash(find '/c/Program Files \\(x86\\)/Intel/oneAPI/' -name setvars.bat)",
+      "Bash(head -3 find '/c/Program Files \\(x86\\)/Intel/oneAPI/' -name vars.bat)",
+      "Bash(cmake --version)",
+      "Bash(cmake --help)",
+      "Bash(cmake -G \"Help\")",
+      "Bash(bash scripts/run_priority_tests_multicomp.bash gcc release)",
+      "Bash(bash scripts/run_all_tests.bash)",
+      "Bash(cmake --list-presets)",
+      "Bash(cmake --preset win-gcc-release)"
     ],
     "additionalDirectories": [
-      "\\tmp"
+      "\\tmp",
+      "C:\\msys64\\ucrt64\\bin"
     ]
   }
 }

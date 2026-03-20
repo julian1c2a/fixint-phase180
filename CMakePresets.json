@@ -1,0 +1,278 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+
+    "configurePresets": [
+
+        {
+            "name": "base",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+                "INT128_BUILD_TESTS":      "ON",
+                "INT128_BUILD_BENCHMARKS": "OFF",
+                "INT128_BUILD_DEMOS":      "OFF"
+            }
+        },
+        {
+            "name": "rel",
+            "hidden": true,
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+        },
+        {
+            "name": "dbg",
+            "hidden": true,
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+        },
+
+        {
+            "name": "win-gcc-base",
+            "hidden": true,
+            "inherits": "base",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "C:/msys64/ucrt64/bin/g++.exe",
+                "CMAKE_C_COMPILER":   "C:/msys64/ucrt64/bin/gcc.exe"
+            }
+        },
+        {
+            "name": "win-gcc-release",
+            "displayName": "Win · GCC 15 (ucrt64) · Release",
+            "inherits": ["win-gcc-base", "rel"],
+            "binaryDir": "${sourceDir}/build/cmake/win-gcc-release"
+        },
+        {
+            "name": "win-gcc-debug",
+            "displayName": "Win · GCC 15 (ucrt64) · Debug",
+            "inherits": ["win-gcc-base", "dbg"],
+            "binaryDir": "${sourceDir}/build/cmake/win-gcc-debug"
+        },
+
+        {
+            "name": "win-clang-base",
+            "hidden": true,
+            "inherits": "base",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "C:/msys64/clang64/bin/clang++.exe",
+                "CMAKE_C_COMPILER":   "C:/msys64/clang64/bin/clang.exe"
+            }
+        },
+        {
+            "name": "win-clang-release",
+            "displayName": "Win · Clang 21 (clang64) · Release",
+            "inherits": ["win-clang-base", "rel"],
+            "binaryDir": "${sourceDir}/build/cmake/win-clang-release"
+        },
+        {
+            "name": "win-clang-debug",
+            "displayName": "Win · Clang 21 (clang64) · Debug",
+            "inherits": ["win-clang-base", "dbg"],
+            "binaryDir": "${sourceDir}/build/cmake/win-clang-debug"
+        },
+
+        {
+            "name": "win-msvc2022-base",
+            "hidden": true,
+            "inherits": "base",
+            "generator": "Visual Studio 17 2022",
+            "architecture": { "value": "x64", "strategy": "set" },
+            "toolset":      { "value": "14.44.35207,host=x64", "strategy": "set" },
+            "cacheVariables": {
+                "CMAKE_GENERATOR_INSTANCE": "D:/Program Files/Microsoft Visual Studio/2022/Community"
+            }
+        },
+        {
+            "name": "win-msvc2022-release",
+            "displayName": "Win · MSVC 2022 14.44 (D:) · Release",
+            "inherits": ["win-msvc2022-base", "rel"],
+            "binaryDir": "${sourceDir}/build/cmake/win-msvc2022-release"
+        },
+        {
+            "name": "win-msvc2022-debug",
+            "displayName": "Win · MSVC 2022 14.44 (D:) · Debug",
+            "inherits": ["win-msvc2022-base", "dbg"],
+            "binaryDir": "${sourceDir}/build/cmake/win-msvc2022-debug"
+        },
+
+        {
+            "name": "win-msvc2026-comm-base",
+            "hidden": true,
+            "inherits": "base",
+            "generator": "Visual Studio 18 2026",
+            "architecture": { "value": "x64", "strategy": "set" },
+            "toolset":      { "value": "14.44.35207,host=x64", "strategy": "set" },
+            "cacheVariables": {
+                "CMAKE_GENERATOR_INSTANCE": "C:/Program Files/Microsoft Visual Studio/18/Community"
+            }
+        },
+        {
+            "name": "win-msvc2026-comm-release",
+            "displayName": "Win · MSVC 2026 Preview Community 14.44 (C:) · Release",
+            "inherits": ["win-msvc2026-comm-base", "rel"],
+            "binaryDir": "${sourceDir}/build/cmake/win-msvc2026-comm-release"
+        },
+        {
+            "name": "win-msvc2026-comm-debug",
+            "displayName": "Win · MSVC 2026 Preview Community 14.44 (C:) · Debug",
+            "inherits": ["win-msvc2026-comm-base", "dbg"],
+            "binaryDir": "${sourceDir}/build/cmake/win-msvc2026-comm-debug"
+        },
+
+        {
+            "name": "win-msvc2026-ins-base",
+            "hidden": true,
+            "inherits": "base",
+            "generator": "Visual Studio 18 2026",
+            "architecture": { "value": "x64", "strategy": "set" },
+            "toolset":      { "value": "14.50.35717,host=x64", "strategy": "set" },
+            "cacheVariables": {
+                "CMAKE_GENERATOR_INSTANCE": "C:/Program Files/Microsoft Visual Studio/18/Insiders"
+            }
+        },
+        {
+            "name": "win-msvc2026-ins-release",
+            "displayName": "Win · MSVC 2026 Insiders 14.50 (C:) · Release",
+            "inherits": ["win-msvc2026-ins-base", "rel"],
+            "binaryDir": "${sourceDir}/build/cmake/win-msvc2026-ins-release"
+        },
+
+        {
+            "name": "win-intel-base",
+            "hidden": true,
+            "inherits": "base",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "C:/Program Files (x86)/Intel/oneAPI/compiler/latest/bin/icpx.exe",
+                "CMAKE_C_COMPILER":   "C:/Program Files (x86)/Intel/oneAPI/compiler/latest/bin/icx.exe"
+            }
+        },
+        {
+            "name": "win-intel-release",
+            "displayName": "Win · Intel ICX 2025 · Release  [Intel+MSVC env required]",
+            "inherits": ["win-intel-base", "rel"],
+            "binaryDir": "${sourceDir}/build/cmake/win-intel-release"
+        },
+        {
+            "name": "win-intel-debug",
+            "displayName": "Win · Intel ICX 2025 · Debug  [Intel+MSVC env required]",
+            "inherits": ["win-intel-base", "dbg"],
+            "binaryDir": "${sourceDir}/build/cmake/win-intel-debug"
+        },
+
+        {
+            "name": "wsl-gcc-base",
+            "hidden": true,
+            "inherits": "base",
+            "generator": "Ninja",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "wsl-gcc-release",
+            "displayName": "WSL · GCC · Release",
+            "inherits": ["wsl-gcc-base", "rel"],
+            "binaryDir": "${sourceDir}/build/cmake/wsl-gcc-release"
+        },
+        {
+            "name": "wsl-gcc-debug",
+            "displayName": "WSL · GCC · Debug",
+            "inherits": ["wsl-gcc-base", "dbg"],
+            "binaryDir": "${sourceDir}/build/cmake/wsl-gcc-debug"
+        },
+
+        {
+            "name": "wsl-clang-base",
+            "hidden": true,
+            "inherits": "base",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "clang++",
+                "CMAKE_C_COMPILER":   "clang"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "wsl-clang-release",
+            "displayName": "WSL · Clang · Release",
+            "inherits": ["wsl-clang-base", "rel"],
+            "binaryDir": "${sourceDir}/build/cmake/wsl-clang-release"
+        },
+        {
+            "name": "wsl-clang-debug",
+            "displayName": "WSL · Clang · Debug",
+            "inherits": ["wsl-clang-base", "dbg"],
+            "binaryDir": "${sourceDir}/build/cmake/wsl-clang-debug"
+        },
+
+        {
+            "name": "wsl-intel-base",
+            "hidden": true,
+            "inherits": "base",
+            "generator": "Ninja",
+            "cacheVariables": {
+                "CMAKE_CXX_COMPILER": "icpx",
+                "CMAKE_C_COMPILER":   "icx"
+            },
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            }
+        },
+        {
+            "name": "wsl-intel-release",
+            "displayName": "WSL · Intel ICX · Release  [Intel env required]",
+            "inherits": ["wsl-intel-base", "rel"],
+            "binaryDir": "${sourceDir}/build/cmake/wsl-intel-release"
+        },
+        {
+            "name": "wsl-intel-debug",
+            "displayName": "WSL · Intel ICX · Debug  [Intel env required]",
+            "inherits": ["wsl-intel-base", "dbg"],
+            "binaryDir": "${sourceDir}/build/cmake/wsl-intel-debug"
+        }
+
+    ],
+
+    "buildPresets": [
+        { "name": "win-gcc-release",           "configurePreset": "win-gcc-release"          },
+        { "name": "win-gcc-debug",             "configurePreset": "win-gcc-debug"             },
+        { "name": "win-clang-release",         "configurePreset": "win-clang-release"         },
+        { "name": "win-clang-debug",           "configurePreset": "win-clang-debug"           },
+        { "name": "win-msvc2022-release",      "configurePreset": "win-msvc2022-release"      },
+        { "name": "win-msvc2022-debug",        "configurePreset": "win-msvc2022-debug"        },
+        { "name": "win-msvc2026-comm-release", "configurePreset": "win-msvc2026-comm-release" },
+        { "name": "win-msvc2026-comm-debug",   "configurePreset": "win-msvc2026-comm-debug"   },
+        { "name": "win-msvc2026-ins-release",  "configurePreset": "win-msvc2026-ins-release"  },
+        { "name": "win-intel-release",         "configurePreset": "win-intel-release"         },
+        { "name": "win-intel-debug",           "configurePreset": "win-intel-debug"           },
+        { "name": "wsl-gcc-release",           "configurePreset": "wsl-gcc-release"           },
+        { "name": "wsl-gcc-debug",             "configurePreset": "wsl-gcc-debug"             },
+        { "name": "wsl-clang-release",         "configurePreset": "wsl-clang-release"         },
+        { "name": "wsl-clang-debug",           "configurePreset": "wsl-clang-debug"           },
+        { "name": "wsl-intel-release",         "configurePreset": "wsl-intel-release"         },
+        { "name": "wsl-intel-debug",           "configurePreset": "wsl-intel-debug"           }
+    ],
+
+    "testPresets": [
+        { "name": "win-gcc-release",           "configurePreset": "win-gcc-release",          "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error" } },
+        { "name": "win-gcc-debug",             "configurePreset": "win-gcc-debug",            "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error" } },
+        { "name": "win-clang-release",         "configurePreset": "win-clang-release",        "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error" } },
+        { "name": "win-clang-debug",           "configurePreset": "win-clang-debug",          "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error" } },
+        { "name": "win-msvc2022-release",      "configurePreset": "win-msvc2022-release",     "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error" } },
+        { "name": "win-msvc2026-comm-release", "configurePreset": "win-msvc2026-comm-release","output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error" } },
+        { "name": "win-msvc2026-ins-release",  "configurePreset": "win-msvc2026-ins-release", "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error" } },
+        { "name": "win-intel-release",         "configurePreset": "win-intel-release",        "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error" } },
+        { "name": "wsl-gcc-release",           "configurePreset": "wsl-gcc-release",          "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error" } },
+        { "name": "wsl-clang-release",         "configurePreset": "wsl-clang-release",        "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error" } },
+        { "name": "wsl-intel-release",         "configurePreset": "wsl-intel-release",        "output": { "outputOnFailure": true }, "execution": { "noTestsAction": "error" } }
+    ]
+}
