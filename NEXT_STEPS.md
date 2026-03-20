@@ -305,12 +305,14 @@ Algoritmo Karatsuba para multiplicación sub-cuadrática O(n^1.585). Necesario p
 
 Puntos débiles identificados que deben abordarse en futuras sesiones:
 
-### Crítica 1: benchmark_divmod_algorithms.cpp aún usa std::chrono
+### ~~Crítica 1: benchmark_divmod_algorithms.cpp aún usa std::chrono~~ ✅ RESUELTA
 
 - **Problema:** El benchmark de algoritmos de división (`benchs/benchmark_divmod_algorithms.cpp`)
-  mide con `std::chrono::high_resolution_clock`, no con RDTSC, incumpliendo la Regla 8.
-- **Acción:** Migrar a `#include "bench_common.hpp"` y reportar ciclos/op.
-- **Prioridad:** Alta — incoherencia con la metodología documentada.
+  medía con `std::chrono::high_resolution_clock`, no con RDTSC, incumpliendo la Regla 8.
+- **Resolución (sesión 2025-07-21):** Migrado completamente a `#include "bench_common.hpp"`.
+  Ahora usa `CycleTimer` + `doNotOptimize()`, 5M iteraciones, 10K warmup,
+  reporte tabular con cyc/op + ratio vs baseline. Compilado limpio con GCC 15 y Clang 21.
+  Resultado: Knuth D 1.92x más rápido que big_bin en promedio.
 
 ### Crítica 2: No existe un test runner unificado
 

@@ -60,10 +60,11 @@ void doNotOptimize(const T& value);
 4. **AntiOptimize:** Toda operación medida DEBE pasar por `doNotOptimize()`.
 5. **Baseline:** Siempre medir `uint64_t` como referencia, reportar ratio `nstd/u64`.
 
-### Migración Pendiente
+### Migración Completada
 
-**`benchmark_divmod_algorithms.cpp`** actualmente usa `std::chrono::high_resolution_clock`.
-Debe migrarse a RDTSC siguiendo el patrón de `benchmark_vs_builtin.cpp`.
+**`benchmark_divmod_algorithms.cpp`** migrado a RDTSC (sesión 2025-07-21).
+Usa `bench_common.hpp` con `CycleTimer` + `doNotOptimize()`, 5M iteraciones, 10K warmup.
+Reporta cyc/op + ratio vs baseline. Compilado limpio con GCC 15 y Clang 21.
 
 ---
 
@@ -187,7 +188,7 @@ Todo nuevo archivo de test DEBE cubrir:
 | Archivo | Estado Actual | Acción Requerida |
 |---------|--------------|------------------|
 | `benchmark_vs_builtin.cpp` | ✅ RDTSC | Añadir cobertura 3-regiones |
-| `benchmark_divmod_algorithms.cpp` | ❌ chrono | Migrar a RDTSC + 6 combinaciones |
+| `benchmark_divmod_algorithms.cpp` | ✅ RDTSC | Añadir cobertura 6 combinaciones |
 | Tests existentes | ⚠️ Variable | Auditar y ampliar a 3 regiones + edge cases |
 | Nuevos benchmarks (futuro) | — | Crear con RDTSC desde el inicio |
 

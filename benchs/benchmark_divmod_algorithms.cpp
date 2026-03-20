@@ -2,33 +2,38 @@
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 /**
  * @file benchmark_divmod_algorithms.cpp
- * @brief Comprehensive benchmarking of division algorithms
+ * @brief Comprehensive benchmarking of division algorithms using RDTSC
  *
  * Compares performance of big_bin_divrem vs D_knuth_divrem
- * Measures throughput, latency, and consistency across optimization levels
+ * Measures throughput in CPU cycles/operation (RDTSC methodology).
  *
  * @author Julián Calderón Almendros
- * @date 5 February 2026
- * @version 1.0.0
+ * @date 5 February 2026 (migrated to RDTSC: 20 March 2026)
+ * @version 2.0.0
  */
 
-#include <iostream>
-#include <iomanip>
-#include <chrono>
-#include <vector>
-#include <array>
-#include <cmath>
-#include <string>
-#include <sstream>
-
 #include "int128_parameterized.hpp"
+#include "bench_common.hpp"
+
+#include <array>
+#include <vector>
+#include <cmath>
 
 // ====================================================================
 // BENCHMARK CONFIGURATION
 // ====================================================================
 
-constexpr int ITERATIONS = 10000;       // Per test case
-constexpr int WARMUP_ITERATIONS = 1000; // Pre-benchmark warmup
+// Divmod-specific iteration counts (overridable via -D)
+#ifndef DIVMOD_ITERATIONS
+#define DIVMOD_ITERATIONS 5000000
+#endif
+
+#ifndef DIVMOD_WARMUP
+#define DIVMOD_WARMUP 10000
+#endif
+
+static constexpr std::size_t DIV_ITERS{DIVMOD_ITERATIONS};
+static constexpr std::size_t DIV_WARMUP{DIVMOD_WARMUP};
 
 // ====================================================================
 // TEST CASE DEFINITIONS
@@ -96,107 +101,98 @@ static constexpr std::array<TestCase, 9> test_cases{
 // BENCHMARK UTILITIES
 // ====================================================================
 
-struct BenchmarkResult
+// ====================================================================
+// DIVMOD BENCHMARK RESULT
+// ====================================================================
+
+struct DivmodResult
 {
     const char *algorithm_name;
     const char *test_name;
-    double operations_per_second;
-    double nanoseconds_per_operation;
-    uint64_t total_iterations;
-    uint64_t total_nanoseconds;
-};
-
-class BenchmarkTimer
-{
-private:
-    using clock_t = std::chrono::high_resolution_clock;
-
-public:
-    static uint64_t get_nanoseconds()
-    {
-        return std::chrono::duration_cast<std::chrono::nanoseconds>(
-                   clock_t::now().time_since_epoch())
-            .count();
-    }
-
-    static BenchmarkResult run_benchmark(
-        const char *algorithm_name,
-        const char *test_name,
-        uint64_t dividend_high,
-        uint64_t dividend_low,
-        uint64_t divisor_high,
-        uint64_t divisor_low,
-        int iterations,
-        bool call_big_bin = true)
-    {
-        using nstd::int128_param_t;
-        using nstd::representation_form;
-        using nstd::signedness;
-
-        using uint128_t = int128_param_t<signedness::signed_type, representation_form::twos_complement>;
-        uint128_t dividend{dividend_high, dividend_low};
-        uint128_t divisor{divisor_high, divisor_low};
-
-        // Warmup
-        volatile auto dummy_result =
-            call_big_bin ? dividend.big_bin_divrem(divisor) : dividend.D_knuth_divrem(divisor);
-        (void)dummy_result;
-
-        // Actual benchmark
-        uint64_t start_ns = get_nanoseconds();
-
-        for (int i = 0; i < iterations; i++)
-        {
-            volatile auto result =
-                call_big_bin ? dividend.big_bin_divrem(divisor) : dividend.D_knuth_divrem(divisor);
-            (void)result;
-        }
-
-        uint64_t end_ns = get_nanoseconds();
-        uint64_t total_ns = end_ns - start_ns;
-
-        double ops_per_sec = (iterations * 1e9) / total_ns;
-        double ns_per_op = static_cast<double>(total_ns) / iterations;
-
-        return {
-            algorithm_name,
-            test_name,
-            ops_per_sec,
-            ns_per_op,
-            static_cast<uint64_t>(iterations),
-            total_ns};
-    }
+    double cycles_per_op;
 };
 
 // ====================================================================
-// REPORTING
+// BENCHMARK RUNNER (RDTSC-based)
 // ====================================================================
 
-void print_result(const BenchmarkResult &result)
+using uint128_t = nstd::int128_param_t<
+    nstd::signedness::signed_type,
+    nstd::representation_form::twos_complement>;
+
+static DivmodResult run_divmod_bench(
+    const char *algorithm_name,
+    const char *test_name,
+    uint64_t dividend_high,
+    uint64_t dividend_low,
+    uint64_t divisor_high,
+    uint64_t divisor_low,
+    bool use_big_bin)
 {
-    std::cout << std::setw(20) << result.test_name << " | "
-              << std::setw(15) << result.algorithm_name << " | "
-              << std::setw(12) << std::fixed << std::setprecision(2)
-              << result.operations_per_second << " ops/s | "
-              << std::setw(10) << std::fixed << std::setprecision(2)
-              << result.nanoseconds_per_operation << " ns/op"
-              << std::endl;
+    uint128_t dividend{dividend_high, dividend_low};
+    uint128_t divisor{divisor_high, divisor_low};
+
+    // Warmup
+    for (std::size_t i{0}; i < DIV_WARMUP; ++i)
+    {
+        auto result{use_big_bin ? dividend.big_bin_divrem(divisor)
+                                : dividend.D_knuth_divrem(divisor)};
+        doNotOptimize(result);
+    }
+
+    // Measure
+    CycleTimer timer;
+    for (std::size_t i{0}; i < DIV_ITERS; ++i)
+    {
+        auto result{use_big_bin ? dividend.big_bin_divrem(divisor)
+                                : dividend.D_knuth_divrem(divisor)};
+        doNotOptimize(result);
+    }
+    const double cycles{static_cast<double>(timer.elapsed_cycles())};
+
+    return {algorithm_name, test_name, cycles / DIV_ITERS};
 }
 
-void print_comparison(
-    const BenchmarkResult &binary,
-    const BenchmarkResult &knuth)
+// ====================================================================
+// REPORTING (cycles/op + ratio)
+// ====================================================================
+
+static void print_divmod_header()
 {
+    std::cout << "+----------------------+-----------------+--------------+--------------+-----------+\n";
+    std::cout << "| Test Case            | Algorithm       |  cyc/op      | vs big_bin   | winner    |\n";
+    std::cout << "+----------------------+-----------------+--------------+--------------+-----------+\n";
+}
 
-    const double speedup{binary.nanoseconds_per_operation / knuth.nanoseconds_per_operation};
-    const char *faster{speedup > 1.0 ? "Knuth D FASTER" : "Binary FASTER"};
-    const double ratio{speedup > 1.0 ? speedup : 1.0 / speedup};
+static void print_divmod_row(
+    const DivmodResult &r,
+    double baseline_cyc)
+{
+    const double ratio{(baseline_cyc > 0.0) ? r.cycles_per_op / baseline_cyc : 0.0};
+    const char *winner{""};
+    if (baseline_cyc > 0.0 && ratio < 0.95)
+    {
+        winner = "[FASTER]";
+    }
+    else if (baseline_cyc > 0.0 && ratio > 1.05)
+    {
+        winner = "[SLOWER]";
+    }
+    else
+    {
+        winner = "[~SAME]";
+    }
 
-    std::cout << std::setw(20) << binary.test_name << " | "
-              << "COMPARISON: "
-              << std::fixed << std::setprecision(2) << ratio
-              << "x | " << faster
-              << std::endl;
+    std::cout << "| " << std::left << std::setw(20) << r.test_name
+              << " | " << std::setw(15) << r.algorithm_name
+              << " | " << std::right << std::fixed << std::setprecision(2) << std::setw(12) << r.cycles_per_op
+              << " | " << std::fixed << std::setprecision(2) << std::setw(12) << ratio << " | "
+              << std::left << std::setw(9) << winner << " |\n";
+}
+
+static void print_divmod_separator()
+{
+    std::cout << "+----------------------+-----------------+--------------+--------------+-----------+\n";
 }
 
 // ====================================================================
@@ -207,105 +203,84 @@ int main()
 {
     std::cout << "====================================================================\n"
               << "DIVISION ALGORITHM BENCHMARKING: big_bin_divrem vs D_knuth_divrem\n"
+              << "  Methodology: RDTSC (CPU cycles/op) -- bench_common.hpp\n"
               << "====================================================================\n\n";
 
     std::cout << "Configuration:\n"
-              << "  Iterations per test: " << ITERATIONS << "\n"
-              << "  Warmup iterations: " << WARMUP_ITERATIONS << "\n"
-              << "  Test cases: " << test_cases.size() << "\n"
-              << "  Compiler: GCC 15.2.0\n"
-              << "  Optimization: -O2\n\n";
+              << "  Iterations per test: " << DIV_ITERS << "\n"
+              << "  Warmup iterations:   " << DIV_WARMUP << "\n"
+              << "  Test cases:          " << test_cases.size() << "\n"
+              << "  Measurement:         RDTSC (cycles/op)\n\n";
 
     // ====================================================================
-    // BENCHMARK PHASE 1: Individual Algorithm Performance
+    // PHASE 1: Per-test comparison
     // ====================================================================
 
     std::cout << "====================================================================\n"
-              << "PHASE 1: Individual Algorithm Performance\n"
+              << "PHASE 1: Per-Test Algorithm Comparison (cycles/op)\n"
               << "====================================================================\n\n";
 
-    std::vector<BenchmarkResult> binary_results;
-    std::vector<BenchmarkResult> knuth_results;
+    print_divmod_header();
+
+    std::vector<DivmodResult> binary_results;
+    std::vector<DivmodResult> knuth_results;
 
     for (const auto &test : test_cases)
     {
-        std::cout << "Benchmarking: " << test.name << "\n"
-                  << "  Description: " << test.description << "\n";
-
-        // Benchmark big_bin_divrem
-        auto binary_result = BenchmarkTimer::run_benchmark(
-            "big_bin_divrem",
-            test.name,
+        // big_bin_divrem (baseline for ratio)
+        const auto bin_r{run_divmod_bench(
+            "big_bin_divrem", test.name,
             test.dividend_high, test.dividend_low,
             test.divisor_high, test.divisor_low,
-            ITERATIONS,
-            true);
+            true)};
+        binary_results.push_back(bin_r);
 
-        binary_results.push_back(binary_result);
-        print_result(binary_result);
-
-        // Benchmark D_knuth_divrem
-        auto knuth_result = BenchmarkTimer::run_benchmark(
-            "D_knuth_divrem",
-            test.name,
+        // D_knuth_divrem
+        const auto knuth_r{run_divmod_bench(
+            "D_knuth_divrem", test.name,
             test.dividend_high, test.dividend_low,
             test.divisor_high, test.divisor_low,
-            ITERATIONS,
-            false);
+            false)};
+        knuth_results.push_back(knuth_r);
 
-        knuth_results.push_back(knuth_result);
-        print_result(knuth_result);
-
-        std::cout << "\n";
+        // Print both rows with big_bin as baseline
+        print_divmod_row(bin_r, bin_r.cycles_per_op);
+        print_divmod_row(knuth_r, bin_r.cycles_per_op);
+        print_divmod_separator();
     }
 
     // ====================================================================
-    // BENCHMARK PHASE 2: Algorithm Comparison
+    // PHASE 2: Summary Statistics
     // ====================================================================
 
     std::cout << "\n====================================================================\n"
-              << "PHASE 2: Algorithm Comparison (Speedup Analysis)\n"
+              << "PHASE 2: Summary Statistics\n"
               << "====================================================================\n\n";
 
-    for (size_t i = 0; i < test_cases.size(); i++)
+    double avg_binary_cyc{0.0};
+    double avg_knuth_cyc{0.0};
+
+    for (std::size_t i{0}; i < binary_results.size(); ++i)
     {
-        print_comparison(binary_results[i], knuth_results[i]);
+        avg_binary_cyc += binary_results[i].cycles_per_op;
+        avg_knuth_cyc += knuth_results[i].cycles_per_op;
     }
 
-    // ====================================================================
-    // SUMMARY STATISTICS
-    // ====================================================================
+    avg_binary_cyc /= static_cast<double>(binary_results.size());
+    avg_knuth_cyc /= static_cast<double>(knuth_results.size());
 
-    std::cout << "\n====================================================================\n"
-              << "SUMMARY STATISTICS\n"
-              << "====================================================================\n\n";
-
-    double avg_binary_ns = 0;
-    double avg_knuth_ns = 0;
-
-    for (size_t i = 0; i < binary_results.size(); i++)
-    {
-        avg_binary_ns += binary_results[i].nanoseconds_per_operation;
-        avg_knuth_ns += knuth_results[i].nanoseconds_per_operation;
-    }
-
-    avg_binary_ns /= binary_results.size();
-    avg_knuth_ns /= knuth_results.size();
-
-    std::cout << "Average Performance Across All Tests:\n"
-              << "  big_bin_divrem:  " << std::fixed << std::setprecision(2)
-              << avg_binary_ns << " ns/op\n"
-              << "  D_knuth_divrem:  " << std::fixed << std::setprecision(2)
-              << avg_knuth_ns << " ns/op\n";
-
-    const double avg_speedup{avg_binary_ns / avg_knuth_ns};
+    const double avg_speedup{avg_binary_cyc / avg_knuth_cyc};
     const double avg_ratio{avg_speedup > 1.0 ? avg_speedup : 1.0 / avg_speedup};
-    std::cout << "  Average speedup: " << std::fixed << std::setprecision(2)
+
+    std::cout << "Average Performance Across All " << test_cases.size() << " Tests:\n"
+              << "  big_bin_divrem:  " << std::fixed << std::setprecision(2) << avg_binary_cyc << " cyc/op\n"
+              << "  D_knuth_divrem:  " << std::fixed << std::setprecision(2) << avg_knuth_cyc << " cyc/op\n"
+              << "  Average speedup: "
               << (avg_speedup > 1.0 ? "Knuth D is " : "Binary is ")
-              << avg_ratio << "x faster\n\n";
+              << std::fixed << std::setprecision(2) << avg_ratio << "x faster\n\n";
 
     // ====================================================================
-    // PHASE 1 STATUS
+    // IMPLEMENTATION STATUS
     // ====================================================================
 
     std::cout << "====================================================================\n"
@@ -317,9 +292,7 @@ int main()
               << "  - 128/64 division: intrinsics::div128_64_composed()\n"
               << "  - 128/128 division: __uint128_t native (GCC/Clang)\n"
               << "  - MSVC fallback: delegates to big_bin_divrem()\n\n"
-
               << "big_bin_divrem: Binary long division O(128) baseline\n\n"
-
               << "====================================================================\n"
               << "BENCHMARK COMPLETE\n"
               << "====================================================================\n";
