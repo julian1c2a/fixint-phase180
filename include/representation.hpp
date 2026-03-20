@@ -210,8 +210,10 @@ namespace nstd
         /// @brief Uses constant offset (bias)
         static constexpr bool uses_bias = true;
 
-        /// @brief Typical bias for 128-bit
-        static constexpr std::uint64_t default_bias = (1ULL << 63) * 2ULL; // 2^126
+        /// @brief Bias high word for 128-bit (K = 2^126, stored as bias_high = 2^62)
+        static constexpr std::uint64_t default_bias_high = (1ULL << 62);
+        /// @brief Bias low word (always 0)
+        static constexpr std::uint64_t default_bias_low = 0ULL;
 
         /// @brief Hardware support
         static constexpr bool hardware_optimized = false; // Custom bias handling

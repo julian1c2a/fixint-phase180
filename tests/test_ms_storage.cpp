@@ -43,9 +43,6 @@ void test_get_magnitud_and_abs()
         assert(mag_u64 == c.expected && "magnitude() no coincide con el valor absoluto esperado");
     }
 }
-// NOTE: cross-representation static_cast (MS↔TC↔EK) not yet implemented in the library.
-// This function is disabled until that feature is added.
-#if 0
 void test_casts_between_representations()
 {
     std::cout << "\n[MS/TC/EK] Casts explícitos entre representaciones:\n";
@@ -82,8 +79,31 @@ void test_casts_between_representations()
             assert(false && "Cast error: los valores no coinciden tras la conversión entre representaciones");
         }
     }
+
+    // Test binnat (unsigned) ↔ signed conversions
+    std::cout << "\n[binnat/TC/MS/EK] Casts unsigned<->signed:\n";
+    using nstd::uint128_t;
+    uint64_t unsigned_vals[] = {0, 1, 2, 42, 0xFFFFFFFFFFFFFFFFULL};
+    for (const auto uval : unsigned_vals)
+    {
+        uint128_t bn{uval};
+        int128_tc_t tc_from_bn = static_cast<int128_tc_t>(bn);
+        int128_ms_t ms_from_bn = static_cast<int128_ms_t>(bn);
+        int128_ek_t ek_from_bn = static_cast<int128_ek_t>(bn);
+        // Round-trip back to unsigned
+        uint128_t bn_from_tc = static_cast<uint128_t>(tc_from_bn);
+        uint128_t bn_from_ms = static_cast<uint128_t>(ms_from_bn);
+        uint128_t bn_from_ek = static_cast<uint128_t>(ek_from_bn);
+        const bool ok_tc = (bn_from_tc == bn);
+        const bool ok_ms = (bn_from_ms == bn);
+        const bool ok_ek = (bn_from_ek == bn);
+        std::cout << "u=" << uval << ": BN->TC->BN=" << ok_tc
+                  << ", BN->MS->BN=" << ok_ms << ", BN->EK->BN=" << ok_ek << std::endl;
+        assert(ok_tc && "binnat->TC->binnat round-trip failed");
+        assert(ok_ms && "binnat->MS->binnat round-trip failed");
+        assert(ok_ek && "binnat->EK->binnat round-trip failed");
+    }
 }
-#endif
 // =============================================================================
 // Test: Magnitude-Sign - Constructores, Métodos de Consulta y Comparaciones
 // Part of int128 Phase 1.75 - Diagnóstico exhaustivo MS
@@ -194,7 +214,7 @@ int main()
     test_constructors();
     test_info_methods();
     test_comparisons();
-    // test_casts_between_representations(); // disabled: cross-form casts not yet implemented
+    test_casts_between_representations();
     test_get_magnitud_and_abs();
     // ===============================
     // Test: operator++/--, next, previous
@@ -203,7 +223,8 @@ int main()
     std::cout << "\n[MS] Test operator++/--, next, previous:\n";
     // Extract the mathematical value from an MS int128 as uint64_t (sign + magnitude)
     // Uses two's-complement bit pattern so INT64_MIN maps to 0x8000000000000000.
-    auto ms_low_bits = [](const int128_ms_t &v) -> uint64_t {
+    auto ms_low_bits = [](const int128_ms_t &v) -> uint64_t
+    {
         return v.is_negative() ? (uint64_t{0} - v.low()) : v.low();
     };
     struct
@@ -249,8 +270,10 @@ int main()
         uint64_t postdec_val = ms_low_bits(postdec);
         uint64_t postdec_ret_val = ms_low_bits(postdec_ret);
         // next/previous (next() and previous() not implemented; use ++/-- on a copy)
-        int128_ms_t next_v{ms}; ++next_v;
-        int128_ms_t prev_v{ms}; --prev_v;
+        int128_ms_t next_v{ms};
+        ++next_v;
+        int128_ms_t prev_v{ms};
+        --prev_v;
         uint64_t next_bits = ms_low_bits(next_v);
         uint64_t prev_bits = ms_low_bits(prev_v);
         uint64_t orig_bits = ms_low_bits(ms);

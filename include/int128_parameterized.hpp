@@ -239,6 +239,113 @@ namespace nstd
     private:
         std::uint64_t data[2]{0, 0};
 
+        /// @internal
+        /// @brief Convert from source representation (src_high, src_low) to this representation
+        ///
+        /// @tparam S2 Source signedness
+        /// @tparam F2 Source representation form
+        ///
+        /// @details Conversion strategy matrix:
+        ///   Same form:     direct bit copy (binnat↔TC per C++20 modular semantics)
+        ///   src=TC:        use tc→target conversion directly
+        ///   target=TC:     use src→tc conversion directly
+        ///   otherwise:     src→TC→target (TC as pivot)
+        template <signedness S2, representation_form F2>
+        constexpr void convert_from(std::uint64_t src_high, std::uint64_t src_low) noexcept
+        {
+            constexpr representation_form src_form{F2};
+            constexpr representation_form dst_form{Form};
+
+            // =================================================================
+            // Case 1: binnat ↔ TC — C++20 modular bit reinterpretation
+            // unsigned→signed: value is unchanged if it fits, otherwise
+            //   implementation-defined (C++20: modular, same bit pattern)
+            // signed→unsigned: well-defined modular reduction (same bits)
+            // =================================================================
+            if constexpr ((src_form == representation_form::binnat && dst_form == representation_form::twos_complement) ||
+                          (src_form == representation_form::twos_complement && dst_form == representation_form::binnat))
+            {
+                data[0] = src_low;
+                data[1] = src_high;
+            }
+            // =================================================================
+            // Case 2: TC → MS
+            // =================================================================
+            else if constexpr (src_form == representation_form::twos_complement && dst_form == representation_form::magnitude_sign)
+            {
+                twos_complement128_to_ms(src_high, src_low, data[1], data[0]);
+            }
+            // =================================================================
+            // Case 3: MS → TC
+            // =================================================================
+            else if constexpr (src_form == representation_form::magnitude_sign && dst_form == representation_form::twos_complement)
+            {
+                ms128_to_twos_complement(src_high, src_low, data[1], data[0]);
+            }
+            // =================================================================
+            // Case 4: TC → EK
+            // =================================================================
+            else if constexpr (src_form == representation_form::twos_complement && dst_form == representation_form::excess_k)
+            {
+                twos_complement128_to_excess_k(src_high, src_low, data[1], data[0]);
+            }
+            // =================================================================
+            // Case 5: EK → TC
+            // =================================================================
+            else if constexpr (src_form == representation_form::excess_k && dst_form == representation_form::twos_complement)
+            {
+                excess_k128_to_twos_complement(src_high, src_low, data[1], data[0]);
+            }
+            // =================================================================
+            // Case 6: MS → EK (via TC pivot)
+            // =================================================================
+            else if constexpr (src_form == representation_form::magnitude_sign && dst_form == representation_form::excess_k)
+            {
+                ms128_to_excess_k(src_high, src_low, data[1], data[0]);
+            }
+            // =================================================================
+            // Case 7: EK → MS (via TC pivot)
+            // =================================================================
+            else if constexpr (src_form == representation_form::excess_k && dst_form == representation_form::magnitude_sign)
+            {
+                excess_k128_to_ms(src_high, src_low, data[1], data[0]);
+            }
+            // =================================================================
+            // Case 8: binnat ↔ MS or binnat ↔ EK (via TC pivot)
+            // =================================================================
+            else if constexpr (src_form == representation_form::binnat)
+            {
+                // binnat → TC (copy bits) → target
+                convert_from<signedness::signed_type, representation_form::twos_complement>(src_high, src_low);
+            }
+            else if constexpr (dst_form == representation_form::binnat)
+            {
+                // source → TC first
+                std::uint64_t tc_high{0};
+                std::uint64_t tc_low{0};
+                if constexpr (src_form == representation_form::magnitude_sign)
+                {
+                    ms128_to_twos_complement(src_high, src_low, tc_high, tc_low);
+                }
+                else if constexpr (src_form == representation_form::excess_k)
+                {
+                    excess_k128_to_twos_complement(src_high, src_low, tc_high, tc_low);
+                }
+                // TC → binnat (copy bits)
+                data[0] = tc_low;
+                data[1] = tc_high;
+            }
+            // =================================================================
+            // Case 9: Same form, different signedness only
+            // (shouldn't happen given valid constraints, but safe fallback)
+            // =================================================================
+            else
+            {
+                data[0] = src_low;
+                data[1] = src_high;
+            }
+        }
+
     public:
         // ===================== Constructors =====================
 
@@ -250,6 +357,41 @@ namespace nstd
 
         /// @brief Move constructor
         constexpr int128_param_t(int128_param_t &&other) noexcept = default;
+
+        // ===================== Cross-Representation Constructors =====================
+
+        /// @brief Cross-representation copy constructor
+        ///
+        /// Converts between any two valid int128_param_t instantiations:
+        ///   binnat ↔ TC: C++20 standard modular bit reinterpretation
+        ///   TC ↔ MS, TC ↔ EK, MS ↔ EK: via representation.hpp conversion functions
+        ///   binnat ↔ MS, binnat ↔ EK: via TC as pivot
+        ///
+        /// @tparam S2 Source signedness
+        /// @tparam F2 Source representation form
+        /// @note explicit — use static_cast<target_t>(source) to invoke
+        template <signedness S2, representation_form F2,
+                  typename = std::enable_if_t<(S2 != Sign) || (F2 != Form)>>
+        explicit constexpr int128_param_t(const int128_param_t<S2, F2> &other) noexcept
+            : data{0, 0}
+        {
+            convert_from<S2, F2>(other.high(), other.low());
+        }
+
+        /// @brief Cross-representation move constructor
+        ///
+        /// Same semantics as copy — for trivial types move == copy,
+        /// but provided for completeness and API symmetry.
+        ///
+        /// @tparam S2 Source signedness
+        /// @tparam F2 Source representation form
+        template <signedness S2, representation_form F2,
+                  typename = std::enable_if_t<(S2 != Sign) || (F2 != Form)>>
+        explicit constexpr int128_param_t(int128_param_t<S2, F2> &&other) noexcept
+            : data{0, 0}
+        {
+            convert_from<S2, F2>(other.high(), other.low());
+        }
 
         /// @brief Constructor from (high, low) pair
         ///
