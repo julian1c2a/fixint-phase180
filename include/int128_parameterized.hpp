@@ -2652,6 +2652,53 @@ namespace nstd
         }
 
         // ========================================================================
+        // Compound Assignment Operators for Built-in Integral Types
+        // ========================================================================
+
+        /// @brief Addition assignment from built-in integral type
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr int128_param_t &operator+=(T rhs) noexcept
+        {
+            return *this += int128_param_t{rhs};
+        }
+
+        /// @brief Subtraction assignment from built-in integral type
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr int128_param_t &operator-=(T rhs) noexcept
+        {
+            return *this -= int128_param_t{rhs};
+        }
+
+        /// @brief Multiplication assignment from built-in integral type
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr int128_param_t &operator*=(T rhs) noexcept
+            requires(!is_excess_k)
+        {
+            return *this *= int128_param_t{rhs};
+        }
+
+        /// @brief Division assignment from built-in integral type
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr int128_param_t &operator/=(T rhs) noexcept
+            requires(!is_excess_k)
+        {
+            return *this /= int128_param_t{rhs};
+        }
+
+        /// @brief Modulo assignment from built-in integral type
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr int128_param_t &operator%=(T rhs) noexcept
+            requires(!is_excess_k)
+        {
+            return *this %= int128_param_t{rhs};
+        }
+
+        // ========================================================================
         // Bitwise Operators (AND, OR, XOR, NOT)
         // ========================================================================
 
@@ -4066,42 +4113,86 @@ namespace nstd
         }
 
         /**
-         * @brief Friend arithmetic operators for mixed-type operations
+         * @brief Friend arithmetic operators for mixed-type operations with built-in integrals
+         *
+         * Enables symmetric expressions: int128_value + 42 AND 42 + int128_value
+         * Constrained to std::is_integral_v<T> to avoid ambiguity with other types.
+         * For EK: *, /, % are deleted (no meaningful semantics).
          */
-        template <typename T>
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator+(const int128_param_t &lhs, T rhs) noexcept
         {
             return lhs + int128_param_t{rhs};
         }
 
-        template <typename T>
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator+(T lhs, const int128_param_t &rhs) noexcept
         {
             return int128_param_t{lhs} + rhs;
         }
 
-        template <typename T>
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator-(const int128_param_t &lhs, T rhs) noexcept
         {
             return lhs - int128_param_t{rhs};
         }
 
-        template <typename T>
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator-(T lhs, const int128_param_t &rhs) noexcept
         {
             return int128_param_t{lhs} - rhs;
         }
 
-        template <typename T>
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator*(const int128_param_t &lhs, T rhs) noexcept
+            requires(!is_excess_k)
         {
             return lhs * int128_param_t{rhs};
         }
 
-        template <typename T>
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator*(T lhs, const int128_param_t &rhs) noexcept
+            requires(!is_excess_k)
         {
             return int128_param_t{lhs} * rhs;
+        }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        friend constexpr int128_param_t operator/(const int128_param_t &lhs, T rhs) noexcept
+            requires(!is_excess_k)
+        {
+            return lhs / int128_param_t{rhs};
+        }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        friend constexpr int128_param_t operator/(T lhs, const int128_param_t &rhs) noexcept
+            requires(!is_excess_k)
+        {
+            return int128_param_t{lhs} / rhs;
+        }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        friend constexpr int128_param_t operator%(const int128_param_t &lhs, T rhs) noexcept
+            requires(!is_excess_k)
+        {
+            return lhs % int128_param_t{rhs};
+        }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        friend constexpr int128_param_t operator%(T lhs, const int128_param_t &rhs) noexcept
+            requires(!is_excess_k)
+        {
+            return int128_param_t{lhs} % rhs;
         }
 
         /**
