@@ -267,7 +267,7 @@ All tests passing: GCC ✅ 30/30 + 25/25, Clang ✅ 30/30 + 25/25, MSVC ✅ 30/3
 
 - **MS operator*=**: Not implemented (multiplication gives wrong results)
 - **EK arithmetic**: `*`, `/`, `%` require bias adjustment — currently syntactic, not semantic
-- **Cross-representation casts (MS↔TC↔EK)**: Not implemented — no constructor or conversion operator between different `representation_form` instantiations (`test_casts_between_representations` disabled with `#if 0`)
+- **Cross-representation casts (MS↔TC↔EK)**: Low-level conversion functions exist in `representation.hpp`, but no constructor or conversion operator between `int128_param_t` instantiations (`test_casts_between_representations` disabled with `#if 0`)
 - See [OPERATOR_SEMANTICS.md](OPERATOR_SEMANTICS.md) for details
 
 ### 4. MSYS2 ucrt64 GCC Platform Issue (documented)

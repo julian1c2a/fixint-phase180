@@ -94,7 +94,7 @@
 
 - ⚠️ MS operator*= not implemented (multiplication gives wrong results)
 - ⚠️ EK arithmetic not supported for `*`, `/`, `%` (requires bias adjustment)
-- ⚠️ Cross-representation casts (MS↔TC↔EK) not implemented
+- ⚠️ Cross-representation casts at type level (e.g., `int128_tc_t(int128_ms_t)`) not implemented — low-level conversion functions exist in `representation.hpp` but are not wired as constructors/operators in `int128_param_t`
 
 ---
 

@@ -1,0 +1,33 @@
+# Normalize line endings to LF in the repository
+* text=auto eol=lf
+
+# Force LF for source code
+*.cpp text eol=lf
+*.hpp text eol=lf
+*.h text eol=lf
+*.c text eol=lf
+*.py text eol=lf
+*.bash text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.txt text eol=lf
+*.cmake text eol=lf
+
+# Force CRLF for Windows-specific files
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files
+*.exe binary
+*.obj binary
+*.o binary
+*.a binary
+*.lib binary
+*.dll binary
+*.so binary
+*.gch binary
+*.pch binary

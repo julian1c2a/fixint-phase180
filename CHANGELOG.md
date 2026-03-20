@@ -31,7 +31,7 @@ All tests in `run_all_tests.bash` pass on GCC 15.2.0 (MSYS2 ucrt64) at -O2.
 
 ### 📝 Known Limitations (unchanged)
 
-- **Cross-representation casts (MS↔TC↔EK)**: Not yet implemented — no constructor or conversion operator between different `representation_form` instantiations
+- **Cross-representation casts (MS↔TC↔EK)**: Low-level conversion functions exist in `representation.hpp` (e.g., `ms128_to_twos_complement()`), but no constructor or conversion operator between different `representation_form` instantiations of `int128_param_t`
 - **MS `operator*=`**: Not implemented (multiplication gives wrong results for magnitude-sign)
 - **EK arithmetic**: `*`, `/`, `%` require bias adjustment — currently syntactic, not semantic
 

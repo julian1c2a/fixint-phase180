@@ -241,6 +241,7 @@ All 6 phases, 12 feature headers, and intrinsics audit are complete.
 ### Tests Fixed (23/23 PASS)
 
 **`test_ms_storage.cpp`** — 5 compilation errors corrected:
+
 - `ms.get_magnitud()` → `ms.magnitude()` (no such method as `get_magnitud`)
 - `static_cast<int64_t>(val)` → `val.low()` (no `operator int64_t()` on `int128_ms_t`)
 - `ms.next()` / `ms.previous()` → copy + `++`/`--` (methods not in library)
@@ -248,12 +249,13 @@ All 6 phases, 12 feature headers, and intrinsics audit are complete.
 - `int64_t expected` → `uint64_t expected` for absolute values (|INT64_MIN| overflows int64_t)
 
 **`test_priority3_representations_ms_ek.cpp`** — segfault at -O1+ fixed:
+
 - `std::ofstream` inside non-main function triggers MSYS2 ucrt64 GCC 15.2.0 runtime crash at -O1+
 - Removed the debug ofstream block entirely; all 42/42 tests pass at -O2
 
 ### Known Limitations (unchanged)
 
-- Cross-representation casts (MS↔TC↔EK): not yet implemented
+- Cross-representation casts (MS↔TC↔EK): low-level functions in `representation.hpp` work, but not wired as constructors/operators in `int128_param_t`
 - MS `operator*=`: not implemented (wrong results)
 - EK `*`, `/`, `%`: require bias adjustment
 

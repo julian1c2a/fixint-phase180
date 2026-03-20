@@ -32,8 +32,11 @@ rules.ninja
 *.dylib
 *.o
 *.obj
+*.gch
+*.pch
 *.a
 *.lib
+*.pdb
 
 # Test results
 *.xml
