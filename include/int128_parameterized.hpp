@@ -1015,6 +1015,13 @@ namespace nstd
             if (is_zero())
                 return "0";
 
+            // Non-decimal bases use a separate noinline method so the compiler
+            // does not inflate the decimal path's stack frame with buf[130].
+            if (base != 10) [[unlikely]]
+            {
+                return to_string_nondecimal_(base);
+            }
+
             // ================================================================
             // STEP 1: Determine if negative and extract magnitude limbs
             // ================================================================
@@ -1023,155 +1030,244 @@ namespace nstd
             // ================================================================
             // STEP 2: Convert absolute value to string
             // ================================================================
-            std::string result{};
 
-            if (base == 10)
+            // ================================================================
+            // Decimal path: extract magnitude limbs directly on the stack.
+            // For TC signed negatives, negate via two's complement on limbs.
+            // Avoids constructing a temporary int128_param_t + operator-().
+            // ================================================================
+            std::uint64_t n_hi{data[1]};
+            std::uint64_t n_lo{data[0]};
+
+            if constexpr (is_signed)
             {
-                // Fast path: extract magnitude limbs directly on the stack.
-                // For TC signed negatives, negate via two's complement on limbs.
-                // Avoids constructing a temporary int128_param_t + operator-().
-                std::uint64_t n_hi{data[1]};
-                std::uint64_t n_lo{data[0]};
-
-                if constexpr (is_signed)
+                if (is_negative_value)
                 {
-                    if (is_negative_value)
+                    if constexpr (is_twos_complement)
                     {
-                        if constexpr (is_twos_complement)
-                        {
-                            // Two's complement negate: ~x + 1
-                            n_lo = ~n_lo + 1;
-                            n_hi = ~n_hi + (n_lo == 0 ? 1 : 0);
-                        }
-                        else if constexpr (is_magnitude_sign)
-                        {
-                            // Magnitude-sign: just clear the sign bit
-                            n_hi &= ~(std::uint64_t{1} << 63);
-                        }
-                        else /* excess_k */
-                        {
-                            // Excess-K: subtract bias, then negate if needed
-                            constexpr std::uint64_t bias_high{std::uint64_t{1} << 62};
-                            const bool borrow{n_lo == 0 && bias_high > 0};
-                            n_lo = n_lo - 0; // bias_low is 0
-                            n_hi = n_hi - bias_high - (borrow ? 1 : 0);
-                            // Negate (two's complement)
-                            n_lo = ~n_lo + 1;
-                            n_hi = ~n_hi + (n_lo == 0 ? 1 : 0);
-                        }
+                        // Two's complement negate: ~x + 1
+                        n_lo = ~n_lo + 1;
+                        n_hi = ~n_hi + (n_lo == 0 ? 1 : 0);
                     }
-                    else if constexpr (is_excess_k)
+                    else if constexpr (is_magnitude_sign)
                     {
-                        // Positive EK: subtract bias to get magnitude
+                        // Magnitude-sign: just clear the sign bit
+                        n_hi &= ~(std::uint64_t{1} << 63);
+                    }
+                    else /* excess_k */
+                    {
+                        // Excess-K: subtract bias, then negate if needed
                         constexpr std::uint64_t bias_high{std::uint64_t{1} << 62};
-                        n_hi = n_hi - bias_high;
+                        const bool borrow{n_lo == 0 && bias_high > 0};
+                        n_lo = n_lo - 0; // bias_low is 0
+                        n_hi = n_hi - bias_high - (borrow ? 1 : 0);
+                        // Negate (two's complement)
+                        n_lo = ~n_lo + 1;
+                        n_hi = ~n_hi + (n_lo == 0 ? 1 : 0);
                     }
                 }
-
-                // 10^19-chunking + native 64-bit division.
-                // Divide by 10^19 via Granlund-Montgomery overflow method to extract
-                // chunks of up to 19 digits that fit in uint64_t, then convert each
-                // chunk with native 64-bit modulo (~1 cyc/digit vs ~30 cyc mulhi_128).
-                // MAX128 ~ 3.4e38, so at most 3 chunks (2 full + 1 partial top).
-
-                char buf[40]; // max 39 digits for uint128_t
-                int pos{39};
-
-                if (n_hi == 0)
+                else if constexpr (is_excess_k)
                 {
-                    // Fits in uint64_t — pure native 64-bit division
-                    write_u64_digits(buf, pos, n_lo);
+                    // Positive EK: subtract bias to get magnitude
+                    constexpr std::uint64_t bias_high{std::uint64_t{1} << 62};
+                    n_hi = n_hi - bias_high;
                 }
-                else
-                {
-                    // 128-bit value: extract lowest 19-digit chunk
-                    std::uint64_t q_hi{0};
-                    std::uint64_t q_lo{0};
-                    std::uint64_t r0{0};
-                    fast_divmod_1e19_limbs(n_hi, n_lo, q_hi, q_lo, r0);
+            }
 
-                    if (q_hi != 0 || q_lo >= 10000000000000000000ull)
-                    {
-                        // 3 chunks: divide quotient by 10^19 again
-                        std::uint64_t q2_hi{0};
-                        std::uint64_t q2_lo{0};
-                        std::uint64_t r1{0};
-                        fast_divmod_1e19_limbs(q_hi, q_lo, q2_hi, q2_lo, r1);
+            // 10^19-chunking + native 64-bit division.
+            // Divide by 10^19 via Granlund-Montgomery overflow method to extract
+            // chunks of up to 19 digits that fit in uint64_t, then convert each
+            // chunk with native 64-bit modulo (~1 cyc/digit vs ~30 cyc mulhi_128).
+            // MAX128 ~ 3.4e38, so at most 3 chunks (2 full + 1 partial top).
 
-                        // Chunk 0 (bottom 19 digits, zero-padded)
-                        write_19_padded_digits(buf, pos, r0);
-                        // Chunk 1 (middle 19 digits, zero-padded)
-                        write_19_padded_digits(buf, pos, r1);
-                        // Chunk 2 (top, variable length, no padding)
-                        write_u64_digits(buf, pos, q2_lo);
-                    }
-                    else
-                    {
-                        // 2 chunks: quotient fits in uint64_t
-                        // Chunk 0 (bottom 19 digits, zero-padded)
-                        write_19_padded_digits(buf, pos, r0);
-                        // Chunk 1 (top, variable length, no padding)
-                        write_u64_digits(buf, pos, q_lo);
-                    }
-                }
+            char buf[40]; // max 39 digits for uint128_t
+            int pos{39};
 
-                result = std::string(&buf[pos], static_cast<std::size_t>(39 - pos));
+            if (n_hi == 0)
+            {
+                // Fits in uint64_t -- pure native 64-bit division
+                write_u64_digits(buf, pos, n_lo);
             }
             else
             {
-                // Generic path for bases 2-36 (except 10)
-                // Need magnitude as int128_param_t for multi-word division loop
-                int128_param_t value_for_division{0};
-                if constexpr (is_signed)
+                // 128-bit value: extract lowest 19-digit chunk
+                std::uint64_t q_hi{0};
+                std::uint64_t q_lo{0};
+                std::uint64_t r0{0};
+                fast_divmod_1e19_limbs(n_hi, n_lo, q_hi, q_lo, r0);
+
+                if (q_hi != 0 || q_lo >= 10000000000000000000ull)
                 {
-                    if constexpr (Form == representation_form::twos_complement)
-                    {
-                        value_for_division = is_negative_value ? -(*this) : *this;
-                    }
-                    else
-                    {
-                        value_for_division = this->magnitude();
-                    }
+                    // 3 chunks: divide quotient by 10^19 again
+                    std::uint64_t q2_hi{0};
+                    std::uint64_t q2_lo{0};
+                    std::uint64_t r1{0};
+                    fast_divmod_1e19_limbs(q_hi, q_lo, q2_hi, q2_lo, r1);
+
+                    // Chunk 0 (bottom 19 digits, zero-padded)
+                    write_19_padded_digits(buf, pos, r0);
+                    // Chunk 1 (middle 19 digits, zero-padded)
+                    write_19_padded_digits(buf, pos, r1);
+                    // Chunk 2 (top, variable length, no padding)
+                    write_u64_digits(buf, pos, q2_lo);
                 }
                 else
                 {
-                    value_for_division = *this;
+                    // 2 chunks: quotient fits in uint64_t
+                    // Chunk 0 (bottom 19 digits, zero-padded)
+                    write_19_padded_digits(buf, pos, r0);
+                    // Chunk 1 (top, variable length, no padding)
+                    write_u64_digits(buf, pos, q_lo);
                 }
+            }
 
-                // Stack-allocated char buffer. Max digits: 128 (base 2).
-                constexpr const char *digits{"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"};
-                char buf[129];
-                int pos{128};
+            const std::string result{&buf[pos], static_cast<std::size_t>(39 - pos)};
 
-                while (value_for_division.high() != 0 || value_for_division.low() != 0)
+            if (is_negative_value)
+            {
+                return "-" + result;
+            }
+
+            return result;
+        }
+
+        /// @internal
+        /// @brief Non-decimal to_string path (bases 2-9, 11-36).
+        /// Kept noinline so the decimal path gets a lighter stack frame.
+#if defined(_MSC_VER)
+        __declspec(noinline)
+#elif defined(__GNUC__) || defined(__clang__)
+        __attribute__((noinline))
+#endif
+        std::string to_string_nondecimal_(int base) const noexcept
+        {
+            const bool is_negative_value{is_signed ? is_negative() : false};
+
+            // Extract magnitude limbs
+            std::uint64_t n_hi{data[1]};
+            std::uint64_t n_lo{data[0]};
+
+            if constexpr (is_signed)
+            {
+                if (is_negative_value)
                 {
-                    int128_param_t quotient{0};
+                    if constexpr (is_twos_complement)
+                    {
+                        n_lo = ~n_lo + 1;
+                        n_hi = ~n_hi + (n_lo == 0 ? 1 : 0);
+                    }
+                    else if constexpr (is_magnitude_sign)
+                    {
+                        n_hi &= ~(std::uint64_t{1} << 63);
+                    }
+                    else /* excess_k */
+                    {
+                        constexpr std::uint64_t bias_high{std::uint64_t{1} << 62};
+                        const bool borrow{n_lo == 0 && bias_high > 0};
+                        n_lo = n_lo - 0;
+                        n_hi = n_hi - bias_high - (borrow ? 1 : 0);
+                        n_lo = ~n_lo + 1;
+                        n_hi = ~n_hi + (n_lo == 0 ? 1 : 0);
+                    }
+                }
+                else if constexpr (is_excess_k)
+                {
+                    constexpr std::uint64_t bias_high{std::uint64_t{1} << 62};
+                    n_hi = n_hi - bias_high;
+                }
+            }
+
+            // Check if base is a power of 2 (2, 4, 8, 16, 32)
+            const bool is_pow2_base{(base & (base - 1)) == 0};
+
+            constexpr const char *digits{"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"};
+            // Max 129 chars: 128 binary digits + sign
+            char buf[130];
+            int pos{129};
+
+            if (is_pow2_base)
+            {
+                // Power-of-2 base: extract groups of bits via shift+mask
+                // bits_per_digit: base=2->1, 4->2, 8->3, 16->4, 32->5
+                const int bits_per_digit{(base == 2) ? 1 : (base == 4) ? 2
+                                                       : (base == 8)   ? 3
+                                                       : (base == 16)  ? 4
+                                                                       : 5};
+                const std::uint64_t mask{static_cast<std::uint64_t>(base - 1)};
+
+                // Extract digits via continuous 128-bit right shift
+                // Avoids boundary artifacts for bases where 64 % bits_per_digit != 0
+                while (n_hi > 0 || n_lo > 0)
+                {
+                    buf[--pos] = digits[n_lo & mask];
+                    // 128-bit right shift by bits_per_digit
+                    n_lo = (n_lo >> bits_per_digit) | (n_hi << (64 - bits_per_digit));
+                    n_hi >>= bits_per_digit;
+                }
+            }
+            else
+            {
+                // Generic path for non-power-of-2 bases (3, 5, 6, 7, 9, 11-15, 17-31, 33-36)
+                // Multi-word division loop on raw limbs
+                while (n_hi != 0 || n_lo != 0)
+                {
+                    std::uint64_t q_hi{0};
                     std::uint64_t remainder{0};
 
-                    const std::uint64_t high_dividend{value_for_division.data[1]};
-                    quotient.data[1] = high_dividend / base;
-                    remainder = high_dividend % base;
+                    const std::uint64_t high_dividend{n_hi};
+                    q_hi = high_dividend / static_cast<std::uint64_t>(base);
+                    remainder = high_dividend % static_cast<std::uint64_t>(base);
 
-                    const std::uint64_t mid_dividend{(remainder << 32) | ((value_for_division.data[0] >> 32) & 0xFFFFFFFFULL)};
-                    const std::uint64_t mid_quotient{mid_dividend / base};
-                    remainder = mid_dividend % base;
+                    const std::uint64_t mid_dividend{(remainder << 32) | ((n_lo >> 32) & 0xFFFFFFFFULL)};
+                    const std::uint64_t mid_quotient{mid_dividend / static_cast<std::uint64_t>(base)};
+                    remainder = mid_dividend % static_cast<std::uint64_t>(base);
 
-                    const std::uint64_t low_dividend{(remainder << 32) | (value_for_division.data[0] & 0xFFFFFFFFULL)};
-                    const std::uint64_t low_quotient{low_dividend / base};
-                    remainder = low_dividend % base;
+                    const std::uint64_t low_dividend{(remainder << 32) | (n_lo & 0xFFFFFFFFULL)};
+                    const std::uint64_t low_quotient{low_dividend / static_cast<std::uint64_t>(base)};
+                    remainder = low_dividend % static_cast<std::uint64_t>(base);
 
-                    quotient.data[0] = (mid_quotient << 32) | (low_quotient & 0xFFFFFFFFULL);
+                    n_hi = q_hi;
+                    n_lo = (mid_quotient << 32) | (low_quotient & 0xFFFFFFFFULL);
                     buf[--pos] = digits[remainder];
-                    value_for_division = quotient;
                 }
-
-                result = std::string(&buf[pos], static_cast<std::size_t>(128 - pos));
             }
 
             if (is_negative_value)
-                result = "-" + result;
+            {
+                buf[--pos] = '-';
+            }
 
-            return result.empty() ? "0" : result;
+            return std::string(&buf[pos], static_cast<std::size_t>(129 - pos));
+        }
+
+        /**
+         * @brief Convert to C-string using a rotating static buffer.
+         *
+         * @details Returns a pointer to an internal static buffer. Uses 4
+         * rotating slots so up to 4 concurrent calls can be used without
+         * stomping (e.g., printf("%s %s %s %s", a.to_cstr(), b.to_cstr(), ...)).
+         * NOT thread-safe. For thread-safe usage, prefer to_string().
+         *
+         * @param base Numeric base (2-36, default 10)
+         * @return Pointer to null-terminated static buffer (valid until 4th subsequent call)
+         */
+        const char *to_cstr(int base = 10) const noexcept
+        {
+            // 4 rotating buffers: 130 chars max (128 binary digits + sign + nul)
+            static thread_local char buffers[4][131];
+            static thread_local int slot{0};
+
+            char *buf{buffers[slot & 3]};
+            slot = (slot + 1) & 3;
+
+            const std::string s{to_string(base)};
+            const std::size_t len{s.size() < 130 ? s.size() : 130};
+            for (std::size_t i{0}; i < len; ++i)
+            {
+                buf[i] = s[i];
+            }
+            buf[len] = '\0';
+            return buf;
         }
 
         // ========================================================================
@@ -1259,7 +1355,8 @@ namespace nstd
                 }
             }
 
-            int128_param_t<signedness::signed_type, representation_form::twos_complement> temp_val{};
+            // Always use unsigned accumulation to avoid false overflow at 2^127
+            int128_param_t<signedness::unsigned_type, representation_form::binnat> temp_val{};
             bool found_digit{false};
             std::size_t digit_start_index{index};
 
@@ -1340,7 +1437,15 @@ namespace nstd
             }
             else
             {
-                // Generic path for bases 2-36 (except 10)
+                // Non-decimal path for bases 2-36 (except 10)
+                // Detect power-of-2 bases for shift optimization
+                const bool is_pow2_base{(base & (base - 1)) == 0 && base >= 2};
+                const int bits_per_digit{is_pow2_base ? ((base == 2) ? 1 : (base == 4) ? 2
+                                                                       : (base == 8)   ? 3
+                                                                       : (base == 16)  ? 4
+                                                                                       : 5)
+                                                      : 0};
+
                 while (*ptr != '\0')
                 {
                     unsigned digit{0};
@@ -1386,14 +1491,30 @@ namespace nstd
                     }
 
                     found_digit = true;
-                    const auto old_value{temp_val};
-                    temp_val = temp_val * base + digit;
 
-                    if (temp_val < old_value && digit != 0)
+                    if (is_pow2_base)
                     {
-                        result.error = parse_error::overflow;
-                        result.error_index = index;
-                        return result;
+                        // Overflow: if top bits_per_digit bits of high limb are set,
+                        // shifting left would lose bits (overflow 128 bits)
+                        if (temp_val.high() >> (64 - bits_per_digit))
+                        {
+                            result.error = parse_error::overflow;
+                            result.error_index = index;
+                            return result;
+                        }
+                        temp_val = (temp_val << bits_per_digit) | static_cast<int>(digit);
+                    }
+                    else
+                    {
+                        const auto old_value{temp_val};
+                        temp_val = temp_val * base + digit;
+
+                        if (temp_val < old_value && digit != 0)
+                        {
+                            result.error = parse_error::overflow;
+                            result.error_index = index;
+                            return result;
+                        }
                     }
 
                     ++ptr;
@@ -1408,24 +1529,58 @@ namespace nstd
                 return result;
             }
 
+            // Signed overflow check: magnitude must fit in signed range
+            if constexpr (is_signed)
+            {
+                // Max positive magnitude: 2^127 - 1 (INT128_MAX)
+                // Max negative magnitude: 2^127     (INT128_MIN = -2^127)
+                constexpr auto max_positive_mag =
+                    int128_param_t<signedness::unsigned_type, representation_form::binnat>{
+                        0x7FFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull};
+                constexpr auto max_negative_mag =
+                    int128_param_t<signedness::unsigned_type, representation_form::binnat>{
+                        0x8000000000000000ull, 0x0000000000000000ull};
+
+                if (is_negative)
+                {
+                    if (temp_val > max_negative_mag)
+                    {
+                        result.error = parse_error::overflow;
+                        result.error_index = index;
+                        return result;
+                    }
+                }
+                else
+                {
+                    if (temp_val > max_positive_mag)
+                    {
+                        result.error = parse_error::overflow;
+                        result.error_index = index;
+                        return result;
+                    }
+                }
+            }
+
             if (is_negative)
             {
                 temp_val = -temp_val;
             }
 
+            // Transfer bits from unsigned accumulator to target type
+            // All paths use high()/low() which are plain uint64_t
             if constexpr (is_excess_k)
             {
                 constexpr std::uint64_t bias_high{1ull << 62};
-                constexpr std::uint64_t bias_low{0ull};
-                int128_param_t<signedness::signed_type, representation_form::twos_complement> bias_tc{bias_high, bias_low};
-                const auto final_val{temp_val + bias_tc};
-                result.value.set_high(final_val.high());
-                result.value.set_low(final_val.low());
+                const std::uint64_t fh{temp_val.high() + bias_high};
+                result.value.set_high(fh);
+                result.value.set_low(temp_val.low());
             }
             else if constexpr (is_magnitude_sign)
             {
-                if (temp_val.is_negative())
+                // After negation, check if high bit is set (was negative)
+                if (is_negative)
                 {
+                    // Store positive magnitude with sign bit
                     const auto mag{-temp_val};
                     result.value.set_high(mag.high() | (std::uint64_t{1} << 63));
                     result.value.set_low(mag.low());
