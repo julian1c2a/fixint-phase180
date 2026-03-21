@@ -245,7 +245,7 @@ namespace nstd
         /// Operates on raw uint64_t to avoid circular dependency with algorithms/.
         static inline void fast_divmod10_limbs(
             const std::uint64_t n_hi, const std::uint64_t n_lo,
-            std::uint64_t& q_hi, std::uint64_t& q_lo, std::uint64_t& rem) noexcept
+            std::uint64_t &q_hi, std::uint64_t &q_lo, std::uint64_t &rem) noexcept
         {
             constexpr std::uint64_t M_hi{0xCCCCCCCCCCCCCCCCull};
             constexpr std::uint64_t M_lo{0xCCCCCCCCCCCCCCCDull};
