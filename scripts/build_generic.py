@@ -106,20 +106,24 @@ def compile_with_compiler(
     
     echo_info(f"Building with {compiler_name}...")
     
+    # Get compiler environment (isolated, doesn't modify global environment)
+    if USE_COMPILER_ENV:
+        comp_env = CompilerEnvironment(compiler_name)
+        env = comp_env.get_env()
+        # Use full compiler path from the environment module
+        resolved_cmd = comp_env.get_compiler_cmd()
+        if resolved_cmd:
+            compiler_cmd = resolved_cmd
+        echo_info(f"  Using isolated environment for {compiler_name}")
+    else:
+        env = os.environ.copy()
+    
     # Check if compiler exists (unless skip_check is set)
     if not skip_check:
         if not find_compiler(compiler_cmd):
             echo_error(f"{compiler_name} not found ({compiler_cmd}). Skipping...")
             print()
             return
-    
-    # Get compiler environment (isolated, doesn't modify global environment)
-    if USE_COMPILER_ENV:
-        comp_env = CompilerEnvironment(compiler_name)
-        env = comp_env.get_env()
-        echo_info(f"  Using isolated environment for {compiler_name}")
-    else:
-        env = os.environ.copy()
     
     # Compile for each mode
     for mode in modes:

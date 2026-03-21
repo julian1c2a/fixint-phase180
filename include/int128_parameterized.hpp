@@ -240,17 +240,14 @@ namespace nstd
         std::uint64_t data[2]{0, 0};
 
         /// @internal
-        /// @brief Granlund-Montgomery fast divmod by 10 on raw limbs.
-        /// q = mulhi(n, M) >> 3 where M = ceil(2^131/10), r = n - q*10.
-        /// Operates on raw uint64_t to avoid circular dependency with algorithms/.
-        static inline void fast_divmod10_limbs(
+        /// @brief Compute upper 128 bits of 256-bit product n*M (mulhi_128 on raw limbs).
+        /// Used by fast_divmod10_limbs and fast_divmod_1e19_limbs to avoid
+        /// circular dependency with algorithms/div_by_const.hpp.
+        static inline void mulhi_128_limbs(
             const std::uint64_t n_hi, const std::uint64_t n_lo,
-            std::uint64_t &q_hi, std::uint64_t &q_lo, std::uint64_t &rem) noexcept
+            const std::uint64_t M_hi, const std::uint64_t M_lo,
+            std::uint64_t &h_hi, std::uint64_t &h_lo) noexcept
         {
-            constexpr std::uint64_t M_hi{0xCCCCCCCCCCCCCCCCull};
-            constexpr std::uint64_t M_lo{0xCCCCCCCCCCCCCCCDull};
-
-            // mulhi_128(n, M): upper 128 bits of 256-bit product
             std::uint64_t p00_H{0};
             intrinsics::umul128(n_lo, M_lo, &p00_H); // p00_L discarded
 
@@ -273,7 +270,6 @@ namespace nstd
             const std::uint64_t carry_to_2{c1 + c2};
 
             // Column 2: h_lo = p01_H + p10_H + p11_L + carry_to_2
-            std::uint64_t h_lo{0};
             intrinsics::addcarry_u64(0, p01_H, p10_H, &h_lo);
             const std::uint64_t c3{(h_lo < p01_H) ? 1ull : 0ull};
             const std::uint64_t h_lo_a{h_lo};
@@ -284,7 +280,22 @@ namespace nstd
             const std::uint64_t c5{(h_lo < h_lo_b) ? 1ull : 0ull};
 
             // Column 3: h_hi = p11_H + carries
-            const std::uint64_t h_hi{p11_H + c3 + c4 + c5};
+            h_hi = p11_H + c3 + c4 + c5;
+        }
+
+        /// @internal
+        /// @brief Granlund-Montgomery fast divmod by 10 on raw limbs.
+        /// q = mulhi(n, M) >> 3 where M = ceil(2^131/10), r = n - q*10.
+        static inline void fast_divmod10_limbs(
+            const std::uint64_t n_hi, const std::uint64_t n_lo,
+            std::uint64_t &q_hi, std::uint64_t &q_lo, std::uint64_t &rem) noexcept
+        {
+            constexpr std::uint64_t M_hi{0xCCCCCCCCCCCCCCCCull};
+            constexpr std::uint64_t M_lo{0xCCCCCCCCCCCCCCCDull};
+
+            std::uint64_t h_hi{0};
+            std::uint64_t h_lo{0};
+            mulhi_128_limbs(n_hi, n_lo, M_hi, M_lo, h_hi, h_lo);
 
             // q = {h_hi, h_lo} >> 3
             q_lo = (h_lo >> 3) | (h_hi << 61);
@@ -292,6 +303,100 @@ namespace nstd
 
             // rem = n_lo - (q*10)_lo  (wrapping arithmetic, correct since rem < 10)
             rem = n_lo - (q_lo << 3) - (q_lo << 1);
+        }
+
+        /// @internal
+        /// @brief Granlund-Montgomery fast divmod by 10^19 on raw limbs (overflow method).
+        /// q = (t + ((n - t) >> 1)) >> 63 where t = mulhi(n, M_low).
+        /// Remainder fits in uint64_t since 10^19 < 2^64.
+        /// Primary use case: to_string() chunked conversion (19 digits per chunk).
+        static inline void fast_divmod_1e19_limbs(
+            const std::uint64_t n_hi, const std::uint64_t n_lo,
+            std::uint64_t &q_hi, std::uint64_t &q_lo, std::uint64_t &rem) noexcept
+        {
+            constexpr std::uint64_t M_hi{0xD83C94FB6D2AC34Aull};
+            constexpr std::uint64_t M_lo{0x5663D3C7A0D865CBull};
+
+            std::uint64_t t_hi{0};
+            std::uint64_t t_lo{0};
+            mulhi_128_limbs(n_hi, n_lo, M_hi, M_lo, t_hi, t_lo);
+
+            // Overflow correction: q = (t + ((n - t) >> 1)) >> 63
+            // diff = n - t
+            const std::uint64_t diff_lo{n_lo - t_lo};
+            const std::uint64_t borrow{(n_lo < t_lo) ? 1ull : 0ull};
+            const std::uint64_t diff_hi{n_hi - t_hi - borrow};
+
+            // half = diff >> 1
+            const std::uint64_t half_lo{(diff_lo >> 1) | (diff_hi << 63)};
+            const std::uint64_t half_hi{diff_hi >> 1};
+
+            // sum = t + half
+            const std::uint64_t sum_lo{t_lo + half_lo};
+            const std::uint64_t carry{(sum_lo < t_lo) ? 1ull : 0ull};
+            const std::uint64_t sum_hi{t_hi + half_hi + carry};
+
+            // q = sum >> 63
+            q_lo = (sum_lo >> 63) | (sum_hi << 1);
+            q_hi = sum_hi >> 63;
+
+            // rem = n_lo - q_lo * 10^19 (wrapping arithmetic)
+            rem = n_lo - q_lo * 10000000000000000000ull;
+        }
+
+        /// @internal
+        /// @brief Two-digit lookup table: "00", "01", ..., "99" concatenated.
+        /// Used by write_u64_digits and write_19_padded_digits for 2x fewer divisions.
+        static constexpr char DIGIT_PAIRS_[201] =
+            "00010203040506070809"
+            "10111213141516171819"
+            "20212223242526272829"
+            "30313233343536373839"
+            "40414243444546474849"
+            "50515253545556575859"
+            "60616263646566676869"
+            "70717273747576777879"
+            "80818283848586878889"
+            "90919293949596979899";
+
+        /// @internal
+        /// @brief Write a uint64_t as decimal digits (variable length, no zero-padding).
+        /// Uses 2-digit pairs to halve the number of divisions.
+        static inline void write_u64_digits(char *buf, int &pos, std::uint64_t val) noexcept
+        {
+            while (val >= 100)
+            {
+                const std::uint64_t pair{val % 100};
+                val /= 100;
+                buf[--pos] = DIGIT_PAIRS_[pair * 2 + 1];
+                buf[--pos] = DIGIT_PAIRS_[pair * 2];
+            }
+            if (val >= 10)
+            {
+                buf[--pos] = DIGIT_PAIRS_[val * 2 + 1];
+                buf[--pos] = DIGIT_PAIRS_[val * 2];
+            }
+            else
+            {
+                buf[--pos] = static_cast<char>('0' + val);
+            }
+        }
+
+        /// @internal
+        /// @brief Write exactly 19 decimal digits from a uint64_t (zero-padded).
+        /// 19 is odd: 1 digit + 9 pairs of 2 digits.
+        static inline void write_19_padded_digits(char *buf, int &pos, std::uint64_t val) noexcept
+        {
+            // 19 is odd: extract 1 digit first, then 9 pairs
+            buf[--pos] = static_cast<char>('0' + val % 10);
+            val /= 10;
+            for (int i{0}; i < 9; ++i)
+            {
+                const std::uint64_t pair{val % 100};
+                val /= 100;
+                buf[--pos] = DIGIT_PAIRS_[pair * 2 + 1];
+                buf[--pos] = DIGIT_PAIRS_[pair * 2];
+            }
         }
 
         /// @internal
@@ -939,20 +1044,56 @@ namespace nstd
 
             if (base == 10)
             {
-                // Fast path: Granlund-Montgomery reciprocal multiplication
-                // ~4-6x faster than generic long division (1 mul vs 3 divs per digit)
+                // Fast path: 10^19-chunking + native 64-bit division.
+                // Divide by 10^19 via Granlund-Montgomery overflow method to extract
+                // chunks of up to 19 digits that fit in uint64_t, then convert each
+                // chunk with native 64-bit modulo (~1 cyc/digit vs ~30 cyc mulhi_128).
+                // MAX128 ~ 3.4e38, so at most 3 chunks (2 full + 1 partial top).
                 std::uint64_t n_hi{value_for_division.data[1]};
                 std::uint64_t n_lo{value_for_division.data[0]};
-                while (n_hi != 0 || n_lo != 0)
+
+                char buf[40]; // max 39 digits for uint128_t
+                int pos{39};
+
+                if (n_hi == 0)
                 {
+                    // Fits in uint64_t — pure native 64-bit division
+                    write_u64_digits(buf, pos, n_lo);
+                }
+                else
+                {
+                    // 128-bit value: extract lowest 19-digit chunk
                     std::uint64_t q_hi{0};
                     std::uint64_t q_lo{0};
-                    std::uint64_t rem{0};
-                    fast_divmod10_limbs(n_hi, n_lo, q_hi, q_lo, rem);
-                    result = static_cast<char>('0' + rem) + result;
-                    n_hi = q_hi;
-                    n_lo = q_lo;
+                    std::uint64_t r0{0};
+                    fast_divmod_1e19_limbs(n_hi, n_lo, q_hi, q_lo, r0);
+
+                    if (q_hi != 0 || q_lo >= 10000000000000000000ull)
+                    {
+                        // 3 chunks: divide quotient by 10^19 again
+                        std::uint64_t q2_hi{0};
+                        std::uint64_t q2_lo{0};
+                        std::uint64_t r1{0};
+                        fast_divmod_1e19_limbs(q_hi, q_lo, q2_hi, q2_lo, r1);
+
+                        // Chunk 0 (bottom 19 digits, zero-padded)
+                        write_19_padded_digits(buf, pos, r0);
+                        // Chunk 1 (middle 19 digits, zero-padded)
+                        write_19_padded_digits(buf, pos, r1);
+                        // Chunk 2 (top, variable length, no padding)
+                        write_u64_digits(buf, pos, q2_lo);
+                    }
+                    else
+                    {
+                        // 2 chunks: quotient fits in uint64_t
+                        // Chunk 0 (bottom 19 digits, zero-padded)
+                        write_19_padded_digits(buf, pos, r0);
+                        // Chunk 1 (top, variable length, no padding)
+                        write_u64_digits(buf, pos, q_lo);
+                    }
                 }
+
+                result = std::string(&buf[pos], static_cast<std::size_t>(39 - pos));
             }
             else
             {
