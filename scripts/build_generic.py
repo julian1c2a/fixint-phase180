@@ -161,8 +161,8 @@ def compile_with_compiler(
         source_str = str(source_file).replace("\\", "/")
         output_str = str(output).replace("\\", "/")
         
-        # Detect if Intel is running in clang-cl mode (Windows)
-        intel_windows = (compiler_name == "intel" and sys.platform == "win32")
+        # Detect if Intel is running in clang-cl mode (icx-cl) vs GCC mode (icpx)
+        intel_windows = (compiler_name == "intel" and "icx-cl" in compiler_cmd)
         
         # Set compiler-specific flags
         if compiler_name == "msvc" or intel_windows:

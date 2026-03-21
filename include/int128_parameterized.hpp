@@ -1016,26 +1016,9 @@ namespace nstd
                 return "0";
 
             // ================================================================
-            // STEP 1: Determine if negative and extract magnitude
+            // STEP 1: Determine if negative and extract magnitude limbs
             // ================================================================
             const bool is_negative_value{is_signed ? is_negative() : false};
-            int128_param_t value_for_division{0};
-
-            if constexpr (is_signed)
-            {
-                if constexpr (Form == representation_form::twos_complement)
-                {
-                    value_for_division = is_negative_value ? -(*this) : *this;
-                }
-                else // For MS and EK
-                {
-                    value_for_division = this->magnitude();
-                }
-            }
-            else // unsigned
-            {
-                value_for_division = *this;
-            }
 
             // ================================================================
             // STEP 2: Convert absolute value to string
@@ -1044,13 +1027,52 @@ namespace nstd
 
             if (base == 10)
             {
-                // Fast path: 10^19-chunking + native 64-bit division.
+                // Fast path: extract magnitude limbs directly on the stack.
+                // For TC signed negatives, negate via two's complement on limbs.
+                // Avoids constructing a temporary int128_param_t + operator-().
+                std::uint64_t n_hi{data[1]};
+                std::uint64_t n_lo{data[0]};
+
+                if constexpr (is_signed)
+                {
+                    if (is_negative_value)
+                    {
+                        if constexpr (is_twos_complement)
+                        {
+                            // Two's complement negate: ~x + 1
+                            n_lo = ~n_lo + 1;
+                            n_hi = ~n_hi + (n_lo == 0 ? 1 : 0);
+                        }
+                        else if constexpr (is_magnitude_sign)
+                        {
+                            // Magnitude-sign: just clear the sign bit
+                            n_hi &= ~(std::uint64_t{1} << 63);
+                        }
+                        else /* excess_k */
+                        {
+                            // Excess-K: subtract bias, then negate if needed
+                            constexpr std::uint64_t bias_high{std::uint64_t{1} << 62};
+                            const bool borrow{n_lo == 0 && bias_high > 0};
+                            n_lo = n_lo - 0; // bias_low is 0
+                            n_hi = n_hi - bias_high - (borrow ? 1 : 0);
+                            // Negate (two's complement)
+                            n_lo = ~n_lo + 1;
+                            n_hi = ~n_hi + (n_lo == 0 ? 1 : 0);
+                        }
+                    }
+                    else if constexpr (is_excess_k)
+                    {
+                        // Positive EK: subtract bias to get magnitude
+                        constexpr std::uint64_t bias_high{std::uint64_t{1} << 62};
+                        n_hi = n_hi - bias_high;
+                    }
+                }
+
+                // 10^19-chunking + native 64-bit division.
                 // Divide by 10^19 via Granlund-Montgomery overflow method to extract
                 // chunks of up to 19 digits that fit in uint64_t, then convert each
                 // chunk with native 64-bit modulo (~1 cyc/digit vs ~30 cyc mulhi_128).
                 // MAX128 ~ 3.4e38, so at most 3 chunks (2 full + 1 partial top).
-                std::uint64_t n_hi{value_for_division.data[1]};
-                std::uint64_t n_lo{value_for_division.data[0]};
 
                 char buf[40]; // max 39 digits for uint128_t
                 int pos{39};
@@ -1098,7 +1120,29 @@ namespace nstd
             else
             {
                 // Generic path for bases 2-36 (except 10)
+                // Need magnitude as int128_param_t for multi-word division loop
+                int128_param_t value_for_division{0};
+                if constexpr (is_signed)
+                {
+                    if constexpr (Form == representation_form::twos_complement)
+                    {
+                        value_for_division = is_negative_value ? -(*this) : *this;
+                    }
+                    else
+                    {
+                        value_for_division = this->magnitude();
+                    }
+                }
+                else
+                {
+                    value_for_division = *this;
+                }
+
+                // Stack-allocated char buffer. Max digits: 128 (base 2).
                 constexpr const char *digits{"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"};
+                char buf[129];
+                int pos{128};
+
                 while (value_for_division.high() != 0 || value_for_division.low() != 0)
                 {
                     int128_param_t quotient{0};
@@ -1117,9 +1161,11 @@ namespace nstd
                     remainder = low_dividend % base;
 
                     quotient.data[0] = (mid_quotient << 32) | (low_quotient & 0xFFFFFFFFULL);
-                    result = digits[remainder] + result;
+                    buf[--pos] = digits[remainder];
                     value_for_division = quotient;
                 }
+
+                result = std::string(&buf[pos], static_cast<std::size_t>(128 - pos));
             }
 
             if (is_negative_value)
@@ -1217,63 +1263,142 @@ namespace nstd
             bool found_digit{false};
             std::size_t digit_start_index{index};
 
-            while (*ptr != '\0')
+            if (base == 10)
             {
-                unsigned digit{0};
-                const char c{*ptr};
+                // Fast path: accumulate up to 19 digits in uint64_t per chunk,
+                // then do one 128-bit multiply+add per chunk flush.
+                // This reduces 128-bit multiplications from N (digits) to at most 3.
+                constexpr std::uint64_t pow10[20] = {
+                    1ull, 10ull, 100ull, 1000ull, 10000ull, 100000ull,
+                    1000000ull, 10000000ull, 100000000ull, 1000000000ull,
+                    10000000000ull, 100000000000ull, 1000000000000ull,
+                    10000000000000ull, 100000000000000ull, 1000000000000000ull,
+                    10000000000000000ull, 100000000000000000ull,
+                    1000000000000000000ull, 10000000000000000000ull};
 
-                if (c == '_' || c == '\'')
+                std::uint64_t chunk{0};
+                int chunk_digits{0};
+
+                while (*ptr != '\0')
                 {
-                    if (!found_digit && *(ptr + 1) != '\0')
+                    const char c{*ptr};
+
+                    if (c == '_' || c == '\'')
                     {
-                        result.error = parse_error::separator_at_boundaries;
+                        if (!found_digit && *(ptr + 1) != '\0')
+                        {
+                            result.error = parse_error::separator_at_boundaries;
+                            result.error_index = index;
+                            return result;
+                        }
+                        ++ptr;
+                        ++index;
+                        continue;
+                    }
+
+                    if (c < '0' || c > '9')
+                    {
+                        result.error = parse_error::invalid_character;
                         result.error_index = index;
                         return result;
                     }
+
+                    found_digit = true;
+                    chunk = chunk * 10 + static_cast<std::uint64_t>(c - '0');
+                    ++chunk_digits;
+
+                    if (chunk_digits == 19)
+                    {
+                        const auto old_value{temp_val};
+                        temp_val = temp_val * pow10[19] + chunk;
+                        if (temp_val < old_value)
+                        {
+                            result.error = parse_error::overflow;
+                            result.error_index = index;
+                            return result;
+                        }
+                        chunk = 0;
+                        chunk_digits = 0;
+                    }
+
                     ++ptr;
                     ++index;
-                    continue;
                 }
 
-                if (c >= '0' && c <= '9')
+                // Flush remaining digits
+                if (chunk_digits > 0)
                 {
-                    digit = static_cast<unsigned>(c - '0');
+                    const auto old_value{temp_val};
+                    temp_val = temp_val * pow10[chunk_digits] + chunk;
+                    if (temp_val < old_value)
+                    {
+                        result.error = parse_error::overflow;
+                        result.error_index = index;
+                        return result;
+                    }
                 }
-                else if (c >= 'a' && c <= 'z')
+            }
+            else
+            {
+                // Generic path for bases 2-36 (except 10)
+                while (*ptr != '\0')
                 {
-                    digit = static_cast<unsigned>(c - 'a' + 10);
-                }
-                else if (c >= 'A' && c <= 'Z')
-                {
-                    digit = static_cast<unsigned>(c - 'A' + 10);
-                }
-                else
-                {
-                    result.error = parse_error::invalid_character;
-                    result.error_index = index;
-                    return result;
-                }
+                    unsigned digit{0};
+                    const char c{*ptr};
 
-                if (digit >= static_cast<unsigned>(base))
-                {
-                    result.error = parse_error::digit_out_of_range;
-                    result.error_index = index;
-                    return result;
+                    if (c == '_' || c == '\'')
+                    {
+                        if (!found_digit && *(ptr + 1) != '\0')
+                        {
+                            result.error = parse_error::separator_at_boundaries;
+                            result.error_index = index;
+                            return result;
+                        }
+                        ++ptr;
+                        ++index;
+                        continue;
+                    }
+
+                    if (c >= '0' && c <= '9')
+                    {
+                        digit = static_cast<unsigned>(c - '0');
+                    }
+                    else if (c >= 'a' && c <= 'z')
+                    {
+                        digit = static_cast<unsigned>(c - 'a' + 10);
+                    }
+                    else if (c >= 'A' && c <= 'Z')
+                    {
+                        digit = static_cast<unsigned>(c - 'A' + 10);
+                    }
+                    else
+                    {
+                        result.error = parse_error::invalid_character;
+                        result.error_index = index;
+                        return result;
+                    }
+
+                    if (digit >= static_cast<unsigned>(base))
+                    {
+                        result.error = parse_error::digit_out_of_range;
+                        result.error_index = index;
+                        return result;
+                    }
+
+                    found_digit = true;
+                    const auto old_value{temp_val};
+                    temp_val = temp_val * base + digit;
+
+                    if (temp_val < old_value && digit != 0)
+                    {
+                        result.error = parse_error::overflow;
+                        result.error_index = index;
+                        return result;
+                    }
+
+                    ++ptr;
+                    ++index;
                 }
-
-                found_digit = true;
-                const auto old_value{temp_val};
-                temp_val = temp_val * base + digit;
-
-                if (temp_val < old_value && digit != 0)
-                {
-                    result.error = parse_error::overflow;
-                    result.error_index = index;
-                    return result;
-                }
-
-                ++ptr;
-                ++index;
             }
 
             if (!found_digit)
