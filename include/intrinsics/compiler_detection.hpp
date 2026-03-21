@@ -317,6 +317,25 @@
 #endif
 
 // ============================================================================
+// DETECCIÓN DE __uint128_t NATIVO
+// ============================================================================
+
+/**
+ * @brief Detecta si el compilador soporta __uint128_t para operaciones aritméticas
+ *
+ * Intel ICX en Windows define __SIZEOF_INT128__ Y _MSC_VER simultáneamente.
+ * El patrón `defined(__SIZEOF_INT128__) && !defined(_MSC_VER)` excluye a ICX
+ * incorrectamente, causando que las funciones de división 128/64 retornen 0.
+ *
+ * Esta macro corrige esa exclusión: ICX soporta __uint128_t nativo.
+ */
+#if defined(__SIZEOF_INT128__) && (!defined(_MSC_VER) || INTRINSICS_COMPILER_INTEL)
+#define INTRINSICS_HAS_INT128 1
+#else
+#define INTRINSICS_HAS_INT128 0
+#endif
+
+// ============================================================================
 // INFORMACIÓN DE RESUMEN
 // ============================================================================
 

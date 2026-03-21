@@ -414,7 +414,7 @@ namespace intrinsics
     inline constexpr uint64_t div128_64(uint64_t num_hi, uint64_t num_lo, uint64_t divisor,
                                         uint64_t *remainder = nullptr) noexcept
     {
-#if defined(__SIZEOF_INT128__) && !defined(_MSC_VER)
+#if INTRINSICS_HAS_INT128
         const __uint128_t numerator = (static_cast<__uint128_t>(num_hi) << 64) | num_lo;
         const __uint128_t q = numerator / divisor;
         if (remainder)
@@ -478,7 +478,7 @@ namespace intrinsics
     inline constexpr uint64_t div128_64_composed(uint64_t r_hi, uint64_t data_low, uint64_t divisor,
                                                  uint64_t *remainder_final) noexcept
     {
-#if defined(__SIZEOF_INT128__) && !defined(_MSC_VER)
+#if INTRINSICS_HAS_INT128
         // Usar división nativa 128/64 con __uint128_t (optimizado)
         const __uint128_t dividend_composed = (static_cast<__uint128_t>(r_hi) << 64) | data_low;
         const uint64_t q_lo = static_cast<uint64_t>(dividend_composed / divisor);
@@ -526,7 +526,7 @@ namespace intrinsics
     inline constexpr uint64_t knuth_qhat(uint64_t u_ext, uint64_t u_hi, uint64_t u_lo, uint64_t v_hi,
                                          uint64_t v_lo) noexcept
     {
-#if defined(__SIZEOF_INT128__) && !defined(_MSC_VER)
+#if INTRINSICS_HAS_INT128
         // D3. Calcular q_hat (Estimación del cociente)
         const __uint128_t numerator = (static_cast<__uint128_t>(u_ext) << 64) | u_hi;
 
@@ -664,7 +664,7 @@ namespace intrinsics
                                                   uint64_t *remainder_hi,
                                                   uint64_t *remainder_lo) noexcept
     {
-#if defined(__SIZEOF_INT128__) && !defined(_MSC_VER)
+#if INTRINSICS_HAS_INT128
         // D3. Calcular q_hat
         const uint64_t q_hat = knuth_qhat(u_ext, u_hi, u_lo, v_hi, v_lo);
 
