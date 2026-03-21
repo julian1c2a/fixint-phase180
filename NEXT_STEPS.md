@@ -261,27 +261,34 @@ Created comprehensive STL type traits integration:
 
 ### NEW: Benchmark & Testing Methodology Overhaul
 
-**Status:** In Progress | **Priority:** High | **Docs:** `docs/PLAN_BENCHMARK_AND_TESTING_METHODOLOGY.md`
+**Status:** ✅ Core Complete | **Priority:** High | **Docs:** `docs/PLAN_BENCHMARK_AND_TESTING_METHODOLOGY.md`
 
-1. **RDTSC-only benchmarks:** Migrar todos los benchmarks a medición de ciclos CPU directos (RDTSC).
-   - ✅ `benchmark_vs_builtin.cpp` -- ya usa RDTSC.
-   - ✅ `benchmark_divmod_algorithms.cpp` -- migrado a `bench_common.hpp` (sesión 21 Mar 2026).
-   - ⬜ Validar `bench_common.hpp` con MSVC e Intel (Crítica 5).
-2. **Cobertura sistemática 3-regiones:**
-   - 1-arg: primeros 2^21, últimos 2^21, 2^21 aleatorios + edge cases (~6.3M valores)
-   - 2-arg: 6 combinaciones de las 3 regiones (~12.6M pares + edge cases)
+1. **RDTSC-only benchmarks:** ✅ Todos los benchmarks migrados a ciclos CPU directos (RDTSC).
+   - ✅ `benchmark_vs_builtin.cpp` — usa RDTSC via `bench_common.hpp`.
+   - ✅ `benchmark_divmod_algorithms.cpp` — migrado a `bench_common.hpp` (sesión 21 Mar 2026).
+   - ✅ `bench_common.hpp` validado con 4 compiladores: GCC, Clang, MSVC, Intel (Crítica 5 resuelta).
+2. **Cobertura sistemática 3-regiones:** ✅ Implementada.
+   - ✅ `tests/test_sweep_framework.hpp` — Framework completo (SplitMix64, regiones, sweep_unary/binary).
+   - ✅ `tests/test_sweep_framework_validation.cpp` — 20/20 PASS en 4 compiladores (Crítica 3 resuelta).
+   - ⬜ Migrar tests existentes al framework de 3-regiones (trabajo futuro, incremental).
 3. **Regla formalizada** en `AI_PROMPT/ai-instructions.md` como Regla 8 (Test & Benchmark Methodology).
 
 ### NEW: BCD Decimal Types (Base-10 Parameterized)
 
-**Status:** Planned | **Priority:** Medium-High | **Docs:** `docs/PLAN_BCD_DECIMAL_TYPES.md`
+**Status:** Prototype Complete, Design Planned | **Priority:** Medium-High | **Docs:** `docs/PLAN_BCD_DECIMAL_TYPES.md`
 
 Tipo parametrizado en base 10 con codificación BCD dentro de 128 bits (32 dígitos decimales):
 
+- ✅ **Prototipo validado:** `build_temp/prototype_bcd_conversion.cpp` — Double-Dabble (bin→BCD)
+  y Horner (BCD→bin) en 29/29 tests, 4 compiladores.
 - **BCD Natural (8-4-2-1):** Para unsigned y Excess-K — aritmética decimal estándar.
 - **BCD Aiken (2-4-2-1):** Para signed (TC, MS) — auto-complementario: `~d = 9-d`.
 - **Proyección futura:** Base para punto flotante decimal (IEEE 754-2008 decimal128).
 - **Casos de uso:** Aritmética financiera, protocolos telecom/banking, conversión string O(n).
+- **Limitación descubierta:** BCD128 (32 nibbles) soporta max 10^32-1; uint128_t max (39 dígitos)
+  desborda. Considerar BCD160 (40 nibbles) o packed BCD para cobertura completa.
+- **Bug Clang:** Funciones BCD no deben ser `constexpr` — el evaluador constexpr de Clang
+  produce resultados incorrectos en comparaciones de uint128_t ≥2^64. Usar `inline`.
 
 ### NEW: Granlund-Montgomery Division Optimization
 
@@ -303,9 +310,9 @@ Algoritmo Karatsuba para multiplicación sub-cuadrática O(n^1.585). Necesario p
 
 ---
 
-## 🔴 CRÍTICAS ATACABLES (Action Items)
+## ~~🔴 CRÍTICAS ATACABLES~~ ✅ TODAS RESUELTAS (5/5)
 
-Puntos débiles identificados que deben abordarse en futuras sesiones:
+Puntos débiles identificados — **todos resueltos en sesiones del 21-22 Jul 2025**:
 
 ### ~~Crítica 1: benchmark_divmod_algorithms.cpp aún usa std::chrono~~ ✅ RESUELTA
 
@@ -316,38 +323,45 @@ Puntos débiles identificados que deben abordarse en futuras sesiones:
   reporte tabular con cyc/op + ratio vs baseline. Compilado limpio con GCC 15 y Clang 21.
   Resultado: Knuth D 1.92x más rápido que big_bin en promedio.
 
-### Crítica 2: No existe un test runner unificado
+### ~~Crítica 2: No existe un test runner unificado~~ ✅ RESUELTA
 
 - **Problema:** Los tests se ejecutan individualmente; no hay un único ejecutable
   o script que corra todos los tests y reporte pass/fail global.
-- **Acción:** Crear script `scripts/run_all_tests.py` o target `make test_all`
-  que encuentre todos los `*_tests.cpp`, compile, ejecute y reporte resumen.
-- **Prioridad:** Media — afecta DX pero no corrección.
+- **Resolución (sesión 2025-07-21):** `python make.py test` ahora funciona como runner
+  unificado. Compila y ejecuta todos los 49 test files automáticamente.
+  Validado: 49/49 PASS con GCC 15, 49/49 PASS con Clang 21.
 
-### Crítica 3: Cobertura de tests no sigue 3-regiones sistemáticamente
+### ~~Crítica 3: Cobertura de tests no sigue 3-regiones sistemáticamente~~ ✅ RESUELTA
 
 - **Problema:** Los tests existentes usan valores ad-hoc, no la cobertura de
   3 regiones × 2^21 valores descrita en la metodología.
-- **Acción:** Implementar `test_sweep_framework.hpp` (documentado en
-  `PLAN_BENCHMARK_AND_TESTING_METHODOLOGY.md` §6) y migrar tests gradualmente.
-- **Prioridad:** Media — la metodología existe pero no se aplica aún.
+- **Resolución (sesión 2025-07-22):** Creado `tests/test_sweep_framework.hpp` (~250 líneas)
+  con SplitMix64 PRNG determinista, regiones first/last/random de 2^21 valores,
+  `sweep_unary()` (6.3M valores) y `sweep_binary()` (12.6M pares + edge cases).
+  Validación: `tests/test_sweep_framework_validation.cpp` — 20/20 PASS en los
+  4 compiladores (GCC, Clang, MSVC, Intel ICX).
 
-### Crítica 4: Conversiones BCD ↔ binario no implementadas
+### ~~Crítica 4: Conversiones BCD ↔ binario no implementadas~~ ✅ RESUELTA
 
 - **Problema:** El plan BCD documenta double-dabble e inverso multiplicativo,
   pero no hay implementación ni prototipo que valide la viabilidad constexpr.
-- **Acción:** Crear prototipo en `build_temp/prototype_bcd_conversion.cpp`
-  que implemente double-dabble y Horner constexpr. Verificar compilabilidad en 4 compiladores.
-- **Prioridad:** Media — necesario antes de empezar BCD en serio.
+- **Resolución (sesión 2025-07-22):** Creado `build_temp/prototype_bcd_conversion.cpp`
+  (~370 líneas) con `bcd128_raw` struct, `double_dabble()` (bin→BCD) y
+  `horner_bcd_to_binary()` (BCD→bin via Horner mul×10). 29/29 PASS en los
+  4 compiladores. Funciones declaradas `inline` (no `constexpr`) debido a bug
+  en evaluador constexpr de Clang con operaciones uint128_t ≥2^64.
+  **Nota:** BCD128 (32 nibbles) soporta hasta 10^32-1 (32 dígitos); uint128_t max
+  (39 dígitos) desborda el rango BCD.
 
-### Crítica 5: bench_common.hpp no se ha compilado con MSVC ni Intel
+### ~~Crítica 5: bench_common.hpp no se ha compilado con MSVC ni Intel~~ ✅ RESUELTA
 
 - **Problema:** El header compartido de benchmarks se creó y refactorizó
   `benchmark_vs_builtin.cpp`, pero no se ha validado la compilación con los
   4 compiladores (GCC, Clang, MSVC, Intel).
-- **Acción:** Compilar `benchmark_vs_builtin.cpp` con los 4 compiladores y
-  corregir cualquier issue de portabilidad en `bench_common.hpp`.
-- **Prioridad:** Alta — el header debe ser cross-compiler desde el inicio.
+- **Resolución (sesión 2025-07-21):** `bench_common.hpp` compilado y ejecutado
+  exitosamente con los 4 compiladores: GCC 15.2.0 ✅, Clang 21.1.8 ✅,
+  MSVC 19.50 ✅ (3 pragma warnings suprimidos), Intel ICX 2025.3 ✅.
+  El header es totalmente cross-compiler.
 
 ---
 

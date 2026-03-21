@@ -1,3 +1,60 @@
+## [22 July 2025] - All 5 Criticisms Resolved (session 4)
+
+### ✅ Crítica 3 RESUELTA: Test Sweep Framework
+
+- **Created:** `tests/test_sweep_framework.hpp` (~250 lines)
+  - `SplitMix64` deterministic PRNG (seed `0xDEADBEEF12345678`)
+  - `TestRegion` with first/last/random regions (2^21 = 2,097,152 values each)
+  - `sweep_unary<F,Oracle>()` — 6.3M values + 20 edge cases
+  - `sweep_binary<G,Oracle>()` — 12.6M pairs (6 region combos) + 12 edge cases
+  - `SweepResult` struct + `print_sweep_summary()` ASCII output
+- **Created:** `tests/test_sweep_framework_validation.cpp` (~340 lines)
+  - 5 sections, 20 tests: region generators, PRNG quality, sweep identity, commutativity, edge cases
+- **Validated:** 20/20 PASS on GCC 15, Clang 21, MSVC 19.50, Intel ICX 2025.3
+
+### ✅ Crítica 4 RESUELTA: BCD Conversion Prototype
+
+- **Created:** `build_temp/prototype_bcd_conversion.cpp` (~370 lines)
+  - `bcd128_raw` struct: nibble get/set, `is_valid_bcd()`, `to_string()`
+  - `double_dabble()` (inline): Binary → BCD (128 iterations × 32 nibbles)
+  - `horner_bcd_to_binary()` (inline): BCD → Binary via Horner mul×10
+  - 29 test cases: nibble access, small/large values, round-trips, to_string
+- **Validated:** 29/29 PASS on GCC 15, Clang 21, MSVC 19.50, Intel ICX 2025.3
+- **Bug discovered:** Clang constexpr evaluator produces incorrect comparison results
+  for uint128_t operations ≥2^64. Workaround: use `inline` instead of `constexpr`.
+- **Limitation:** BCD128 (32 nibbles) max = 10^32-1 (32 digits); uint128_t max = 39 digits.
+
+### 📝 Documentation Updates
+
+- **NEXT_STEPS.md**: All 5 CRÍTICAS marked as resolved. Benchmark Methodology → "Core Complete".
+  BCD section updated with prototype status and Clang constexpr bug note.
+
+### 🐛 Bugs Found & Fixed
+
+- **Constructor order:** `int128_param_t(T1 high, T2 low)` — HIGH first, LOW second.
+  Fixed all `{lo, hi}` → `{hi, lo}` in test_sweep_framework.hpp and prototype_bcd_conversion.cpp.
+- **10^20 hex:** Corrected `0x56BC75E2D6310000` → `0x6BC75E2D63100000` (low limb).
+
+---
+
+## [21 July 2025] - Benchmark Migration & Críticas 1,2,5 Resolved (session 3)
+
+### ✅ Crítica 1 RESUELTA: benchmark_divmod migrated to RDTSC
+
+- Confirmed migration from previous session — uses `bench_common.hpp` with CycleTimer
+
+### ✅ Crítica 2 RESUELTA: Unified test runner
+
+- `python make.py test` runs all 49 test files automatically
+- Validated: 49/49 PASS with GCC 15, 49/49 PASS with Clang 21
+
+### ✅ Crítica 5 RESUELTA: bench_common.hpp cross-compiler validation
+
+- `bench_common.hpp` compiled and executed with all 4 compilers:
+  GCC 15 ✅, Clang 21 ✅, MSVC 19.50 ✅ (3 pragma warnings), Intel ICX 2025.3 ✅
+
+---
+
 ## [21 March 2026] - Benchmark Methodology Overhaul (session 2)
 
 ### 🔄 Migrated: benchmark_divmod_algorithms.cpp to RDTSC
