@@ -1,8 +1,38 @@
 # 🔮 NEXT STEPS - Post-Phase 1.75
 
-**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 12/12 ✅ | Intrinsics ✅ | Cross-Repr ✅ | API Docs ✅
-**Last Updated:** 21 March 2026
-**Focus:** All phases complete — Future work: BCD types, benchmark methodology, Granlund-Montgomery, Karatsuba
+**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 13/13 ✅ | Intrinsics ✅ | Cross-Repr ✅ | API Docs ✅ | Karatsuba ✅ | Format ✅ | Hash ✅ | Benchmarks ✅ | Replanteamiento ✅
+**Last Updated:** 22 July 2025
+**Focus:** Replanteamiento complete — Next: optimize subtraction, MSVC/Intel benchmarks, sweep migration
+
+---
+
+## 🎯 COMPLETED PRIORITIES (session 5)
+
+### ✅ Karatsuba API — COMPLETE (12/12 tests, ~57M verifications)
+
+- `nstd::widening_mul(a,b)` → Full 128×128→256 Karatsuba (3 multiplications)
+- `nstd::mulhi(a,b)` → Upper 128 bits of 256-bit product
+- `nstd::mullo(a,b)` → Lower 128 bits (operator* alias)
+- `nstd::uint256_t` → 256-bit result type (4 LE limbs)
+- div_by_const.hpp: mulhi_128 migrated from schoolbook (4 muls) to Karatsuba (3 muls)
+
+### ✅ std::format Full Standard Spec — COMPLETE (24/24 tests)
+
+- Complete `[[fill]align][sign][#][0][width][type]` per C++20 standard
+- Types: d, x/X, b/B, o | Fill/align/sign/alt (#)/zero-pad (0)/width
+
+### ✅ std::hash STL Integration — COMPLETE (14 new assertions)
+
+- All 4 types hashable in `std::unordered_map`, `std::unordered_set`
+- Both `nstd::hash<T>` and `std::hash<T>` specialized
+- Fixed: nstd::hash was invisible on Clang/libc++ (inside wrong preprocessor guard)
+
+### ✅ Multicompiler Benchmarks — COMPLETE (5 benchmarks × 2 compilers)
+
+**Headline:** nstd::uint128_t 19.8x faster than __int128 for division (GCC -O2)
+
+- Full RDTSC cycle measurements across GCC 15 and Clang 21
+- Results: `build/benchmark_results_multicompiler.md`
 
 ---
 
@@ -414,6 +444,97 @@ All tests passing: GCC ✅ 30/30 + 25/25, Clang ✅ 30/30 + 25/25, MSVC ✅ 30/3
 
 ---
 
+## 🔄 REPLANTEAMIENTO — Sesión 5 (22 Julio 2025)
+
+### Estado Actual del Proyecto
+
+| Métrica | Valor |
+|---------|-------|
+| Headers (include/) | 23 (.hpp): 16 raíz + 5 intrinsics/ + 2 algorithms/ |
+| Feature headers operativos | 13/13 |
+| Tests (.cpp) | 58 archivos, 58/58 PASS (GCC + Clang) |
+| API docs (docs/) | 15 archivos (14 previos + API_arithmetic.md) |
+| Benchmarks (benchs/) | 5 archivos: vs_builtin, divmod_algorithms, to_string, from_string, granlund_montgomery |
+| Compiladores validados | 12 (4 Windows MSYS2 + 8 WSL) |
+| Representaciones | 4/4 (TC, MS, EK, binnat) |
+
+### Análisis de Benchmarks — Fortalezas y Debilidades
+
+**Fortalezas demostradas (nstd vs __int128):**
+
+| Operación | GCC -O2 | Clang -O2 | Veredicto |
+|-----------|---------|-----------|-----------|
+| División (/) | **19.8x** más rápido | **1.4x** más rápido | Corona de la librería — Knuth D + fast paths |
+| Comparación | **2.3x** más rápido | **3.6x** más rápido | Excelente en ambos compiladores |
+| Suma (+) | **1.9x** más rápido | Paridad | GCC genera código más tight |
+| Multiplicación (*) | Paridad | Paridad | Esperado — misma instrucción `mul` subyacente |
+| to_string() | **1.3x** más rápido | **5.8x** más rápido | Algoritmo de pares de dígitos funciona bien |
+| Shift | **1.7x** más rápido | Paridad | — |
+
+**Debilidades identificadas:**
+
+| Operación | GCC -O2 | Clang -O2 | Causa raíz |
+|-----------|---------|-----------|------------|
+| Resta (-) | 1.3x más lento | Paridad | GCC optimiza __int128 sub como instrucción nativa `sbb` |
+| XOR | Paridad | 1.4x más lento | Clang optimiza __int128 XOR nativamente |
+
+**Observaciones clave de compilador:**
+
+- GCC produce aritmética simple ~5x más rápida que Clang (add: 1.19 vs 5.69 cyc/op)
+- Clang produce string parsing ~40% más rápido que GCC
+- Granlund-Montgomery es **esencial** en Clang: `operator/` es 10-60x más lento que en GCC
+- Boost es 3-90x más lento que nstd en todas las operaciones básicas
+
+### Inventario de Trabajo Futuro
+
+Consolidación de todos los items pendientes de NEXT_STEPS y el plan original:
+
+#### Prioridad ALTA (impacto directo en calidad/rendimiento)
+
+| # | Item | Estado | Impacto |
+|---|------|--------|---------|
+| A1 | **Optimizar resta (GCC)** | Pendiente | Única operación donde __int128 gana; investigar inline asm/intrinsics |
+| A2 | **Benchmarks MSVC + Intel** | Pendiente | Solo GCC/Clang benchmarkeados; MSVC/Intel sin ciclos medidos esta sesión |
+| A3 | **Granlund-Montgomery constexpr completo** | Parcial | div_by_const.hpp usa Karatsuba; falta constexpr puro (sin __uint128_t) |
+| A4 | **Migrar tests existentes a sweep framework** | Parcial | Sweep funciona; 58 tests legacy aún usan framework antiguo |
+
+#### Prioridad MEDIA (extensión de funcionalidad)
+
+| # | Item | Estado | Impacto |
+|---|------|--------|---------|
+| M1 | **BCD Decimal Types completos** | Prototipo | Funciones BCD↔binary existentes; falta tipo BCD128 completo con aritmética |
+| M2 | **benchmark_comparison.bash** | Roto | `python make.py compare` falla; benchmarks se ejecutaron manualmente |
+| M3 | **Test Suite Strengthening** | Pendiente | Revisar test_priority*.cpp para assertions débiles; agregar más edge cases |
+| M4 | **Clang constexpr bug workaround** | Documentado | Funciones con uint128_t ops ≥2^64 producen comparaciones incorrectas si constexpr |
+
+#### Prioridad BAJA (futuro/investigación)
+
+| # | Item | Estado | Impacto |
+|---|------|--------|---------|
+| B1 | **ARM64/ARM32/RISC-V ports** | No iniciado | Requiere intrinsics nuevos; objetivo plan original |
+| B2 | **Decimal128 (IEEE 754-2008)** | No iniciado | DPD/BID encoding; Phase 1.85+ |
+| B3 | **int256_t / int512_t extensión** | No iniciado | uint256_t existe como struct básico; falta tipo completo |
+| B4 | **Conan/vcpkg packaging** | No iniciado | conanfile.txt existe; falta publicación |
+
+### Propuesta de Siguiente Sesión (Sesión 6)
+
+**Enfoque recomendado:** Calidad + Rendimiento (antes de agregar funcionalidad nueva)
+
+1. **Optimizar resta en GCC** (A1) — Cerrar la única brecha vs __int128
+2. **Benchmarks MSVC + Intel** (A2) — Completar cobertura de 4 compiladores
+3. **Fix benchmark_comparison.bash** (M2) — Automatizar comparaciones
+4. **Migrar 5-10 tests a sweep framework** (A4) — Incrementar robustez
+5. **Commit + tag v1.76** — Consolidar todo el trabajo de sesiones 4-6
+
+### Decisiones Arquitectónicas Pendientes
+
+1. **¿Merece la resta una instrucción inline ASM?** — Riesgo: romper portabilidad; beneficio: cerrar brecha con __int128
+2. **¿Granlund-Montgomery debe ser siempre constexpr?** — Requiere eliminar dependencia de __uint128_t para mulhi
+3. **¿BCD como phase 1.80 o postergar a 2.0?** — El prototipo funciona; ¿vale la inversión antes de ARM ports?
+4. **¿uint256_t completo o solo como soporte interno?** — Actualmente solo struct de 4 limbs para Karatsuba
+
+---
+
 ## 📈 SUCCESS METRICS
 
 Phase 1.75 has achieved:
@@ -434,8 +555,9 @@ Phase 1.75 has achieved:
 
 | Phase | Contenido | Estado |
 |-------|-----------|--------|
-| **1.75** | Parameterized type (4 reprs), 12 feature headers, Knuth D, intrinsics, cross-repr, API docs | ✅ **COMPLETE** |
-| **1.80** | BCD base-10 types (Natural + Aiken), benchmark methodology overhaul, Granlund-Montgomery | 📋 PLANNED |
+| **1.75** | Parameterized type (4 reprs), 13 feature headers, Knuth D, intrinsics, cross-repr, API docs, Karatsuba, format, hash | ✅ **COMPLETE** |
+| **1.76** | Subtraction optimization, MSVC/Intel benchmarks, sweep migration, benchmark automation | 📋 NEXT SESSION |
+| **1.80** | BCD base-10 types (Natural + Aiken), benchmark methodology overhaul, Granlund-Montgomery constexpr | 📋 PLANNED |
 | **1.85** | Decimal128 floating point (IEEE 754-2008), DPD/BID encoding | 📋 FUTURE |
 | **2.0** | Production release: full numeric tower (binary + decimal, integer + float) | 📋 FUTURE |
 

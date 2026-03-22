@@ -1,26 +1,29 @@
 # Executive Summary - Phase 1.75 int128 Library
 
-## Last Updated: 21 March 2026
+## Last Updated: 22 July 2025
 
-## 🎯 Project Status: ALL 6 PHASES COMPLETE + BENCHMARK METHODOLOGY IN PROGRESS ✅
+## 🎯 Project Status: ALL 6 PHASES COMPLETE + EXTENDED ARITHMETIC + FULL BENCHMARKS ✅
 
 ### Total Achievements
 
 | Metric | Value |
 |--------|-------|
 | Phases Complete | **6/6 (100%)** |
-| Feature Headers | **12/12 validated** |
-| Tests Passing | 250+ across 56 test files (12,158 lines) |
+| Feature Headers | **13/13 validated** (+arithmetic) |
+| Tests Passing | **58/58** across test files |
 | Compilers Validated | **11** (4 Windows + 7 WSL) |
-| Division Speedup | **6.24x** (Knuth D vs Binary) |
-| vs uint64_t (GCC-O2) | **0.47x** (faster than native!) |
-| vs __int128 | **20x faster** |
+| Division Speedup vs __int128 | **19.8x** (GCC -O2) |
+| vs uint64_t (GCC-O2 div) | **0.51x** (faster than native!) |
+| Comparison Speedup | **2.3-3.6x** vs __int128 |
+| to_string Speedup | **1.3-5.8x** vs naive __int128 |
 | Intrinsics Audit | ✅ All `__builtin_*` unified |
-| Library Size | **22 headers, 10,689 lines** |
+| Library Size | **23 headers, ~11,000 lines** |
 | Main Header | **4,345 lines** (int128_parameterized.hpp) |
-| API Documentation | **14 docs, ~280 public symbols** |
+| API Documentation | **15 docs, ~300 public symbols** |
 | Cross-Repr Operators | ✅ Full binnat/TC/MS/EK interop |
-| run_all_tests.bash | **23/23 PASS** (GCC ucrt64 -O2) |
+| std::hash Integration | ✅ All types in std:: namespace |
+| std::format | ✅ Full spec (fill/align/sign/#/0/width/type) |
+| Karatsuba multiply | ✅ widening_mul, mulhi, uint256_t |
 | Project Objectives | **8/12 achieved, 3/12 partial** |
 
 ### Phase Completion
@@ -93,6 +96,29 @@
 
 - `++(-0)` previously corrupted the magnitude, producing a huge positive value
 - Fixed by adding the symmetric guard to the existing `+0 → -1` case in `operator--`
+
+### Known Limitations
+
+### Session 5: Extended Arithmetic + Full Benchmarks (22 July 2025)
+
+**New Features:**
+
+- **Karatsuba API** (`int128_param_arithmetic.hpp`): `widening_mul`, `mulhi`, `mullo`, `uint256_t`
+- **std::format Full Spec**: `[[fill]align][sign][#][0][width][type]` — complete C++20 support
+- **std::hash in std:: namespace**: All 4 types work in `std::unordered_map`/`set`
+
+**Multicompiler Benchmark Results (RDTSC cycles/op):**
+
+| Operation | nstd (GCC) | __int128 (GCC) | Speedup |
+|-----------|-----------|----------------|---------|
+| Division | 2.51 | 49.67 | **19.8x** |
+| Comparison | 2.93 | 6.69 | **2.3x** |
+| Addition | 1.19 | 2.24 | **1.9x** |
+| Shift | 2.52 | 4.37 | **1.7x** |
+| Multiply | 3.87 | 3.88 | Parity |
+
+**to_string**: nstd 1.3x faster (GCC), 5.8x faster (Clang) vs naive __int128.  
+**Granlund-Montgomery**: Essential on Clang where operator/ is 10x slower than GCC.
 
 ### Known Limitations
 

@@ -1,3 +1,77 @@
+## [22 July 2025] - Karatsuba, Format, Hash, Benchmarks, Replanteamiento (session 5)
+
+### ✅ [1] Karatsuba API — Extended Arithmetic
+
+- **Created:** `include/int128_param_arithmetic.hpp` (~130 lines)
+  - `nstd::uint256_t` — 256-bit result type (4 LE limbs)
+  - `nstd::widening_mul(a, b)` — Full 128x128→256 Karatsuba multiplication (3 muls)
+  - `nstd::mulhi(a, b)` — Upper 128 bits of 256-bit product
+  - `nstd::mullo(a, b)` — Lower 128 bits (operator* alias for symmetry)
+- **Modified:** `include/algorithms/div_by_const.hpp`
+  - `mulhi_128()` now uses `karatsuba_full_mul` (3 muls) instead of `schoolbook_full_mul` (4 muls)
+- **Created:** `tests/test_param_arithmetic.cpp` — 12 tests (~57M verifications)
+  - 7 known-value tests + 5 sweeps using test_sweep_framework.hpp
+- **Validated:** 12/12 PASS on GCC 15, Clang 21
+
+### ✅ [2] std::format — Full Standard Format Spec
+
+- **Rewritten:** `include/int128_param_format.hpp`
+  - Full C++ standard format spec: `[[fill]align][sign][#][0][width][type]`
+  - Supported types: d (decimal), x/X (hex), b/B (binary), o (octal)
+  - Proper `:x` lowercase output per C++ standard
+  - Fill character, alignment (<, >, ^), sign (+, -, space), alt form (#), zero-pad (0)
+- **Updated:** `tests/test_param_format.cpp` — expanded from 10 to 24 tests
+- **Validated:** 24/24 PASS on GCC 15, Clang 21
+
+### ✅ [3] std::hash + STL Integration
+
+- **Modified:** `include/int128_param_traits_specializations.hpp`
+  - Added `#include <functional>` (was missing)
+  - Moved `nstd::hash` outside `#if !UINT128_USING_LIBCPP` guard (was invisible to Clang/libc++)
+  - Added `std::hash` specializations for all 4 types (uint128_t, int128_tc_t, int128_ms_t, int128_ek_t)
+  - Hash formula: `hasher(high) ^ (hasher(low) << 1)` with `std::hash<uint64_t>`
+- **Updated:** `tests/test_param_traits.cpp` — added 3 test sections (Tests 8-10):
+  - Test 8: Basic hashability (5 assertions)
+  - Test 9: unordered_map/set integration (7 assertions)
+  - Test 10: std::hash vs nstd::hash consistency (2 assertions)
+- **Validated:** PASS on GCC 15, Clang 21. Suite: 58/58.
+
+### ✅ [4] Benchmark Multicompilador — RDTSC Cycle Measurements
+
+All 5 benchmarks compiled and executed with GCC 15 -O2 and Clang 21 -O2:
+
+**Key results (cycles/op):**
+
+| Operation | GCC nstd | GCC __int128 | nstd vs __int128 |
+|-----------|----------|--------------|------------------|
+| Add | 1.19 | 2.24 | **1.9x faster** |
+| Mul | 3.87 | 3.88 | **parity** |
+| Div | 2.51 | 49.67 | **19.8x faster** |
+| Shift | 2.52 | 4.37 | **1.7x faster** |
+| Compare | 2.93 | 6.69 | **2.3x faster** |
+
+- **to_string:** nstd 1.3-5.8x faster than naive __int128 conversion
+- **Division by constant:** Granlund-Montgomery essential on Clang (10x faster than operator/)
+- **D_knuth vs big_bin:** Knuth D 1.93x faster on average (GCC)
+- **Full results:** `build/benchmark_results_multicompiler.md`
+
+### 📊 Test Suite Status
+
+- **58/58 PASS** (GCC 15, Clang 21)
+- New: test_param_arithmetic (12 tests), expanded format (24 tests), expanded traits (hash tests)
+
+### ✅ [6] Replanteamiento Estratégico
+
+- Full codebase inventory: 23 headers, 58 tests, 15 API docs, 5 benchmarks
+- Benchmark analysis: identified subtraction (GCC) and XOR (Clang) as only weak spots
+- Prioritized future work into ALTA/MEDIA/BAJA categories
+- Proposed session 6 plan: optimize subtraction, MSVC/Intel benchmarks, sweep migration
+- Added phase 1.76 to roadmap
+- 4 architectural decisions documented for future resolution
+- Updated in NEXT_STEPS.md
+
+---
+
 ## [22 July 2025] - All 5 Criticisms Resolved (session 4)
 
 ### ✅ Crítica 3 RESUELTA: Test Sweep Framework

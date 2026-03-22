@@ -27,6 +27,7 @@
 #include "int128_parameterized.hpp"
 #include <format>
 #include <string>
+#include <algorithm>
 
 // ============================================================================
 // std::formatter specialization for int128_param_t
@@ -35,50 +36,105 @@
 /**
  * @brief std::formatter specialization for int128_param_t<S, F>
  *
- * @details Enables use of int128 types with std::format()
+ * @details Enables use of int128 types with std::format() and std::format_to().
  *
- * Supported format specifiers:
- * - 'd' or none: Decimal (default)
- * - 'x': Lowercase hexadecimal (0x prefix)
- * - 'X': Uppercase hexadecimal (0X prefix)
- * - 'b': Binary (0b prefix)
- * - 'o': Octal (0 prefix)
+ * Supported standard format spec: [[fill]align][sign][#][0][width][type]
+ *
+ * - fill:  Any character (default ' ')
+ * - align: '<' (left), '>' (right, default), '^' (center)
+ * - sign:  '+' (always), '-' (negative only, default), ' ' (space for positive)
+ * - '#':   Show base prefix (0x, 0X, 0b, 0)
+ * - '0':   Zero-pad between sign/prefix and digits
+ * - width: Minimum field width (integer)
+ * - type:  'd' (decimal, default), 'x' (hex lower), 'X' (hex upper),
+ *          'b' (binary), 'o' (octal)
  *
  * Examples:
  * @code
- * uint128_t x{0, 255};
- * std::format("{}", x);      // "255"
- * std::format("{:x}", x);    // "0xff"
- * std::format("{:X}", x);    // "0XFF"
- * std::format("{:b}", x);    // "0b11111111"
- * std::format("{:o}", x);    // "0377"
+ * const uint128_t x{0, 255};
+ * std::format("{}", x);        // "255"
+ * std::format("{:>10}", x);    // "       255"
+ * std::format("{:<10}", x);    // "255       "
+ * std::format("{:^10}", x);    // "   255    "
+ * std::format("{:0>10}", x);   // "0000000255"
+ * std::format("{:010}", x);    // "0000000255"
+ * std::format("{:#x}", x);     // "0xff"
+ * std::format("{:#010x}", x);  // "0x000000ff"
+ * std::format("{:+d}", int128_tc_t{42});  // "+42"
  * @endcode
  */
 template <nstd::signedness S, nstd::representation_form F>
 struct std::formatter<nstd::int128_param_t<S, F>>
 {
-    /**
-     * @brief Format presentation type
-     */
-    char presentation{'d'}; // 'd'=decimal, 'x'=hex, 'X'=HEX, 'b'=binary, 'o'=octal
+    char fill_char{' '};
+    char align_char{'\0'}; // '\0' = default (right for numbers)
+    char sign_char{'-'};   // '-' = only show negative sign
+    bool alt_form{false};
+    bool zero_pad{false};
+    int width{0};
+    char type_char{'d'};
 
-    /**
-     * @brief Parse format specifier
-     *
-     * @param ctx Format parse context
-     * @return Iterator past the parsed format spec
-     *
-     * @details Parses format string and extracts presentation type
-     */
     constexpr auto parse(std::format_parse_context &ctx)
     {
         auto it{ctx.begin()};
         const auto end{ctx.end()};
 
+        if (it == end || *it == '}')
+        {
+            return it;
+        }
+
+        // [[fill]align] — if second char is align, first is fill
+        {
+            auto peek{it};
+            ++peek;
+            if (peek != end && (*peek == '<' || *peek == '>' || *peek == '^'))
+            {
+                fill_char = *it;
+                align_char = *peek;
+                it = peek;
+                ++it;
+            }
+            else if (*it == '<' || *it == '>' || *it == '^')
+            {
+                align_char = *it;
+                ++it;
+            }
+        }
+
+        // [sign]
+        if (it != end && (*it == '+' || *it == '-' || *it == ' '))
+        {
+            sign_char = *it;
+            ++it;
+        }
+
+        // [#]
+        if (it != end && *it == '#')
+        {
+            alt_form = true;
+            ++it;
+        }
+
+        // [0]
+        if (it != end && *it == '0')
+        {
+            zero_pad = true;
+            ++it;
+        }
+
+        // [width]
+        while (it != end && *it >= '0' && *it <= '9')
+        {
+            width = width * 10 + (*it - '0');
+            ++it;
+        }
+
+        // [type]
         if (it != end && (*it == 'd' || *it == 'x' || *it == 'X' ||
                           *it == 'b' || *it == 'o'))
         {
-            presentation = *it;
+            type_char = *it;
             ++it;
         }
 
@@ -90,65 +146,144 @@ struct std::formatter<nstd::int128_param_t<S, F>>
         return it;
     }
 
-    /**
-     * @brief Format value to output
-     *
-     * @param value Value to format
-     * @param ctx Format context
-     * @return Iterator to end of output
-     *
-     * @details Formats int128 value according to presentation type
-     */
     auto format(const nstd::int128_param_t<S, F> &value, std::format_context &ctx) const
     {
-        std::string result{};
-
-        switch (presentation)
+        // Step 1: Convert to string
+        int base{10};
+        switch (type_char)
         {
-        case 'd':
-        default:
-            // Decimal (default)
-            result = value.to_string(10);
-            break;
-
         case 'x':
-            // Lowercase hexadecimal with 0x prefix
-            result = value.to_string(16);
-            break;
-
         case 'X':
+            base = 16;
+            break;
+        case 'b':
+            base = 2;
+            break;
+        case 'o':
+            base = 8;
+            break;
+        default:
+            base = 10;
+            break;
+        }
+
+        std::string raw{value.to_string(base)};
+
+        // Step 2: Separate sign from digits
+        bool is_neg{false};
+        std::string digits{};
+        if (!raw.empty() && raw[0] == '-')
         {
-            // Uppercase hexadecimal with 0X prefix
-            result = value.to_string(16);
-            // Convert to uppercase
-            for (auto &c : result)
+            is_neg = true;
+            digits = raw.substr(1);
+        }
+        else
+        {
+            digits = std::move(raw);
+        }
+
+        // Step 3: Case conversion for hex
+        if (type_char == 'x')
+        {
+            for (auto &c : digits)
             {
-                if (c >= 'a' && c <= 'f')
+                if (c >= 'A' && c <= 'F')
                 {
-                    c = static_cast<char>(c - 'a' + 'A');
-                }
-                else if (c == 'x')
-                {
-                    c = 'X';
+                    c = static_cast<char>(c - 'A' + 'a');
                 }
             }
-            break;
         }
 
-        case 'b':
-            // Binary with 0b prefix
-            result = value.to_string(2);
-            break;
-
-        case 'o':
+        // Step 4: Build sign/prefix
+        std::string prefix{};
+        if (is_neg)
         {
-            // Octal with 0 prefix
-            result = value.to_string(8);
-            break;
+            prefix = "-";
         }
+        else if (sign_char == '+')
+        {
+            prefix = "+";
+        }
+        else if (sign_char == ' ')
+        {
+            prefix = " ";
         }
 
-        return std::format_to(ctx.out(), "{}", result);
+        if (alt_form)
+        {
+            switch (type_char)
+            {
+            case 'x':
+                prefix += "0x";
+                break;
+            case 'X':
+                prefix += "0X";
+                break;
+            case 'b':
+                prefix += "0b";
+                break;
+            case 'o':
+                if (digits.empty() || digits[0] != '0')
+                {
+                    prefix += "0";
+                }
+                break;
+            default:
+                break;
+            }
+        }
+
+        // Step 5: Compute padding
+        const auto content_len{static_cast<int>(prefix.size() + digits.size())};
+        const int pad_count{(width > content_len) ? (width - content_len) : 0};
+
+        // Effective alignment: default '>' for numbers
+        const char eff_align{(align_char != '\0') ? align_char : '>'};
+
+        // Step 6: Build output
+        auto out{ctx.out()};
+
+        if (zero_pad && pad_count > 0 && eff_align == '>')
+        {
+            // Zero-pad goes between prefix and digits
+            for (const char c : prefix)
+            {
+                *out++ = c;
+            }
+            for (int i{0}; i < pad_count; ++i)
+            {
+                *out++ = '0';
+            }
+            for (const char c : digits)
+            {
+                *out++ = c;
+            }
+        }
+        else
+        {
+            const int left_pad{(eff_align == '>') ? pad_count : (eff_align == '^') ? (pad_count / 2)
+                                                                                   : 0};
+            const int right_pad{pad_count - left_pad};
+
+            for (int i{0}; i < left_pad; ++i)
+            {
+                *out++ = fill_char;
+            }
+            for (const char c : prefix)
+            {
+                *out++ = c;
+            }
+            for (const char c : digits)
+            {
+                *out++ = c;
+            }
+            for (int i{0}; i < right_pad; ++i)
+            {
+                *out++ = fill_char;
+            }
+        }
+
+        return out;
     }
 };
 

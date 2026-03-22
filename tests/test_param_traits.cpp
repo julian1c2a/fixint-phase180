@@ -7,8 +7,12 @@
 // =============================================================================
 
 #include "int128_param_traits.hpp"
+#include "int128_param_traits_specializations.hpp"
 #include <iostream>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
+#include <functional>
 
 // Test counter
 static int passed{0};
@@ -227,6 +231,92 @@ int main()
         TEST("volatile_stripped", (std::is_same_v<CT2, int128_tc_t>));
 
         std::cout << "  [OK] cv-qualifiers handled (2/2)\n";
+    }
+
+    // ========================================================================
+    // [Test 8] std::hash - Basic hashability
+    // ========================================================================
+    {
+        std::cout << "[Test 8] std::hash - Basic hashability:\n";
+
+        const uint128_t a{42};
+        const uint128_t b{42};
+        const uint128_t c{99};
+
+        const std::hash<uint128_t> hasher{};
+        TEST("same_value_same_hash", hasher(a) == hasher(b));
+        TEST("diff_value_likely_diff_hash", hasher(a) != hasher(c));
+
+        const std::hash<int128_tc_t> hasher_tc{};
+        const int128_tc_t x{100};
+        const int128_tc_t y{100};
+        TEST("int128_tc_same_hash", hasher_tc(x) == hasher_tc(y));
+
+        const std::hash<int128_ms_t> hasher_ms{};
+        const int128_ms_t m{200};
+        TEST("int128_ms_hashable", hasher_ms(m) != 0 || m == int128_ms_t{0});
+
+        const std::hash<int128_ek_t> hasher_ek{};
+        const int128_ek_t e{300};
+        TEST("int128_ek_hashable", hasher_ek(e) != 0 || e == int128_ek_t{0});
+
+        std::cout << "  [OK] std::hash works for all 4 types (5/5)\n";
+    }
+
+    // ========================================================================
+    // [Test 9] std::hash - unordered_map/set integration
+    // ========================================================================
+    {
+        std::cout << "[Test 9] std::hash - unordered_map/set:\n";
+
+        // unordered_set with uint128_t
+        std::unordered_set<uint128_t> uset{};
+        uset.insert(uint128_t{1});
+        uset.insert(uint128_t{2});
+        uset.insert(uint128_t{3});
+        uset.insert(uint128_t{2}); // duplicate
+        TEST("unordered_set_size", uset.size() == 3);
+        TEST("unordered_set_find", uset.count(uint128_t{2}) == 1);
+        TEST("unordered_set_missing", uset.count(uint128_t{99}) == 0);
+
+        // unordered_map with int128_tc_t keys
+        std::unordered_map<int128_tc_t, std::string> umap{};
+        umap[int128_tc_t{10}] = "ten";
+        umap[int128_tc_t{20}] = "twenty";
+        TEST("unordered_map_size", umap.size() == 2);
+        TEST("unordered_map_lookup", umap[int128_tc_t{10}] == "ten");
+
+        // unordered_set with int128_ms_t
+        std::unordered_set<int128_ms_t> ms_set{};
+        ms_set.insert(int128_ms_t{100});
+        ms_set.insert(int128_ms_t{200});
+        TEST("ms_unordered_set", ms_set.size() == 2);
+
+        // unordered_set with int128_ek_t
+        std::unordered_set<int128_ek_t> ek_set{};
+        ek_set.insert(int128_ek_t{500});
+        TEST("ek_unordered_set", ek_set.size() == 1);
+
+        std::cout << "  [OK] unordered containers work for all types (7/7)\n";
+    }
+
+    // ========================================================================
+    // [Test 10] std::hash - Consistency with nstd::hash
+    // ========================================================================
+    {
+        std::cout << "[Test 10] std::hash vs nstd::hash consistency:\n";
+
+        const uint128_t val{12345};
+        const std::hash<uint128_t> std_hasher{};
+        const nstd::hash<uint128_t> nstd_hasher{};
+        TEST("std_vs_nstd_same_result", std_hasher(val) == nstd_hasher(val));
+
+        const int128_tc_t val_tc{67890};
+        const std::hash<int128_tc_t> std_h2{};
+        const nstd::hash<int128_tc_t> nstd_h2{};
+        TEST("tc_std_vs_nstd", std_h2(val_tc) == nstd_h2(val_tc));
+
+        std::cout << "  [OK] std::hash == nstd::hash (2/2)\n";
     }
 
     // ========================================================================

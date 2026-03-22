@@ -50,7 +50,7 @@ namespace nstd
          */
         inline uint128_t mulhi_128(const uint128_t &a, const uint128_t &b) noexcept
         {
-            return schoolbook_full_mul(a, b).high128();
+            return karatsuba_full_mul(a, b).high128();
         }
 
         // =============================================================================

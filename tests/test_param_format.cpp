@@ -90,7 +90,7 @@ int main()
         const auto str1{std::format("{:x}", val1)};
         const auto str2{std::format("{:x}", val2)};
 
-        if ((str1 == "FF") && (str2 == "1000"))
+        if ((str1 == "ff") && (str2 == "1000"))
         {
             std::cout << "  [OK] lowercase_hex\n";
             TEST_PASS();
@@ -187,7 +187,7 @@ int main()
         const auto bin{std::format("{:b}", val)};
         const std::string str{"Dec: " + dec + ", Hex: " + hex + ", Bin: " + bin};
 
-        if (str == "Dec: 42, Hex: 2A, Bin: 101010")
+        if (str == "Dec: 42, Hex: 2a, Bin: 101010")
         {
             std::cout << "  [OK] mixed_formats\n";
             TEST_PASS();
@@ -275,6 +275,333 @@ int main()
         else
         {
             std::cout << "  [FAIL] large_values\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 11] Width / right-align (default)
+    // ========================================================================
+    {
+        std::cout << "[Test 11] Width / right-align:\n";
+
+        const uint128_t val{0, 42};
+        const auto str{std::format("{:10}", val)};
+
+        if (str == "        42")
+        {
+            std::cout << "  [OK] width_right_align\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] width_right_align got=\"" << str << "\"\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 12] Left-align
+    // ========================================================================
+    {
+        std::cout << "[Test 12] Left-align:\n";
+
+        const uint128_t val{0, 42};
+        const auto str{std::format("{:<10}", val)};
+
+        if (str == "42        ")
+        {
+            std::cout << "  [OK] left_align\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] left_align got=\"" << str << "\"\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 13] Center-align
+    // ========================================================================
+    {
+        std::cout << "[Test 13] Center-align:\n";
+
+        const uint128_t val{0, 42};
+        const auto str{std::format("{:^10}", val)};
+
+        if (str == "    42    ")
+        {
+            std::cout << "  [OK] center_align\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] center_align got=\"" << str << "\"\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 14] Fill character + alignment
+    // ========================================================================
+    {
+        std::cout << "[Test 14] Fill character:\n";
+
+        const uint128_t val{0, 42};
+        const auto str{std::format("{:*>10}", val)};
+
+        if (str == "********42")
+        {
+            std::cout << "  [OK] fill_char\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] fill_char got=\"" << str << "\"\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 15] Zero-padding
+    // ========================================================================
+    {
+        std::cout << "[Test 15] Zero-padding:\n";
+
+        const uint128_t val{0, 42};
+        const auto str{std::format("{:010}", val)};
+
+        if (str == "0000000042")
+        {
+            std::cout << "  [OK] zero_pad\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] zero_pad got=\"" << str << "\"\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 16] Sign: always show (+)
+    // ========================================================================
+    {
+        std::cout << "[Test 16] Sign always (+):\n";
+
+        const int128_tc_t pos{42};
+        const int128_tc_t neg{-42};
+        const auto str1{std::format("{:+}", pos)};
+        const auto str2{std::format("{:+}", neg)};
+
+        if (str1 == "+42" && str2 == "-42")
+        {
+            std::cout << "  [OK] sign_always\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] sign_always got=\"" << str1 << "\", \"" << str2 << "\"\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 17] Sign: space for positive
+    // ========================================================================
+    {
+        std::cout << "[Test 17] Sign space:\n";
+
+        const int128_tc_t pos{42};
+        const int128_tc_t neg{-42};
+        const auto str1{std::format("{: }", pos)};
+        const auto str2{std::format("{: }", neg)};
+
+        if (str1 == " 42" && str2 == "-42")
+        {
+            std::cout << "  [OK] sign_space\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] sign_space got=\"" << str1 << "\", \"" << str2 << "\"\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 18] Alt form: hex prefix
+    // ========================================================================
+    {
+        std::cout << "[Test 18] Alt form hex (#x):\n";
+
+        const uint128_t val{0, 255};
+        const auto str1{std::format("{:#x}", val)};
+        const auto str2{std::format("{:#X}", val)};
+
+        if (str1 == "0xff" && str2 == "0XFF")
+        {
+            std::cout << "  [OK] alt_hex\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] alt_hex got=\"" << str1 << "\", \"" << str2 << "\"\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 19] Alt form: binary prefix
+    // ========================================================================
+    {
+        std::cout << "[Test 19] Alt form binary (#b):\n";
+
+        const uint128_t val{0, 7};
+        const auto str{std::format("{:#b}", val)};
+
+        if (str == "0b111")
+        {
+            std::cout << "  [OK] alt_binary\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] alt_binary got=\"" << str << "\"\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 20] Alt form: octal prefix
+    // ========================================================================
+    {
+        std::cout << "[Test 20] Alt form octal (#o):\n";
+
+        const uint128_t val{0, 64};
+        const auto str{std::format("{:#o}", val)};
+
+        if (str == "0100")
+        {
+            std::cout << "  [OK] alt_octal\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] alt_octal got=\"" << str << "\"\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 21] Combined: sign + zero-pad + width
+    // ========================================================================
+    {
+        std::cout << "[Test 21] Combined sign+zero+width:\n";
+
+        const int128_tc_t val{42};
+        const auto str{std::format("{:+010}", val)};
+
+        if (str == "+000000042")
+        {
+            std::cout << "  [OK] sign_zero_width\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] sign_zero_width got=\"" << str << "\"\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 22] Combined: alt + zero-pad + hex
+    // ========================================================================
+    {
+        std::cout << "[Test 22] Combined alt+zero+hex:\n";
+
+        const uint128_t val{0, 255};
+        const auto str{std::format("{:#010x}", val)};
+
+        if (str == "0x000000ff")
+        {
+            std::cout << "  [OK] alt_zero_hex\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] alt_zero_hex got=\"" << str << "\"\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 23] Width with no padding needed
+    // ========================================================================
+    {
+        std::cout << "[Test 23] Width no padding:\n";
+
+        const uint128_t val{0, 12345};
+        const auto str{std::format("{:3}", val)};
+
+        if (str == "12345")
+        {
+            std::cout << "  [OK] width_no_pad\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] width_no_pad got=\"" << str << "\"\n";
+            TEST_FAIL();
+        }
+    }
+
+    std::cout << "\n";
+
+    // ========================================================================
+    // [Test 24] Negative with zero-pad
+    // ========================================================================
+    {
+        std::cout << "[Test 24] Negative zero-pad:\n";
+
+        const int128_tc_t val{-42};
+        const auto str{std::format("{:010}", val)};
+
+        if (str == "-000000042")
+        {
+            std::cout << "  [OK] neg_zero_pad\n";
+            TEST_PASS();
+        }
+        else
+        {
+            std::cout << "  [FAIL] neg_zero_pad got=\"" << str << "\"\n";
             TEST_FAIL();
         }
     }

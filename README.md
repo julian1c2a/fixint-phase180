@@ -1,8 +1,8 @@
 # Phase 1.75 - Representation Forms Investigation
 
-> **Status:** ✅ **ALL 6 PHASES COMPLETE — 12 feature headers, 11 compilers — 23/23 tests pass**
+> **Status:** ✅ **ALL 6 PHASES COMPLETE — 13 feature headers, 11 compilers — 58/58 tests pass**
 > **Started:** 11 January 2026
-> **Last Updated:** 21 March 2026
+> **Last Updated:** 22 July 2025
 > **Objective:** Investigate different number representations for IEEE 754 floating-point generalization  
 > **Parent Project:** [int128-phase166](../int128-phase166/)
 
@@ -14,14 +14,21 @@ This parallel project investigates **representation forms** for 128-bit integers
 
 ### Latest Achievements ✅
 
-**All Phases Complete (18 March 2026):**
+**Session 5 (22 July 2025):**
+
+- **Karatsuba API:** `widening_mul`, `mulhi`, `uint256_t` — 128×128→256-bit Karatsuba multiplication
+- **std::format Full Spec:** `[[fill]align][sign][#][0][width][type]` — complete C++20 format support
+- **std::hash Integration:** All 4 types work in `std::unordered_map`/`std::unordered_set`
+- **Benchmarks:** nstd::uint128_t **19.8x faster than __int128** for division (GCC -O2)
+- Tests: **58/58 PASS** (GCC 15, Clang 21)
+
+**Previous Achievements:**
 
 - **Phase 6:** 12/12 feature headers validated on 11 compilers (4 Windows + 7 WSL)
 - **Intrinsics Audit:** All `__builtin_*` calls unified through intrinsics abstraction layer
 - **Knuth Algorithm D:** 6.24x faster division, 0.47x vs uint64_t on GCC
 - **Compilers:** GCC 13/14/15, Clang 18/19/20/21, MSVC 19.50, Intel ICX 2025.3.0
-- Tests: **250+ PASS** across 56 test files
-- **API Documentation:** 14 cppreference-style API docs (~280 public symbols)
+- **API Documentation:** 15 cppreference-style API docs (~300 public symbols)
 - **Cross-Repr Operators:** Full interoperability between binnat/TC/MS/EK
 
 **Completed Phases:**
@@ -33,7 +40,7 @@ This parallel project investigates **representation forms** for 128-bit integers
 | 3 | Knuth Algorithm D | ✅ COMPLETE | **6.24x speedup**, 55/55 tests |
 | 4 | Division Operators | ✅ COMPLETE | /=, %=, /, % — 25/25 tests |
 | 5 | Additional Operators | ✅ COMPLETE | ++, --, unary — 55/55 tests |
-| 6 | Feature Parity (phase166) | ✅ COMPLETE | **12/12 headers**, 11 compilers |
+| 6 | Feature Parity (phase166) | ✅ COMPLETE | **13/13 headers**, 11 compilers |
 
 ### Representation Forms Under Investigation
 

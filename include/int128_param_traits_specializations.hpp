@@ -108,6 +108,7 @@
 
 // ⚠️ IMPORTANT: Include type_traits HERE, before the specializations
 #include <type_traits>
+#include <functional>
 
 namespace nstd
 {
@@ -368,32 +369,6 @@ namespace nstd
     };
 
     // ===============================================================================
-    // HASH
-    // ===============================================================================
-
-    template <typename T>
-    struct hash;
-
-// Macro helper for hash (variadic)
-#define NSTD_DEFINE_INT128_HASH(...)                                  \
-    template <>                                                       \
-    struct hash<__VA_ARGS__>                                          \
-    {                                                                 \
-        size_t operator()(const __VA_ARGS__ &value) const noexcept    \
-        {                                                             \
-            std::hash<uint64_t> hasher;                               \
-            return hasher(value.high()) ^ (hasher(value.low()) << 1); \
-        }                                                             \
-    };
-
-    NSTD_DEFINE_INT128_HASH(nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>)
-    NSTD_DEFINE_INT128_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>)
-    NSTD_DEFINE_INT128_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>)
-    NSTD_DEFINE_INT128_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>)
-
-#undef NSTD_DEFINE_INT128_HASH
-
-    // ===============================================================================
     // HELPER VARIABLES (C++17)
     // ===============================================================================
 
@@ -448,6 +423,53 @@ namespace nstd
 
 #endif // !UINT128_USING_LIBCPP
 
+    // ===============================================================================
+    // HASH (always available, independent of UINT128_USING_LIBCPP)
+    // ===============================================================================
+
+    template <typename T>
+    struct hash;
+
+#define NSTD_DEFINE_INT128_HASH(...)                                  \
+    template <>                                                       \
+    struct hash<__VA_ARGS__>                                          \
+    {                                                                 \
+        size_t operator()(const __VA_ARGS__ &value) const noexcept    \
+        {                                                             \
+            std::hash<uint64_t> hasher;                               \
+            return hasher(value.high()) ^ (hasher(value.low()) << 1); \
+        }                                                             \
+    };
+
+    NSTD_DEFINE_INT128_HASH(nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>)
+    NSTD_DEFINE_INT128_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>)
+    NSTD_DEFINE_INT128_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>)
+    NSTD_DEFINE_INT128_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>)
+
+#undef NSTD_DEFINE_INT128_HASH
+
 } // namespace nstd
+
+// =============================================================================
+// std::hash specializations — enables std::unordered_map/set with int128 types
+// =============================================================================
+
+#define NSTD_DEFINE_STD_HASH(...)                                     \
+    template <>                                                       \
+    struct std::hash<__VA_ARGS__>                                     \
+    {                                                                 \
+        size_t operator()(const __VA_ARGS__ &value) const noexcept    \
+        {                                                             \
+            std::hash<uint64_t> hasher;                               \
+            return hasher(value.high()) ^ (hasher(value.low()) << 1); \
+        }                                                             \
+    };
+
+NSTD_DEFINE_STD_HASH(nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>)
+NSTD_DEFINE_STD_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>)
+NSTD_DEFINE_STD_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>)
+NSTD_DEFINE_STD_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>)
+
+#undef NSTD_DEFINE_STD_HASH
 
 #endif // INT128_PARAM_TRAITS_SPECIALIZATIONS_HPP

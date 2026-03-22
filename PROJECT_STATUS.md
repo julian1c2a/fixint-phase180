@@ -1,9 +1,9 @@
-# PROJECT STATUS: All Phases Complete + All Criticisms Resolved
+# PROJECT STATUS: All Phases Complete + Extended Arithmetic + Full Benchmarks
 
 **Date:** 22 July 2025
-**Last Session:** All 5 CRÍTICAS resolved (sweep framework, BCD prototype, bench cross-compiler, unified runner)
-**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅ + Test Suite Fixed ✅ + API Docs ✅ + Cross-Repr Operators ✅ + Benchmark Methodology ✅ + All 5 Criticisms ✅
-**Current Status:** 🎉 **49/49 tests pass (make.py test, GCC+Clang) | 5/5 CRÍTICAS RESUELTAS**
+**Last Session:** Karatsuba API, std::format full spec, std::hash STL integration, multicompiler benchmarks
+**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅ + Test Suite Fixed ✅ + API Docs ✅ + Cross-Repr Operators ✅ + Benchmark Methodology ✅ + All 5 Criticisms ✅ + Karatsuba ✅ + Format ✅ + Hash ✅ + Benchmarks ✅
+**Current Status:** 🎉 **58/58 tests pass (GCC+Clang) | 13 feature headers | 15 API docs**
 
 ## Phase Status Summary
 
@@ -93,6 +93,41 @@ All 12 feature headers validated across 11 compilers (4 Windows + 7 WSL):
 **Compilers validated:** GCC 13/14/15, Clang 18/19/20/21, MSVC 19.50, Intel ICX 2025.3.0
 
 - Status: **100% COMPLETE**
+
+## Session 5: Extended Arithmetic + Format + Hash + Benchmarks
+
+### New Feature: Karatsuba API (`int128_param_arithmetic.hpp`)
+
+- `nstd::uint256_t` — 256-bit result type
+- `nstd::widening_mul(a, b)` — Full 128×128→256 Karatsuba (3 muls)
+- `nstd::mulhi(a, b)` — Upper 128 bits of product
+- `nstd::mullo(a, b)` — Lower 128 bits (operator* alias)
+- div_by_const.hpp: mulhi_128 migrated from schoolbook (4 muls) to Karatsuba (3 muls)
+- Tests: 12/12 PASS (~57M verifications)
+
+### Upgraded: std::format Full Standard Spec
+
+- `[[fill]align][sign][#][0][width][type]` — complete C++20 format support
+- Tests: 24/24 PASS (expanded from 10)
+
+### New: std::hash in std:: Namespace
+
+- All 4 int128 types hashable in `std::unordered_map`/`std::unordered_set`
+- Fixed: nstd::hash was invisible on Clang/libc++ (inside wrong preprocessor guard)
+- Tests: 14 new hash assertions
+
+### Multicompiler Benchmark Results (GCC + Clang -O2)
+
+| Operation | nstd vs __int128 (GCC) | nstd vs __int128 (Clang) |
+|-----------|------------------------|--------------------------|
+| Add | **1.9x faster** | Comparable |
+| Mul | **Parity** | **Parity** |
+| Div | **19.8x faster** | **1.4x faster** |
+| Shift | **1.7x faster** | Comparable |
+| Compare | **2.3x faster** | **3.6x faster** |
+| to_string | **1.3x faster** | **5.8x faster** |
+
+Full data: `build/benchmark_results_multicompiler.md`
 
 ## Compiler Validation Summary
 

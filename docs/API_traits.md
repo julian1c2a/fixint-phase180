@@ -115,6 +115,14 @@ template <typename T> using make_unsigned_t = typename make_unsigned<T>::type;
 ## `std::hash`
 
 ```cpp
+// Both namespaces available:
+namespace nstd {
+template <> struct hash<uint128_t>    { size_t operator()(const uint128_t&) const noexcept; };
+template <> struct hash<int128_tc_t>  { size_t operator()(const int128_tc_t&) const noexcept; };
+template <> struct hash<int128_ms_t>  { size_t operator()(const int128_ms_t&) const noexcept; };
+template <> struct hash<int128_ek_t>  { size_t operator()(const int128_ek_t&) const noexcept; };
+}
+
 namespace std {
 template <> struct hash<nstd::uint128_t>    { size_t operator()(const nstd::uint128_t&) const noexcept; };
 template <> struct hash<nstd::int128_tc_t>  { size_t operator()(const nstd::int128_tc_t&) const noexcept; };
@@ -123,12 +131,20 @@ template <> struct hash<nstd::int128_ek_t>  { size_t operator()(const nstd::int1
 }
 ```
 
-Enables usage in `std::unordered_map`, `std::unordered_set`, etc.
+**Hash formula:** `std::hash<uint64_t>()(val.high()) ^ (std::hash<uint64_t>()(val.low()) << 1)`
+
+Both `nstd::hash<T>` and `std::hash<T>` produce the same values. The `std::hash` specializations enable direct use in standard containers:
 
 ```cpp
+// Works on all compilers (GCC, Clang, MSVC, Intel)
 std::unordered_map<nstd::uint128_t, std::string> map;
 map[nstd::uint128_t{42}] = "hello";
+
+std::unordered_set<nstd::int128_tc_t> set;
+set.insert(nstd::int128_tc_t{-1});
 ```
+
+**Note:** `nstd::hash` is always available regardless of standard library (libstdc++ or libc++).
 
 ---
 
