@@ -45,6 +45,11 @@
 #include "intrinsics/byte_operations.hpp"
 #endif
 
+// Consteval/constexpr Granlund-Montgomery division by compile-time constants
+#if __has_include("int128_param_divmod.hpp")
+#include "int128_param_divmod.hpp"
+#endif
+
 namespace nstd
 {
     // =============================================================================
@@ -4170,6 +4175,162 @@ namespace nstd
                 }
 
                 return {quotient, remainder};
+            }
+        }
+
+        // ========================================================================
+        // Division/Modulo by Compile-Time Constant (Granlund-Montgomery)
+        //
+        // Uses constexpr magic-number computation from Hacker's Delight 10-9.
+        // For D <= 1023, constants come from the precomputed GM_TABLE.
+        // For D > 1023, constants are computed on-the-fly at compile time.
+        // ========================================================================
+
+        /**
+         * @brief Divide by compile-time constant using Granlund-Montgomery multiply-shift.
+         *
+         * @tparam D Divisor (must be > 0)
+         * @return Quotient floor(|this| / D), with sign applied for signed types
+         *
+         * @note For unsigned types: pure multiply-shift, no branching.
+         * @note For signed types: abs → unsigned div → re-sign (truncation toward zero).
+         * @note Excess-K representation: DELETED (no meaningful division semantics).
+         */
+        template <std::uint64_t D>
+            requires(D > 0)
+        [[nodiscard]] constexpr int128_param_t div() const noexcept
+            requires(is_excess_k)
+        = delete;
+
+        template <std::uint64_t D>
+            requires(D > 0)
+        [[nodiscard]] constexpr int128_param_t div() const noexcept
+            requires(!is_excess_k)
+        {
+            if constexpr (!is_signed)
+            {
+                // Unsigned: direct GM division
+                if constexpr (divmod_detail::is_pow2(D))
+                {
+                    return *this >> divmod_detail::ctz64(D);
+                }
+                else
+                {
+                    constexpr auto entry{divmod_detail::compute_magic_128(D)};
+                    const auto [q_hi, q_lo]{divmod_detail::gm_div_limbs(
+                        data[1], data[0], entry)};
+                    return int128_param_t{q_hi, q_lo};
+                }
+            }
+            else
+            {
+                // Signed: abs → unsigned div → re-sign
+                const bool neg{is_negative()};
+                const int128_param_t abs_val{neg ? -(*this) : *this};
+
+                if constexpr (divmod_detail::is_pow2(D))
+                {
+                    const int128_param_t q{abs_val >> divmod_detail::ctz64(D)};
+                    return neg ? -q : q;
+                }
+                else
+                {
+                    constexpr auto entry{divmod_detail::compute_magic_128(D)};
+                    const auto [q_hi, q_lo]{divmod_detail::gm_div_limbs(
+                        abs_val.data[1], abs_val.data[0], entry)};
+                    const int128_param_t q{q_hi, q_lo};
+                    return neg ? -q : q;
+                }
+            }
+        }
+
+        /**
+         * @brief Modulo by compile-time constant using Granlund-Montgomery.
+         *
+         * @tparam D Divisor (must be > 0)
+         * @return Remainder this - floor(this/D)*D, with sign matching dividend.
+         */
+        template <std::uint64_t D>
+            requires(D > 0)
+        [[nodiscard]] constexpr int128_param_t mod() const noexcept
+            requires(is_excess_k)
+        = delete;
+
+        template <std::uint64_t D>
+            requires(D > 0)
+        [[nodiscard]] constexpr int128_param_t mod() const noexcept
+            requires(!is_excess_k)
+        {
+            const int128_param_t q{this->template div<D>()};
+            return *this - q * int128_param_t{D};
+        }
+
+        /**
+         * @brief Combined division and modulo by compile-time constant.
+         *
+         * @tparam D Divisor (must be > 0)
+         * @return Pair {quotient, remainder}
+         */
+        template <std::uint64_t D>
+            requires(D > 0)
+        [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t>
+        divmod_const() const noexcept
+            requires(is_excess_k)
+        = delete;
+
+        template <std::uint64_t D>
+            requires(D > 0)
+        [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t>
+        divmod_const() const noexcept
+            requires(!is_excess_k)
+        {
+            const int128_param_t q{this->template div<D>()};
+            const int128_param_t r{*this - q * int128_param_t{D}};
+            return {q, r};
+        }
+
+        // ========================================================================
+        // Multiplication by Compile-Time Constant (shift-add chain)
+        // ========================================================================
+
+        /**
+         * @brief Multiply by compile-time constant using binary shift-add decomposition.
+         *
+         * @tparam K Factor (uint64_t)
+         * @return this * K
+         *
+         * @details Generates O(log K) shift+add operations. The compiler fully
+         * evaluates the recursion at compile time, emitting only the minimal
+         * sequence of shifts and adds for the specific K value.
+         *
+         * @example
+         * const uint128_t n{42};
+         * const uint128_t r = n.mul<10>();  // 420
+         */
+        template <std::uint64_t K>
+        [[nodiscard]] constexpr int128_param_t mul() const noexcept
+        {
+            if constexpr (K == 0)
+            {
+                return int128_param_t{0};
+            }
+            else if constexpr (K == 1)
+            {
+                return *this;
+            }
+            else if constexpr (divmod_detail::is_pow2(K))
+            {
+                return *this << divmod_detail::ctz64(K);
+            }
+            else if constexpr (K % 2 == 0)
+            {
+                // Even K: mul<K/2>() << 1
+                return this->template mul<K / 2>() << 1;
+            }
+            else
+            {
+                // Odd K: mul<(K-1)/2>() << 1 + *this
+                return (this->template mul<(K - 1) / 2>() << 1) + *this;
             }
         }
 
