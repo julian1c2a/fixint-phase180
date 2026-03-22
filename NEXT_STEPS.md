@@ -1,8 +1,90 @@
 # 🔮 NEXT STEPS - Post-Phase 1.75
 
-**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 13/13 ✅ | Intrinsics ✅ | Cross-Repr ✅ | API Docs ✅ | Karatsuba ✅ | Format ✅ | Hash ✅ | Benchmarks ✅ | Replanteamiento ✅
-**Last Updated:** 22 July 2025
-**Focus:** Replanteamiento complete — Next: optimize subtraction, MSVC/Intel benchmarks, sweep migration
+**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 13/13 ✅ | Intrinsics ✅ | Cross-Repr ✅ | API Docs ✅ | Karatsuba ✅ | Format ✅ | Hash ✅ | Benchmarks ✅ | Replanteamiento ✅ | **GM Constexpr ✅** | **A1 Sub/Add Opt ✅** | **A2 4-Compiler Benchmarks ✅** | **A4 Sweep Migration ✅**
+**Last Updated:** 22 March 2026
+**Focus:** All HIGH priorities complete — Next: medium/low priorities (GM→to_string, BCD, mulhi intrinsics)
+
+---
+
+## 🎯 COMPLETED PRIORITIES (session 7 — 22 March 2026)
+
+### ✅ A1: Optimize Subtraction/Addition (GCC) — COMPLETE
+
+**Root cause:** `subborrow_u64` used `__builtin_usubll_overflow` which generated two separate overflow-checked ops instead of native `sub+sbb` chain.
+
+**Solution:** New `sub128()`/`add128()` intrinsics in `arithmetic_operations.hpp` using `__uint128_t` on GCC/Clang (single native op), `_subborrow_u64`/`_addcarry_u64` chain on MSVC.
+
+**Codegen verified:** nstd generates identical `subq+sbbq` / `addq+adcq` as `__int128`.
+
+**Benchmark fix:** Removed `"memory"` clobber from `doNotOptimize` for 16-byte GCC types (was causing stack spills for nstd structs but not `__int128`).
+
+### ✅ A2: Benchmarks on All 4 Compilers — COMPLETE
+
+| Compiler | SUB ratio | ADD ratio | Verdict |
+|----------|-----------|-----------|---------|
+| GCC 15.2.0 | **0.962x** | **0.959x** | Both FASTER than __int128 |
+| Clang 21.1.8 | 1.058x | 1.002x | Within 1.10x target |
+| Intel ICX 2025.3.0 | 0.987x | 1.048x | Within 1.10x target |
+| MSVC 19.50.35726 | 0.975x vs u64 | 0.977x vs u64 | No __int128 baseline |
+
+### ✅ A4: Migrate Tests to Sweep Framework — COMPLETE (5 new files, 60/60 PASS)
+
+| File | Sweep Tests | Values Checked | Properties |
+|------|-------------|----------------|------------|
+| `test_sweep_shift.cpp` | 16 | ~100M+ | Identity, arithmetic equiv, roundtrip, composition, distributivity |
+| `test_sweep_comparison.cpp` | 11 | ~130M+ | Reflexivity, complements, trichotomy, arithmetic consistency, antisymmetry |
+| `test_sweep_division.cpp` | 13 | ~100M+ | q*d+r=n, r<d, div-by-1, self-div, zero-dividend, pow2 equiv, quotient bound |
+| `test_sweep_unary_ops.cpp` | 12 | ~75M+ | Inc/dec roundtrip, ++ vs +1, post-inc semantics, negation, bool conversion |
+| `test_sweep_string.cpp` | 8 | ~50M+ | Decimal/hex/octal/binary roundtrip, no leading zeros, length bound |
+
+Total sweep test suite: 8 existing + 5 new = **13 sweep files**, 60 new sweep tests, ~455M+ value checks.
+
+---
+
+## 🎯 COMPLETED PRIORITIES (session 6 — 22 March 2026)
+
+### ✅ Granlund-Montgomery Constexpr Division — COMPLETE (Phases A-F)
+
+Full implementation of Hacker's Delight §10-9 algorithm for division by compile-time constants.
+
+**Created: `include/int128_param_divmod.hpp` (~500 lines)**
+
+- `ce_uint128` — lightweight constexpr 128-bit type (no circular deps)
+- `compute_magic_128(d)` — optimal (minimal-shift) magic constant finder
+- `GM_TABLE[3..1023]` — constexpr lambda-initialized precomputed table
+- `ce_mulhi_128()` — schoolbook 128×128→upper128 (pure C++, constexpr)
+- `gm_div_limbs()` — simple path + overflow correction dispatch
+
+**Member templates in `int128_parameterized.hpp`:**
+
+- `div<D>()` — power-of-2→shift, D∈[3,1023]→table, D>1023→runtime compute
+- `mod<D>()` — `*this - div<D>() * D`
+- `divmod_const<D>()` — returns `{quotient, remainder}`
+- `mul<K>()` — binary shift-add decomposition
+
+**Performance (GCC -O2, RDTSC cycles/op):**
+
+| Method | div by 3 | div by 10 | div by 10^19 |
+|--------|----------|-----------|-------------|
+| `n.div<D>()` (GM generic) | 21 | 22 | 25 |
+| `operator/` (Knuth D) | 141 | 134 | 136 |
+| Handcoded `fast_divN()` | 15 | 20 | 17 |
+| **GM speedup vs Knuth D** | **6.7x** | **6.2x** | **5.5x** |
+
+**Validation:**
+
+- `tests/test_divmod_const.cpp` — 71/71 PASS on GCC, Clang, MSVC, Intel
+- Each sweep test: ~6.29M values (3 regions × 2^21 + 20 edge cases)
+- Total: ~400M+ individual value checks
+- Constexpr step limits: Clang/ICX `-fconstexpr-steps=100000000`, MSVC `/constexpr:steps100000000`
+- Regression: `python make.py test gcc release` → 60/60 PASS
+
+**Architectural observations:**
+
+- `compute_magic_128` finds solutions BETTER than old hardcoded constants (d=5: shift=2 vs old shift=3)
+- For some divisors (d=7) overflow correction IS required (no non-overflow solution exists)
+- `mul<K>()` ~30-70% slower than `operator*` (hardware mul inherently faster than shift-add)
+- GM generic (~21-28 cyc/op) ~30-50% slower than handcoded intrinsic versions (~15-20 cyc/op) due to pure C++ `ce_mulhi_128` vs hardware `mulhi128`
 
 ---
 
@@ -322,10 +404,12 @@ Tipo parametrizado en base 10 con codificación BCD dentro de 128 bits (32 dígi
 
 ### NEW: Granlund-Montgomery Division Optimization
 
-**Status:** Planned | **Docs:** `docs/PLAN_DIVMOD_CONSTEXPR.md`
+**Status:** ✅ COMPLETE (22 March 2026) | **Docs:** `docs/PLAN_DIVMOD_CONSTEXPR.md`
 
 División constexpr por constantes en tiempo de compilación usando multiplicación recíproca.
 17 headers legacy analizados en `legacy-code/divmod_by_constexpr/`.
+Implementación completa: `int128_param_divmod.hpp`, `div<D>`, `mod<D>`, `divmod_const<D>`, `mul<K>`.
+71/71 tests en 4 compiladores. 4-7x speedup sobre Knuth D.
 
 ### NEW: Multiplicación Karatsuba
 
@@ -450,11 +534,12 @@ All tests passing: GCC ✅ 30/30 + 25/25, Clang ✅ 30/30 + 25/25, MSVC ✅ 30/3
 
 | Métrica | Valor |
 |---------|-------|
-| Headers (include/) | 23 (.hpp): 16 raíz + 5 intrinsics/ + 2 algorithms/ |
-| Feature headers operativos | 13/13 |
-| Tests (.cpp) | 58 archivos, 58/58 PASS (GCC + Clang) |
-| API docs (docs/) | 15 archivos (14 previos + API_arithmetic.md) |
-| Benchmarks (benchs/) | 5 archivos: vs_builtin, divmod_algorithms, to_string, from_string, granlund_montgomery |
+| Headers (include/) | 24 (.hpp): 17 raíz + 5 intrinsics/ + 2 algorithms/ |
+| Feature headers operativos | 13/13 + divmod GM |
+| Tests (.cpp) | 65 archivos, 65/65 PASS (GCC release) |
+| Sweep tests | 13 archivos, ~455M+ additional value checks |
+| API docs (docs/) | 15 archivos |
+| Benchmarks (benchs/) | 7 archivos: vs_builtin, divmod_algorithms, to_string, from_string, divmod_const, granlund_montgomery, addsub |
 | Compiladores validados | 12 (4 Windows MSYS2 + 8 WSL) |
 | Representaciones | 4/4 (TC, MS, EK, binnat) |
 
@@ -471,11 +556,11 @@ All tests passing: GCC ✅ 30/30 + 25/25, Clang ✅ 30/30 + 25/25, MSVC ✅ 30/3
 | to_string() | **1.3x** más rápido | **5.8x** más rápido | Algoritmo de pares de dígitos funciona bien |
 | Shift | **1.7x** más rápido | Paridad | — |
 
-**Debilidades identificadas:**
+**Debilidades identificadas (post-A1 optimization):**
 
 | Operación | GCC -O2 | Clang -O2 | Causa raíz |
 |-----------|---------|-----------|------------|
-| Resta (-) | 1.3x más lento | Paridad | GCC optimiza __int128 sub como instrucción nativa `sbb` |
+| ~~Resta (-)~~ | ~~1.3x más lento~~ → **0.96x FASTER** | Paridad | ✅ FIXED via sub128() |
 | XOR | Paridad | 1.4x más lento | Clang optimiza __int128 XOR nativamente |
 
 **Observaciones clave de compilador:**
@@ -493,10 +578,10 @@ Consolidación de todos los items pendientes de NEXT_STEPS y el plan original:
 
 | # | Item | Estado | Impacto |
 |---|------|--------|---------|
-| A1 | **Optimizar resta (GCC)** | Pendiente | Única operación donde __int128 gana; investigar inline asm/intrinsics |
-| A2 | **Benchmarks MSVC + Intel** | Pendiente | Solo GCC/Clang benchmarkeados; MSVC/Intel sin ciclos medidos esta sesión |
-| A3 | **Granlund-Montgomery constexpr completo** | Parcial | div_by_const.hpp usa Karatsuba; falta constexpr puro (sin __uint128_t) |
-| A4 | **Migrar tests existentes a sweep framework** | Parcial | Sweep funciona; 58 tests legacy aún usan framework antiguo |
+| A1 | ~~**Optimizar resta (GCC)**~~ | ✅ COMPLETE | `sub128()`/`add128()` via `__uint128_t` → SUB 0.96x, ADD 0.96x (faster than __int128) |
+| A2 | ~~**Benchmarks MSVC + Intel**~~ | ✅ COMPLETE | All 4 compilers: GCC 0.96x, Clang 1.06x, ICX 0.99x, MSVC 0.98x vs baseline |
+| A3 | ~~**Granlund-Montgomery constexpr completo**~~ | ✅ COMPLETE | Fases A-F implementadas, 71/71 tests, 4-7x speedup |
+| A4 | ~~**Migrar tests existentes a sweep framework**~~ | ✅ COMPLETE | 5 new sweep files: shift(16), comparison(11), division(13), unary_ops(12), string(8) = 60/60 PASS |
 
 #### Prioridad MEDIA (extensión de funcionalidad)
 
@@ -516,22 +601,23 @@ Consolidación de todos los items pendientes de NEXT_STEPS y el plan original:
 | B3 | **int256_t / int512_t extensión** | No iniciado | uint256_t existe como struct básico; falta tipo completo |
 | B4 | **Conan/vcpkg packaging** | No iniciado | conanfile.txt existe; falta publicación |
 
-### Propuesta de Siguiente Sesión (Sesión 6)
+### Propuesta de Siguiente Sesión (Sesión 8)
 
-**Enfoque recomendado:** Calidad + Rendimiento (antes de agregar funcionalidad nueva)
+**Enfoque recomendado:** Medium priorities — All HIGH items (A1-A4) complete.
 
-1. **Optimizar resta en GCC** (A1) — Cerrar la única brecha vs __int128
-2. **Benchmarks MSVC + Intel** (A2) — Completar cobertura de 4 compiladores
-3. **Fix benchmark_comparison.bash** (M2) — Automatizar comparaciones
-4. **Migrar 5-10 tests a sweep framework** (A4) — Incrementar robustez
-5. **Commit + tag v1.76** — Consolidar todo el trabajo de sesiones 4-6
+1. **Integrar GM en to_string()** (M-new) — Reemplazar `fast_divmod10_limbs`/`fast_divmod_1e19_limbs` con `divmod_const<10>()`/`divmod_const<10000000000000000000ULL>()` para unificar codebase
+2. **Añadir mulhi128 con intrinsics a `gm_div_limbs`** (M-new) — Ruta rápida con `__uint128_t` en GCC/Clang, `_umul128` en MSVC. Cerraría la brecha del 30-50% vs handcoded `fast_divN()`
+3. **BCD Decimal Types completos** (M1) — Tipo BCD128 completo con aritmética
+4. **Fix benchmark_comparison.bash** (M2) — `python make.py compare` falla
+5. **Commit + tag v1.76** — Consolidar sessions 5-8
 
 ### Decisiones Arquitectónicas Pendientes
 
-1. **¿Merece la resta una instrucción inline ASM?** — Riesgo: romper portabilidad; beneficio: cerrar brecha con __int128
-2. **¿Granlund-Montgomery debe ser siempre constexpr?** — Requiere eliminar dependencia de __uint128_t para mulhi
+1. ~~**¿Merece la resta una instrucción inline ASM?**~~ — ✅ RESUELTO: No fue necesario. `sub128()`/`add128()` via `__uint128_t` genera codegen idéntico a `__int128`.
+2. ~~**¿Granlund-Montgomery debe ser siempre constexpr?**~~ — ✅ RESUELTO: Sí, `ce_mulhi_128` es pure C++ constexpr; ruta intrinsics se añadirá como optimization path
 3. **¿BCD como phase 1.80 o postergar a 2.0?** — El prototipo funciona; ¿vale la inversión antes de ARM ports?
 4. **¿uint256_t completo o solo como soporte interno?** — Actualmente solo struct de 4 limbs para Karatsuba
+5. **¿Integrar GM en to_string o mantener fast_divN handcoded?** — GM genérico vs handcoded con intrinsics: ~30% diferencia
 
 ---
 
@@ -555,8 +641,8 @@ Phase 1.75 has achieved:
 
 | Phase | Contenido | Estado |
 |-------|-----------|--------|
-| **1.75** | Parameterized type (4 reprs), 13 feature headers, Knuth D, intrinsics, cross-repr, API docs, Karatsuba, format, hash | ✅ **COMPLETE** |
-| **1.76** | Subtraction optimization, MSVC/Intel benchmarks, sweep migration, benchmark automation | 📋 NEXT SESSION |
+| **1.75** | Parameterized type (4 reprs), 13 feature headers, Knuth D, intrinsics, cross-repr, API docs, Karatsuba, format, hash, **GM constexpr division** | ✅ **COMPLETE** |
+| **1.76** | GM integration in to_string, intrinsic mulhi path, subtraction optimization, sweep migration | 📋 NEXT SESSION |
 | **1.80** | BCD base-10 types (Natural + Aiken), benchmark methodology overhaul, Granlund-Montgomery constexpr | 📋 PLANNED |
 | **1.85** | Decimal128 floating point (IEEE 754-2008), DPD/BID encoding | 📋 FUTURE |
 | **2.0** | Production release: full numeric tower (binary + decimal, integer + float) | 📋 FUTURE |
@@ -587,4 +673,4 @@ See `docs/archive/` for historical session documentation.
 
 ---
 
-**Report generated:** 21 March 2026
+**Report generated:** 22 March 2026

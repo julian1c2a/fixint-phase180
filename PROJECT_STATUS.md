@@ -1,9 +1,9 @@
-# PROJECT STATUS: All Phases Complete + Extended Arithmetic + Full Benchmarks
+# PROJECT STATUS: All Phases Complete + GM Constexpr Division + A1/A2/A4 Performance & Sweep
 
-**Date:** 22 July 2025
-**Last Session:** Karatsuba API, std::format full spec, std::hash STL integration, multicompiler benchmarks
-**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅ + Test Suite Fixed ✅ + API Docs ✅ + Cross-Repr Operators ✅ + Benchmark Methodology ✅ + All 5 Criticisms ✅ + Karatsuba ✅ + Format ✅ + Hash ✅ + Benchmarks ✅
-**Current Status:** 🎉 **58/58 tests pass (GCC+Clang) | 13 feature headers | 15 API docs**
+**Date:** 22 March 2026
+**Last Session:** A1 Sub/Add optimization, A2 4-compiler benchmarks, A4 sweep framework migration (Session 7)
+**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅ + Test Suite Fixed ✅ + API Docs ✅ + Cross-Repr Operators ✅ + Benchmark Methodology ✅ + All 5 Criticisms ✅ + Karatsuba ✅ + Format ✅ + Hash ✅ + Benchmarks ✅ + **GM Constexpr Division ✅** + **A1 Sub/Add Opt ✅** + **A2 4-Compiler Benchmarks ✅** + **A4 Sweep Migration ✅**
+**Current Status:** 🎉 **65/65 tests pass (GCC release) | 24 headers | 7 benchmarks | 15 API docs | All HIGH priorities done**
 
 ## Phase Status Summary
 
@@ -93,6 +93,24 @@ All 12 feature headers validated across 11 compilers (4 Windows + 7 WSL):
 **Compilers validated:** GCC 13/14/15, Clang 18/19/20/21, MSVC 19.50, Intel ICX 2025.3.0
 
 - Status: **100% COMPLETE**
+
+## Session 6: Granlund-Montgomery Constexpr Division (22 March 2026)
+
+### New Feature: Compile-Time Constant Division (`int128_param_divmod.hpp`)
+
+Full implementation of Hacker's Delight §10-9 Granlund-Montgomery algorithm:
+
+- `compute_magic_128(d)` — constexpr optimal magic constant finder
+- `GM_TABLE[0..1023]` — precomputed constexpr table for divisors 3-1023
+- `ce_mulhi_128()` — pure C++ 128×128→upper128 (no intrinsics, constexpr)
+- Member functions: `div<D>()`, `mod<D>()`, `divmod_const<D>()`, `mul<K>()`
+- **4-7x speedup** over standard Knuth D `operator/` for constant divisors
+- Signed support with C++ truncation-toward-zero semantics
+- EK representations: `= delete` (by design)
+- Tests: 71/71 PASS on all 4 compilers (~400M+ individual value checks)
+- Benchmark: `benchs/benchmark_divmod_const.cpp` with RDTSC cycle measurements
+
+**Constexpr step limits:** Clang/ICX need `-fconstexpr-steps=100000000`, MSVC needs `/constexpr:steps100000000` (GM_TABLE initialization = 1021 entries).
 
 ## Session 5: Extended Arithmetic + Format + Hash + Benchmarks
 
@@ -234,11 +252,11 @@ Full data: `build/benchmark_results_multicompiler.md`
 
 - ✅ Compilation: 0 errors, 0 warnings
 - ✅ Tests: 250+ passing across 56 files (12,158 lines of test code)
-- ✅ Library: 22 headers, 10,689 lines (main header: 4,345 lines)
+- ✅ Library: 24 headers, ~11,500 lines (main header: ~4,500 lines)
 - ✅ Correctness: 100% verified
 - ✅ Cross-platform: All Windows/Unix toolchains validated (11 compilers)
-- ✅ Production status: Knuth D algorithm production-ready
-- ✅ Documentation: 14 API reference docs (~280 public symbols)
+- ✅ Production status: Knuth D + GM constexpr division production-ready
+- ✅ Documentation: 15 API reference docs (~300 public symbols)
 
 ## Post-Phase 6 Achievements (March–June 2026)
 
@@ -256,27 +274,31 @@ Full data: `build/benchmark_results_multicompiler.md`
 - `API_parameterized.md` — Main class (constructors, operators, conversions, Knuth D)
 - 13 feature module docs (concepts, traits, limits, algorithm, bits, cmath, numeric, ranges, safe, thread_safety, iostreams, format, representation)
 
-### Granlund-Montgomery Division Plan (commit 716b17f)
+### Granlund-Montgomery Constexpr Division ✅ (22 March 2026)
 
-- `PLAN_DIVMOD_CONSTEXPR.md` — Comprehensive plan for constexpr division by compile-time constants
-- Covers legacy `divmod_by_constexpr/` code analysis (17 headers, benchmarks, Python scripts)
-- Identifies Granlund-Montgomery algorithm as target approach
+- `int128_param_divmod.hpp` — Full GM infrastructure (500 lines)
+- `div<D>()`, `mod<D>()`, `divmod_const<D>()`, `mul<K>()` member templates
+- `test_divmod_const.cpp` — 71/71 PASS on 4 compilers
+- `benchmark_divmod_const.cpp` — 4-7x speedup over Knuth D for constant divisors
+- Constexpr step limits documented for Clang/MSVC/ICX
 
 ## Next Steps (Priority Order)
 
-### ✅ ALL PHASES COMPLETE
+### ✅ ALL PHASES COMPLETE + GM CONSTEXPR COMPLETE
 
-All 6 phases, 12 feature headers, and intrinsics audit are complete.
+All 6 phases, 13 feature headers, intrinsics audit, and GM constexpr division are complete.
 
 ### Potential Future Work
 
 1. ~~**Benchmark methodology: validate bench_common.hpp with MSVC/Intel**~~ — ✅ Crítica 5 RESUELTA
 2. ~~**Benchmark methodology: 3-region systematic coverage**~~ — ✅ Crítica 3 RESUELTA
 3. **BCD Decimal Types** — Prototype validated (`build_temp/prototype_bcd_conversion.cpp`). Full implementation pending for Phase 1.80.
-4. **Granlund-Montgomery constexpr division** — Fast division by compile-time constants (plan ready)
+4. ~~**Granlund-Montgomery constexpr division**~~ — ✅ COMPLETE (22 March 2026)
 5. **Karatsuba multiplication** — Sub-quadratic O(n^1.585) for future larger types
 6. ~~**Test runner unificado**~~ — ✅ Crítica 2 RESUELTA (`python make.py test`)
 7. **Migrar tests existentes al sweep framework** — Aplicar `test_sweep_framework.hpp` incrementalmente
+8. **Integrar GM en to_string()** — Reemplazar `fast_divmod10_limbs`/`fast_divmod_1e19_limbs` con `divmod_const<10>()`/`divmod_const<10000000000000000000ULL>()`
+9. **Añadir mulhi128 con intrinsics a gm_div_limbs** — Cerrar brecha del 30% vs fast_divN handcoded
 
 ### Benchmark Methodology Overhaul — ✅ COMPLETE
 
@@ -331,5 +353,5 @@ All 6 phases, 12 feature headers, and intrinsics audit are complete.
 
 ---
 
-**Report Generated:** 20 March 2026
-**Project Status:** ALL 6 PHASES COMPLETE + INTRINSICS AUDIT + TEST SUITE FIXED ✅
+**Report Generated:** 22 March 2026
+**Project Status:** ALL 6 PHASES COMPLETE + INTRINSICS AUDIT + TEST SUITE FIXED + GM CONSTEXPR DIVISION ✅

@@ -233,6 +233,102 @@ namespace intrinsics
     }
 
     // ============================================================================
+    // ADD128/SUB128 - Full 128-bit addition/subtraction (optimized)
+    // ============================================================================
+
+    /**
+     * @brief Full 128-bit addition: (a_high:a_low) + (b_high:b_low)
+     *
+     * On GCC/Clang uses __uint128_t for native ADD+ADC codegen.
+     * On MSVC/Intel-Windows falls back to addcarry_u64 chain
+     * (which already generates optimal code via _addcarry_u64 intrinsic).
+     *
+     * @param a_low   Low 64 bits of first operand
+     * @param a_high  High 64 bits of first operand
+     * @param b_low   Low 64 bits of second operand
+     * @param b_high  High 64 bits of second operand
+     * @param result_low   Pointer to store low 64 bits of result
+     * @param result_high  Pointer to store high 64 bits of result
+     */
+    inline constexpr void add128(uint64_t a_low, uint64_t a_high,
+                                 uint64_t b_low, uint64_t b_high,
+                                 uint64_t *result_low, uint64_t *result_high) noexcept
+    {
+        if (INTRINSICS_IS_CONSTANT_EVALUATED())
+        {
+            uint64_t sum = a_low + b_low;
+            uint64_t carry = (sum < a_low) ? 1 : 0;
+            *result_low = sum;
+            *result_high = a_high + b_high + carry;
+            return;
+        }
+#if defined(__SIZEOF_INT128__)
+        // GCC/Clang: __uint128_t generates native ADD+ADC instruction pair
+        __uint128_t a = static_cast<__uint128_t>(a_high) << 64 | a_low;
+        __uint128_t b = static_cast<__uint128_t>(b_high) << 64 | b_low;
+        __uint128_t r = a + b;
+        *result_low = static_cast<uint64_t>(r);
+        *result_high = static_cast<uint64_t>(r >> 64);
+#elif INTRINSICS_USES_MSVC_ABI && INTRINSICS_ARCH_X86_64
+        // MSVC: _addcarry_u64 already generates optimal ADC chain
+        unsigned char carry = addcarry_u64(0, a_low, b_low, result_low);
+        addcarry_u64(carry, a_high, b_high, result_high);
+#else
+        // Portable fallback
+        uint64_t sum = a_low + b_low;
+        uint64_t carry = (sum < a_low) ? 1 : 0;
+        *result_low = sum;
+        *result_high = a_high + b_high + carry;
+#endif
+    }
+
+    /**
+     * @brief Full 128-bit subtraction: (a_high:a_low) - (b_high:b_low)
+     *
+     * On GCC/Clang uses __uint128_t for native SUB+SBB codegen.
+     * On MSVC/Intel-Windows falls back to subborrow_u64 chain
+     * (which already generates optimal code via _subborrow_u64 intrinsic).
+     *
+     * @param a_low   Low 64 bits of minuend
+     * @param a_high  High 64 bits of minuend
+     * @param b_low   Low 64 bits of subtrahend
+     * @param b_high  High 64 bits of subtrahend
+     * @param result_low   Pointer to store low 64 bits of result
+     * @param result_high  Pointer to store high 64 bits of result
+     */
+    inline constexpr void sub128(uint64_t a_low, uint64_t a_high,
+                                 uint64_t b_low, uint64_t b_high,
+                                 uint64_t *result_low, uint64_t *result_high) noexcept
+    {
+        if (INTRINSICS_IS_CONSTANT_EVALUATED())
+        {
+            uint64_t diff = a_low - b_low;
+            uint64_t borrow = (diff > a_low) ? 1 : 0;
+            *result_low = diff;
+            *result_high = a_high - b_high - borrow;
+            return;
+        }
+#if defined(__SIZEOF_INT128__)
+        // GCC/Clang: __uint128_t generates native SUB+SBB instruction pair
+        __uint128_t a = static_cast<__uint128_t>(a_high) << 64 | a_low;
+        __uint128_t b = static_cast<__uint128_t>(b_high) << 64 | b_low;
+        __uint128_t r = a - b;
+        *result_low = static_cast<uint64_t>(r);
+        *result_high = static_cast<uint64_t>(r >> 64);
+#elif INTRINSICS_USES_MSVC_ABI && INTRINSICS_ARCH_X86_64
+        // MSVC: _subborrow_u64 already generates optimal SBB chain
+        unsigned char borrow = subborrow_u64(0, a_low, b_low, result_low);
+        subborrow_u64(borrow, a_high, b_high, result_high);
+#else
+        // Portable fallback
+        uint64_t diff = a_low - b_low;
+        uint64_t borrow = (diff > a_low) ? 1 : 0;
+        *result_low = diff;
+        *result_high = a_high - b_high - borrow;
+#endif
+    }
+
+    // ============================================================================
     // MULX - Multiplicación extendida (produce 128 bits de resultado)
     // ============================================================================
 

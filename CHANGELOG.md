@@ -1,3 +1,115 @@
+## [22 March 2026] - A1/A2/A4 Performance & Sweep Migration (session 7)
+
+### ✅ A1: Optimize Subtraction/Addition (GCC) — COMPLETE
+
+- **Root cause:** `subborrow_u64` via `__builtin_usubll_overflow` → two separate overflow-checked ops
+- **Fix:** New `sub128()`/`add128()` in `arithmetic_operations.hpp` using `__uint128_t` on GCC/Clang
+- **Codegen:** Identical `subq+sbbq` / `addq+adcq` as `__int128` (verified via assembly)
+- **Benchmark fix:** Removed `"memory"` clobber from `doNotOptimize` for 16-byte GCC types
+- **Result:** nstd SUB 0.96x, ADD 0.96x → **faster** than `__int128` on GCC
+
+### ✅ A2: Benchmarks All 4 Compilers — COMPLETE
+
+- GCC: SUB 0.962x, ADD 0.959x (both faster than __int128)
+- Clang: SUB 1.058x, ADD 1.002x (within target)
+- Intel ICX: SUB 0.987x, ADD 1.048x (within target)
+- MSVC: SUB 0.975x, ADD 0.977x vs uint64_t (no __int128 baseline)
+- Created: `benchs/benchmark_addsub.cpp` (~250 lines)
+
+### ✅ A4: Sweep Framework Migration — 5 new files, 60/60 PASS
+
+- `tests/test_sweep_shift.cpp` — 16 tests: identity, arithmetic equiv, roundtrip, composition, distributivity
+- `tests/test_sweep_comparison.cpp` — 11 tests: reflexivity, complements, trichotomy, antisymmetry
+- `tests/test_sweep_division.cpp` — 13 tests: q*d+r=n, r<d, div-by-1, pow2 equiv, quotient bound
+- `tests/test_sweep_unary_ops.cpp` — 12 tests: inc/dec roundtrip, ++ semantics, negation, bool conversion
+- `tests/test_sweep_string.cpp` — 8 tests: decimal/hex/octal/binary roundtrip, string properties
+- Total: ~455M+ additional value verifications across 60 new property-based sweep tests
+
+### Files Modified
+
+- `include/intrinsics/arithmetic_operations.hpp` — Added `sub128()`/`add128()` (~100 lines)
+- `include/int128_parameterized.hpp` — Updated operator-=/+= to use new intrinsics
+- `benchs/bench_common.hpp` — Fixed `doNotOptimize` memory clobber
+- `benchs/benchmark_addsub.cpp` — NEW benchmark
+- `tests/test_sweep_shift.cpp` — NEW sweep test (16 tests)
+- `tests/test_sweep_comparison.cpp` — NEW sweep test (11 tests)
+- `tests/test_sweep_division.cpp` — NEW sweep test (13 tests)
+- `tests/test_sweep_unary_ops.cpp` — NEW sweep test (12 tests)
+- `tests/test_sweep_string.cpp` — NEW sweep test (8 tests)
+
+---
+
+## [22 March 2026] - Granlund-Montgomery Constexpr Division (session 6)
+
+### ✅ Phases A-F: Constexpr Division by Compile-Time Constants — COMPLETE
+
+Full implementation of the Granlund-Montgomery algorithm for compile-time constant division,
+as planned in `docs/PLAN_DIVMOD_CONSTEXPR.md` v2.0.
+
+**Created: `include/int128_param_divmod.hpp` (~500 lines)**
+
+- `ce_uint128` — lightweight constexpr 128-bit type (no dependency on `int128_param_t`)
+- `div_128_by_64()` — bit-by-bit constexpr 128÷64 division
+- `compute_magic_128(d)` — Hacker's Delight §10-9: finds optimal (minimal-shift) magic constant
+- `gm_entry{M_hi, M_lo, shift, needs_overflow}` — per-divisor precomputed entry
+- `GM_TABLE[0..1023]` — constexpr lambda-initialized array for divisors 3..1023
+- `mul64_full()` — 64×64→128 via 32-bit half-products (pure C++, no intrinsics)
+- `ce_mulhi_128()` — schoolbook 4-product 128×128→upper128 (constexpr-compatible)
+- `gm_div_limbs()` — dispatches simple vs overflow correction path
+- Helper: `mul_128_by_64()`, `sub_128()`, `rshift_128()`
+
+**Modified: `include/int128_parameterized.hpp` (+170 lines)**
+
+4 new member function templates:
+
+- `div<D>()` — constexpr division by compile-time constant D
+  - Power-of-2 → shift optimization
+  - D ∈ [3,1023] → GM_TABLE lookup
+  - D > 1023 → runtime `compute_magic_128(D)` + GM
+  - Signed: abs → unsigned div → re-sign (C++ truncation semantics)
+  - EK = delete (bias makes division meaningless)
+- `mod<D>()` — `*this - div<D>() * D`
+- `divmod_const<D>()` — returns `std::pair{quotient, remainder}`
+- `mul<K>()` — binary shift-add decomposition: K=0→0, K=1→id, pow2→shift, else recursive
+
+**Created: `tests/test_divmod_const.cpp` — 71/71 PASS (~400M+ value checks)**
+
+7 sections: div<D> sweep (14 divisors), mod<D> sweep (14 divisors), divmod_const<D>
+consistency (11 divisors), mul<K> sweep (12 K values), signed div/mod (13 sub-tests),
+static_asserts (compile-time verification), large divisors >1023.
+Each sweep test: ~6.29M values (3 regions × 2^21 + 20 edge cases).
+
+**Created: `benchs/benchmark_divmod_const.cpp` — RDTSC Benchmark**
+
+| Method | div by 3 | div by 10 | div by 10^19 |
+|--------|----------|-----------|-------------|
+| `n.div<D>()` (GM generic) | 21 cyc/op | 22 cyc/op | 25 cyc/op |
+| `operator/` (Knuth D) | 141 cyc/op | 134 cyc/op | 136 cyc/op |
+| Handcoded `fast_divN()` | 15 cyc/op | 20 cyc/op | 17 cyc/op |
+| `__int128 / D` | 7 cyc/op | 9 cyc/op | 97 cyc/op |
+| **GM speedup vs Knuth D** | **6.7x** | **6.2x** | **5.5x** |
+
+`mul<K>()`: ~4-10 cyc/op vs `operator*` ~2.7-3.1 cyc/op (hardware mul inherently faster).
+
+**4-compiler validation:**
+
+| Compiler | Test Result | Notes |
+|----------|-------------|-------|
+| GCC 15.2.0 | ✅ 71/71 PASS | No special flags needed |
+| Clang 21.1.8 | ✅ 71/71 PASS | Needs `-fconstexpr-steps=100000000` |
+| MSVC 19.50.35726 | ✅ 71/71 PASS | Needs `/constexpr:steps100000000` |
+| Intel ICX 2025.3.0 | ✅ 71/71 PASS | Needs `-fconstexpr-steps=100000000` + Intel lib path |
+
+**Regression check:** `python make.py test gcc release` → 60/60 PASS (204.5s).
+
+### 📊 Test Suite Status
+
+- **60/60 PASS** (GCC 15 release) — 60 test files, including new test_divmod_const.cpp
+- **6 benchmark files** (new: benchmark_divmod_const.cpp)
+- **24 headers** (new: int128_param_divmod.hpp)
+
+---
+
 ## [22 July 2025] - Karatsuba, Format, Hash, Benchmarks, Replanteamiento (session 5)
 
 ### ✅ [1] Karatsuba API — Extended Arithmetic

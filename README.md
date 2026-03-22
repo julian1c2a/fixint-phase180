@@ -1,8 +1,8 @@
 # Phase 1.75 - Representation Forms Investigation
 
-> **Status:** ✅ **ALL 6 PHASES COMPLETE — 13 feature headers, 11 compilers — 58/58 tests pass**
+> **Status:** ✅ **ALL 6 PHASES COMPLETE — 13 feature headers, 11 compilers — 65/65 tests pass**
 > **Started:** 11 January 2026
-> **Last Updated:** 22 July 2025
+> **Last Updated:** 22 March 2026
 > **Objective:** Investigate different number representations for IEEE 754 floating-point generalization  
 > **Parent Project:** [int128-phase166](../int128-phase166/)
 
@@ -13,6 +13,20 @@
 This parallel project investigates **representation forms** for 128-bit integers beyond the standard two's complement used in Phase 1.66. The goal is to provide a foundation for understanding and implementing IEEE 754 floating-point generalizations.
 
 ### Latest Achievements ✅
+
+**Session 7 (22 March 2026):**
+
+- **A1 Sub/Add Optimization:** New `sub128()`/`add128()` intrinsics — GCC 0.96x (faster than `__int128`)
+- **A2 4-Compiler Benchmarks:** GCC 0.96x, Clang 1.06x, ICX 0.99x, MSVC 0.98x
+- **A4 Sweep Migration:** 5 new sweep test files (60/60 sweep tests, ~455M+ value checks)
+- **Benchmark:** `benchs/benchmark_addsub.cpp`
+- Tests: **65/65 PASS** (GCC 15)
+
+**Session 6 (22 March 2026):**
+
+- **GM Constexpr Division:** `div<D>()`, `mod<D>()`, `divmod_const<D>()`, `mul<K>()` — 4-7x faster than Knuth D
+- **71/71 tests PASS** on all 4 compilers (~400M+ value checks)
+- Tests: **60/60 PASS** (GCC 15)
 
 **Session 5 (22 July 2025):**
 
@@ -94,7 +108,7 @@ using int128_ek_t = int128_param_t<signed_type, excess_k>;          // Excess-k 
 ### Core Implementation
 
 **File:** `include/int128_parameterized.hpp` (4,345 lines, 170KB)
-**Total library:** 22 headers, 10,689 lines
+**Total library:** 24 headers, ~11,500 lines
 
 - 7 constructor variants + cross-representation copy/move constructors
 - 6 comparison operators (cross-representation aware)
@@ -102,10 +116,12 @@ using int128_ek_t = int128_param_t<signed_type, excess_k>;          // Excess-k 
 - 4 bitwise operators (& | ^ ~)
 - 2 shift operators (<< >>)
 - Division: Knuth Algorithm D with `__uint128_t` native support
+- GM constexpr division: `div<D>()`, `mod<D>()`, `divmod_const<D>()`, `mul<K>()`
+- Extended arithmetic: Karatsuba `widening_mul`, `mulhi`, `uint256_t`
 - Cross-representation assignment operators and explicit conversion methods
 - String I/O methods
 - MS-specific utility methods
-- 250+ tests passing across 56 test files (12,158 lines of test code)
+- 65 test files (13 sweep framework tests)
 
 ---
 
@@ -113,7 +129,7 @@ using int128_ek_t = int128_param_t<signed_type, excess_k>;          // Excess-k 
 
 ```
 int128-phase175/
-├── include/                            # 22 headers, 10,689 lines
+├── include/                            # 24 headers, ~11,500 lines
 │   ├── int128_parameterized.hpp        # Main template (4,345 lines)
 │   ├── int128_param_safe.hpp           # Overflow-checked arithmetic
 │   ├── int128_param_traits_specializations.hpp  # STL type traits
@@ -127,24 +143,39 @@ int128-phase175/
 │   ├── int128_param_format.hpp         # C++20 std::format
 │   ├── int128_param_ranges.hpp         # C++20 ranges
 │   ├── int128_param_thread_safety.hpp  # Concurrent support
+│   ├── int128_param_arithmetic.hpp     # Karatsuba API, uint256_t
+│   ├── int128_param_divmod.hpp         # GM constexpr division
+│   ├── int128_param_traits.hpp         # Type traits
 │   ├── representation.hpp              # Representation forms enum
+│   ├── algorithms/                     # Optimized algorithms
+│   │   ├── karatsuba.hpp               # 128×128→256 Karatsuba
+│   │   └── div_by_const.hpp            # Granlund-Montgomery div10
 │   └── intrinsics/                     # Cross-compiler low-level ops
-│       ├── arithmetic_operations.hpp
-│       ├── bit_operations.hpp
-│       └── compiler_detection.hpp
-├── docs/                               # 14 API docs + plan
-│   ├── API_parameterized.md            # Main class API (~280 symbols)
-│   ├── API_*.md                        # Feature module API (13 files)
-│   └── PLAN_DIVMOD_CONSTEXPR.md        # Granlund-Montgomery plan
-├── tests/                              # 56 test files, 12,158 lines
-│   ├── test_priority[1-11]_*.cpp       # Core feature tests (172 tests)
-│   ├── test_division_operators.cpp     # 25 division operator tests
-│   ├── test_knuth_d_correctness.cpp    # 30 Knuth D tests
+│       ├── arithmetic_operations.hpp   # add128/sub128/mul intrinsics
+│       ├── bit_operations.hpp          # clz/ctz/popcount
+│       ├── byte_operations.hpp         # Byte-level operations
+│       ├── compiler_detection.hpp      # Compiler/platform detection
+│       └── fallback_portable.hpp       # Portable fallbacks
+├── docs/                               # 15 API docs + 3 plans
+│   ├── API_parameterized.md            # Main class API (~300 symbols)
+│   ├── API_*.md                        # Feature module API (14 files)
+│   ├── PLAN_DIVMOD_CONSTEXPR.md        # Granlund-Montgomery plan
+│   └── PLAN_*.md                       # Other plans
+├── tests/                              # 65 test files
+│   ├── test_priority[1-11]_*.cpp       # Core feature tests
 │   ├── test_param_*.cpp               # Feature module tests
+│   ├── test_sweep_*.cpp               # Property-based sweep tests (13 files)
+│   ├── test_sweep_framework.hpp        # Sweep framework infrastructure
+│   ├── test_divmod_const.cpp           # GM constexpr 71/71 tests
 │   └── ...
-├── benchs/
-│   ├── benchmark_divmod_algorithms.cpp # Knuth D vs Binary comparison
-│   └── benchmark_vs_builtin.cpp        # nstd vs builtin/Boost
+├── benchs/                             # 7 benchmarks + shared header
+│   ├── bench_common.hpp                # RDTSC infrastructure
+│   ├── benchmark_addsub.cpp            # Add/sub vs __int128
+│   ├── benchmark_divmod_const.cpp      # GM vs Knuth D vs handcoded
+│   ├── benchmark_divmod_algorithms.cpp # Knuth D vs Binary
+│   ├── benchmark_vs_builtin.cpp        # nstd vs builtin/Boost
+│   └── ...
+├── demos/                              # 6 demos in 3 categories
 ├── .github/
 │   └── copilot-instructions.md         # AI agent instructions
 └── build_temp/                         # Build artifacts
@@ -252,12 +283,13 @@ python make.py test  # All tests
 
 ## 📚 Documentation
 
-### API Reference (14 cppreference-style docs, ~280 public symbols)
+### API Reference (15 cppreference-style docs, ~300 public symbols)
 
 | Document | Coverage |
 |----------|----------|
 | [API_parameterized.md](docs/API_parameterized.md) | Main class: constructors, operators, conversions, division |
 | [API_representation.md](docs/API_representation.md) | `representation_form` enum, traits, conversions |
+| [API_arithmetic.md](docs/API_arithmetic.md) | Karatsuba: widening_mul, mulhi, uint256_t |
 | [API_concepts.md](docs/API_concepts.md) | C++20 concepts: `integral_param`, `arithmetic_param` |
 | [API_traits.md](docs/API_traits.md) | STL type traits specializations |
 | [API_limits.md](docs/API_limits.md) | `std::numeric_limits` specializations |
@@ -376,13 +408,16 @@ Phase 1.66 (Stable)
 - [x] **concepts.hpp + ranges.hpp:** C++20 concepts and ranges — 26/26 tests
 - [x] **Intrinsics audit:** All `__builtin_*` unified through abstraction layer
 - [x] **Cross-repr operators:** Assignment, copy/move constructors, conversion methods
-- [x] **API Reference:** 14 cppreference-style docs (~280 public symbols)
+- [x] **API Reference:** 15 cppreference-style docs (~300 public symbols)
+- [x] **Session 5:** Karatsuba API, std::format full spec, std::hash, benchmarks
+- [x] **Session 6:** Granlund-Montgomery constexpr division (4-7x faster, 71/71 tests)
+- [x] **Session 7:** A1 sub/add optimization, A2 4-compiler benchmarks, A4 sweep migration (65/65)
 
 ### Next Up
 
-- [ ] **Granlund-Montgomery constexpr division:** Fast division by compile-time constants (plan: `docs/PLAN_DIVMOD_CONSTEXPR.md`)
-- [ ] **MS operator*=:** Multiplication for Magnitude-Sign representation
-- [ ] **EK arithmetic:** Remaining `*`, `/`, `%` with bias adjustment
+- [ ] **Integrate GM into to_string():** Replace `fast_divmod10` with `divmod_const<10>()`
+- [ ] **Add mulhi128 intrinsics:** Fast path for GM division (×2 speedup potential)
+- [ ] **BCD Decimal Types:** BCD128 prototype for binary-coded decimal arithmetic
 - [ ] **Phase 1.80:** N*64-bit generalization (arbitrary width integers)
 - [ ] **CI/CD:** GitHub Actions pipeline
 
@@ -469,15 +504,15 @@ Progreso evaluado contra los 12 objetivos y 9 etapas definidos en [`AI_PROMPT/GE
 | 3 | Sentirse parte del lenguaje C++ | ✅ Conseguido | STL traits, numeric_limits, concepts, ranges, format, hash |
 | 4 | Compiladores + CI/CD | 🔄 Parcial | 11 compiladores validados. GitHub Actions pipeline pendiente |
 | 5 | Sanitizers + análisis estático | 🔄 Parcial | ASan/UBSan integrados. cppcheck listo. Clang-Tidy, GCov, LCOV pendientes |
-| 6 | Tests unitarios + benchmarks | ✅ Conseguido | 250+ tests (56 archivos, 12K líneas), benchmarks vs __int128 y Boost |
+| 6 | Tests unitarios + benchmarks | ✅ Conseguido | 65 test files, 7 benchmarks, 13 sweep files con ~455M+ checks |
 | 7 | Estructura clara y organizada | ✅ Conseguido | include/, tests/, benchs/, docs/, scripts/, debugging/ |
 | 8 | Build system con scripts Python | ✅ Conseguido | make.py → CMake → Ninja. CI/CD script pendiente |
 | 9 | Fácil de usar, compatible STL | ✅ Conseguido | Todos los operadores, conversiones, integración completa |
 | 10 | Base para precisión arbitraria | 🔄 En progreso | Template parametrizado Sign+Form. M&S operativo, EK parcial |
-| 11 | Algoritmos optimizados documentados | ✅ Conseguido | Knuth D (6.24x), plan Granlund-Montgomery documentado |
+| 11 | Algoritmos optimizados documentados | ✅ Conseguido | Knuth D (6.24x), Granlund-Montgomery constexpr (4-7x), Karatsuba 128×128→256 |
 | 12 | Tipos decimales BCD | ⬜ No iniciado | Previsto para etapa posterior |
 
-**Resumen:** 8/12 conseguidos, 3/12 parcial, 1/12 no iniciado.
+**Resumen:** 9/12 conseguidos, 2/12 parcial, 1/12 no iniciado.
 
 ### Etapas (9 definidas)
 
@@ -518,6 +553,6 @@ Copyright © 2024-2026 Julián Calderón Almendros
 
 ---
 
-**Last Updated:** 25 June 2026  
+**Last Updated:** 22 March 2026  
 **Phase Lead:** int128 Project Contributors  
 **Status:** 🔬 Active Research

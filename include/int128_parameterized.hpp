@@ -2821,8 +2821,9 @@ namespace nstd
 #if __has_include("intrinsics/arithmetic_operations.hpp")
                 if (!std::is_constant_evaluated())
                 {
-                    unsigned char carry = intrinsics::addcarry_u64(0, data[0], other.data[0], &data[0]);
-                    intrinsics::addcarry_u64(carry, data[1], other.data[1], &data[1]);
+                    // Optimized path: Full 128-bit ADD+ADC via __uint128_t on GCC/Clang,
+                    // or _addcarry_u64 chain on MSVC
+                    intrinsics::add128(data[0], data[1], other.data[0], other.data[1], &data[0], &data[1]);
                     return *this;
                 }
 #endif
@@ -2923,9 +2924,9 @@ namespace nstd
 #if __has_include("intrinsics/arithmetic_operations.hpp")
                 if (!std::is_constant_evaluated())
                 {
-                    // Optimized path: Simple 2-step SBB chain (subtract with borrow)
-                    unsigned char borrow = intrinsics::subborrow_u64(0, data[0], other.data[0], &data[0]);
-                    intrinsics::subborrow_u64(borrow, data[1], other.data[1], &data[1]);
+                    // Optimized path: Full 128-bit SUB+SBB via __uint128_t on GCC/Clang,
+                    // or _subborrow_u64 chain on MSVC
+                    intrinsics::sub128(data[0], data[1], other.data[0], other.data[1], &data[0], &data[1]);
                     return *this;
                 }
 #endif

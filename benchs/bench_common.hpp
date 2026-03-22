@@ -95,10 +95,14 @@ static void doNotOptimize(T &val)
     // shuffles per iteration (GCC can't map a struct to a register pair).
     // Fix: split into two separate "+r" constraints on each uint64_t half.
     // This generates the same optimal addq/adcq or subq/sbbq as __int128.
+    // NOTE: No "memory" clobber for 16-byte types — the "+r" constraints
+    // already prevent dead-code elimination. The "memory" clobber causes
+    // GCC to spill structs to stack (but not __int128 register pairs),
+    // creating a measurement artifact.
     if constexpr (sizeof(T) == 16 && alignof(T) >= alignof(std::uint64_t))
     {
         auto *p = reinterpret_cast<std::uint64_t *>(&val);
-        asm volatile("" : "+r"(p[0]), "+r"(p[1]) : : "memory");
+        asm volatile("" : "+r"(p[0]), "+r"(p[1]));
     }
     else
     {
