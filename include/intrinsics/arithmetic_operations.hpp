@@ -181,10 +181,35 @@ namespace intrinsics
         {
             return _subborrow_u64(borrow_in, a, b, reinterpret_cast<unsigned long long *>(result));
         }
+#elif INTRINSICS_USES_GNU_ABI
+        // GCC/Clang/Intel(Linux): usar builtins
+        if (INTRINSICS_IS_CONSTANT_EVALUATED())
+        {
+            // Versión constexpr portable
+            uint64_t diff = a - b;
+            uint64_t diff_with_borrow = diff - borrow_in;
+            *result = diff_with_borrow;
+            return (diff > a) || (diff_with_borrow > diff) ? 1 : 0;
+        }
+#if (defined(__GNUC__) && __GNUC__ >= 5) || (defined(__clang__) && __clang_major__ >= 3)
+        // GCC/Clang: usar __builtin_usubll_overflow para detección de underflow
+        // (NOTA: __builtin_subcll era buggy; __builtin_usubll_overflow es fiable)
+        // Necesitamos manejar borrow_in manualmente ya que no hay builtin con borrow
+        unsigned long long temp_diff;
+        unsigned char underflow1 = __builtin_usubll_overflow(a, b, &temp_diff);
+        unsigned long long final_result;
+        unsigned char underflow2 = __builtin_usubll_overflow(temp_diff, borrow_in, &final_result);
+        *result = static_cast<uint64_t>(final_result);
+        return underflow1 | underflow2;
 #else
-        // GCC/Clang/Intel(Linux)/Fallback: usar implementación portable
-        // NOTA: __builtin_subcll tiene comportamiento incorrecto en algunas versiones
-        // Por eso usamos la versión portable que siempre funciona correctamente
+        // Fallback para versiones antiguas
+        uint64_t diff = a - b;
+        uint64_t diff_with_borrow = diff - borrow_in;
+        *result = diff_with_borrow;
+        return (diff > a) || (diff_with_borrow > diff) ? 1 : 0;
+#endif
+#else
+        // Fallback portable
         uint64_t diff = a - b;
         uint64_t diff_with_borrow = diff - borrow_in;
         *result = diff_with_borrow;
