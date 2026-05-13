@@ -247,25 +247,6 @@ def main():
             print("Error: TYPE debe ser 'uint128' o 'int128'")
             sys.exit(1)
         
-        # Validate that the feature has a corresponding test file
-        # Try multiple naming patterns
-        test_patterns = [
-            tests_dir / f"test_param_{feature}.cpp",
-            tests_dir / f"test_{feature}.cpp",
-            tests_dir / f"{type_name}_{feature}_extracted_tests.cpp"
-        ]
-        
-        test_file_found = None
-        for pattern in test_patterns:
-            if pattern.exists():
-                test_file_found = pattern
-                break
-        
-        if not test_file_found:
-            echo_error(f"No se encontró archivo de test para feature '{feature}'")
-            echo_info(f"  Intentado: {', '.join(str(p.name) for p in test_patterns)}")
-            sys.exit(1)
-        
         # Determine if this is a test or benchmark based on file location
         is_benchmark = (project_root / "benchs" / f"benchmark_{feature}.cpp").exists()
         
