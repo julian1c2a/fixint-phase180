@@ -1,3 +1,45 @@
+## [v1.76 — 13 May 2026] - GM→to_string + rt_mulhi_128 intrinsics (session 8-9)
+
+### ✅ GM Integration in to_string() — COMPLETE
+
+- Replaced ~105 lines of duplicate code: `mulhi_128_limbs()`, `fast_divmod10_limbs()`, `fast_divmod_1e19_limbs()`
+- `write_u64_digits()` now uses `divmod_const<100>()`
+- `write_19_padded_digits()` now uses `divmod_const<10>()` and `divmod_const<100>()`
+- `to_string()` decimal path now uses `divmod_const<10000000000000000000ULL>()`
+- Unified codebase: single GM implementation for both `div<D>()` API and `to_string()`
+
+### ✅ rt_mulhi_128 — Runtime Intrinsics for GM Division — COMPLETE
+
+- New `rt_mulhi_128()` in `int128_param_divmod.hpp` replaces `ce_mulhi_128` in `gm_div_limbs()`
+- **GCC/Clang/Intel:** 4 native 64-bit MUL via `__uint128_t` (vs 16 × 32-bit MUL in ce_mulhi_128)
+- **MSVC x64:** 4 × `_umul128` intrinsic with explicit carry accumulation
+- **Constexpr path:** delegates to `ce_mulhi_128()` (required for `GM_TABLE` compile-time init)
+- **Measured speedup (GCC -O2):** `div<10>` 22→10 cyc/op (~2.2×), `div<3>` 21→11.6 cyc/op (~1.8×)
+- Correctness: 71/71 `test_divmod_const` tests pass on all compilers
+
+### ✅ Build System Fixes — COMPLETE
+
+- `scripts/env_setup/compiler_env.py`: GCC now resolves to UCRT64 (`C:\msys64\ucrt64\bin\g++.exe`)
+  instead of Cygwin GCC (which cannot find `<cstdint>` from PowerShell)
+- `scripts/build_generic.py`: output naming aligned with `check_generic.py`
+  (`test_foo_gcc.exe` instead of `uint128_foo_test_foo_gcc.exe`)
+
+### ✅ New Test: test_priority5_string — COMPLETE (24/24)
+
+- `tests/test_priority5_string.cpp` — 24 tests covering `to_string()`/`from_string()` for
+  all bases (2/8/10/16), round-trips, signed TC and MS representations
+- Fixed macro pitfall: `assert(val == T{a, b})` → `assert((val == T{a, b}))`
+
+### Files Modified
+
+- `include/int128_param_divmod.hpp` — `rt_mulhi_128()` + `gm_div_limbs()` update (+97 lines)
+- `include/int128_parameterized.hpp` — GM-based `to_string()` (-92 net lines)
+- `tests/test_priority5_string.cpp` — NEW test file (24 tests)
+- `scripts/env_setup/compiler_env.py` — UCRT64 GCC path
+- `scripts/build_generic.py` — naming convention fix
+
+---
+
 ## [22 March 2026] - A1/A2/A4 Performance & Sweep Migration (session 7)
 
 ### ✅ A1: Optimize Subtraction/Addition (GCC) — COMPLETE
