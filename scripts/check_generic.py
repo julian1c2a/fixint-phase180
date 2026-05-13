@@ -315,21 +315,40 @@ def main():
         # Track results
         results: Dict[str, Dict[str, bool]] = {}
         
+        # Validate that the feature has a corresponding test file
+        # Try multiple naming patterns
+        tests_dir = project_root / "tests"
+        test_patterns = [
+            tests_dir / f"test_param_{feature}.cpp",
+            tests_dir / f"test_{feature}.cpp",
+            tests_dir / f"{type_name}_{feature}_extracted_tests.cpp"
+        ]
+        
+        test_file_found = None
+        for pattern in test_patterns:
+            if pattern.exists():
+                test_file_found = pattern
+                break
+        
+        if not test_file_found:
+            echo_error(f"No test file found for feature '{feature}'")
+            echo_info(f"  Tried: {', '.join(str(p) for p in test_patterns)}")
+            return 1
+        
         for compiler in compilers:
             results[compiler] = {}
             
             for mode in modes:
-                exe_name = f"{type_name}_{feature}_tests_{compiler}"
-                if compiler == "msvc":
-                    exe_name += ".exe"
+                # Executable name matches source file stem + compiler suffix
+                # e.g., test_priority5_string.cpp -> test_priority5_string_gcc
+                exe_name = f"{test_file_found.stem}_{compiler}"
+                
+                # Add .exe extension for Windows or MSVC/Intel
+                if sys.platform == "win32" or compiler in ["msvc", "intel"]:
+                    if not exe_name.endswith(".exe"):
+                        exe_name += ".exe"
                 
                 exe_path = build_dir / compiler / mode / exe_name
-                
-                # On Windows, GCC/Clang may generate .exe
-                if not exe_path.exists() and sys.platform == "win32":
-                    exe_path_with_ext = exe_path.with_suffix(".exe")
-                    if exe_path_with_ext.exists():
-                        exe_path = exe_path_with_ext
                 
                 echo_info(f"Testing {compiler} [{mode}]...")
                 
