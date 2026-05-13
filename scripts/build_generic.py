@@ -340,16 +340,18 @@ def main():
 
         if param_file.exists():
             source_file = str(param_file)
+            output_suffix = param_file.stem  # Use source file stem as output name
         elif direct_file.exists():
             source_file = str(direct_file)
+            output_suffix = direct_file.stem  # Use source file stem as output name
         elif legacy_file.exists():
             source_file = str(legacy_file)
+            output_suffix = legacy_file.stem  # Use source file stem as output name
         else:
             echo_error(f"No test file found for feature '{feature}'")
             echo_error(f"  Tried: {param_file}, {direct_file}, {legacy_file}")
             sys.exit(1)
         build_dir = "build/build_tests"
-        output_suffix = "tests"
         echo_info(f"Building {type_name} {feature} {target} for all compilers...")
     else:  # benchs
         # Dynamic benchmark file discovery
@@ -358,14 +360,15 @@ def main():
 
         if bench_file.exists():
             source_file = str(bench_file)
+            output_suffix = bench_file.stem  # Use source file stem as output name
         elif legacy_bench.exists():
             source_file = str(legacy_bench)
+            output_suffix = legacy_bench.stem  # Use source file stem as output name
         else:
             echo_error(f"No benchmark file found for feature '{feature}'")
             echo_error(f"  Tried: {bench_file}, {legacy_bench}")
             sys.exit(1)
         build_dir = "build/build_benchs"
-        output_suffix = "benchs"
         echo_info(f"Building {type_name} {feature} {target} for all compilers...")
     
     # Check source file
