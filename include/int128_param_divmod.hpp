@@ -24,6 +24,11 @@
 #include <cstdint>
 #include <array>
 #include <utility>
+#include <type_traits>
+
+#if defined(_MSC_VER) && defined(_M_X64)
+#include <intrin.h>
+#endif
 
 namespace nstd
 {
@@ -415,6 +420,94 @@ namespace nstd
         }
 
         // =====================================================================
+        // rt_mulhi_128 — runtime-optimized upper 128 bits of 128×128 product.
+        //
+        // Dispatches to hardware MUL at runtime (4 × 64-bit MUL instructions
+        // via __uint128_t or _umul128), falls back to ce_mulhi_128 at constexpr
+        // evaluation time.  Replaces ce_mulhi_128 in gm_div_limbs to close the
+        // ~30-50 % performance gap vs handcoded fast_divN intrinsic versions.
+        // =====================================================================
+
+        static constexpr mulhi_result rt_mulhi_128(
+            uint64_t n_hi, uint64_t n_lo,
+            uint64_t m_hi, uint64_t m_lo) noexcept
+        {
+            if (std::is_constant_evaluated())
+                return ce_mulhi_128(n_hi, n_lo, m_hi, m_lo);
+
+#if defined(__SIZEOF_INT128__)
+            // GCC / Clang / Intel(Linux): four native 64-bit MUL instructions.
+            using u128 = unsigned __int128;
+            const u128 p00{static_cast<u128>(n_lo) * m_lo};
+            const u128 p01{static_cast<u128>(n_lo) * m_hi};
+            const u128 p10{static_cast<u128>(n_hi) * m_lo};
+            const u128 p11{static_cast<u128>(n_hi) * m_hi};
+
+            // Column 1 (bits 64-127): p00_hi + p01_lo + p10_lo
+            const u128 col1{static_cast<u128>(static_cast<uint64_t>(p00 >> 64))
+                          + static_cast<u128>(static_cast<uint64_t>(p01))
+                          + static_cast<u128>(static_cast<uint64_t>(p10))};
+
+            // Column 2 (bits 128-191): p01_hi + p10_hi + p11_lo + carry_from_col1
+            const u128 col2{static_cast<u128>(static_cast<uint64_t>(p01 >> 64))
+                          + static_cast<u128>(static_cast<uint64_t>(p10 >> 64))
+                          + static_cast<u128>(static_cast<uint64_t>(p11))
+                          + static_cast<u128>(static_cast<uint64_t>(col1 >> 64))};
+
+            return {static_cast<uint64_t>(p11 >> 64) + static_cast<uint64_t>(col2 >> 64),
+                    static_cast<uint64_t>(col2)};
+
+#elif defined(_MSC_VER) && defined(_M_X64)
+            // MSVC x64: _umul128 → four MUL instructions.
+            uint64_t p00_hi{0}, p01_hi{0}, p10_hi{0}, p11_hi{0};
+            const uint64_t p00_lo{_umul128(n_lo, m_lo, &p00_hi)};
+            const uint64_t p01_lo{_umul128(n_lo, m_hi, &p01_hi)};
+            const uint64_t p10_lo{_umul128(n_hi, m_lo, &p10_hi)};
+            const uint64_t p11_lo{_umul128(n_hi, m_hi, &p11_hi)};
+
+            // Column 1: p00_hi + p01_lo + p10_lo (carry1 feeds column 2)
+            uint64_t col1{p00_hi};
+            uint64_t carry1{0};
+            {
+                const uint64_t t{col1 + p01_lo};
+                carry1 += (t < col1) ? 1ULL : 0ULL;
+                col1 = t;
+            }
+            {
+                const uint64_t t{col1 + p10_lo};
+                carry1 += (t < col1) ? 1ULL : 0ULL;
+                col1 = t;
+            }
+            (void)col1; // low bits of col1 not needed for upper 128
+
+            // Column 2: p01_hi + p10_hi + p11_lo + carry1
+            uint64_t h_lo{p01_hi};
+            uint64_t carry2{0};
+            {
+                const uint64_t t{h_lo + p10_hi};
+                carry2 += (t < h_lo) ? 1ULL : 0ULL;
+                h_lo = t;
+            }
+            {
+                const uint64_t t{h_lo + p11_lo};
+                carry2 += (t < h_lo) ? 1ULL : 0ULL;
+                h_lo = t;
+            }
+            {
+                const uint64_t t{h_lo + carry1};
+                carry2 += (t < h_lo) ? 1ULL : 0ULL;
+                h_lo = t;
+            }
+
+            return {p11_hi + carry2, h_lo};
+
+#else
+            // Other platforms: pure C++ fallback.
+            return ce_mulhi_128(n_hi, n_lo, m_hi, m_lo);
+#endif
+        }
+
+        // =====================================================================
         // Runtime/constexpr division using GM entry (operates on raw limbs)
         // =====================================================================
 
@@ -444,8 +537,8 @@ namespace nstd
             uint64_t n_hi, uint64_t n_lo,
             const gm_entry &entry) noexcept
         {
-            // t = mulhi(n, M)
-            const auto [t_hi, t_lo]{ce_mulhi_128(n_hi, n_lo, entry.M_hi, entry.M_lo)};
+            // t = mulhi(n, M) — hardware MUL at runtime, constexpr fallback at compile time
+            const auto [t_hi, t_lo]{rt_mulhi_128(n_hi, n_lo, entry.M_hi, entry.M_lo)};
 
             if (entry.needs_overflow)
             {
