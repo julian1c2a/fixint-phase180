@@ -13,3 +13,223 @@
 
 # 2026-05-13 15:52:54.679222
 +/exit
+
+# 2026-05-13 16:31:09.834643
++Lee el repoistorio al completo y hazte una idea de cual es su situación, y cual es el momento del proyecto en el plan global
+
+# 2026-05-13 16:34:31.724261
++Lee los ficheros de descrripción *.md ¿Cuál es el momento dentro del planteamiento global?
+
+# 2026-05-13 16:36:37.480447
++/run python make.py init                    # Detectar compiladores
+
+# 2026-05-13 16:36:37.482660
++/run python make.py init                    # Detectar compiladores
+
+# 2026-05-13 16:36:38.828754
++/run python make.py build <type> <feature> <target> [compiler] [mode]
+
+# 2026-05-13 16:36:38.829752
++/run python make.py build <type> <feature> <target> [compiler] [mode]
+
+# 2026-05-13 16:36:39.044245
++/run python make.py check <type> <feature> [compiler] [mode]
+
+# 2026-05-13 16:36:39.044245
++/run python make.py check <type> <feature> [compiler] [mode]
+
+# 2026-05-13 16:36:39.265879
++/run python make.py run <type> <feature> [compiler] [mode]
+
+# 2026-05-13 16:36:39.265879
++/run python make.py run <type> <feature> [compiler] [mode]
+
+# 2026-05-13 16:36:39.576194
++/run python make.py test                    # Ejecutar todos los tests
+
+# 2026-05-13 16:36:39.577205
++/run python make.py test                    # Ejecutar todos los tests
+
+# 2026-05-13 16:36:40.310601
++/run python make.py all                     # Compilar todo
+
+# 2026-05-13 16:36:40.310601
++/run python make.py all                     # Compilar todo
+
+# 2026-05-13 16:36:41.206113
++/run python make.py clean                   # Limpiar builds
+
+# 2026-05-13 16:36:41.207115
++/run python make.py clean                   # Limpiar builds
+
+# 2026-05-13 16:36:41.942910
++/run python make.py list                    # Listar combinaciones
+
+# 2026-05-13 16:36:41.943423
++/run python make.py list                    # Listar combinaciones
+
+# 2026-05-13 16:36:47.310460
++/run python make.py demo <category> <demo_name> [compiler] [mode]
+
+# 2026-05-13 16:36:47.311480
++/run python make.py demo <category> <demo_name> [compiler] [mode]
+
+# 2026-05-13 16:36:47.456208
++/run python make.py sanitize <type> <feature> [sanitizer] [compiler] [target]
+
+# 2026-05-13 16:36:47.457200
++/run python make.py sanitize <type> <feature> [sanitizer] [compiler] [target]
+
+# 2026-05-13 16:36:47.620107
++/run python make.py analyze [tool] [target]
+
+# 2026-05-13 16:36:47.621105
++/run python make.py analyze [tool] [target]
+
+# 2026-05-13 16:37:06.753245
++/run python make.py compare [compiler] [mode] [iterations]
+
+# 2026-05-13 16:37:06.755758
++/run python make.py compare [compiler] [mode] [iterations]
+
+# 2026-05-13 19:15:33.610791
++Necesito que me digas cual es el estado actual del proyecto
+
+# 2026-05-13 19:18:14.817059
++Vamos a integrar GM en to_string (Opción 1)
+
+# 2026-05-13 21:34:30.225566
++/run python make.py build uint128 priority5_string tests gcc release
+
+# 2026-05-13 21:34:30.225566
++/run python make.py build uint128 priority5_string tests gcc release
+
+# 2026-05-13 21:34:35.629258
++/run python make.py check uint128 priority5_string gcc release
+
+# 2026-05-13 21:34:35.629258
++/run python make.py check uint128 priority5_string gcc release
+
+# 2026-05-13 21:34:35.891664
++/run python make.py run uint128 string gcc release
+
+# 2026-05-13 21:34:35.892670
++/run python make.py run uint128 string gcc release
+
+# 2026-05-13 21:35:12.142915
++¿Cual ha sido el error?
+
+# 2026-05-13 21:36:07.894369
++/run python make.py run uint128 priority5_string gcc release
+
+# 2026-05-13 21:36:07.895403
++/run python make.py run uint128 priority5_string gcc release
+
+# 2026-05-13 21:36:08.132193
++/run build\build_tests\gcc\release\test_priority5_string_gcc.exe
+
+# 2026-05-13 21:36:08.132193
++/run build\build_tests\gcc\release\test_priority5_string_gcc.exe
+
+# 2026-05-13 21:36:35.176075
++Itera y corrige hasta que compile sin problemas
+
+# 2026-05-13 21:37:05.569491
++/run python make.py build uint128 priority5_string tests gcc release
+
+# 2026-05-13 21:37:05.569491
++/run python make.py build uint128 priority5_string tests gcc release
+
+# 2026-05-13 21:37:05.824277
++/run build\build_tests\gcc\release\test_priority5_string_gcc.exe
+
+# 2026-05-13 21:37:05.824277
++/run build\build_tests\gcc\release\test_priority5_string_gcc.exe
+
+# 2026-05-13 21:37:05.903120
++/run python make.py check uint128 priority5_string gcc release
+
+# 2026-05-13 21:37:05.903120
++/run python make.py check uint128 priority5_string gcc release
+
+# 2026-05-13 21:37:17.463097
++Itera y corrige hasta que compile sin problemas
+
+# 2026-05-13 21:44:49.652794
++/run python make.py build uint128 priority5_string tests gcc release
+
+# 2026-05-13 21:44:49.652794
++/run python make.py build uint128 priority5_string tests gcc release
+
+# 2026-05-13 21:44:54.185278
++/run python make.py check uint128 priority5_string gcc release
+
+# 2026-05-13 21:44:54.185278
++/run python make.py check uint128 priority5_string gcc release
+
+# 2026-05-13 21:45:09.586003
++Itera y corrige hasta que compile sin problemas
+
+# 2026-05-13 21:46:31.521712
++/run python make.py build uint128 priority5_string tests gcc release
+
+# 2026-05-13 21:46:31.522766
++/run python make.py build uint128 priority5_string tests gcc release
+
+# 2026-05-13 21:46:32.336000
++/run python make.py check uint128 priority5_string gcc release
+
+# 2026-05-13 21:46:32.337526
++/run python make.py check uint128 priority5_string gcc release
+
+# 2026-05-13 21:46:37.129212
++/run python make.py run uint128 priority5_string gcc release
+
+# 2026-05-13 21:46:37.130731
++/run python make.py run uint128 priority5_string gcc release
+
+# 2026-05-13 21:46:46.969367
++Itera y corrige hasta que compile sin problemas
+
+# 2026-05-13 21:47:22.066667
++/run python make.py build uint128 priority5_string tests gcc release
+
+# 2026-05-13 21:47:22.068195
++/run python make.py build uint128 priority5_string tests gcc release
+
+# 2026-05-13 21:47:22.781291
++/run python make.py check uint128 priority5_string gcc release
+
+# 2026-05-13 21:47:22.782811
++/run python make.py check uint128 priority5_string gcc release
+
+# 2026-05-13 21:48:40.458291
++Dice "ERROR No test file found for feature 'priority5_string'
++ERROR   Tried: tests\test_param_priority5_string.cpp, tests\test_priority5_string.cpp, tests\uint128_priority5_string_extracted_tests.cpp
++" y "[ERROR] No test file found for feature 'priority5_string'
++->   Tried: E:\Dropbox\GitHub\cpp\int128-phase175\tests\test_param_priority5_string.cpp, E:\Dropbox\GitHub\cpp\int128-phase175\tests\test_priority5_string.cpp, E:\Dropbox\GitHub\cpp\int128-phase175\tests\uint128_priority5_string_extracted_tests.cpp
++" ¿Qué quiere decir?
+
+# 2026-05-13 21:49:23.132992
++/run python make.py build uint128 priority5_string tests gcc release
+
+# 2026-05-13 21:49:23.132992
++/run python make.py build uint128 priority5_string tests gcc release
+
+# 2026-05-13 21:49:24.265250
++/run python make.py check uint128 priority5_string gcc release
+
+# 2026-05-13 21:49:24.265250
++/run python make.py check uint128 priority5_string gcc release
+
+# 2026-05-13 21:51:08.265485
++Pero dice  ERROR gcc [release]: compilation failed   y dice 27 | #include <cstdint> No such file or directory Intenta quietar ese eror de forma que compile limpiamente
+
+# 2026-05-13 21:53:49.815748
++¿Qué sería lo siguiente?
+
+# 2026-05-13 21:54:02.576734
++N
+
+# 2026-05-13 21:54:10.419681
++/exit
