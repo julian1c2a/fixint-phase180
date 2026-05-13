@@ -83,6 +83,9 @@ class CompilerEnvironment:
                 return str(icpx_latest)
             return "icpx"
         elif self.compiler_name == "gcc":
+            ucrt64_gpp = Path(r"C:\msys64\ucrt64\bin\g++.exe")
+            if ucrt64_gpp.exists():
+                return str(ucrt64_gpp)
             return "g++"
         elif self.compiler_name == "clang":
             return "clang++"

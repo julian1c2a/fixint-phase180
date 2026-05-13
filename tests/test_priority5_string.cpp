@@ -79,8 +79,10 @@ TEST(to_string_hex_small)
 
 TEST(to_string_hex_large)
 {
-    uint128_t val{0xDEADBEEF, 0xCAFEBABE};
+    uint128_t val{0, 0xDEADBEEFCAFEBABEULL};
     assert(val.to_string(16) == "DEADBEEFCAFEBABE");
+    uint128_t val2{0xDEADBEEFULL, 0xCAFEBABEULL};
+    assert(val2.to_string(16) == "DEADBEEF00000000CAFEBABE");
 }
 
 // =============================================================================
@@ -128,19 +130,19 @@ TEST(from_string_decimal_zero)
 TEST(from_string_decimal_small)
 {
     auto val = uint128_t::from_string("42");
-    assert(val == uint128_t{0, 42});
+    assert((val == uint128_t{0, 42}));
 }
 
 TEST(from_string_decimal_large)
 {
     auto val = uint128_t::from_string("18446744073709551616");
-    assert(val == uint128_t{0x1, 0x0});
+    assert((val == uint128_t{0x1, 0x0}));
 }
 
 TEST(from_string_signed_negative)
 {
     auto val = int128_tc_t::from_string("-1");
-    assert(val == int128_tc_t{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL});
+    assert((val == int128_tc_t{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}));
 }
 
 // =============================================================================
@@ -150,13 +152,13 @@ TEST(from_string_signed_negative)
 TEST(from_string_hex_prefix)
 {
     auto val = uint128_t::from_string("0xFF");
-    assert(val == uint128_t{0, 0xFF});
+    assert((val == uint128_t{0, 0xFF}));
 }
 
 TEST(from_string_hex_large)
 {
     auto val = uint128_t::from_string("0xDEADBEEFCAFEBABE");
-    assert(val == uint128_t{0xDEADBEEF, 0xCAFEBABE});
+    assert((val == uint128_t{0, 0xDEADBEEFCAFEBABEULL}));
 }
 
 // =============================================================================
@@ -166,7 +168,7 @@ TEST(from_string_hex_large)
 TEST(from_string_binary_prefix)
 {
     auto val = uint128_t::from_string("0b1010");
-    assert(val == uint128_t{0, 0b1010});
+    assert((val == uint128_t{0, 0b1010}));
 }
 
 // =============================================================================
@@ -176,7 +178,7 @@ TEST(from_string_binary_prefix)
 TEST(from_string_octal_prefix)
 {
     auto val = uint128_t::from_string("0777");
-    assert(val == uint128_t{0, 0777});
+    assert((val == uint128_t{0, 0777}));
 }
 
 // =============================================================================
@@ -213,7 +215,7 @@ TEST(from_string_ms_negative)
 {
     auto val = int128_ms_t::from_string("-42");
     assert(val.is_negative());
-    assert(val.magnitude() == int128_ms_t{0, 42});
+    assert((val.magnitude() == int128_ms_t{0, 42}));
 }
 
 // =============================================================================

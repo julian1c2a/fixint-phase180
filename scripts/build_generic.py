@@ -132,8 +132,8 @@ def compile_with_compiler(
         
         # Build output filename
         if type_name and feature:
-            # Tests/benchs: <type>_<feature>_<suffix>_<compiler>
-            output = output_dir / f"{type_name}_{feature}_{output_suffix}_{compiler_name}"
+            # Tests/benchs: <source_stem>_<compiler> (matches check_generic.py convention)
+            output = output_dir / f"{output_suffix}_{compiler_name}"
         else:
             # Demos: just <demo_name>
             output = output_dir / output_suffix
