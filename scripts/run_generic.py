@@ -255,21 +255,33 @@ def main():
             tests_dir / f"{type_name}_{feature}_extracted_tests.cpp"
         ]
         
-        test_file_exists = any(p.exists() for p in test_patterns)
+        test_file_found = None
+        for pattern in test_patterns:
+            if pattern.exists():
+                test_file_found = pattern
+                break
         
-        if not test_file_exists:
+        if not test_file_found:
             echo_error(f"No se encontró archivo de test para feature '{feature}'")
-            echo_info(f"  Intentado: {', '.join(str(p) for p in test_patterns)}")
+            echo_info(f"  Intentado: {', '.join(str(p.name) for p in test_patterns)}")
             sys.exit(1)
         
-        build_dir = project_root / "build" / "build_benchs"
+        # Determine if this is a test or benchmark based on file location
+        is_benchmark = (project_root / "benchs" / f"benchmark_{feature}.cpp").exists()
+        
+        if is_benchmark:
+            build_dir = project_root / "build" / "build_benchs"
+            target_type = "benchs"
+        else:
+            build_dir = project_root / "build" / "build_tests"
+            target_type = "tests"
         
         # Determine compilers and modes to test
         compilers = ["gcc", "clang", "intel", "msvc"] if compiler_arg == "all" else [compiler_arg]
         modes = ["debug", "release"] if mode_arg == "all" else [mode_arg]
         
         echo_header("=" * 60)
-        echo_header(f"  BENCHMARK EXECUTION: {type_name}_{feature}_benchs")
+        echo_header(f"  EXECUTION: {type_name}_{feature}_{target_type}")
         echo_header("=" * 60)
         print()
         
@@ -280,9 +292,22 @@ def main():
             results[compiler] = {}
             
             for mode in modes:
-                exe_name = f"{type_name}_{feature}_benchs_{compiler}"
-                if compiler == "msvc":
-                    exe_name += ".exe"
+                if is_benchmark:
+                    exe_name = f"{type_name}_{feature}_benchs_{compiler}"
+                else:
+                    # For tests, the naming pattern is different
+                    # Check which test file pattern exists
+                    if test_file_found.name.startswith("test_param_"):
+                        exe_name = f"test_param_{feature}_{compiler}"
+                    elif test_file_found.name.startswith("test_"):
+                        exe_name = f"test_{feature}_{compiler}"
+                    else:
+                        exe_name = f"{type_name}_{feature}_tests_{compiler}"
+                
+                # Add .exe extension for Windows or MSVC/Intel
+                if sys.platform == "win32" or compiler in ["msvc", "intel"]:
+                    if not exe_name.endswith(".exe"):
+                        exe_name += ".exe"
                 
                 exe_path = build_dir / compiler / mode / exe_name
                 
