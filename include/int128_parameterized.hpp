@@ -24,13 +24,16 @@
 #ifndef INT128_PARAMETERIZED_HPP
 #define INT128_PARAMETERIZED_HPP
 
-#include "representation.hpp"
+// Include standard library headers first
 #include <cstdint>
 #include <limits>
 #include <string>
 #include <array>
 #include <bitset>
 #include <stdexcept>
+
+// Then include project headers
+#include "representation.hpp"
 
 // Include intrinsics for optimized operations (optional, fallback available)
 #if __has_include("intrinsics/arithmetic_operations.hpp")
