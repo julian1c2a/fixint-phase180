@@ -276,13 +276,17 @@ def main():
                 if is_benchmark:
                     exe_name = f"{type_name}_{feature}_benchs_{compiler}"
                 else:
-                    # For tests, the naming pattern is different
-                    # Check which test file pattern exists
-                    if test_file_found.name.startswith("test_param_"):
+                    # For tests, determine executable name from source file pattern
+                    # Try multiple naming patterns
+                    param_file = tests_dir / f"test_param_{feature}.cpp"
+                    direct_file = tests_dir / f"test_{feature}.cpp"
+                    
+                    if param_file.exists():
                         exe_name = f"test_param_{feature}_{compiler}"
-                    elif test_file_found.name.startswith("test_"):
+                    elif direct_file.exists():
                         exe_name = f"test_{feature}_{compiler}"
                     else:
+                        # Fallback to legacy pattern
                         exe_name = f"{type_name}_{feature}_tests_{compiler}"
                 
                 # Add .exe extension for Windows or MSVC/Intel
