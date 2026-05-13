@@ -1,0 +1,7 @@
+# .aider.conf.yml
+
+# Habilita el caching de prompts (Vital para Claude 3.5 Sonnet)
+cache-prompts: true
+
+# Opcional: Si quieres forzar que siempre use el modelo que soporta caching bien
+model: sonnet

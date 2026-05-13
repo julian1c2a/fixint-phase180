@@ -4,6 +4,7 @@ build_*/
 cmake-build-debug/
 cmake-build-release/
 .build/
+.env
 
 # Legacy code (read-only reference from other phases)
 legacy-code/
