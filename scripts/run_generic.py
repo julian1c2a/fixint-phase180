@@ -181,6 +181,7 @@ def main():
     
     # Configuration
     project_root = Path(__file__).parent.parent
+    tests_dir = project_root / "tests"
     
     if is_demo:
         # Demos syntax: demos <category> <demo_name> [compiler] [mode] [args...]
@@ -246,11 +247,19 @@ def main():
             print("Error: TYPE debe ser 'uint128' o 'int128'")
             sys.exit(1)
         
-        valid_features = ["t", "tt", "traits", "limits", "concepts", "algorithms", "iostreams",
-                          "bits", "cmath", "numeric", "ranges", "format", "safe",
-                          "thread_safety", "comparison_boost", "interop"]
-        if feature not in valid_features:
-            print(f"Error: FEATURE debe ser uno de: {', '.join(valid_features)}")
+        # Validate that the feature has a corresponding test file
+        # Try multiple naming patterns
+        test_patterns = [
+            tests_dir / f"test_param_{feature}.cpp",
+            tests_dir / f"test_{feature}.cpp",
+            tests_dir / f"{type_name}_{feature}_extracted_tests.cpp"
+        ]
+        
+        test_file_exists = any(p.exists() for p in test_patterns)
+        
+        if not test_file_exists:
+            echo_error(f"No se encontró archivo de test para feature '{feature}'")
+            echo_info(f"  Intentado: {', '.join(str(p) for p in test_patterns)}")
             sys.exit(1)
         
         build_dir = project_root / "build" / "build_benchs"
