@@ -212,6 +212,58 @@ static void test_truncation_and_chain()
 }
 
 // =============================================================================
+// Section 9: int128 → float direction (static_cast to double/long double)
+// =============================================================================
+static void test_to_float()
+{
+    std::cout << "\n--- Section 9: to_double / to_long_double ---\n";
+
+    // to_double
+    { const uint128_t x{0, 100};
+      TEST("to_double 100",     std::abs(static_cast<double>(x) - 100.0)   < 0.001); }
+
+    { const uint128_t x{0, ~0ULL};
+      TEST("to_double 2^64-1 approx", static_cast<double>(x) > 1.8e19); }
+
+    { const uint128_t x{1, 0};
+      TEST("to_double 2^64 approx",
+           std::abs(static_cast<double>(x) - 18446744073709551616.0) < 1.0); }
+
+    { const int128_tc_t x{-100};
+      TEST("to_double -100",    std::abs(static_cast<double>(x) - (-100.0)) < 0.001); }
+
+    // to_long_double
+    { const uint128_t x{0, 1000};
+      TEST("to_long_double 1000",
+           std::abs(static_cast<double>(static_cast<long double>(x)) - 1000.0)   < 0.001); }
+
+    { const int128_tc_t x{-1000};
+      TEST("to_long_double -1000",
+           std::abs(static_cast<double>(static_cast<long double>(x)) - (-1000.0)) < 0.001); }
+
+    // Round-trips: int128 → double → int128
+    { const uint128_t orig{0, 12345};
+      const uint128_t back{static_cast<double>(orig)};
+      TEST("roundtrip to_double 12345", back == orig); }
+
+    { const int128_tc_t orig{-12345};
+      const double d{static_cast<double>(orig)};
+      const int128_tc_t back{d};
+      const double back_d{static_cast<double>(back)};
+      TEST("roundtrip to_double -12345", std::abs(back_d - d) < 0.001); }
+
+    // MS → double preserves sign
+    { int128_ms_t x{0, 0}; x.set_high(1ULL << 63); x.set_low(42);
+      TEST("to_double ms_negative == -42",
+           std::abs(static_cast<double>(x) - (-42.0)) < 0.001); }
+
+    // from_double MS: sign bit set, magnitude correct
+    { const int128_ms_t x{-100.0};
+      TEST("from_double ms -100 sign bit", (x.high() & (1ULL << 63)) != 0);
+      TEST("from_double ms -100 low==100",  x.low() == 100); }
+}
+
+// =============================================================================
 // main
 // =============================================================================
 int main()
@@ -228,6 +280,7 @@ int main()
     test_special_values();
     test_ek_specific();
     test_truncation_and_chain();
+    test_to_float();
 
     std::cout << "\n================================================================\n";
     std::cout << "  RESULTS: " << g_passed << " passed, " << g_failed << " failed\n";

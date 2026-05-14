@@ -757,6 +757,91 @@ static void test_signed_edge_cases()
 }
 
 // ============================================================================
+//  GROUP 11: Setters & Type Traits
+// ============================================================================
+static void test_setters_and_type_traits()
+{
+    std::cout << "\n[Group 11] Setters & Type Traits:\n";
+
+    // Default constructor
+    {
+        const uint128_t x{};
+        TEST("default_ctor_is_zero",
+             x.is_zero() && x.high() == 0 && x.low() == 0);
+    }
+    // set_high()
+    {
+        uint128_t x{1, 2};
+        x.set_high(0xFF);
+        TEST("set_high_preserves_low", x.high() == 0xFF && x.low() == 2);
+    }
+    // set_low()
+    {
+        uint128_t x{1, 2};
+        x.set_low(0xAA);
+        TEST("set_low_preserves_high", x.low() == 0xAA && x.high() == 1);
+    }
+    // Type traits: sign
+    TEST("uint128_sign_unsigned", uint128_t::sign == signedness::unsigned_type);
+    TEST("int128_sign_signed",    int128_tc_t::sign == signedness::signed_type);
+    // Type traits: form
+    TEST("uint128_form_binnat",           uint128_t::form   == representation_form::binnat);
+    TEST("int128_form_twos_complement",   int128_tc_t::form == representation_form::twos_complement);
+    TEST("int128_ek_form_excess_k",       int128_ek_t::form == representation_form::excess_k);
+    // Type traits: is_signed
+    TEST("uint128_not_is_signed", !uint128_t::is_signed);
+    TEST("int128_is_signed",       int128_tc_t::is_signed);
+    TEST("int128_ek_is_signed",    int128_ek_t::is_signed);
+    // is_excess_k trait
+    TEST("int128_ek_is_excess_k",  int128_ek_t::is_excess_k);
+}
+
+// ============================================================================
+//  GROUP 12: Extended Bitwise/Shift (DeMorgan, shift >= 128)
+// ============================================================================
+static void test_extended_shift_bitwise()
+{
+    std::cout << "\n[Group 12] Extended Bitwise/Shift:\n";
+
+    // DeMorgan: ~(a & b) == ~a | ~b
+    {
+        const uint128_t a{0, 0x0F0F0F0FULL};
+        const uint128_t b{0, 0xF0F0F0F0ULL};
+        TEST("demorgan_and_or", ~(a & b) == (~a | ~b));
+        TEST("demorgan_or_and", ~(a | b) == (~a & ~b));
+    }
+    // Double NOT: ~~x == x
+    {
+        const uint128_t x{0xDEAD, 0xBEEF};
+        TEST("double_not_identity", ~~x == x);
+    }
+    // Left shift >= 128 yields zero (unsigned)
+    {
+        const uint128_t x{1};
+        TEST("u_shl_128_zero", (x << 128) == uint128_t{0});
+        TEST("u_shl_200_zero", (x << 200) == uint128_t{0});
+    }
+    // Right shift >= 128 yields zero (unsigned)
+    {
+        const uint128_t x{~0ULL, ~0ULL};
+        TEST("u_shr_128_zero", (x >> 128) == uint128_t{0});
+    }
+    // Right shift >= 128 for signed TC: result is 0 or -1 (sign-fill)
+    {
+        const int128_tc_t sx{-1};
+        const int128_tc_t r = sx >> 128;
+        TEST("tc_shr_128_zero_or_neg1",
+             r == int128_tc_t{0} || r == int128_tc_t{-1});
+    }
+    // Shift by short and int types
+    {
+        const int128_tc_t x{8};
+        TEST("shift_by_short", (x >> static_cast<short>(1)) == int128_tc_t{4});
+        TEST("shift_by_int",   (x << static_cast<int>(1))   == int128_tc_t{16});
+    }
+}
+
+// ============================================================================
 //  MAIN
 // ============================================================================
 int main()
@@ -775,6 +860,8 @@ int main()
     test_conversions();
     test_edge_cases();
     test_signed_edge_cases();
+    test_setters_and_type_traits();
+    test_extended_shift_bitwise();
 
     std::cout << "\n====================================================================\n";
     std::cout << "Results: Passed: " << g_passed << ", Failed: " << g_failed

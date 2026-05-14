@@ -82,6 +82,27 @@ static void test_info_methods()
         const uint64_t expected = static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) + 1ULL;
         TEST("abs(int64_min).low()==2^63", v.abs().low() == expected);
     }
+
+    // get_sign: +1 for positive, -1 for negative
+    {
+        const ms_t pos{42};
+        const ms_t neg{-42};
+        TEST("get_sign positive == +1", pos.get_sign() == 1);
+        TEST("get_sign negative == -1", neg.get_sign() == -1);
+        // Negation flips sign
+        const ms_t neg_of_pos = -pos;
+        TEST("negation flips sign", neg_of_pos.get_sign() == -1 && !pos.is_negative());
+    }
+
+    // abs via raw bit manipulation (sign bit set manually)
+    {
+        ms_t raw{0, 0};
+        raw.set_high(1ULL << 63);
+        raw.set_low(42);
+        const auto a = raw.abs();
+        TEST("abs raw sign+mag42 low==42",  a.low()  == 42);
+        TEST("abs raw sign+mag42 high==0",  a.high() == 0);
+    }
 }
 
 // =============================================================================
@@ -286,6 +307,52 @@ static void test_safe_arithmetic()
 }
 
 // =============================================================================
+// Section 8: MS-specific bitwise operators
+// =============================================================================
+static void test_ms_bitwise()
+{
+    std::cout << "\n--- Section 8: MS Bitwise ---\n";
+
+    // AND of two positives: result is non-negative
+    { const ms_t a{15}, b{7}; TEST("ms & two positives non-negative", !(a & b).is_negative()); }
+    // OR of two positives: result is non-negative
+    { const ms_t a{8}, b{4};  TEST("ms | two positives non-negative", !(a | b).is_negative()); }
+    // NOT changes value
+    { const ms_t x{42}; TEST("ms not changes value", ~x != x); }
+    // DeMorgan on MS
+    { const ms_t a{0x0F}, b{0xF0};
+      TEST("ms demorgan ~(a&b)==~a|~b", ~(a & b) == (~a | ~b)); }
+    // XOR self = zero
+    { const ms_t a{0x55};
+      TEST("ms xor self all bits zero", (a ^ a) == ms_t{0}); }
+}
+
+// =============================================================================
+// Section 9: MS-specific shift operators
+// =============================================================================
+static void test_ms_shifts()
+{
+    std::cout << "\n--- Section 9: MS Shifts ---\n";
+
+    // Left shift positive: sign preserved
+    { const ms_t x{5};   TEST("ms shl pos sign preserved", !(x << 1).is_negative()); }
+    // Left shift negative: sign preserved
+    { const ms_t x{-5};  TEST("ms shl neg sign preserved",  (x << 1).is_negative()); }
+    // Right shift positive: sign preserved
+    { const ms_t x{20};  TEST("ms shr pos sign preserved", !(x >> 1).is_negative()); }
+    // Right shift negative: sign preserved
+    { const ms_t x{-20}; TEST("ms shr neg sign preserved",  (x >> 1).is_negative()); }
+    // Shift by 0 is identity
+    { const ms_t x{42};
+      TEST("ms shl 0 identity", (x << 0) == x);
+      TEST("ms shr 0 identity", (x >> 0) == x); }
+    // Shift zero value is still zero
+    { const ms_t z{0};
+      TEST("ms shl zero stays zero", (z << 4) == ms_t{0});
+      TEST("ms shr zero stays zero", (z >> 4) == ms_t{0}); }
+}
+
+// =============================================================================
 // main
 // =============================================================================
 int main()
@@ -301,6 +368,8 @@ int main()
     test_multiplication_large();
     test_division();
     test_safe_arithmetic();
+    test_ms_bitwise();
+    test_ms_shifts();
 
     std::cout << "\n================================================================\n";
     std::cout << "  RESULTS: " << g_passed << " passed, " << g_failed << " failed\n";
