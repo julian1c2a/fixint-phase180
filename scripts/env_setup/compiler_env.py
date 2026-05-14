@@ -63,6 +63,8 @@ class CompilerEnvironment:
             self._env = self._get_msvc_env()
         elif self.compiler_name == "intel":
             self._env = self._get_intel_env()
+        elif self.compiler_name == "gcc":
+            self._env = self._get_gcc_env()
         else:
             self._env = os.environ.copy()
 
@@ -90,6 +92,19 @@ class CompilerEnvironment:
         elif self.compiler_name == "clang":
             return "clang++"
         return ""
+
+    def _get_gcc_env(self) -> dict:
+        """Get GCC environment with ucrt64 bin prepended to PATH.
+
+        Git's mingw64/bin ships an older libstdc++-6.dll that lacks std::format
+        entry points. Without this fix, Windows picks that DLL first and GCC
+        binaries exit with 0xC0000139 (STATUS_ENTRYPOINT_NOT_FOUND).
+        """
+        env = os.environ.copy()
+        ucrt64_bin = r"C:\msys64\ucrt64\bin"
+        if Path(ucrt64_bin).exists():
+            env["PATH"] = ucrt64_bin + os.pathsep + env.get("PATH", "")
+        return env
 
     def _get_msvc_env(self) -> dict:
         """Get MSVC environment by running vcvarsall.bat x64."""
