@@ -93,14 +93,29 @@ def echo_warning(msg: str):
     print(f"{Colors.YELLOW}[WARN] {msg}{Colors.NC}")
 
 
+def find_bash() -> str:
+    """Encuentra un bash funcional en Windows (MSYS2 > Git Bash > sistema)."""
+    if sys.platform == "win32":
+        candidates = [
+            r"C:\msys64\usr\bin\bash.exe",
+            r"C:\msys64\bin\bash.exe",
+            r"C:\Program Files\Git\usr\bin\bash.exe",
+            r"C:\Program Files (x86)\Git\usr\bin\bash.exe",
+        ]
+        for path in candidates:
+            if Path(path).exists():
+                return path
+    return "bash"
+
+
 def run_script(script_name: str, args: List[str]) -> int:
     """Ejecuta un script Python de scripts/"""
     script_path = SCRIPTS_DIR / script_name
-    
+
     if not script_path.exists():
         echo_error(f"Script no encontrado: {script_path}")
         return 1
-    
+
     cmd = [sys.executable, str(script_path)] + args
     result = subprocess.run(cmd, cwd=PROJECT_ROOT)
     return result.returncode
@@ -541,7 +556,7 @@ def cmd_sanitize(args: argparse.Namespace) -> int:
         echo_error(f"Script no encontrado: {script_path}")
         return 1
     
-    cmd = ["bash", str(script_path), type_name, feature, target, compiler, sanitizer]
+    cmd = [find_bash(), str(script_path), type_name, feature, target, compiler, sanitizer]
     result = subprocess.run(cmd, cwd=PROJECT_ROOT)
     return result.returncode
 
@@ -566,7 +581,7 @@ def cmd_analyze(args: argparse.Namespace) -> int:
         echo_error(f"Script no encontrado: {script_path}")
         return 1
     
-    cmd = ["bash", str(script_path), tool, target]
+    cmd = [find_bash(), str(script_path), tool, target]
     result = subprocess.run(cmd, cwd=PROJECT_ROOT)
     return result.returncode
 
@@ -587,13 +602,34 @@ def cmd_compare(args: argparse.Namespace) -> int:
     echo_info(f"Iteraciones:  {iterations}")
     print()
     
+    # Resolver ruta real del compilador para evitar colisiones de nombre en PATH
+    sys.path.insert(0, str(SCRIPTS_DIR))
+    from env_setup.compiler_env import CompilerEnvironment
+    cxx = CompilerEnvironment(compiler).get_compiler_cmd()
+
+    # Convertir ruta Windows a formato MSYS2 para que bash la ejecute correctamente
+    if sys.platform == "win32" and cxx and '\\' in cxx:
+        cygpath = Path(r"C:\msys64\usr\bin\cygpath.exe")
+        if cygpath.exists():
+            cp = subprocess.run([str(cygpath), "-u", cxx], capture_output=True, text=True)
+            if cp.returncode == 0:
+                cxx = cp.stdout.strip()
+        else:
+            # Conversión manual: C:\foo\bar → /c/foo/bar
+            p = Path(cxx)
+            parts = list(p.parts)
+            if parts and len(parts[0]) >= 2 and parts[0][1] == ':':
+                drive = parts[0][0].lower()
+                rest = '/'.join(parts[1:]).replace('\\', '/')
+                cxx = f'/{drive}/{rest}'
+
     # Ejecutar script bash
     script_path = SCRIPTS_DIR / "benchmark_comparison.bash"
     if not script_path.exists():
         echo_error(f"Script no encontrado: {script_path}")
         return 1
-    
-    cmd = ["bash", str(script_path), compiler, mode, iterations]
+
+    cmd = [find_bash(), str(script_path), compiler, mode, iterations, cxx]
     result = subprocess.run(cmd, cwd=PROJECT_ROOT)
     return result.returncode
 

@@ -33,6 +33,7 @@ NC='\033[0m'
 COMPILER="${1:-gcc}"
 MODE="${2:-release-O3}"
 ITERATIONS="${3:-100000}"
+CXX_OVERRIDE="${4:-}"   # ruta explícita al compilador (pasada desde make.py)
 
 # Directorio del proyecto
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -94,7 +95,7 @@ create_benchmark_source() {
 #include <cstdint>
 
 // Este proyecto
-#include "int128_base_tt.hpp"
+#include "int128_parameterized.hpp"
 
 // Boost (si está disponible)
 #ifdef HAS_BOOST
@@ -161,8 +162,8 @@ void print_footer() {
 // --- Addition ---
 template<typename T>
 BenchResult bench_addition(const std::string& name) {
-    T a{12345678901234567890ULL};
-    T b{98765432109876543210ULL};
+    T a = static_cast<T>(1000000000000000001ULL);
+    T b = static_cast<T>(2000000000000000003ULL);
     T result{0};
     
     // Warmup
@@ -205,8 +206,8 @@ BenchResult bench_multiplication(const std::string& name) {
 // --- Division ---
 template<typename T>
 BenchResult bench_division(const std::string& name) {
-    T a{12345678901234567890ULL};
-    T b{12345ULL};
+    T a = static_cast<T>(1000000000000000001ULL);
+    T b = static_cast<T>(12345ULL);
     T result{0};
     
     for (size_t i = 0; i < WARMUP; ++i) {
@@ -226,8 +227,8 @@ BenchResult bench_division(const std::string& name) {
 // --- Bitwise XOR ---
 template<typename T>
 BenchResult bench_xor(const std::string& name) {
-    T a{0xDEADBEEFDEADBEEFULL};
-    T b{0xCAFEBABECAFEBABEULL};
+    T a = static_cast<T>(0x5EADBEEF5EADBEEFULL);
+    T b = static_cast<T>(0x4AFEBABE4AFEBABEULL);
     T result{0};
     
     for (size_t i = 0; i < WARMUP; ++i) {
@@ -247,8 +248,8 @@ BenchResult bench_xor(const std::string& name) {
 // --- Comparison ---
 template<typename T>
 BenchResult bench_comparison(const std::string& name) {
-    T a{12345678901234567890ULL};
-    T b{12345678901234567891ULL};
+    T a = static_cast<T>(1000000000000000001ULL);
+    T b = static_cast<T>(1000000000000000002ULL);
     volatile bool result = false;
     
     for (size_t i = 0; i < WARMUP; ++i) {
@@ -276,39 +277,22 @@ int main() {
     std::cout << "  Iteraciones: " << ITERATIONS << "\n";
     std::cout << "  Warmup:      " << WARMUP << "\n";
     std::cout << "============================================================\n";
-    
-    std::vector<BenchResult> results;
-    
+
     // =========================================================================
     // ADDITION
     // =========================================================================
     std::cout << "\n[1/5] Benchmark: Addition (+)\n";
     print_header();
-    
-    // Builtin integers (baseline)
-    auto r = bench_addition<uint8_t>("uint8_t");
+
+    auto r = bench_addition<uint64_t>("uint64_t (baseline)");
     print_result(r);
-    r = bench_addition<uint16_t>("uint16_t");
+    r = bench_addition<int64_t>("int64_t (baseline)");
     print_result(r);
-    r = bench_addition<uint32_t>("uint32_t");
-    print_result(r);
-    r = bench_addition<uint64_t>("uint64_t");
-    print_result(r);
-    r = bench_addition<int8_t>("int8_t");
-    print_result(r);
-    r = bench_addition<int16_t>("int16_t");
-    print_result(r);
-    r = bench_addition<int32_t>("int32_t");
-    print_result(r);
-    r = bench_addition<int64_t>("int64_t");
-    print_result(r);
-    
-    // Este proyecto
     r = bench_addition<uint128_t>("nstd::uint128_t");
     print_result(r);
     r = bench_addition<int128_t>("nstd::int128_t");
     print_result(r);
-    
+
 #ifdef HAS_BUILTIN_INT128
     r = bench_addition<unsigned __int128>("unsigned __int128");
     print_result(r);
@@ -320,65 +304,51 @@ int main() {
     r = bench_addition<bmp::uint128_t>("boost::uint128_t");
     print_result(r);
 #endif
-    
+
     print_footer();
-    
-    // ==========================8_t>("uint8_t");
+
+    // =========================================================================
+    // MULTIPLICATION
+    // =========================================================================
+    std::cout << "\n[2/5] Benchmark: Multiplication (*)\n";
+    print_header();
+
+    r = bench_multiplication<uint64_t>("uint64_t (baseline)");
     print_result(r);
-    r = bench_multiplication<uint16_t>("uint16_t");
+    r = bench_multiplication<int64_t>("int64_t (baseline)");
     print_result(r);
-    r = bench_multiplication<uint32_t>("uint32_t");
-    print_result(r);
-    r = bench_multiplication<uint64_t>("uint64_t");
-    print_result(r);
-    r = bench_multiplication<int64_t>("int64_t");
-    print_result(r);
-    
     r = bench_multiplication<uint128_t>("nstd::uint128_t");
     print_result(r);
     r = bench_multiplication<int128_t>("nstd::int128_t");
     print_result(r);
-    
+
 #ifdef HAS_BUILTIN_INT128
     r = bench_multiplication<unsigned __int128>("unsigned __int128");
     print_result(r);
-    r = bench_multiplication<__int128>("
-    
-    r = bench_multiplication<uint128_t>("nstd::uint128_t");
-    print_result(r);
-    
-#ifdef HAS_BUILTIN_INT128
-    r = bench_multiplication<unsigned __int128>("unsigned __int128");
+    r = bench_multiplication<__int128>("__int128");
     print_result(r);
 #endif
 
 #ifdef HAS_BOOST
-    r = bench_multiplicatio32_t>("uint32_t");
+    r = bench_multiplication<bmp::uint128_t>("boost::uint128_t");
     print_result(r);
-    r = bench_division<uint64_t>("uint64_t");
+#endif
+
+    print_footer();
+
+    // =========================================================================
+    // DIVISION
+    // =========================================================================
+    std::cout << "\n[3/5] Benchmark: Division (/)\n";
+    print_header();
+
+    r = bench_division<uint64_t>("uint64_t (baseline)");
     print_result(r);
-    r = bench_division<int64_t>("int64_t");
-    print_result(r);
-    
     r = bench_division<uint128_t>("nstd::uint128_t");
     print_result(r);
     r = bench_division<int128_t>("nstd::int128_t");
     print_result(r);
-    
-#ifdef HAS_BUILTIN_INT128
-    r = bench_division<unsigned __int128>("unsigned __int128");
-    print_result(r);
-    r = bench_division<__int128>("
-    // =========================================================================
-    std::cout << "\n[3/5] Benchmark: Division (/)\n";
-    print_header();
-    
-    r = bench_division<uint64_t>("uint64_t (baseline)");
-    print_result(r);
-    
-    r = bench_division<uint128_t>("nstd::uint128_t");
-    print_result(r);
-    
+
 #ifdef HAS_BUILTIN_INT128
     r = bench_division<unsigned __int128>("unsigned __int128");
     print_result(r);
@@ -388,59 +358,47 @@ int main() {
     r = bench_division<bmp::uint128_t>("boost::uint128_t");
     print_result(r);
 #endif
-    
-    print_footer();32_t>("uint32_t");
+
+    print_footer();
+
+    // =========================================================================
+    // BITWISE XOR
+    // =========================================================================
+    std::cout << "\n[4/5] Benchmark: Bitwise XOR (^)\n";
+    print_header();
+
+    r = bench_xor<uint64_t>("uint64_t (baseline)");
     print_result(r);
-    r = bench_xor<uint64_t>("uint64_t");
-    print_result(r);
-    
     r = bench_xor<uint128_t>("nstd::uint128_t");
     print_result(r);
     r = bench_xor<int128_t>("nstd::int128_t");
     print_result(r);
-    
-#ifdef HAS_BUILTIN_INT128
-    r = bench_xor<unsigned __int128>("unsigned __int128");
-    print_result(r);
-    r = bench_xor<__int128>("
-    r = bench_xor<uint64_t>("uint64_t (baseline)");
-    print_result(r);
-    
-    r = bench_xor<uint128_t>("nstd::uint128_t");
-    print_result(r);
-    
+
 #ifdef HAS_BUILTIN_INT128
     r = bench_xor<unsigned __int128>("unsigned __int128");
     print_result(r);
 #endif
-32_t>("uint32_t");
+
+#ifdef HAS_BOOST
+    r = bench_xor<bmp::uint128_t>("boost::uint128_t");
     print_result(r);
-    r = bench_comparison<uint64_t>("uint64_t");
-    print_result(r);
-    r = bench_comparison<int64_t>("int64_t");
-    print_result(r);
-    
-    r = bench_comparison<uint128_t>("nstd::uint128_t");
-    print_result(r);
-    r = bench_comparison<int128_t>("nstd::int128_t");
-    print_result(r);
-    
-#ifdef HAS_BUILTIN_INT128
-    r = bench_comparison<unsigned __int128>("unsigned __int128");
-    print_result(r);
-    r = bench_comparison<__int128>("
+#endif
+
+    print_footer();
+
     // =========================================================================
     // COMPARISON
     // =========================================================================
     std::cout << "\n[5/5] Benchmark: Comparison (<)\n";
     print_header();
-    
+
     r = bench_comparison<uint64_t>("uint64_t (baseline)");
     print_result(r);
-    
     r = bench_comparison<uint128_t>("nstd::uint128_t");
     print_result(r);
-    
+    r = bench_comparison<int128_t>("nstd::int128_t");
+    print_result(r);
+
 #ifdef HAS_BUILTIN_INT128
     r = bench_comparison<unsigned __int128>("unsigned __int128");
     print_result(r);
@@ -450,13 +408,13 @@ int main() {
     r = bench_comparison<bmp::uint128_t>("boost::uint128_t");
     print_result(r);
 #endif
-    
+
     print_footer();
-    
+
     std::cout << "\n============================================================\n";
     std::cout << "  BENCHMARK COMPLETADO\n";
     std::cout << "============================================================\n";
-    
+
     return 0;
 }
 BENCHMARK_EOF
@@ -490,8 +448,12 @@ create_benchmark_source
 
 # Compilar
 MODE_FLAGS=$(get_mode_flags "$MODE")
-COMPILER_CMD="g++"
-[[ "$COMPILER" == "clang" ]] && COMPILER_CMD="clang++"
+if [[ -n "$CXX_OVERRIDE" ]]; then
+    COMPILER_CMD="$CXX_OVERRIDE"
+else
+    COMPILER_CMD="g++"
+    [[ "$COMPILER" == "clang" ]] && COMPILER_CMD="clang++"
+fi
 
 DEFINES=""
 [[ $HAS_BOOST -eq 1 ]] && DEFINES="-DHAS_BOOST"
