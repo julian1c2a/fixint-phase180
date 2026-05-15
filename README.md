@@ -532,9 +532,9 @@ Progreso evaluado contra los 12 objetivos y 9 etapas definidos en [`AI_PROMPT/GE
 | # | Objetivo | Estado | Notas |
 |---|----------|--------|-------|
 | 1 | Tipo entero 128-bit similar a nativos | ✅ Conseguido | `int128_param_t` con operadores completos, 0.47x vs uint64_t |
-| 2 | Portabilidad absoluta | ✅ Conseguido | 11 compiladores (GCC 13-15, Clang 18-21, MSVC 2022, Intel ICX). ARM64 nativo en CI; ARM32/RISC-V via QEMU |
+| 2 | Portabilidad absoluta | ✅ Conseguido | 11 compiladores (GCC 13-16, Clang 18-22, MSVC 2022/2026, Intel ICX). ARM64 nativo en CI; ARM32/RISC-V via QEMU |
 | 3 | Sentirse parte del lenguaje C++ | ✅ Conseguido | STL traits, numeric_limits, concepts, ranges, format, hash |
-| 4 | Compiladores + CI/CD | ✅ Conseguido | 11 compiladores validados. GitHub Actions: ci.yml (GCC/Clang/MSVC/Intel/ARM64/RISC-V/sanitizers), benchmarks.yml (semanal), release.yml (tags) |
+| 4 | Compiladores + CI/CD | ✅ Conseguido | GCC 13-16 + Clang 18-22 + MSVC + Intel ICX, todos en CI. ARM64 nativo, ARM32/RISC-V QEMU, sanitizers, cppcheck, clang-tidy |
 | 5 | Sanitizers + análisis estático | ✅ Conseguido | ASan/UBSan en CI. cppcheck + clang-tidy en CI (`.clang-tidy` configurado). GCov/LCOV descartado: los sweep tests (~455M checks) cubren esto empíricamente |
 | 6 | Tests unitarios + benchmarks | ✅ Conseguido | `test_param_*` (21) + `test_sweep_*` (9) + otros; 8 benchmarks; ~455M+ sweep checks |
 | 7 | Estructura clara y organizada | ✅ Conseguido | include/, tests/, benchs/, docs/, scripts/, debugging/ |
