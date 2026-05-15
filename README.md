@@ -216,7 +216,7 @@ int128-phase175/
 
 ## 🔬 Research Focus Areas
 
-### Phase 1.75.1 - Magnitude-Sign (Current)
+### Phase 1.75.1 - Magnitude-Sign ✅ Completado
 
 **Objective:** Implement and validate magnitude-sign representation
 
@@ -224,7 +224,7 @@ int128-phase175/
 
 - Separate sign bit (MSB) and magnitude (127 bits unsigned)
 - Range: [-2^127+1, 2^127-1]
-- Both +0 and -0 exist (distinct encodings)
+- Both +0 and -0 exist (distinct encodings, compare equal)
 - No hardware optimization (purely software)
 
 **Implementation Areas:**
@@ -237,13 +237,13 @@ int128-phase175/
 
 **Success Criteria:**
 
-- [ ] All basic operations implemented
-- [ ] Test suite: 100+ tests for magnitude-sign operations
-- [ ] Comparison with two's complement (correct semantics)
-- [ ] Documentation of representation differences
-- [ ] Demo showing practical use cases
+- [x] All basic operations implemented
+- [x] Test suite: 100+ tests for magnitude-sign operations — `test_param_ms.cpp` (107 tests, 12 sections)
+- [x] Comparison with two's complement (correct semantics) — cross-repr casts + ±0 → TC(0)
+- [x] Documentation of representation differences — `docs/API_parameterized.md`, `API_limits.md`, `API_concepts.md`
+- [x] Demo showing practical use cases — `demos/showcase/all_representations.cpp`, `demos/tutorials/02_signed_representations.cpp`
 
-### Phase 1.75.2 - Excess-k / Bias Notation (Future)
+### Phase 1.75.2 - Excess-k / Bias Notation ✅ Completado
 
 **Objective:** Implement bias-based representation for exponents
 
@@ -252,17 +252,13 @@ int128-phase175/
 - Value = stored_bits - bias
 - Typical bias: 2^(n-1) for n-bit field
 - Used in IEEE 754 exponents
-- All bits participate in value encoding
+- All bits participate in value encoding; `*`, `/`, `%` are `= delete` by design
 
-**Use Cases:**
-
-- Floating-point exponent representation
-- Self-adjoint matrix eigenvalues
-- Robust statistics (biased medians)
+**Status:** `test_param_ek.cpp` (100 tests, 12 sections) + `test_sweep_ek.cpp` (11 sweep tests, ~88M verifications)
 
 ### Phase 1.75.3 - IEEE 754 Floating Point Generalization (Future)
 
-**Objective:** Build 128-bit floating-point types using representations
+**Objective:** Build 128-bit floating-point types using the parameterized representations
 
 **Components:**
 
@@ -278,10 +274,13 @@ int128-phase175/
 
 | Compiler | Version | Platform | `__int128` | Status |
 |----------|---------|----------|-----------|--------|
-| GCC | 15.2.0 | MSYS2/ucrt64 | ✅ Yes | ✅ Fully validated |
-| Clang | 19.x | MSYS2/clang64 | ✅ Yes | ✅ Fully validated |
-| MSVC | 2026 (v19.50) | Visual Studio 18 | ❌ No | ✅ Phase 1 validated |
-| Intel ICX | 2025.3.0 | oneAPI | ✅ Yes | ✅ Phase 1 validated |
+| GCC | 13–16 | Linux (CI) / MSYS2 ucrt64 (local) | ✅ Yes | ✅ CI validated |
+| Clang | 18–22 | Linux (CI) / MSYS2 clang64 (local) | ✅ Yes | ✅ CI validated |
+| MSVC | 2022 (CI) / 2026 local | Windows | ❌ No | ✅ CI validated |
+| Intel ICX | 2025.x | Linux oneAPI (CI) | ✅ Yes | ✅ CI validated |
+| GCC (ARM64) | 14 | ubuntu-24.04-arm (CI) | ✅ Yes | ✅ CI native |
+| Clang (ARM64) | 19 | ubuntu-24.04-arm (CI) | ✅ Yes | ✅ CI native |
+| GCC (ARM32/RISC-V) | system | QEMU (CI) | ✅ Yes | ✅ CI cross+QEMU |
 
 ### Quick Start (GCC)
 
@@ -540,7 +539,7 @@ Progreso evaluado contra los 12 objetivos y 9 etapas definidos en [`AI_PROMPT/GE
 | 7 | Estructura clara y organizada | ✅ Conseguido | include/, tests/, benchs/, docs/, scripts/, debugging/ |
 | 8 | Build system con scripts Python | ✅ Conseguido | make.py unificado. CI/CD completo (.github/workflows/). |
 | 9 | Fácil de usar, compatible STL | ✅ Conseguido | Todos los operadores, conversiones, integración completa |
-| 10 | Base para precisión arbitraria | 🔄 En progreso | Template parametrizado Sign+Form. M&S operativo, EK operacional (100 tests) |
+| 10 | Base para precisión arbitraria | ✅ Conseguido | `int128_param_t<Sign,Form>` completo: binnat ✅, TC ✅, MS ✅, EK ✅ (100 tests + sweep). Extensión N×64-bit → Phase 1.80 |
 | 11 | Algoritmos optimizados documentados | ✅ Conseguido | Knuth D (6.24x), Granlund-Montgomery constexpr (4-7x), Karatsuba 128×128→256 |
 | 12 | Tipos decimales BCD | ⬜ No iniciado | Previsto para etapa posterior |
 

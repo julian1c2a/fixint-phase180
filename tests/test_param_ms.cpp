@@ -1,12 +1,14 @@
 // This is an open source non-commercial project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // =============================================================================
-// Test: Magnitude-Sign — info methods, casts, inc/dec, multiplication, division
+// Test: Magnitude-Sign — 107 tests across 12 sections
 // Part of int128 Library - Phase 1.75
 // License: BSL-1.0
 //
-// Consolidates: test_ms_storage, test_ms_multiplication,
-//               test_ms_ek_operators (MS portions of Groups 1, 2, 6)
+// Sections 1-9:  info methods, casts, inc/dec, multiplication, division,
+//                safe arithmetic, bitwise, shifts
+// Sections 10-12 (added v1.77): addition/subtraction, unary minus + ±0
+//                semantics, string I/O
 // =============================================================================
 
 #include "int128_parameterized.hpp"
@@ -353,12 +355,99 @@ static void test_ms_shifts()
 }
 
 // =============================================================================
+// Section 10: Addition and subtraction
+// =============================================================================
+static void test_add_sub()
+{
+    std::cout << "\n--- Section 10: Addition and subtraction ---\n";
+
+    // All four sign combinations
+    { const ms_t a{3},   b{4};   TEST("ms +: 3+4=7",          a + b == ms_t{7});   }
+    { const ms_t a{-3},  b{-4};  TEST("ms +: -3+(-4)=-7",     a + b == ms_t{-7});  }
+    { const ms_t a{10},  b{-4};  TEST("ms +: 10+(-4)=6",      a + b == ms_t{6});   }
+    { const ms_t a{-10}, b{4};   TEST("ms +: -10+4=-6",       a + b == ms_t{-6});  }
+
+    // Identity and self-cancellation
+    { const ms_t a{42};
+      TEST("ms add zero identity", a + ms_t{0LL} == a);
+      TEST("ms sub zero identity", a - ms_t{0LL} == a);
+      TEST("ms sub self is zero",  (a - a).is_zero()); }
+
+    // Commutativity and round-trip
+    { const ms_t a{12345LL}, b{-6789LL};
+      TEST("ms add commutativity",  a + b == b + a);
+      TEST("ms add/sub round-trip", (a + b) - b == a); }
+
+    // Cross-limb carry: UINT64_MAX + 1 must propagate into high word
+    { const ms_t a{0xFFFFFFFFFFFFFFFFULL}, one{1LL};
+      const ms_t r = a + one;
+      TEST("ms carry low->high: low==0",  r.low()  == 0ULL);
+      TEST("ms carry low->high: high==1", r.high() == 1ULL); }
+
+    // Subtraction producing negative
+    { const ms_t a{3LL}, b{10LL};
+      TEST("ms sub: 3-10=-7", a - b == ms_t{-7LL}); }
+}
+
+// =============================================================================
+// Section 11: Unary minus and ±0 semantics
+// =============================================================================
+static void test_unary_minus_and_zeros()
+{
+    std::cout << "\n--- Section 11: Unary minus and ±0 semantics ---\n";
+
+    // Basic unary minus behaviour
+    TEST("ms -ms(0) is zero",        (-ms_t{0LL}).is_zero());
+    TEST("ms -ms(42) is negative",   (-ms_t{42LL}).is_negative());
+    TEST("ms -ms(-42) not negative", !(-ms_t{-42LL}).is_negative());
+    TEST("ms double negation",       -(-ms_t{42LL}) == ms_t{42LL});
+
+    // a + (-a) == 0 for positive and negative
+    { const ms_t a{12345LL};
+      TEST("ms a+(-a)==0 positive", (a + (-a)).is_zero()); }
+    { const ms_t a{-12345LL};
+      TEST("ms a+(-a)==0 negative", (a + (-a)).is_zero()); }
+
+    // ±0: distinct bit patterns but must compare equal, and convert to TC(0)
+    { ms_t neg_zero{0LL};
+      neg_zero.set_high(neg_zero.high() | (1ULL << 63));   // set sign bit manually
+      TEST("ms +0 == -0",         ms_t{0LL} == neg_zero);
+      TEST("ms -0 to TC gives 0", static_cast<tc_t>(neg_zero) == tc_t{0LL}); }
+}
+
+// =============================================================================
+// Section 12: String I/O
+// =============================================================================
+static void test_string_io()
+{
+    std::cout << "\n--- Section 12: String I/O ---\n";
+
+    // to_string
+    TEST("ms to_string  42",   ms_t{42LL}.to_string()   == "42");
+    TEST("ms to_string -42",   ms_t{-42LL}.to_string()  == "-42");
+    TEST("ms to_string  0",    ms_t{0LL}.to_string()    == "0");
+
+    // from_string
+    TEST("ms from_string  42", ms_t::from_string("42")  == ms_t{42LL});
+    TEST("ms from_string -42", ms_t::from_string("-42") == ms_t{-42LL});
+    TEST("ms from_string  0",  ms_t::from_string("0")   == ms_t{0LL});
+
+    // Round-trips
+    { const ms_t orig{999999999LL};
+      TEST("ms round-trip positive", ms_t::from_string(orig.to_string()) == orig); }
+    { const ms_t orig{-999999999LL};
+      TEST("ms round-trip negative", ms_t::from_string(orig.to_string()) == orig); }
+    { const ms_t orig{std::numeric_limits<int64_t>::max()};
+      TEST("ms round-trip int64_max", ms_t::from_string(orig.to_string()) == orig); }
+}
+
+// =============================================================================
 // main
 // =============================================================================
 int main()
 {
     std::cout << "================================================================\n";
-    std::cout << "  test_param_ms: Magnitude-Sign info, casts, mul, div\n";
+    std::cout << "  test_param_ms: Magnitude-Sign (12 sections, 107 tests)\n";
     std::cout << "================================================================\n";
 
     test_info_methods();
@@ -370,6 +459,9 @@ int main()
     test_safe_arithmetic();
     test_ms_bitwise();
     test_ms_shifts();
+    test_add_sub();
+    test_unary_minus_and_zeros();
+    test_string_io();
 
     std::cout << "\n================================================================\n";
     std::cout << "  RESULTS: " << g_passed << " passed, " << g_failed << " failed\n";
