@@ -1,8 +1,8 @@
 # Phase 1.75 - Representation Forms Investigation
 
-> **Status:** ✅ **ALL 6 PHASES COMPLETE — 13 feature headers, 11 compilers — 65/65 tests pass**
+> **Status:** ✅ **ALL 6 PHASES COMPLETE — 13 feature headers, 11 compilers — all tests pass (v1.77)**
 > **Started:** 11 January 2026
-> **Last Updated:** 22 March 2026
+> **Last Updated:** 15 May 2026
 > **Objective:** Investigate different number representations for IEEE 754 floating-point generalization  
 > **Parent Project:** [int128-phase166](../int128-phase166/)
 
@@ -13,6 +13,19 @@
 This parallel project investigates **representation forms** for 128-bit integers beyond the standard two's complement used in Phase 1.66. The goal is to provide a foundation for understanding and implementing IEEE 754 floating-point generalizations.
 
 ### Latest Achievements ✅
+
+**v1.77 — Test Suite Consolidation (15 May 2026):**
+
+- **Oleadas 1-5:** 29 archivos standalone migrados al framework `test_param_*` unificado
+- **test_param_divmod.cpp:** 75 tests consolidan 8 archivos de división (Knuth D, GM, operadores)
+- **test_param_ek/ms/float/array/core_operators/friends/string_io:** nuevos archivos consolidados
+- **PATH fix:** `compiler_env.py` antepone `C:\msys64\ucrt64\bin` — evita GCC Cygwin desde PowerShell
+
+**v1.76 — GM→to_string + rt_mulhi_128 (13 May 2026):**
+
+- **GM Integration in to_string():** Reemplazadas ~105 líneas de código duplicado por `divmod_const<>`
+- **rt_mulhi_128:** 4 × MUL nativo en GCC/Clang/Intel vs 16 × 32-bit MUL — 1.8-2.2x speedup
+- **24/24 string tests** para `to_string()`/`from_string()` en todas las bases
 
 **Session 7 (22 March 2026):**
 
@@ -121,7 +134,7 @@ using int128_ek_t = int128_param_t<signed_type, excess_k>;          // Excess-k 
 - Cross-representation assignment operators and explicit conversion methods
 - String I/O methods
 - MS-specific utility methods
-- 65 test files (13 sweep framework tests)
+- Test suite: `test_param_*` (21 feature tests) + `test_sweep_*` (9 property-based tests) + otros
 
 ---
 
@@ -161,20 +174,38 @@ int128-phase175/
 │   ├── API_*.md                        # Feature module API (14 files)
 │   ├── PLAN_DIVMOD_CONSTEXPR.md        # Granlund-Montgomery plan
 │   └── PLAN_*.md                       # Other plans
-├── tests/                              # 65 test files
-│   ├── test_priority[1-11]_*.cpp       # Core feature tests
-│   ├── test_param_*.cpp               # Feature module tests
-│   ├── test_sweep_*.cpp               # Property-based sweep tests (13 files)
-│   ├── test_sweep_framework.hpp        # Sweep framework infrastructure
-│   ├── test_divmod_const.cpp           # GM constexpr 71/71 tests
-│   └── ...
-├── benchs/                             # 7 benchmarks + shared header
+├── tests/                              # Test suite unificado (v1.77)
+│   ├── test_param_algorithm.cpp        # STL algorithm integration
+│   ├── test_param_arithmetic.cpp       # Karatsuba, widening_mul
+│   ├── test_param_array.cpp            # Array/container usage
+│   ├── test_param_bits.cpp             # popcount, clz, ctz, rotl, rotr
+│   ├── test_param_cmath.cpp            # abs, fma, isqrt
+│   ├── test_param_concepts.cpp         # C++20 concepts
+│   ├── test_param_core_operators.cpp   # Bitwise, shift, bitops
+│   ├── test_param_divmod.cpp           # Division: Knuth D + GM (75 tests)
+│   ├── test_param_ek.cpp               # Excess-K representation
+│   ├── test_param_float.cpp            # Float assignment + constructors
+│   ├── test_param_format.cpp           # std::format full spec
+│   ├── test_param_friends.cpp          # Friend operator interop
+│   ├── test_param_iostreams.cpp        # Stream I/O
+│   ├── test_param_limits.cpp           # std::numeric_limits
+│   ├── test_param_ms.cpp               # Magnitude-Sign representation
+│   ├── test_param_numeric.cpp          # gcd, lcm, midpoint
+│   ├── test_param_ranges.cpp           # C++20 ranges
+│   ├── test_param_safe.cpp             # Overflow-checked arithmetic
+│   ├── test_param_string_io.cpp        # to_string / from_string
+│   ├── test_param_thread_safety.cpp    # Atomic / concurrent access
+│   ├── test_param_traits.cpp           # STL type_traits
+│   ├── test_sweep_*.cpp                # 9 property-based sweep tests (~455M+ checks)
+│   ├── test_sweep_framework.hpp        # Sweep infrastructure
+│   └── test_*.cpp                      # Otros tests de cobertura e intrinsics
+├── benchs/                             # 8 benchmarks + shared header
 │   ├── bench_common.hpp                # RDTSC infrastructure
+│   ├── bench_divmod_performance.cpp    # Division performance (RDTSC)
 │   ├── benchmark_addsub.cpp            # Add/sub vs __int128
-│   ├── benchmark_divmod_const.cpp      # GM vs Knuth D vs handcoded
+│   ├── benchmark_divmod_const.cpp      # GM vs Knuth D
 │   ├── benchmark_divmod_algorithms.cpp # Knuth D vs Binary
-│   ├── benchmark_vs_builtin.cpp        # nstd vs builtin/Boost
-│   └── ...
+│   └── benchmark_vs_builtin.cpp        # nstd vs builtin/Boost
 ├── demos/                              # 6 demos in 3 categories
 ├── .github/
 │   └── copilot-instructions.md         # AI agent instructions
@@ -258,15 +289,15 @@ int128-phase175/
 cd int128-phase175
 
 # Compile a test
-g++ -std=c++20 -O2 -Iinclude tests/test_knuth_d_correctness.cpp -o build_temp/test_knuth.exe
-./build_temp/test_knuth.exe
+g++ -std=c++20 -O2 -Iinclude tests/test_param_divmod.cpp -o build_temp/test_divmod.exe
+./build_temp/test_divmod.exe
 
 # Compile benchmark (requires libgmp, libtommath)
 g++ -std=c++20 -O2 -Iinclude benchs/benchmark_vs_builtin.cpp -lgmp -ltommath -o build_temp/bench.exe
 ./build_temp/bench.exe
 
-# Run all priority tests
-for f in tests/test_priority*.cpp; do
+# Run all param tests
+for f in tests/test_param_*.cpp; do
     g++ -std=c++20 -O2 -Iinclude "$f" -o build_temp/test.exe && ./build_temp/test.exe
 done
 ```
@@ -411,15 +442,16 @@ Phase 1.66 (Stable)
 - [x] **API Reference:** 15 cppreference-style docs (~300 public symbols)
 - [x] **Session 5:** Karatsuba API, std::format full spec, std::hash, benchmarks
 - [x] **Session 6:** Granlund-Montgomery constexpr division (4-7x faster, 71/71 tests)
-- [x] **Session 7:** A1 sub/add optimization, A2 4-compiler benchmarks, A4 sweep migration (65/65)
+- [x] **Session 7:** A1 sub/add optimization, A2 4-compiler benchmarks, A4 sweep migration
+- [x] **v1.76:** GM integrado en `to_string()` — reemplaza ~105 líneas duplicadas; `rt_mulhi_128` 1.8-2.2x speedup
+- [x] **v1.77:** Test suite consolidado — 29 archivos standalone → framework `test_param_*` unificado
 
 ### Next Up
 
-- [ ] **Integrate GM into to_string():** Replace `fast_divmod10` with `divmod_const<10>()`
-- [ ] **Add mulhi128 intrinsics:** Fast path for GM division (×2 speedup potential)
-- [ ] **BCD Decimal Types:** BCD128 prototype for binary-coded decimal arithmetic
-- [ ] **Phase 1.80:** N*64-bit generalization (arbitrary width integers)
+- [ ] **BCD Decimal Types:** BCD128 prototype para aritmética decimal (previsto en Phase 1.80)
+- [ ] **Phase 1.80:** Generalización N×64-bit (enteros de ancho arbitrario)
 - [ ] **CI/CD:** GitHub Actions pipeline
+- [ ] **ARM/RISC-V:** Validación en arquitecturas adicionales
 
 ---
 
@@ -504,7 +536,7 @@ Progreso evaluado contra los 12 objetivos y 9 etapas definidos en [`AI_PROMPT/GE
 | 3 | Sentirse parte del lenguaje C++ | ✅ Conseguido | STL traits, numeric_limits, concepts, ranges, format, hash |
 | 4 | Compiladores + CI/CD | 🔄 Parcial | 11 compiladores validados. GitHub Actions pipeline pendiente |
 | 5 | Sanitizers + análisis estático | 🔄 Parcial | ASan/UBSan integrados. cppcheck listo. Clang-Tidy, GCov, LCOV pendientes |
-| 6 | Tests unitarios + benchmarks | ✅ Conseguido | 65 test files, 7 benchmarks, 13 sweep files con ~455M+ checks |
+| 6 | Tests unitarios + benchmarks | ✅ Conseguido | `test_param_*` (21) + `test_sweep_*` (9) + otros; 8 benchmarks; ~455M+ sweep checks |
 | 7 | Estructura clara y organizada | ✅ Conseguido | include/, tests/, benchs/, docs/, scripts/, debugging/ |
 | 8 | Build system con scripts Python | ✅ Conseguido | make.py → CMake → Ninja. CI/CD script pendiente |
 | 9 | Fácil de usar, compatible STL | ✅ Conseguido | Todos los operadores, conversiones, integración completa |
@@ -553,6 +585,6 @@ Copyright © 2024-2026 Julián Calderón Almendros
 
 ---
 
-**Last Updated:** 22 March 2026  
+**Last Updated:** 15 May 2026  
 **Phase Lead:** int128 Project Contributors  
 **Status:** 🔬 Active Research

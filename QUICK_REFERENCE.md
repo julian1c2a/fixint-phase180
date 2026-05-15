@@ -1,8 +1,17 @@
-# ⚡ Quick Reference: ALL 6 PHASES COMPLETE + GM CONSTEXPR DIVISION + A1/A2/A4 ✅
+# ⚡ Quick Reference: ALL 6 PHASES COMPLETE + GM CONSTEXPR DIVISION + A1/A2/A4 + TEST CONSOLIDATION ✅
 
-## CURRENT STATUS (22 March 2026)
+## CURRENT STATUS (15 May 2026)
 
-**✅ ALL 11 COMPILERS PASSING — 24 HEADERS — 65/65 TESTS — 7 BENCHMARKS — 15 API DOCS**
+**✅ ALL 11 COMPILERS PASSING — 24 HEADERS — ALL TESTS PASS — 8 BENCHMARKS — 15 API DOCS**
+
+### v1.77 Additions (15 May 2026 — Test Suite Consolidation)
+
+- **Oleadas 1-5:** 29 archivos standalone consolidados en framework test_param_* coherente
+  - test_param_divmod.cpp (75 tests): consolida 8 archivos de división
+  - test_param_ek.cpp: consolida 5 archivos EK
+  - test_param_ms.cpp: consolida 3 archivos MS
+  - test_param_float.cpp, test_param_array.cpp, test_param_core_operators.cpp, etc.
+- **PATH fix:** scripts/env_setup/compiler_env.py antepone C:\msys64\ucrt64\bin (evita GCC Cygwin)
 
 ### Session 7 Additions (A1/A2/A4 Performance & Sweep Migration)
 

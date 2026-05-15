@@ -1,8 +1,8 @@
 # Executive Summary - Phase 1.75 int128 Library
 
-## Last Updated: 22 March 2026
+## Last Updated: 15 May 2026
 
-## 🎯 Project Status: ALL 6 PHASES COMPLETE + GM CONSTEXPR DIVISION + EXTENDED ARITHMETIC ✅
+## 🎯 Project Status: ALL 6 PHASES COMPLETE + GM CONSTEXPR DIVISION + EXTENDED ARITHMETIC + TEST CONSOLIDATION ✅
 
 ### Total Achievements
 
@@ -114,6 +114,16 @@
 - **71/71 tests PASS** on GCC, Clang, MSVC, Intel (~400M+ value checks)
 - **Benchmark**: div<3> 21 vs 141 cyc/op (6.7x), div<10> 22 vs 134 (6.2x)
 
+### v1.77: Test Suite Consolidation (15 May 2026)
+
+**Oleadas 1-5 — 29 archivos standalone → framework test_param_* unificado:**
+
+- test_param_divmod.cpp (75 tests): consolida 8 archivos de división (Knuth D, GM, operadores)
+- test_param_ek.cpp: consolida 5 archivos EK independientes
+- test_param_ms.cpp: consolida 3 archivos MS independientes
+- test_param_float/array/core_operators/friends/string_io: nuevos archivos de área
+- PATH fix en compiler_env.py: evita GCC Cygwin al ejecutar tests desde PowerShell
+
 ### Session 7: A1/A2/A4 Performance & Sweep Migration (22 March 2026)
 
 **Completed:**
@@ -163,9 +173,10 @@
 ```
 ✅ All files compile successfully on 11 compilers
 ✅ 0 compilation errors, 0 warnings
-✅ 65/65 tests passing (GCC release)
+✅ All tests passing (GCC release) — test_param_* + test_sweep_* framework
 ✅ 13/13 feature headers validated (+arithmetic, +divmod)
-✅ 7 benchmarks, 15 API docs, 13 sweep test files
+✅ 8 benchmarks, 15 API docs, 9 sweep test files
+✅ Test suite consolidated: 29 standalone files → unified test_param_* structure
 ✅ Production ready
 ```
 

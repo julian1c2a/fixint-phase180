@@ -1,3 +1,50 @@
+## [v1.77 — 15 May 2026] - Test Suite Consolidation (oleadas 1-5)
+
+### Refactor: Test Suite Unified Under test_param_* Framework
+
+29 archivos de test standalone consolidados en el framework test_param_* en 5 oleadas:
+
+**Oleada 1 — Limpieza de debug:**
+- Eliminados 3 debug printers sin asserts: test_ek_debug.cpp, test_ek_debug_simple.cpp, test_divmod_debug.cpp
+- Movido test_divmod_performance.cpp → benchs/bench_divmod_performance.cpp
+
+**Oleada 2 — División consolidada:**
+- NUEVO test_param_divmod.cpp (75 tests): consolida test_division_operators, test_divmod_suite,
+  test_divmod_final, test_knuth_d_correctness, test_knuth_vs_binary, test_divmod_const,
+  test_div_by_const, test_div_by_const_extended
+- Secciones: /%%/=/%%=, niveles de optimización divmod(), Knuth D correctness, GM div<D>/mod<D>/divmod_const<D>
+
+**Oleada 3 — EK+MS consolidados:**
+- NUEVO test_param_ek.cpp: consolida test_ek_constructor_minimal, test_ek_operator_semantics,
+  test_excess_k_arithmetic, test_excess_k_basic, test_excess_k_comparison
+- NUEVO test_param_ms.cpp: consolida test_ms_ek_operators, test_ms_multiplication, test_ms_storage
+
+**Oleada 4 — Float consolidado:**
+- NUEVO test_param_float.cpp: consolida test_float_assignment, test_float_constructors
+
+**Oleada 5 — Priority tests consolidados:**
+- NUEVO test_param_array.cpp (de test_priority11_array)
+- NUEVO test_param_core_operators.cpp (de test_priority6_bitwise, test_priority7_shift, test_priority8_bitops)
+- NUEVO test_param_friends.cpp (de test_priority9_friends)
+- NUEVO test_param_string_io.cpp (de test_priority5_string_io)
+- test_param_ms.cpp ampliado (absorbe test_priority3_representations_ms_ek)
+- test_param_float.cpp ampliado (absorbe test_priority10_float)
+- Eliminados: test_priority1_constructors, test_priority2_magnitude_sign,
+  test_priority4_arithmetic, test_priority5_string
+
+### Fix: Resolución de PATH para binarios GCC
+
+- scripts/env_setup/compiler_env.py: antepone C:\msys64\ucrt64\bin a PATH
+- Evita que el GCC incorrecto (Cygwin) se ejecute al lanzar binarios de test desde PowerShell
+
+### Net Result
+
+- Archivos de test: reducidos y unificados bajo nomenclatura test_param_* coherente
+- Todos los tests siguen pasando: ✅ (GCC 15, Clang 19+, MSVC, Intel ICX)
+- Mantenibilidad mejorada: cada test_param_*.cpp cubre un área de funcionalidad consistente
+
+---
+
 ## [v1.76 — 13 May 2026] - GM→to_string + rt_mulhi_128 intrinsics (session 8-9)
 
 ### ✅ GM Integration in to_string() — COMPLETE

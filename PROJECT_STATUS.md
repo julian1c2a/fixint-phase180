@@ -1,9 +1,9 @@
 # PROJECT STATUS: All Phases Complete + GM Constexpr Division + A1/A2/A4 Performance & Sweep
 
-**Date:** 22 March 2026
-**Last Session:** A1 Sub/Add optimization, A2 4-compiler benchmarks, A4 sweep framework migration (Session 7)
-**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅ + Test Suite Fixed ✅ + API Docs ✅ + Cross-Repr Operators ✅ + Benchmark Methodology ✅ + All 5 Criticisms ✅ + Karatsuba ✅ + Format ✅ + Hash ✅ + Benchmarks ✅ + **GM Constexpr Division ✅** + **A1 Sub/Add Opt ✅** + **A2 4-Compiler Benchmarks ✅** + **A4 Sweep Migration ✅**
-**Current Status:** 🎉 **65/65 tests pass (GCC release) | 24 headers | 7 benchmarks | 15 API docs | All HIGH priorities done**
+**Date:** 15 May 2026
+**Last Session:** Test suite consolidation oleadas 1-5 + PATH fix para GCC (v1.77)
+**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅ + Test Suite Fixed ✅ + API Docs ✅ + Cross-Repr Operators ✅ + Benchmark Methodology ✅ + All 5 Criticisms ✅ + Karatsuba ✅ + Format ✅ + Hash ✅ + Benchmarks ✅ + **GM Constexpr Division ✅** + **A1 Sub/Add Opt ✅** + **A2 4-Compiler Benchmarks ✅** + **A4 Sweep Migration ✅** + **Test Suite Consolidation ✅**
+**Current Status:** 🎉 **All tests pass (GCC release) | 24 headers | 8 benchmarks | 15 API docs | All HIGH priorities done**
 
 ## Phase Status Summary
 
@@ -218,30 +218,61 @@ Full data: `build/benchmark_results_multicompiler.md`
 
 ## Test Suite Summary
 
-### Complete Test Inventory (44 test files, 200+ test cases)
+### Complete Test Inventory (post-consolidation v1.77)
 
-**Core Tests (172 tests — all passing):**
+**test_param_* — Feature Tests:**
 
-1. test_priority1_constructors.cpp — 20 tests
-2. test_priority2_magnitude_sign.cpp — 35 tests
-3. test_priority3_representations_ms_ek.cpp — 38 tests
-4. test_priority4_arithmetic.cpp — 24 tests
-5. test_priority5_string_io.cpp — 41 tests
-6. test_priority6_bitwise.cpp — 24 tests
-7. test_priority7_shift.cpp — 28 tests
+| File | Coverage |
+|------|----------|
+| test_param_algorithm.cpp | STL algorithm integration |
+| test_param_arithmetic.cpp | Karatsuba, widening_mul, mulhi |
+| test_param_array.cpp | Array/container usage |
+| test_param_bits.cpp | Bit ops: popcount, clz, ctz, rotl, rotr |
+| test_param_cmath.cpp | Math: abs, fma, isqrt |
+| test_param_concepts.cpp | C++20 concepts |
+| test_param_core_operators.cpp | Bitwise, shift, bitops |
+| test_param_divmod.cpp | Division: /%%/=/%%=, Knuth D, GM div\<D\>/mod\<D\>/divmod_const\<D\> (75 tests) |
+| test_param_ek.cpp | Excess-K representation |
+| test_param_float.cpp | Float assignment and constructors |
+| test_param_format.cpp | std::format full spec |
+| test_param_friends.cpp | Friend operator interop |
+| test_param_iostreams.cpp | Stream I/O |
+| test_param_limits.cpp | std::numeric_limits |
+| test_param_ms.cpp | Magnitude-Sign representation |
+| test_param_numeric.cpp | gcd, lcm, midpoint |
+| test_param_ranges.cpp | C++20 ranges |
+| test_param_safe.cpp | Overflow-checked arithmetic (34 tests) |
+| test_param_string_io.cpp | to_string / from_string all bases |
+| test_param_thread_safety.cpp | Atomic / concurrent access |
+| test_param_traits.cpp | STL type_traits specializations |
 
-**Division Tests (55 tests — all passing):**
-8. test_division_operators.cpp — 25 tests
-9. test_knuth_d_correctness.cpp — 30 tests (6 groups)
+**test_sweep_* — Property-Based Sweep Tests (~455M+ value checks):**
 
-**Feature Tests:**
-10. test_float_assignment.cpp — 25 tests
-11. test_traits_specializations.cpp — 35 tests
-12. test_param_safe.cpp — 34 tests
-13. test_knuth_vs_binary.cpp — 9 tests
-14. test_divmod_final.cpp, test_divmod_suite.cpp
-15. test_param_* (algorithm, bits, cmath, concepts, format, iostreams, limits, numeric, ranges, thread_safety, traits)
-16. test_excess_k_*, test_ms_*, test_representation_conversions.cpp
+| File | Tests |
+|------|-------|
+| test_sweep_arithmetic.cpp | Arithmetic invariants |
+| test_sweep_bits.cpp | Bit operation properties |
+| test_sweep_bitwise.cpp | Bitwise properties |
+| test_sweep_comparison.cpp | Reflexivity, trichotomy, antisymmetry (11 tests) |
+| test_sweep_division.cpp | q*d+r=n, r\<d, pow2 equiv (13 tests) |
+| test_sweep_framework_validation.cpp | Framework self-validation |
+| test_sweep_shift.cpp | Identity, roundtrip, composition (16 tests) |
+| test_sweep_string.cpp | Decimal/hex/octal/binary roundtrip (8 tests) |
+| test_sweep_unary_ops.cpp | inc/dec, negation, bool (12 tests) |
+
+**Other Tests:**
+
+| File | Coverage |
+|------|----------|
+| test_coverage_all_bases.cpp | Cross-representation base coverage |
+| test_intrinsics.cpp | Intrinsics abstraction layer |
+| test_karatsuba.cpp | Karatsuba correctness |
+| test_native_arithmetic.cpp | Native arithmetic operations |
+| test_phase5_operators.cpp | Phase 5 operator suite |
+| test_representation_conversions.cpp | Cross-repr conversions |
+| test_template_type.cpp | Template type system |
+| test_tostring_fast.cpp | GM-based to_string performance |
+| test_traits_specializations.cpp | Traits specializations |
 
 **Benchmarks (2 files):**
 
