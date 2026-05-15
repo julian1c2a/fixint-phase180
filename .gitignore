@@ -9,6 +9,9 @@ cmake-build-release/
 # Legacy code (read-only reference from other phases)
 legacy-code/
 
+# int128-phase175: referencia de solo lectura — no forma parte del repo
+int128-phase175/
+
 # CMake
 CMakeFiles/
 CMakeCache.txt
