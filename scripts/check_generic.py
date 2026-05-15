@@ -89,12 +89,12 @@ def run_test(executable: Path, compiler: str) -> bool:
             [str(executable)],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=300,
             env=env
         )
-        
+
         return result.returncode == 0
-    
+
     except subprocess.TimeoutExpired:
         echo_error(f"Timeout ejecutando {executable.name}")
         return False

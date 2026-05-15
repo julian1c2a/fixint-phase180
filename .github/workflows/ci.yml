@@ -354,7 +354,7 @@ jobs:
       - name: Build & run with ASan + UBSan
         run: |
           CXX=clang++-19
-          FLAGS="-std=c++20 -Iinclude -g -fsanitize=address,undefined -fno-omit-frame-pointer"
+          FLAGS="-std=c++20 -Iinclude -g -fsanitize=address,undefined -fno-omit-frame-pointer -fconstexpr-steps=100000000"
           echo "=== Sanitizer build with $CXX ==="
           mkdir -p build_temp
           PASS=0; FAIL=0; TOTAL=0
