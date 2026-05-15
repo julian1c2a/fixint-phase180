@@ -97,12 +97,11 @@
 
 // Detectar si las especializaciones de traits están disponibles
 #if defined(_LIBCPP_VERSION)
-#define UINT128_USING_LIBCPP 1
-#elif defined(_MSC_VER) && !defined(__INTEL_LLVM_COMPILER)
-#define UINT128_USING_LIBCPP 1
-#elif defined(__INTEL_LLVM_COMPILER) && defined(_MSC_VER)
+// libc++ (Clang with -stdlib=libc++) defines is_integral etc. for __int128 internally;
+// re-specializing in nstd:: is safe but the _v helpers may conflict.
 #define UINT128_USING_LIBCPP 1
 #else
+// GCC libstdc++, MSVC STL, Intel+MSVC: nstd:: traits are always safe to define.
 #define UINT128_USING_LIBCPP 0
 #endif
 
@@ -305,7 +304,55 @@ namespace nstd
 #undef NSTD_DEFINE_INT128_ASSIGNABLE
 
     // ===============================================================================
-    // CONVERSIONES SIGNED/UNSIGNED
+    // HELPER VARIABLES (C++17)
+    // ===============================================================================
+
+    template <typename T>
+    inline constexpr bool is_integral_v = is_integral<T>::value;
+
+    template <typename T>
+    inline constexpr bool is_arithmetic_v = is_arithmetic<T>::value;
+
+    template <typename T>
+    inline constexpr bool is_unsigned_v = is_unsigned<T>::value;
+
+    template <typename T>
+    inline constexpr bool is_signed_v = is_signed<T>::value;
+
+    template <typename T>
+    inline constexpr bool is_trivially_copyable_v = is_trivially_copyable<T>::value;
+
+    template <typename T>
+    inline constexpr bool is_trivially_constructible_v = is_trivially_constructible<T>::value;
+
+    template <typename T>
+    inline constexpr bool is_trivially_default_constructible_v = is_trivially_default_constructible<T>::value;
+
+    template <typename T>
+    inline constexpr bool is_trivially_copy_constructible_v = is_trivially_copy_constructible<T>::value;
+
+    template <typename T>
+    inline constexpr bool is_trivially_move_constructible_v = is_trivially_move_constructible<T>::value;
+
+    template <typename T>
+    inline constexpr bool is_trivially_copy_assignable_v = is_trivially_copy_assignable<T>::value;
+
+    template <typename T>
+    inline constexpr bool is_trivially_move_assignable_v = is_trivially_move_assignable<T>::value;
+
+    template <typename T>
+    inline constexpr bool is_trivially_destructible_v = is_trivially_destructible<T>::value;
+
+    template <typename T>
+    inline constexpr bool is_standard_layout_v = is_standard_layout<T>::value;
+
+    template <typename T, typename U>
+    inline constexpr bool is_trivially_assignable_v = is_trivially_assignable<T, U>::value;
+
+#endif // !UINT128_USING_LIBCPP
+
+    // ===============================================================================
+    // CONVERSIONES SIGNED/UNSIGNED (always available — required on MSVC/Intel too)
     // ===============================================================================
 
     template <typename T>
@@ -368,60 +415,12 @@ namespace nstd
         using type = nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>;
     };
 
-    // ===============================================================================
-    // HELPER VARIABLES (C++17)
-    // ===============================================================================
-
-    template <typename T>
-    inline constexpr bool is_integral_v = is_integral<T>::value;
-
-    template <typename T>
-    inline constexpr bool is_arithmetic_v = is_arithmetic<T>::value;
-
-    template <typename T>
-    inline constexpr bool is_unsigned_v = is_unsigned<T>::value;
-
-    template <typename T>
-    inline constexpr bool is_signed_v = is_signed<T>::value;
-
-    template <typename T>
-    inline constexpr bool is_trivially_copyable_v = is_trivially_copyable<T>::value;
-
-    template <typename T>
-    inline constexpr bool is_trivially_constructible_v = is_trivially_constructible<T>::value;
-
-    template <typename T>
-    inline constexpr bool is_trivially_default_constructible_v = is_trivially_default_constructible<T>::value;
-
-    template <typename T>
-    inline constexpr bool is_trivially_copy_constructible_v = is_trivially_copy_constructible<T>::value;
-
-    template <typename T>
-    inline constexpr bool is_trivially_move_constructible_v = is_trivially_move_constructible<T>::value;
-
-    template <typename T>
-    inline constexpr bool is_trivially_copy_assignable_v = is_trivially_copy_assignable<T>::value;
-
-    template <typename T>
-    inline constexpr bool is_trivially_move_assignable_v = is_trivially_move_assignable<T>::value;
-
-    template <typename T>
-    inline constexpr bool is_trivially_destructible_v = is_trivially_destructible<T>::value;
-
-    template <typename T>
-    inline constexpr bool is_standard_layout_v = is_standard_layout<T>::value;
-
-    template <typename T, typename U>
-    inline constexpr bool is_trivially_assignable_v = is_trivially_assignable<T, U>::value;
-
     // Type aliases
     template <typename T>
     using make_signed_t = typename make_signed<T>::type;
 
     template <typename T>
     using make_unsigned_t = typename make_unsigned<T>::type;
-
-#endif // !UINT128_USING_LIBCPP
 
     // ===============================================================================
     // HASH (always available, independent of UINT128_USING_LIBCPP)

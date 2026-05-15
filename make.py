@@ -431,8 +431,9 @@ def cmd_bench(args: argparse.Namespace) -> int:
     echo_header("  EJECUCIÓN COMPLETA DE BENCHMARKS")
     echo_header("=" * 60)
     print()
-    
-    combinations = get_all_combinations()
+
+    benchmarks = discover_benchmarks()
+    combinations = [("uint128", feature) for feature in sorted(benchmarks.keys())]
     
     if not combinations:
         echo_error("No se encontraron archivos de benchmarks")

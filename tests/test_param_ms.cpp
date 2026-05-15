@@ -434,11 +434,11 @@ static void test_string_io()
 
     // Round-trips
     { const ms_t orig{999999999LL};
-      TEST("ms round-trip positive", ms_t::from_string(orig.to_string()) == orig); }
+      TEST("ms round-trip positive", ms_t::from_string(orig.to_string().c_str()) == orig); }
     { const ms_t orig{-999999999LL};
-      TEST("ms round-trip negative", ms_t::from_string(orig.to_string()) == orig); }
+      TEST("ms round-trip negative", ms_t::from_string(orig.to_string().c_str()) == orig); }
     { const ms_t orig{std::numeric_limits<int64_t>::max()};
-      TEST("ms round-trip int64_max", ms_t::from_string(orig.to_string()) == orig); }
+      TEST("ms round-trip int64_max", ms_t::from_string(orig.to_string().c_str()) == orig); }
 }
 
 // =============================================================================

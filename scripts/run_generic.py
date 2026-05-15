@@ -274,7 +274,7 @@ def main():
             
             for mode in modes:
                 if is_benchmark:
-                    exe_name = f"{type_name}_{feature}_benchs_{compiler}"
+                    exe_name = f"benchmark_{feature}_{compiler}"
                 else:
                     # For tests, determine executable name from source file pattern
                     # Try multiple naming patterns

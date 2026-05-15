@@ -168,9 +168,11 @@ def compile_with_compiler(
         if compiler_name == "msvc" or intel_windows:
             # MSVC / Intel-clang-cl flags
             if intel_windows:
-                common_flags = ["/Qstd:c++20", "/W4", "/EHsc", "/I./include"]
+                common_flags = ["/Qstd:c++20", "/W4", "/EHsc", "/I./include",
+                                "/constexpr:steps100000000"]
             else:
-                common_flags = ["/std:c++20", "/W4", "/EHsc", "/I./include"]
+                common_flags = ["/std:c++20", "/W4", "/EHsc", "/I./include",
+                                "/constexpr:steps100000000"]
             
             if mode == "debug":
                 mode_flags = ["/Od", "/Zi", "/DDEBUG"]
@@ -196,6 +198,11 @@ def compile_with_compiler(
         else:
             # GCC/Clang/Intel-Linux flags
             common_flags = ["-std=c++20", "-Wall", "-Wextra", "-pedantic", "-I./include"]
+            # Clang/Intel: raise constexpr evaluation step limit for GM_TABLE
+            # (GM_TABLE initialization calls compute_magic_128 ~1020 times, each
+            # requiring ~2000 constexpr steps; default 1M limit is not enough)
+            if compiler_name in ("clang", "intel"):
+                common_flags.append("-fconstexpr-steps=100000000")
             
             if needs_pthread and compiler_name in ["gcc", "clang", "intel"]:
                 common_flags.append("-pthread")
@@ -356,17 +363,21 @@ def main():
     else:  # benchs
         # Dynamic benchmark file discovery
         bench_file = Path(f"benchs/benchmark_{feature}.cpp")
+        bench_file_alt = Path(f"benchs/{feature}.cpp")
         legacy_bench = Path(f"benchs/{type_name}_{feature}_extracted_benchs.cpp")
 
         if bench_file.exists():
             source_file = str(bench_file)
-            output_suffix = bench_file.stem  # Use source file stem as output name
+            output_suffix = bench_file.stem
+        elif bench_file_alt.exists():
+            source_file = str(bench_file_alt)
+            output_suffix = f"benchmark_{feature}"  # normalise output name
         elif legacy_bench.exists():
             source_file = str(legacy_bench)
-            output_suffix = legacy_bench.stem  # Use source file stem as output name
+            output_suffix = legacy_bench.stem
         else:
             echo_error(f"No benchmark file found for feature '{feature}'")
-            echo_error(f"  Tried: {bench_file}, {legacy_bench}")
+            echo_error(f"  Tried: {bench_file}, {bench_file_alt}, {legacy_bench}")
             sys.exit(1)
         build_dir = "build/build_benchs"
         echo_info(f"Building {type_name} {feature} {target} for all compilers...")
@@ -415,14 +426,14 @@ def main():
         compile_with_compiler(
             "intel", intel_cmd, source_file, build_dir,
             type_name_arg, feature_arg, output_suffix, modes_to_compile,
-            print_commands, project_root=project_root
+            print_commands, skip_check=True, project_root=project_root
         )
     
     if compiler in ["msvc", "all"]:
         compile_with_compiler(
             "msvc", msvc_cmd, source_file, build_dir,
             type_name_arg, feature_arg, output_suffix, modes_to_compile,
-            print_commands, project_root=project_root
+            print_commands, skip_check=True, project_root=project_root
         )
     
     # Summary

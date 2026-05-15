@@ -10,7 +10,16 @@ from pathlib import Path
 
 # Visual Studio 2026 (version 18)
 VCVARSALL = Path(r"C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat")
-MSVC_CL = Path(r"C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\bin\Hostx64\x64\cl.exe")
+
+def _find_msvc_cl() -> Path:
+    """Find the latest cl.exe under VS 18 Community (Hostx64/x64)."""
+    base = Path(r"C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC")
+    if not base.exists():
+        return Path("cl.exe")
+    candidates = sorted(base.glob("*/bin/Hostx64/x64/cl.exe"), reverse=True)
+    return candidates[0] if candidates else Path("cl.exe")
+
+MSVC_CL = _find_msvc_cl()
 
 # Intel oneAPI
 INTEL_ROOT = Path(r"C:\Program Files (x86)\Intel\oneAPI")
@@ -63,7 +72,10 @@ class CompilerEnvironment:
             self._env = self._get_msvc_env()
         elif self.compiler_name == "intel":
             self._env = self._get_intel_env()
-        elif self.compiler_name == "gcc":
+        elif self.compiler_name in ("gcc", "clang"):
+            # Both GCC and Clang live in ucrt64/bin and link against its DLLs.
+            # Git's mingw64/bin ships older libstdc++/libunwind that miss C++20
+            # entry points — ucrt64/bin must come first in PATH for both.
             self._env = self._get_gcc_env()
         else:
             self._env = os.environ.copy()
@@ -125,21 +137,37 @@ class CompilerEnvironment:
         return env.copy()
 
     def _get_intel_env(self) -> dict:
-        """Get Intel oneAPI environment (includes MSVC backend)."""
+        """Get Intel ICX environment on Windows.
+
+        ICX (icpx.exe) uses MSVC's standard library headers and needs:
+          1. The full MSVC environment (vcvarsall.bat x64) for system headers
+          2. Intel compiler\<ver>\bin in PATH for the icpx.exe itself
+          3. Intel compiler\<ver>\include in INCLUDE for Intel-specific headers
+
+        setvars.bat is NOT used here because it often returns exit 1 in
+        non-interactive contexts and captures nothing.  The manual approach
+        below is more reliable.
+        """
         global _intel_env_cache
         if _intel_env_cache is not None:
             return _intel_env_cache.copy()
 
-        if INTEL_SETVARS.exists():
-            env = _capture_env_from_bat(str(INTEL_SETVARS))
-            if env:
-                _intel_env_cache = env
-                return env.copy()
-
-        # Fallback: start with MSVC env and add Intel paths
+        # Start from MSVC environment (provides system headers, LIB, etc.)
         env = self._get_msvc_env()
-        compiler_bin = INTEL_ROOT / "compiler" / "2025.3" / "bin"
-        if compiler_bin.exists():
-            env["PATH"] = str(compiler_bin) + os.pathsep + env.get("PATH", "")
+
+        # Locate the Intel compiler bin and include directories
+        compiler_versions = ["2025.3", "latest"]
+        for ver in compiler_versions:
+            compiler_bin = INTEL_ROOT / "compiler" / ver / "bin"
+            compiler_inc = INTEL_ROOT / "compiler" / ver / "include"
+            compiler_lib = INTEL_ROOT / "compiler" / ver / "lib"
+            if compiler_bin.exists():
+                env["PATH"] = str(compiler_bin) + os.pathsep + env.get("PATH", "")
+                if compiler_inc.exists():
+                    env["INCLUDE"] = str(compiler_inc) + ";" + env.get("INCLUDE", "")
+                if compiler_lib.exists():
+                    env["LIB"] = str(compiler_lib) + ";" + env.get("LIB", "")
+                break
+
         _intel_env_cache = env
         return env.copy()
