@@ -1,0 +1,19 @@
+---
+# Clang-Tidy configuration for int128-phase175
+# Scope: bugprone patterns + performance + minimal modernize
+# Suppressed: cosmetic checks that produce noise in template/math/bitwise code
+
+Checks: 'clang-analyzer-core.*,clang-analyzer-cplusplus.*,bugprone-*,performance-*,modernize-use-nullptr,modernize-use-override,-bugprone-easily-swappable-parameters,-bugprone-narrowing-conversions,-bugprone-signed-char-misuse,-bugprone-macro-parentheses,-modernize-use-trailing-return-type,-performance-avoid-endl'
+
+WarningsAsErrors: ''
+
+# Only report issues inside our own headers, not system/vendor headers
+HeaderFilterRegex: 'include/.*\.(hpp|h)$'
+
+FormatStyle: none
+
+CheckOptions:
+  - key: modernize-loop-convert.MinConfidence
+    value: reasonable
+  - key: performance-move-const-arg.CheckTriviallyCopyableMove
+    value: 'false'

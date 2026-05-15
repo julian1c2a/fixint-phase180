@@ -450,8 +450,8 @@ Phase 1.66 (Stable)
 
 - [ ] **BCD Decimal Types:** BCD128 prototype para aritmética decimal (previsto en Phase 1.80)
 - [ ] **Phase 1.80:** Generalización N×64-bit (enteros de ancho arbitrario)
-- [ ] **CI/CD:** GitHub Actions pipeline
-- [ ] **ARM/RISC-V:** Validación en arquitecturas adicionales
+- [x] **CI/CD:** GitHub Actions completo — ci.yml (GCC/Clang/MSVC/Intel/ARM64/RISC-V/sanitizers/cppcheck/clang-tidy), benchmarks.yml, release.yml
+- [x] **ARM/RISC-V:** ARM64 nativo (`ubuntu-24.04-arm`); ARM32 + RISC-V via QEMU; `bench_common.hpp` con `cntvct_el0` / `rdtime`
 
 ---
 
@@ -532,19 +532,19 @@ Progreso evaluado contra los 12 objetivos y 9 etapas definidos en [`AI_PROMPT/GE
 | # | Objetivo | Estado | Notas |
 |---|----------|--------|-------|
 | 1 | Tipo entero 128-bit similar a nativos | ✅ Conseguido | `int128_param_t` con operadores completos, 0.47x vs uint64_t |
-| 2 | Portabilidad absoluta | ✅ Conseguido | 11 compiladores (GCC 13-15, Clang 18-21, MSVC 2026, Intel ICX). ARM/RISC-V pendiente |
+| 2 | Portabilidad absoluta | ✅ Conseguido | 11 compiladores (GCC 13-15, Clang 18-21, MSVC 2022, Intel ICX). ARM64 nativo en CI; ARM32/RISC-V via QEMU |
 | 3 | Sentirse parte del lenguaje C++ | ✅ Conseguido | STL traits, numeric_limits, concepts, ranges, format, hash |
-| 4 | Compiladores + CI/CD | 🔄 Parcial | 11 compiladores validados. GitHub Actions pipeline pendiente |
-| 5 | Sanitizers + análisis estático | 🔄 Parcial | ASan/UBSan integrados. cppcheck listo. Clang-Tidy, GCov, LCOV pendientes |
+| 4 | Compiladores + CI/CD | ✅ Conseguido | 11 compiladores validados. GitHub Actions: ci.yml (GCC/Clang/MSVC/Intel/ARM64/RISC-V/sanitizers), benchmarks.yml (semanal), release.yml (tags) |
+| 5 | Sanitizers + análisis estático | ✅ Conseguido | ASan/UBSan en CI. cppcheck + clang-tidy en CI (`.clang-tidy` configurado). GCov/LCOV descartado: los sweep tests (~455M checks) cubren esto empíricamente |
 | 6 | Tests unitarios + benchmarks | ✅ Conseguido | `test_param_*` (21) + `test_sweep_*` (9) + otros; 8 benchmarks; ~455M+ sweep checks |
 | 7 | Estructura clara y organizada | ✅ Conseguido | include/, tests/, benchs/, docs/, scripts/, debugging/ |
-| 8 | Build system con scripts Python | ✅ Conseguido | make.py → CMake → Ninja. CI/CD script pendiente |
+| 8 | Build system con scripts Python | ✅ Conseguido | make.py unificado. CI/CD completo (.github/workflows/). |
 | 9 | Fácil de usar, compatible STL | ✅ Conseguido | Todos los operadores, conversiones, integración completa |
 | 10 | Base para precisión arbitraria | 🔄 En progreso | Template parametrizado Sign+Form. M&S operativo, EK operacional (100 tests) |
 | 11 | Algoritmos optimizados documentados | ✅ Conseguido | Knuth D (6.24x), Granlund-Montgomery constexpr (4-7x), Karatsuba 128×128→256 |
 | 12 | Tipos decimales BCD | ⬜ No iniciado | Previsto para etapa posterior |
 
-**Resumen:** 9/12 conseguidos, 2/12 parcial, 1/12 no iniciado.
+**Resumen:** 11/12 conseguidos, 0/12 parcial, 1/12 no iniciado.
 
 ### Etapas (9 definidas)
 

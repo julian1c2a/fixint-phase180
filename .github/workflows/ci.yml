@@ -390,6 +390,91 @@ jobs:
           if [ $FAIL -gt 0 ]; then exit 1; fi
 
   # ============================================================================
+  # Static Analysis — cppcheck (include/ headers)
+  # continue-on-error: findings shown in dashboard but don't block CI
+  # ============================================================================
+  static-cppcheck:
+    name: "cppcheck — include/"
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq cppcheck
+
+      - name: Run cppcheck
+        run: |
+          cppcheck \
+            --enable=warning,performance,portability \
+            --std=c++20 \
+            --error-exitcode=1 \
+            --suppress=missingIncludeSystem \
+            --suppress=unmatchedSuppression \
+            --suppress=noExplicitConstructor \
+            -I include \
+            include/ 2>&1 | tee cppcheck-report.txt
+          echo "=== cppcheck done ==="
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cppcheck-report
+          path: cppcheck-report.txt
+          retention-days: 30
+
+  # ============================================================================
+  # Static Analysis — clang-tidy (headers via test_param_* compilation drivers)
+  # HeaderFilterRegex limits reports to include/**; continue-on-error for now
+  # ============================================================================
+  static-clang-tidy:
+    name: "clang-tidy — include/ (via test_param_*)"
+    runs-on: ubuntu-24.04
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-tidy-19
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-tidy-19
+
+      - name: Run clang-tidy
+        run: |
+          REPORT=clang-tidy-report.txt
+          echo "" > "$REPORT"
+          WARN_FILES=0; TOTAL=0
+          for src in tests/test_param_*.cpp; do
+            name=$(basename "$src")
+            TOTAL=$((TOTAL+1))
+            echo -n "  [$TOTAL] $name ... "
+            if clang-tidy-19 "$src" \
+                --header-filter='include/.*' \
+                -- -std=c++20 -Iinclude \
+                >> "$REPORT" 2>&1; then
+              echo "clean"
+            else
+              echo "warnings — see artifact"
+              WARN_FILES=$((WARN_FILES+1))
+            fi
+          done
+          echo ""
+          echo "=== clang-tidy: $WARN_FILES/$TOTAL files had warnings ==="
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clang-tidy-report
+          path: clang-tidy-report.txt
+          retention-days: 30
+
+  # ============================================================================
   # Intel oneAPI — PR only
   # ============================================================================
   intel-build:
@@ -441,7 +526,7 @@ jobs:
   ci-summary:
     name: CI Dashboard
     runs-on: ubuntu-latest
-    needs: [native-linux, native-arm64, native-windows, cross-arm64, cross-arm32, cross-riscv64, cross-x86-32, sanitizers]
+    needs: [native-linux, native-arm64, native-windows, cross-arm64, cross-arm32, cross-riscv64, cross-x86-32, sanitizers, static-cppcheck, static-clang-tidy]
     if: always()
 
     steps:
@@ -468,6 +553,8 @@ jobs:
           echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| ASan + UBSan | ${{ needs.sanitizers.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| cppcheck | ${{ needs.static-cppcheck.result == 'success' && 'PASS' || 'WARN' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| clang-tidy | ${{ needs.static-clang-tidy.result == 'success' && 'PASS' || 'WARN' }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: Fail on critical errors
         if: |
