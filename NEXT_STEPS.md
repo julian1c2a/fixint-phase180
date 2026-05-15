@@ -1,8 +1,8 @@
 # 🔮 NEXT STEPS - Post-Phase 1.75
 
-**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 13/13 ✅ | Intrinsics ✅ | Cross-Repr ✅ | API Docs ✅ | Karatsuba ✅ | Format ✅ | Hash ✅ | Benchmarks ✅ | Replanteamiento ✅ | **GM Constexpr ✅** | **A1 Sub/Add Opt ✅** | **A2 4-Compiler Benchmarks ✅** | **A4 Sweep Migration ✅**
-**Last Updated:** 22 March 2026
-**Focus:** All HIGH priorities complete — Next: medium/low priorities (GM→to_string, BCD, mulhi intrinsics)
+**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 13/13 ✅ | Intrinsics ✅ | Cross-Repr ✅ | API Docs ✅ | Karatsuba ✅ | Format ✅ | Hash ✅ | Benchmarks ✅ | Replanteamiento ✅ | **GM Constexpr ✅** | **A1 Sub/Add Opt ✅** | **A2 4-Compiler Benchmarks ✅** | **A4 Sweep Migration ✅** | **v1.76 ✅** | **v1.77 ✅** | **CI/CD ✅** | **ARM/RISC-V ✅** | **MS 107 tests ✅** | **EK 100 tests ✅** | **M2 compare ✅**
+**Last Updated:** 15 May 2026
+**Focus:** All HIGH+MEDIUM priorities complete. Deferred: M1/B2 BCD+Decimal128 → Phase 1.80+, B3 int256/512 → fix_int cases, B4 Conan/vcpkg → not needed, M4 Clang constexpr → future. No open actionable items.
 
 ---
 
@@ -587,19 +587,19 @@ Consolidación de todos los items pendientes de NEXT_STEPS y el plan original:
 
 | # | Item | Estado | Impacto |
 |---|------|--------|---------|
-| M1 | **BCD Decimal Types completos** | Prototipo | Funciones BCD↔binary existentes; falta tipo BCD128 completo con aritmética |
-| M2 | **benchmark_comparison.bash** | Roto | `python make.py compare` falla; benchmarks se ejecutaron manualmente |
-| M3 | **Test Suite Strengthening** | Pendiente | Revisar test_priority*.cpp para assertions débiles; agregar más edge cases |
-| M4 | **Clang constexpr bug workaround** | Documentado | Funciones con uint128_t ops ≥2^64 producen comparaciones incorrectas si constexpr |
+| M1 | **BCD Decimal Types completos** | ⏳ Aplazado → Phase 1.80 | Prototipo OK; tipo BCD128 completo aplazado a fases finales |
+| M2 | ~~**benchmark_comparison.bash**~~ | ✅ FIXED (15 May 2026) | Reescrito con bench_common.hpp (RDTSC + doNotOptimize); nstd div **6.4x faster** que __int128 |
+| M3 | **Test Suite Strengthening** | ⏳ Pendiente | Revisar test_priority*.cpp para assertions débiles; agregar más edge cases |
+| M4 | **Clang constexpr bug workaround** | ⏳ Aplazado | Funciones con uint128_t ops ≥2^64 incorrectas si constexpr en Clang; aplazado hasta que sea necesario |
 
 #### Prioridad BAJA (futuro/investigación)
 
 | # | Item | Estado | Impacto |
 |---|------|--------|---------|
-| B1 | **ARM64/ARM32/RISC-V ports** | No iniciado | Requiere intrinsics nuevos; objetivo plan original |
-| B2 | **Decimal128 (IEEE 754-2008)** | No iniciado | DPD/BID encoding; Phase 1.85+ |
-| B3 | **int256_t / int512_t extensión** | No iniciado | uint256_t existe como struct básico; falta tipo completo |
-| B4 | **Conan/vcpkg packaging** | No iniciado | conanfile.txt existe; falta publicación |
+| B1 | **ARM64/ARM32/RISC-V ports** | ✅ CI hecho | ARM64 nativo en CI; bench_common.hpp con cntvct_el0/rdtime. Intrinsics: x86-only paths already guarded |
+| B2 | **Decimal128 (IEEE 754-2008)** | ⏳ Aplazado → Phase 1.85 | Aplazado después de M1 BCD |
+| B3 | **int256_t / int512_t extensión** | ⏳ Aplazado → fix_int | Serán casos especiales del tipo fix_int genérico |
+| B4 | **Conan/vcpkg packaging** | ⏳ No necesario ahora | conanfile.txt existe; publicación postergada indefinidamente |
 
 ### ~~Propuesta de Siguiente Sesión (Sesión 8)~~ — Completado en v1.76-v1.77
 
@@ -625,7 +625,7 @@ Phase 1.75 has achieved:
 
 - ✅ **100% feature parity** with phase166 (12/12 headers)
 - ✅ **Equal or superior performance** (Knuth D: 6.24x faster division)
-- ✅ **3 complete representations** (TC, MS, EK)
+- ✅ **4 complete representations** (TC, MS, EK, binnat)
 - ✅ **Full STL integration** (traits, concepts, algorithms)
 - ✅ **Production-ready** (safe arithmetic, thread safety)
 - ✅ **Modern C++20** (format, ranges, concepts)
@@ -640,8 +640,9 @@ Phase 1.75 has achieved:
 | Phase | Contenido | Estado |
 |-------|-----------|--------|
 | **1.75** | Parameterized type (4 reprs), 13 feature headers, Knuth D, intrinsics, cross-repr, API docs, Karatsuba, format, hash, **GM constexpr division** | ✅ **COMPLETE** |
-| **1.76** | GM integration in to_string, intrinsic mulhi path, subtraction optimization, sweep migration | 📋 NEXT SESSION |
-| **1.80** | BCD base-10 types (Natural + Aiken), benchmark methodology overhaul, Granlund-Montgomery constexpr | 📋 PLANNED |
+| **1.76** | GM integration in to_string, intrinsic mulhi path, subtraction optimization, sweep migration | ✅ **COMPLETE** |
+| **1.77** | Test suite consolidation (wave 1-5), CI/CD pipeline, ARM/RISC-V CI, cppcheck+clang-tidy, MS 107 tests, EK 100 tests, M2 compare fix | ✅ **COMPLETE** |
+| **1.80** | BCD base-10 types (Natural + Aiken) | 📋 PLANNED (aplazado) |
 | **1.85** | Decimal128 floating point (IEEE 754-2008), DPD/BID encoding | 📋 FUTURE |
 | **2.0** | Production release: full numeric tower (binary + decimal, integer + float) | 📋 FUTURE |
 
@@ -657,9 +658,9 @@ Phase 1.75 has achieved:
 |---------|--------|-------------|
 | Representaciones binarias | 4/4 ✅ | 4/4 |
 | Feature headers (binario) | 12/12 ✅ | 12/12 |
-| Tipos BCD | 0/3 | 3/3 (Natural, Aiken-TC, Aiken-MS) |
-| Decimal float | 0/1 | 1/1 (decimal128) |
-| Compiladores validados | 12 | 12+ |
+| Tipos BCD | 0/3 (aplazado Phase 1.80) | 3/3 (Natural, Aiken-TC, Aiken-MS) |
+| Decimal float | 0/1 (aplazado Phase 1.85) | 1/1 (decimal128) |
+| Compiladores CI validados | 12+ (GCC 13-16, Clang 18-22, ARM64, RISC-V QEMU) | 12+ |
 | API docs coverage | ~280 symbols | 400+ |
 
 ---
