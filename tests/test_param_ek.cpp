@@ -19,6 +19,7 @@
 
 using namespace nstd;
 using ek_t = int128_ek_t;
+using tc_t = int128_tc_t;
 using ms_t = int128_ms_t;
 
 // =============================================================================
@@ -262,6 +263,122 @@ static void test_safe_arithmetic()
 }
 
 // =============================================================================
+// Section 9: Unary minus
+// =============================================================================
+static void test_unary_minus()
+{
+    std::cout << "\n--- Section 9: Unary minus ---\n";
+
+    TEST("unary -ek(0) == ek(0)",          -ek(0)   == ek(0));
+    TEST("unary -ek(42) == ek(-42)",        -ek(42)  == ek(-42));
+    TEST("unary -ek(-42) == ek(42)",        -ek(-42) == ek(42));
+    TEST("double negation positive",        -(-ek(42))  == ek(42));
+    TEST("double negation negative",        -(-ek(-99)) == ek(-99));
+
+    // Additive inverse: a + (-a) == 0
+    { const ek_t a = ek(12345);
+      TEST("a + (-a) == 0 (positive a)",   a + (-a) == ek(0)); }
+    { const ek_t a = ek(-9999);
+      TEST("a + (-a) == 0 (negative a)",   a + (-a) == ek(0)); }
+    { const ek_t a = ek(1);
+      TEST("a + (-a) == 0 (a == 1)",       a + (-a) == ek(0)); }
+}
+
+// =============================================================================
+// Section 10: Carry / borrow across 64-bit word boundary
+// =============================================================================
+static void test_carry_propagation()
+{
+    std::cout << "\n--- Section 10: Carry propagation ---\n";
+
+    // ek_t{K, 0xFFFF...FFFF}: real value = (0, UINT64_MAX) = 2^64 - 1
+    // Adding 1 carries from the low 64-bit word into the high 64-bit word.
+    constexpr uint64_t K = 1ULL << 62;
+    const ek_t big {K, 0xFFFFFFFFFFFFFFFFULL};
+    const ek_t big1 = big + ek(1);
+
+    TEST("carry: big+1 > big",              big1 > big);
+    TEST("carry: (big+1)-1 == big",         (big1 - ek(1)) == big);
+    TEST("carry: big+1-big == 1",           big1 - big == ek(1));
+
+    // Borrow: subtract across zero boundary
+    TEST("borrow: 0-1 == -1",              ek(0) - ek(1) == ek(-1));
+    TEST("borrow: (0-1)+1 == 0",           (ek(0) - ek(1)) + ek(1) == ek(0));
+
+    // Large negative + large positive
+    { const ek_t a = ek(-1000000), b = ek(1000000);
+      TEST("large symmetric: a+b==0",       a + b == ek(0)); }
+}
+
+// =============================================================================
+// Section 11: Cross-representation conversions (EK <-> TC)
+// =============================================================================
+static void test_cross_repr()
+{
+    std::cout << "\n--- Section 11: Cross-representation conversions ---\n";
+
+    // EK -> TC -> EK round-trips
+    { const ek_t orig = ek(42);
+      const tc_t via{orig};
+      const ek_t back{via};
+      TEST("EK->TC->EK: 42",       back == orig); }
+
+    { const ek_t orig = ek(-42);
+      const tc_t via{orig};
+      const ek_t back{via};
+      TEST("EK->TC->EK: -42",      back == orig); }
+
+    { const ek_t orig = ek(0);
+      const tc_t via{orig};
+      const ek_t back{via};
+      TEST("EK->TC->EK: 0",        back == orig); }
+
+    { const ek_t orig = ek(1000000);
+      const tc_t via{orig};
+      const ek_t back{via};
+      TEST("EK->TC->EK: 1000000",  back == orig); }
+
+    { const ek_t orig = ek(-1000000);
+      const tc_t via{orig};
+      const ek_t back{via};
+      TEST("EK->TC->EK: -1000000", back == orig); }
+
+    // TC -> EK value preservation
+    { const tc_t tc_val{999LL};
+      const ek_t as_ek{tc_val};
+      TEST("TC(999)->EK: value preserved",  as_ek == ek(999)); }
+
+    { const tc_t tc_neg{-999LL};
+      const ek_t as_ek{tc_neg};
+      TEST("TC(-999)->EK: value preserved", as_ek == ek(-999)); }
+}
+
+// =============================================================================
+// Section 12: String I/O
+// =============================================================================
+static void test_string_io()
+{
+    std::cout << "\n--- Section 12: String I/O ---\n";
+
+    TEST("to_string(0)   == \"0\"",    ek(0).to_string()   == "0");
+    TEST("to_string(42)  == \"42\"",   ek(42).to_string()  == "42");
+    TEST("to_string(-42) == \"-42\"",  ek(-42).to_string() == "-42");
+    TEST("to_string(1000000) correct", ek(1000000).to_string() == "1000000");
+
+    // from_string round-trips
+    TEST("from_string(\"42\") == ek(42)",     ek_t::from_string("42")    == ek(42));
+    TEST("from_string(\"-42\") == ek(-42)",   ek_t::from_string("-42")   == ek(-42));
+    TEST("from_string(\"0\") == ek(0)",       ek_t::from_string("0")     == ek(0));
+    TEST("from_string(\"12345\") correct",    ek_t::from_string("12345") == ek(12345));
+
+    // to_string -> from_string round-trip
+    { const ek_t orig = ek(-99999);
+      const std::string s = orig.to_string();
+      const ek_t back = ek_t::from_string(s.c_str());
+      TEST("to_string->from_string round-trip: -99999", back == orig); }
+}
+
+// =============================================================================
 // main
 // =============================================================================
 int main()
@@ -279,6 +396,10 @@ int main()
     test_inc_dec();
     test_comparisons();
     test_safe_arithmetic();
+    test_unary_minus();
+    test_carry_propagation();
+    test_cross_repr();
+    test_string_io();
 
     std::cout << "\n================================================================\n";
     std::cout << "  RESULTS: " << g_passed << " passed, " << g_failed << " failed\n";

@@ -75,7 +75,7 @@ This parallel project investigates **representation forms** for 128-bit integers
 |------|--------|----------|-------|--------|
 | **Two's Complement** | TC | Standard integers (Phase 1.66 compat) | 1.66 | ✅ Stable |
 | **Magnitude-Sign** | MS | General signed representation | 1.75 | ✅ Operational |
-| **Excess-k (Bias)** | EK | IEEE 754 exponents | 1.75 | 📋 Partial |
+| **Excess-k (Bias)** | EK | IEEE 754 exponents | 1.75 | ✅ Operational |
 
 ---
 
@@ -540,7 +540,7 @@ Progreso evaluado contra los 12 objetivos y 9 etapas definidos en [`AI_PROMPT/GE
 | 7 | Estructura clara y organizada | ✅ Conseguido | include/, tests/, benchs/, docs/, scripts/, debugging/ |
 | 8 | Build system con scripts Python | ✅ Conseguido | make.py → CMake → Ninja. CI/CD script pendiente |
 | 9 | Fácil de usar, compatible STL | ✅ Conseguido | Todos los operadores, conversiones, integración completa |
-| 10 | Base para precisión arbitraria | 🔄 En progreso | Template parametrizado Sign+Form. M&S operativo, EK parcial |
+| 10 | Base para precisión arbitraria | 🔄 En progreso | Template parametrizado Sign+Form. M&S operativo, EK operacional (100 tests) |
 | 11 | Algoritmos optimizados documentados | ✅ Conseguido | Knuth D (6.24x), Granlund-Montgomery constexpr (4-7x), Karatsuba 128×128→256 |
 | 12 | Tipos decimales BCD | ⬜ No iniciado | Previsto para etapa posterior |
 
@@ -552,7 +552,7 @@ Progreso evaluado contra los 12 objetivos y 9 etapas definidos en [`AI_PROMPT/GE
 |---|-------|--------|-------|
 | 1 | Implementación básica int128/uint128 | ✅ Terminado | |
 | 2 | Unificación template | ✅ Terminado | `int128_param_t<Sign, Form>` |
-| 3 | Representaciones M&S y Exceso-K | 🔄 En progreso | M&S operativo con operadores cross-repr; EK parcial |
+| 3 | Representaciones M&S y Exceso-K | ✅ Terminado | M&S operativo con operadores cross-repr; EK operacional (100 tests) |
 | 4 | Arrays N×64 bits (fase 1.80) | ⬜ No iniciado | |
 | 5 | Punto fijo configurable | ⬜ No iniciado | |
 | 6 | IEEE 754 Generalizado | ⬜ No iniciado | |
@@ -560,7 +560,7 @@ Progreso evaluado contra los 12 objetivos y 9 etapas definidos en [`AI_PROMPT/GE
 | 8 | Racionales exactos | ⬜ No iniciado | |
 | 9 | Tipos decimales BCD | ⬜ No iniciado | |
 
-**Resumen:** Etapas 1-2 terminadas, Etapa 3 en progreso avanzado, Etapas 4-9 pendientes.
+**Resumen:** Etapas 1-3 terminadas, Etapas 4-9 pendientes.
 
 ---
 
