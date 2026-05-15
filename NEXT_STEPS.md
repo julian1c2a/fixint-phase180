@@ -601,15 +601,13 @@ Consolidación de todos los items pendientes de NEXT_STEPS y el plan original:
 | B3 | **int256_t / int512_t extensión** | No iniciado | uint256_t existe como struct básico; falta tipo completo |
 | B4 | **Conan/vcpkg packaging** | No iniciado | conanfile.txt existe; falta publicación |
 
-### Propuesta de Siguiente Sesión (Sesión 8)
+### ~~Propuesta de Siguiente Sesión (Sesión 8)~~ — Completado en v1.76-v1.77
 
-**Enfoque recomendado:** Medium priorities — All HIGH items (A1-A4) complete.
-
-1. **Integrar GM en to_string()** (M-new) — Reemplazar `fast_divmod10_limbs`/`fast_divmod_1e19_limbs` con `divmod_const<10>()`/`divmod_const<10000000000000000000ULL>()` para unificar codebase
-2. **Añadir mulhi128 con intrinsics a `gm_div_limbs`** (M-new) — Ruta rápida con `__uint128_t` en GCC/Clang, `_umul128` en MSVC. Cerraría la brecha del 30-50% vs handcoded `fast_divN()`
+1. ~~**Integrar GM en to_string()**~~ ✅ v1.76 — `divmod_const<10>()`/`divmod_const<10^19>()` reemplaza ~105 líneas; `write_u64_digits`, `write_19_padded_digits`, `to_string()` decimal path unificados
+2. ~~**Añadir mulhi128 con intrinsics a `gm_div_limbs`**~~ ✅ v1.76 — `rt_mulhi_128()` con `__uint128_t`/`_umul128`; speedup 1.8-2.2x medido en GCC/Clang
 3. **BCD Decimal Types completos** (M1) — Tipo BCD128 completo con aritmética
 4. **Fix benchmark_comparison.bash** (M2) — `python make.py compare` falla
-5. **Commit + tag v1.76** — Consolidar sessions 5-8
+5. ~~**Commit + tag v1.76**~~ ✅ — Consolidado; v1.77 incluye test suite consolidation
 
 ### Decisiones Arquitectónicas Pendientes
 
@@ -617,7 +615,7 @@ Consolidación de todos los items pendientes de NEXT_STEPS y el plan original:
 2. ~~**¿Granlund-Montgomery debe ser siempre constexpr?**~~ — ✅ RESUELTO: Sí, `ce_mulhi_128` es pure C++ constexpr; ruta intrinsics se añadirá como optimization path
 3. **¿BCD como phase 1.80 o postergar a 2.0?** — El prototipo funciona; ¿vale la inversión antes de ARM ports?
 4. **¿uint256_t completo o solo como soporte interno?** — Actualmente solo struct de 4 limbs para Karatsuba
-5. **¿Integrar GM en to_string o mantener fast_divN handcoded?** — GM genérico vs handcoded con intrinsics: ~30% diferencia
+5. ~~**¿Integrar GM en to_string o mantener fast_divN handcoded?**~~ — ✅ RESUELTO (v1.76): GM integrado + `rt_mulhi_128` cierra la brecha; codebase unificado
 
 ---
 

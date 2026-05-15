@@ -327,9 +327,9 @@ All 6 phases, 13 feature headers, intrinsics audit, and GM constexpr division ar
 4. ~~**Granlund-Montgomery constexpr division**~~ — ✅ COMPLETE (22 March 2026)
 5. **Karatsuba multiplication** — Sub-quadratic O(n^1.585) for future larger types
 6. ~~**Test runner unificado**~~ — ✅ Crítica 2 RESUELTA (`python make.py test`)
-7. **Migrar tests existentes al sweep framework** — Aplicar `test_sweep_framework.hpp` incrementalmente
-8. **Integrar GM en to_string()** — Reemplazar `fast_divmod10_limbs`/`fast_divmod_1e19_limbs` con `divmod_const<10>()`/`divmod_const<10000000000000000000ULL>()`
-9. **Añadir mulhi128 con intrinsics a gm_div_limbs** — Cerrar brecha del 30% vs fast_divN handcoded
+7. ~~**Migrar tests existentes al sweep framework**~~ — ✅ COMPLETADO: Oleadas 1-5 (v1.77) unifican todos los tests en `test_param_*`
+8. ~~**Integrar GM en to_string()**~~ — ✅ COMPLETADO (v1.76): `divmod_const<10>()`/`divmod_const<10^19>()` reemplaza ~105 líneas de código duplicado
+9. ~~**Añadir mulhi128 con intrinsics a gm_div_limbs**~~ — ✅ COMPLETADO (v1.76): `rt_mulhi_128()` con `__uint128_t`/`_umul128`; 1.8-2.2x speedup medido
 
 ### Benchmark Methodology Overhaul — ✅ COMPLETE
 
