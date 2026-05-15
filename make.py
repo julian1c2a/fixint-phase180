@@ -108,6 +108,28 @@ def find_bash() -> str:
     return "bash"
 
 
+def _win_to_wsl_path(win_path: Path) -> str:
+    """Convierte ruta Windows absoluta a formato WSL /mnt/<drive>/..."""
+    p = str(win_path).replace("\\", "/")
+    if len(p) >= 2 and p[1] == ':':
+        drive = p[0].lower()
+        rest = p[2:].lstrip('/')
+        return f"/mnt/{drive}/{rest}"
+    return p
+
+
+def _wsl_available() -> bool:
+    """Devuelve True si wsl.exe existe y responde."""
+    try:
+        r = subprocess.run(
+            ["wsl", "--", "echo", "ok"],
+            capture_output=True, text=True, timeout=15
+        )
+        return r.returncode == 0 and "ok" in r.stdout
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
 def run_script(script_name: str, args: List[str]) -> int:
     """Ejecuta un script Python de scripts/"""
     script_path = SCRIPTS_DIR / script_name
@@ -531,6 +553,60 @@ def cmd_demo(args: argparse.Namespace) -> int:
     return ret
 
 
+def cmd_wsl(args: argparse.Namespace) -> int:
+    """Compila y ejecuta tests en WSL con GCC, Clang e Intel."""
+    echo_header("=" * 60)
+    echo_header("  WSL — BUILD & TEST (Linux: GCC / Clang / Intel)")
+    echo_header("=" * 60)
+    print()
+
+    if not _wsl_available():
+        echo_error("WSL no disponible (servicio detenido o no instalado).")
+        echo_info("Inicia WSL desde PowerShell:  wsl")
+        echo_info("O habilita el servicio:       wsl --install")
+        return 1
+
+    wsl_root = _win_to_wsl_path(PROJECT_ROOT)
+    compiler = getattr(args, 'compiler', None) or 'all'
+    mode     = getattr(args, 'mode',     None) or 'release-O2'
+
+    echo_info(f"Proyecto en WSL:  {wsl_root}")
+    echo_info(f"Compilador(es):   {compiler}")
+    echo_info(f"Modo:             {mode}")
+    print()
+
+    families = ['gcc', 'clang', 'intel'] if compiler == 'all' else [compiler]
+
+    results: Dict[str, bool] = {}
+
+    for family in families:
+        echo_header(f"--- {family.upper()} ---")
+        bash_cmd = f"cd '{wsl_root}' && python3 make.py test {family} {mode}"
+        r = subprocess.run(["wsl", "--", "bash", "-c", bash_cmd], cwd=PROJECT_ROOT)
+        ok = (r.returncode == 0)
+        results[family] = ok
+        if ok:
+            echo_success(f"{family}: PASS")
+        else:
+            echo_error(f"{family}: FAIL (código {r.returncode})")
+        print()
+
+    passed = sum(1 for v in results.values() if v)
+    failed = len(results) - passed
+
+    echo_header("=" * 60)
+    echo_header("  RESUMEN WSL")
+    echo_header("=" * 60)
+    echo_success(f"Pasaron: {passed}/{len(families)} familias")
+    if failed:
+        echo_error(f"Fallaron: {failed}/{len(families)} familias")
+        for fam, ok in results.items():
+            if not ok:
+                echo_error(f"  - {fam}")
+
+    return 0 if failed == 0 else 1
+
+
 def cmd_sanitize(args: argparse.Namespace) -> int:
     """Compila con sanitizers"""
     echo_header("=" * 60)
@@ -770,6 +846,12 @@ Ejemplos:
   python make.py run demos tutorials 01_basic_operations gcc release
   python make.py check demos tutorials
   python make.py demo tutorials 01_basic_operations
+
+  # WSL (compiladores Linux: GCC, Clang, Intel):
+  python make.py wsl                      # todos los compiladores, release-O2
+  python make.py wsl gcc                  # solo GCC
+  python make.py wsl clang release-O2     # solo Clang
+  python make.py wsl intel release-O3     # solo Intel ICX
         """
     )
     
@@ -828,7 +910,12 @@ Ejemplos:
     
     # list
     subparsers.add_parser('list', help='Lista todas las combinaciones disponibles')
-    
+
+    # wsl
+    wsl_parser = subparsers.add_parser('wsl', help='Compila y ejecuta tests en WSL (GCC/Clang/Intel)')
+    wsl_parser.add_argument('compiler', nargs='?', help='gcc | clang | intel | all (default: all)')
+    wsl_parser.add_argument('mode', nargs='?', help='release-O2 | debug | release-O3 (default: release-O2)')
+
     # sanitize
     sanitize_parser = subparsers.add_parser('sanitize', help='Compila con sanitizers (asan, ubsan, tsan)')
     sanitize_parser.add_argument('type', help='uint128 | int128')
@@ -875,6 +962,7 @@ Ejemplos:
         'bench': cmd_bench,
         'demo': cmd_demo,
         'list': cmd_list,
+        'wsl': cmd_wsl,
         'sanitize': cmd_sanitize,
         'analyze': cmd_analyze,
         'compare': cmd_compare,
