@@ -24,7 +24,11 @@
 #include <string>
 
 // ============================================================================
-// RDTSC: cycle-accurate timing independent of clock frequency
+// Cycle/time counter — architecture-aware
+//   x86_64:  RDTSC (cycle-accurate)
+//   ARM64:   CNTVCT_EL0 virtual counter (sub-nanosecond, ~1-50 MHz freq)
+//   RISC-V:  rdtime CSR (platform timer, comparable to ARM64 virtual counter)
+//   Fallback: std::chrono nanoseconds cast to uint64_t
 // ============================================================================
 
 #if defined(_MSC_VER) || (defined(__INTEL_LLVM_COMPILER) && defined(_WIN32))
@@ -33,8 +37,30 @@ static inline std::uint64_t rdtsc() { return __rdtsc(); }
 #elif defined(__INTEL_LLVM_COMPILER)
 #include <x86intrin.h>
 static inline std::uint64_t rdtsc() { return __rdtsc(); }
-#else
+#elif defined(__x86_64__) || defined(_M_X64) || defined(__i386__) || defined(_M_IX86)
 static inline std::uint64_t rdtsc() { return __builtin_ia32_rdtsc(); }
+#elif defined(__aarch64__) || defined(_M_ARM64)
+static inline std::uint64_t rdtsc()
+{
+    std::uint64_t val;
+    __asm__ volatile("mrs %0, cntvct_el0" : "=r"(val));
+    return val;
+}
+#elif defined(__riscv)
+static inline std::uint64_t rdtsc()
+{
+    std::uint64_t val;
+    __asm__ volatile("rdtime %0" : "=r"(val));
+    return val;
+}
+#else
+#include <chrono>
+static inline std::uint64_t rdtsc()
+{
+    return static_cast<std::uint64_t>(
+        std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count());
+}
 #endif
 
 // ============================================================================

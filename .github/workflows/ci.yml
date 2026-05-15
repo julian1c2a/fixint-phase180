@@ -72,6 +72,45 @@ jobs:
         run: python3 make.py test ${{ matrix.family }} ${{ matrix.mode }}
 
   # ============================================================================
+  # Native ARM64 — GCC + Clang (real hardware, ubuntu-24.04-arm)
+  # Free on public repos; needs no cross-toolchain or QEMU.
+  # ============================================================================
+  native-arm64:
+    name: "${{ matrix.compiler }} — ARM64 native (${{ matrix.mode }})"
+    runs-on: ubuntu-24.04-arm
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - compiler: gcc-14
+            cxx: g++-14
+            pkg: g++-14
+            family: gcc
+            mode: release-O2
+          - compiler: clang-19
+            cxx: clang++-19
+            pkg: clang-19
+            family: clang
+            mode: release-O2
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install compiler
+        run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test 2>/dev/null || true
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null 2>&1 || true
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main" 2>/dev/null || true
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ${{ matrix.pkg }}
+
+      - name: Build & Test all
+        env:
+          GCC_CXX: ${{ matrix.cxx }}
+          CLANG_CXX: ${{ matrix.cxx }}
+        run: python3 make.py test ${{ matrix.family }} ${{ matrix.mode }}
+
+  # ============================================================================
   # Native x86_64 — MSVC (Windows)
   # ============================================================================
   native-windows:
@@ -402,7 +441,7 @@ jobs:
   ci-summary:
     name: CI Dashboard
     runs-on: ubuntu-latest
-    needs: [native-linux, native-windows, cross-arm64, cross-arm32, cross-riscv64, cross-x86-32, sanitizers]
+    needs: [native-linux, native-arm64, native-windows, cross-arm64, cross-arm32, cross-riscv64, cross-x86-32, sanitizers]
     if: always()
 
     steps:
@@ -414,6 +453,7 @@ jobs:
           echo "| Platform | Compiler | Arch | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|----------|------|--------|" >> $GITHUB_STEP_SUMMARY
           echo "| Linux | GCC 14/15, Clang 19/20 | x86_64 | ${{ needs.native-linux.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Linux | GCC 14, Clang 19 | ARM64 (native) | ${{ needs.native-arm64.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Windows | MSVC 2022 | x86_64 | ${{ needs.native-windows.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Cross-Compilation (GCC + QEMU)" >> $GITHUB_STEP_SUMMARY
@@ -432,6 +472,7 @@ jobs:
       - name: Fail on critical errors
         if: |
           needs.native-linux.result == 'failure' ||
+          needs.native-arm64.result == 'failure' ||
           needs.native-windows.result == 'failure' ||
           needs.cross-arm64.result == 'failure' ||
           needs.cross-riscv64.result == 'failure'
