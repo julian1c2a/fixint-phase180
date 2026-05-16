@@ -1,7 +1,7 @@
 // This is an open source non-commercial project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // =============================================================================
-// Test: Magnitude-Sign — 107 tests across 12 sections
+// Test: Magnitude-Sign — 120 tests across 13 sections
 // Part of int128 Library - Phase 1.75
 // License: BSL-1.0
 //
@@ -9,6 +9,8 @@
 //                safe arithmetic, bitwise, shifts
 // Sections 10-12 (added v1.77): addition/subtraction, unary minus + ±0
 //                semantics, string I/O
+// Section 13 (Fase C): ±0 via operator-, get_sign for zero, abs(-0),
+//                overflow truncation invariant
 // =============================================================================
 
 #include "int128_parameterized.hpp"
@@ -442,12 +444,62 @@ static void test_string_io()
 }
 
 // =============================================================================
+// Section 13: MS edge cases — ±0 production, get_sign for zero, abs(-0),
+//             and the addition-overflow truncation invariant
+// =============================================================================
+static void test_ms_edge_cases()
+{
+    std::cout << "\n--- Section 13: MS edge cases ---\n";
+
+    // operator- on +0 must produce -0 (sign bit set), not +0
+    TEST("ms op-( +0) is_negative_zero",  (-ms_t{0LL}).is_negative_zero());
+    TEST("ms op-( +0) is_zero",           (-ms_t{0LL}).is_zero());
+    TEST("ms op-( +0) !is_positive_zero", !(-ms_t{0LL}).is_positive_zero());
+
+    // operator- on -0 must produce +0
+    {
+        ms_t neg_zero{0LL};
+        neg_zero.set_high(neg_zero.high() | (1ULL << 63));
+        TEST("ms op-( -0) is_positive_zero", (-neg_zero).is_positive_zero());
+        TEST("ms op-( -0) is_zero",          (-neg_zero).is_zero());
+    }
+
+    // get_sign for both zeros returns 0 (neither positive nor negative)
+    TEST("ms get_sign(+0) == 0", ms_t{0LL}.get_sign() == 0);
+    {
+        ms_t neg_zero{0LL};
+        neg_zero.set_high(neg_zero.high() | (1ULL << 63));
+        TEST("ms get_sign(-0) == 0", neg_zero.get_sign() == 0);
+    }
+
+    // abs(-0) returns unsigned +0 (magnitude = 0, sign bit stripped)
+    {
+        ms_t neg_zero{0LL};
+        neg_zero.set_high(neg_zero.high() | (1ULL << 63));
+        const auto a = neg_zero.abs();
+        TEST("ms abs(-0).low()  == 0", a.low()  == 0ULL);
+        TEST("ms abs(-0).high() == 0", a.high() == 0ULL);
+    }
+
+    // Same-sign addition overflow: MS truncates the overflow bit (does NOT wrap).
+    // Two values each with magnitude 2^126 (bit 62 of high word set).
+    // Their sum would need bit 63 of magnitude which is the sign bit → truncated to 0.
+    {
+        const ms_t a{0x4000000000000000ULL, 0ULL}; // +2^126
+        const ms_t b{0x4000000000000000ULL, 0ULL}; // +2^126
+        const ms_t r = a + b;
+        TEST("ms add_overflow truncates to +0: is_zero",    r.is_zero());
+        TEST("ms add_overflow truncates to +0: !is_negative", !r.is_negative());
+    }
+}
+
+// =============================================================================
 // main
 // =============================================================================
 int main()
 {
     std::cout << "================================================================\n";
-    std::cout << "  test_param_ms: Magnitude-Sign (12 sections, 107 tests)\n";
+    std::cout << "  test_param_ms: Magnitude-Sign (13 sections, 120 tests)\n";
     std::cout << "================================================================\n";
 
     test_info_methods();
@@ -462,9 +514,11 @@ int main()
     test_add_sub();
     test_unary_minus_and_zeros();
     test_string_io();
+    test_ms_edge_cases();
 
     std::cout << "\n================================================================\n";
-    std::cout << "  RESULTS: " << g_passed << " passed, " << g_failed << " failed\n";
+    std::cout << "  RESULTS: " << g_passed + g_failed << " run, "
+              << g_passed << " passed, " << g_failed << " failed\n";
     std::cout << "================================================================\n";
 
     return g_failed ? 1 : 0;

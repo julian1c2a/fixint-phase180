@@ -9,6 +9,7 @@
 //               test_excess_k_basic, test_excess_k_arithmetic,
 //               test_excess_k_comparison,
 //               test_ms_ek_operators (EK portions of Groups 3-6)
+// Section 13 (Fase C): EK <-> MS cross-representation round-trips
 // =============================================================================
 
 #include "int128_parameterized.hpp"
@@ -379,6 +380,43 @@ static void test_string_io()
 }
 
 // =============================================================================
+// Section 13: EK <-> MS cross-representation round-trips
+// =============================================================================
+static void test_ek_ms_conversions()
+{
+    std::cout << "\n--- Section 13: EK <-> MS cross-representation round-trips ---\n";
+
+    struct Case { const char* name; long long val; };
+    const Case cases[] = {
+        {"+1",        1LL},
+        {"-1",       -1LL},
+        {"+42",       42LL},
+        {"-42",      -42LL},
+        {"+1000000",  1000000LL},
+        {"-1000000", -1000000LL},
+        {"int64_max", std::numeric_limits<int64_t>::max()},
+        {"int64_min", std::numeric_limits<int64_t>::min()},
+    };
+
+    for (const auto& c : cases)
+    {
+        const ek_t orig{c.val};
+        const ms_t as_ms{orig};
+        const ek_t back{as_ms};
+        TEST(std::string{"EK->MS->EK: "} + c.name, back == orig);
+    }
+
+    // MS -> EK direction
+    for (const auto& c : cases)
+    {
+        const ms_t orig{c.val};
+        const ek_t as_ek{orig};
+        const ms_t back{as_ek};
+        TEST(std::string{"MS->EK->MS: "} + c.name, back == orig);
+    }
+}
+
+// =============================================================================
 // main
 // =============================================================================
 int main()
@@ -400,6 +438,7 @@ int main()
     test_carry_propagation();
     test_cross_repr();
     test_string_io();
+    test_ek_ms_conversions();
 
     std::cout << "\n================================================================\n";
     std::cout << "  RESULTS: " << g_passed << " passed, " << g_failed << " failed\n";
