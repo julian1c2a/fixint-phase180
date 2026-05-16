@@ -1,0 +1,29 @@
+# =============================================================================
+# Dockerfile.crosstest — imagen base para compilación cruzada vía QEMU
+# Arquitecturas soportadas: arm64 (linux/arm64), arm32 (linux/arm/v7),
+#                            riscv64 (linux/riscv64)
+#
+# Uso (Docker Desktop con QEMU integrado):
+#   docker build --platform linux/arm64   -t fixint-crosstest:arm64   -f docker/Dockerfile.crosstest .
+#   docker build --platform linux/arm/v7  -t fixint-crosstest:arm32   -f docker/Dockerfile.crosstest .
+#   docker build --platform linux/riscv64 -t fixint-crosstest:riscv64 -f docker/Dockerfile.crosstest .
+#
+# O directamente via make.py:
+#   python make.py docker arm64
+#   python make.py docker arm32
+#   python make.py docker riscv64
+# =============================================================================
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y \
+        g++ \
+        clang \
+        python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /project
+
+CMD ["python3", "make.py", "test", "gcc", "release-O2"]

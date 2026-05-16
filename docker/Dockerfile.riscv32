@@ -1,0 +1,44 @@
+# =============================================================================
+# Dockerfile.riscv32 — compilación cruzada para RISC-V 32-bit
+#
+# Estrategia: host x86_64, gcc-riscv64-linux-gnu con flags rv32 + QEMU user-mode
+# No existe imagen Docker oficial linux/riscv32, así que cross-compilamos y
+# ejecutamos via qemu-riscv32-static registrado en binfmt_misc.
+#
+# REQUISITO: docker run --privileged  (necesario para binfmt_misc)
+#
+# Uso:
+#   docker build -t fixint-crosstest:riscv32 -f docker/Dockerfile.riscv32 .
+#   docker run --privileged --rm -v <proyecto>:/project fixint-crosstest:riscv32 \
+#       python3 /project/make.py test gcc release-O2
+#
+# O via make.py:
+#   python make.py docker riscv32
+# =============================================================================
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Compilador cruzado riscv64 (soporta multilib rv32) + QEMU user-mode
+RUN apt-get update && apt-get install -y \
+        gcc-riscv64-linux-gnu \
+        g++-riscv64-linux-gnu \
+        qemu-user-static \
+        python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Wrapper transparente: 'g++' -> riscv64-linux-gnu-g++ con flags rv32imac/ilp32
+# El compilador riscv64 incluye multilib rv32 en Ubuntu 22.04.
+RUN printf '#!/bin/sh\nexec riscv64-linux-gnu-g++ -march=rv32imac -mabi=ilp32 "$@"\n' \
+        > /usr/local/bin/g++ && chmod +x /usr/local/bin/g++ && \
+    printf '#!/bin/sh\nexec riscv64-linux-gnu-gcc -march=rv32imac -mabi=ilp32 "$@"\n' \
+        > /usr/local/bin/gcc && chmod +x /usr/local/bin/gcc
+
+COPY docker/entrypoint-riscv32.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+WORKDIR /project
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["python3", "make.py", "test", "gcc", "release-O2"]

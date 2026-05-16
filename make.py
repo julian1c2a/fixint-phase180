@@ -66,6 +66,7 @@ TESTS_DIR = PROJECT_ROOT / "tests"
 BENCHS_DIR = PROJECT_ROOT / "benchs"
 DEMOS_DIR = PROJECT_ROOT / "demos"
 COMPILER_ENVS_DIR = BUILD_DIR / "compiler_envs"
+DOCKER_DIR = PROJECT_ROOT / "docker"
 
 # Colors
 class Colors:
@@ -553,6 +554,155 @@ def cmd_demo(args: argparse.Namespace) -> int:
     return ret
 
 
+# =============================================================================
+# Docker cross-compilation configuration
+# =============================================================================
+
+DOCKER_ARCHES: List[str] = ['arm64', 'arm32', 'riscv64', 'riscv32']
+
+DOCKER_CONFIG: Dict[str, dict] = {
+    'arm64': {
+        'platform':   'linux/arm64',
+        'dockerfile': 'Dockerfile.crosstest',
+        'image':      'fixint-crosstest:arm64',
+        'privileged': False,
+    },
+    'arm32': {
+        'platform':   'linux/arm/v7',
+        'dockerfile': 'Dockerfile.crosstest',
+        'image':      'fixint-crosstest:arm32',
+        'privileged': False,
+    },
+    'riscv64': {
+        'platform':   'linux/riscv64',
+        'dockerfile': 'Dockerfile.crosstest',
+        'image':      'fixint-crosstest:riscv64',
+        'privileged': False,
+    },
+    'riscv32': {
+        'platform':   None,   # sin imagen oficial linux/riscv32
+        'dockerfile': 'Dockerfile.riscv32',
+        'image':      'fixint-crosstest:riscv32',
+        'privileged': True,   # necesario para binfmt_misc
+    },
+}
+
+
+def _docker_available() -> bool:
+    """Comprueba si Docker está disponible y en ejecución."""
+    try:
+        r = subprocess.run(
+            ['docker', 'info'],
+            capture_output=True,
+            timeout=10
+        )
+        return r.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
+def _docker_image_exists(image: str) -> bool:
+    """Devuelve True si la imagen local existe."""
+    r = subprocess.run(
+        ['docker', 'image', 'inspect', image],
+        capture_output=True
+    )
+    return r.returncode == 0
+
+
+def _docker_build_image(arch: str, cfg: dict) -> bool:
+    """Construye la imagen Docker para la arquitectura indicada."""
+    image      = cfg['image']
+    dockerfile = DOCKER_DIR / cfg['dockerfile']
+    cmd = ['docker', 'build']
+    if cfg['platform']:
+        cmd += ['--platform', cfg['platform']]
+    cmd += ['-t', image, '-f', str(dockerfile), str(PROJECT_ROOT)]
+    echo_info(f"Construyendo imagen Docker {image} ...")
+    r = subprocess.run(cmd, cwd=PROJECT_ROOT)
+    return r.returncode == 0
+
+
+def cmd_docker(args: argparse.Namespace) -> int:
+    """Compila y ejecuta tests via Docker (cross-compilation multi-arch)."""
+    echo_header("=" * 60)
+    echo_header("  DOCKER — BUILD & TEST (Cross-compilation)")
+    echo_header("=" * 60)
+    print()
+
+    if not _docker_available():
+        echo_error("Docker no disponible. Inicia Docker Desktop.")
+        echo_info("Descarga: https://www.docker.com/products/docker-desktop/")
+        return 1
+
+    arch         = getattr(args, 'arch',  None) or 'all'
+    mode         = getattr(args, 'mode',  None) or 'release-O2'
+    force_build  = getattr(args, 'build', False)
+
+    if arch != 'all' and arch not in DOCKER_CONFIG:
+        echo_error(f"Arquitectura desconocida: '{arch}'.")
+        echo_info(f"Opciones: {', '.join(DOCKER_ARCHES)} | all")
+        return 1
+
+    arches = DOCKER_ARCHES if arch == 'all' else [arch]
+
+    echo_info(f"Arquitectura(s): {', '.join(arches)}")
+    echo_info(f"Modo:            {mode}")
+    print()
+
+    results: Dict[str, bool] = {}
+
+    for a in arches:
+        cfg   = DOCKER_CONFIG[a]
+        image = cfg['image']
+
+        echo_header(f"--- {a.upper()} ---")
+
+        # Construir imagen si no existe o se fuerza rebuild
+        if force_build or not _docker_image_exists(image):
+            if not _docker_build_image(a, cfg):
+                echo_error(f"{a}: FAIL (build de imagen falló)")
+                results[a] = False
+                print()
+                continue
+
+        # Ejecutar tests en el contenedor
+        cmd = ['docker', 'run', '--rm']
+        if cfg['platform']:
+            cmd += ['--platform', cfg['platform']]
+        if cfg['privileged']:
+            cmd += ['--privileged']
+        cmd += ['-v', f'{str(PROJECT_ROOT).replace(chr(92), "/")}:/project']
+        cmd += [image, 'python3', '/project/make.py', 'test', 'gcc', mode]
+
+        echo_info(f"Ejecutando tests en {a} ({cfg.get('platform') or 'cross-compilation'}) ...")
+        r = subprocess.run(cmd, cwd=PROJECT_ROOT)
+        ok = (r.returncode == 0)
+        results[a] = ok
+
+        if ok:
+            echo_success(f"{a}: PASS")
+        else:
+            echo_error(f"{a}: FAIL (código {r.returncode})")
+        print()
+
+    # Resumen
+    passed = sum(1 for v in results.values() if v)
+    failed = len(results) - passed
+
+    echo_header("=" * 60)
+    echo_header("  RESUMEN DOCKER")
+    echo_header("=" * 60)
+    echo_success(f"Pasaron: {passed}/{len(arches)} arquitecturas")
+    if failed:
+        echo_error(f"Fallaron: {failed}/{len(arches)} arquitecturas")
+        for a, ok in results.items():
+            if not ok:
+                echo_error(f"  - {a}")
+
+    return 0 if failed == 0 else 1
+
+
 def cmd_wsl(args: argparse.Namespace) -> int:
     """Compila y ejecuta tests en WSL con GCC, Clang e Intel."""
     echo_header("=" * 60)
@@ -916,6 +1066,24 @@ Ejemplos:
     wsl_parser.add_argument('compiler', nargs='?', help='gcc | clang | intel | all (default: all)')
     wsl_parser.add_argument('mode', nargs='?', help='release-O2 | debug | release-O3 (default: release-O2)')
 
+    # docker
+    docker_parser = subparsers.add_parser(
+        'docker',
+        help='Cross-compilation tests via Docker (arm64, arm32, riscv64, riscv32)'
+    )
+    docker_parser.add_argument(
+        'arch', nargs='?',
+        help='arm64 | arm32 | riscv64 | riscv32 | all (default: all)'
+    )
+    docker_parser.add_argument(
+        'mode', nargs='?',
+        help='release-O2 | debug | release-O3 (default: release-O2)'
+    )
+    docker_parser.add_argument(
+        '--build', action='store_true',
+        help='Forzar reconstrucción de imágenes Docker'
+    )
+
     # sanitize
     sanitize_parser = subparsers.add_parser('sanitize', help='Compila con sanitizers (asan, ubsan, tsan)')
     sanitize_parser.add_argument('type', help='uint128 | int128')
@@ -963,6 +1131,7 @@ Ejemplos:
         'demo': cmd_demo,
         'list': cmd_list,
         'wsl': cmd_wsl,
+        'docker': cmd_docker,
         'sanitize': cmd_sanitize,
         'analyze': cmd_analyze,
         'compare': cmd_compare,
