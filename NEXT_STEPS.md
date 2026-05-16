@@ -1,8 +1,57 @@
 # 🔮 NEXT STEPS - Post-Phase 1.75
 
-**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 13/13 ✅ | Intrinsics ✅ | Cross-Repr ✅ | API Docs ✅ | Karatsuba ✅ | Format ✅ | Hash ✅ | Benchmarks ✅ | Replanteamiento ✅ | **GM Constexpr ✅** | **A1 Sub/Add Opt ✅** | **A2 4-Compiler Benchmarks ✅** | **A4 Sweep Migration ✅** | **v1.76 ✅** | **v1.77 ✅** | **CI/CD ✅** | **ARM/RISC-V ✅** | **MS 107 tests ✅** | **EK 100 tests ✅** | **M2 compare ✅**
-**Last Updated:** 15 May 2026
-**Focus:** All HIGH+MEDIUM priorities complete. Deferred: M1/B2 BCD+Decimal128 → Phase 1.80+, B3 int256/512 → fix_int cases, B4 Conan/vcpkg → not needed, M4 Clang constexpr → future. No open actionable items.
+**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 13/13 ✅ | Intrinsics ✅ | Cross-Repr ✅ | API Docs ✅ | Karatsuba ✅ | Format ✅ | Hash ✅ | Benchmarks ✅ | Replanteamiento ✅ | **GM Constexpr ✅** | **A1 Sub/Add Opt ✅** | **A2 4-Compiler Benchmarks ✅** | **A4 Sweep Migration ✅** | **v1.76 ✅** | **v1.77 ✅** | **CI/CD ✅** | **ARM/RISC-V ✅** | **MS 107 tests ✅** | **EK 100 tests ✅** | **M2 compare ✅** | **Fase A deuda técnica ✅**
+**Last Updated:** 16 May 2026
+**Focus:** Fase A completa (pragma GCC + test_sweep_ms, 41/41). Siguiente: Fase B ARM64 intrinsics NEON.
+
+---
+
+## ✅ Fase A — Deuda Técnica Representaciones (16 May 2026, branch fixint/core)
+
+| Item | Estado | Detalle |
+|------|--------|---------|
+| Pragma GCC scope | ✅ HECHO | `#pragma GCC optimize("O0")` reemplazado por helper `ek_store_bias()` con `[[gnu::optimize("O0"), gnu::noinline]]`. Usa `std::is_constant_evaluated()` para dispatch constexpr/runtime. |
+| test_sweep_ms.cpp | ✅ HECHO | 15 tests, ~133M verificaciones. 3 regiones × 6 combos binarias. Oráculos adaptados a semántica MS (no roundtrip, sino antisimetría y sub==add(-b)). |
+| Nota stale MENSAJES_IA_TEMPORALES | ✅ HECHO | representation.hpp confirmado completo — nota corregida. |
+
+**Resultado:** 41/41 tests GCC release. Commit: `1e17464`.
+
+---
+
+## 🔲 Fase B — ARM64 Intrinsics NEON (próxima en fixint/core)
+
+Estado actual: CI ARM64 funciona ✅. Código cae en fallback C++ genérico.
+Lo que falta para completar v1.80:
+
+| Subtarea | Archivo | Acción |
+|----------|---------|--------|
+| B1: add128/sub128 NEON | `intrinsics/arithmetic_operations.hpp` | Añadir `#ifdef __aarch64__` con `vadd*`/`vsub*` o inline ASM `adds`/`adc` |
+| B2: clz64/ctz64/popcount64 NEON | `intrinsics/bit_operations.hpp` | `__builtin_clzll`/`rbit+clz` ya portables en GCC/Clang ARM |
+| B3: Benchmark ARM64 | `benchs/` | `python make.py bench` en runner ARM (GitHub Actions o WSL ARM) |
+| B4: Validación make.py wsl | `make.py` | Confirmar que `wsl` command detecta ARM toolchain correctamente |
+
+---
+
+## 🔲 Fase C — Fortalecimiento de Tests (M3, después de Fase B)
+
+| Subtarea | Impacto |
+|----------|---------|
+| C1: test_sweep_binnat.cpp | Cobertura sistemática para representación unsigned (actualmente sin sweep propio) |
+| C2: Sweep de conversiones cruzadas | TC↔MS↔EK round-trip con los 6 combos de regiones |
+| C3: Edge cases MS -0 y EK bias | Casos frontera en test_param_ms.cpp / test_param_ek.cpp |
+
+---
+
+## 🗺️ Hoja de Ruta branch → milestone
+
+```text
+fixint/core
+  Fase A: pragma fix + test_sweep_ms      COMPLETO
+  Fase B: ARM64 NEON intrinsics           PENDIENTE
+  Fase C: test strengthening (M3)         PENDIENTE
+     -> merge -> phase-1.80  (v1.80)
+phase-1.80 -> v1.90: int_fixed_t<N>
+```
 
 ---
 

@@ -6,9 +6,10 @@
 
 ## GEMINI DEBE LEER ESTE ARCHIVO CON LA MAYOR FRECUENCIA POSIBLE.
 
-### INCLUDE/REPRESENTATIONS.HPP ESTÁ INCOMPLETA
+### ~~INCLUDE/REPRESENTATIONS.HPP ESTÁ INCOMPLETA~~ — RESUELTO (16 Mayo 2026)
 
-#### 1. DEBE INCLUIR LAS CONVERSIONES DE EXCESO K A COMPLEMENTO A DOS Y A MAGNITUD Y SIGNO.
-
-#### 2. DEBE INCLUIR LAS CONVERSIONES DE COMPLEMENTO A DOS Y DE MAGNITUD Y SIGNO A EXCESO K.
+representation.hpp contiene las 6 funciones de conversión completas:
+ms128_to_twos_complement, twos_complement128_to_ms,
+twos_complement128_to_excess_k, excess_k128_to_twos_complement,
+ms128_to_excess_k, excess_k128_to_ms.
 
