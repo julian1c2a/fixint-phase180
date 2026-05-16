@@ -558,7 +558,8 @@ def cmd_demo(args: argparse.Namespace) -> int:
 # Docker cross-compilation configuration
 # =============================================================================
 
-DOCKER_ARCHES: List[str] = ['arm64', 'arm32', 'riscv64', 'riscv32']
+DOCKER_ARCHES: List[str] = ['arm64', 'arm32', 'riscv64']
+# riscv32 excluido de 'all': gcc-riscv64-linux-gnu no incluye sysroot ILP32.
 
 DOCKER_CONFIG: Dict[str, dict] = {
     'arm64': {
@@ -645,6 +646,14 @@ def cmd_docker(args: argparse.Namespace) -> int:
         return 1
 
     arches = DOCKER_ARCHES if arch == 'all' else [arch]
+
+    if 'riscv32' in arches:
+        echo_error("riscv32 no soportado en este entorno:")
+        echo_info("  gcc-riscv64-linux-gnu (Ubuntu 22.04) no incluye sysroot ILP32.")
+        echo_info("  Se necesita un toolchain riscv32-linux-gnu con sysroot completo.")
+        arches = [a for a in arches if a != 'riscv32']
+        if not arches:
+            return 1
 
     echo_info(f"Arquitectura(s): {', '.join(arches)}")
     echo_info(f"Modo:            {mode}")

@@ -29,7 +29,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Wrapper transparente: 'g++' -> riscv64-linux-gnu-g++ con flags rv32imac/ilp32
-# El compilador riscv64 incluye multilib rv32 en Ubuntu 22.04.
+# NOTA: Ubuntu 22.04 gcc-riscv64-linux-gnu NO incluye sysroot ILP32 (gnu/stubs-ilp32.h
+# no está disponible). Este Dockerfile está preparado para cuando se use un toolchain
+# riscv32-linux-gnu con sysroot completo.
 RUN printf '#!/bin/sh\nexec riscv64-linux-gnu-g++ -march=rv32imac -mabi=ilp32 "$@"\n' \
         > /usr/local/bin/g++ && chmod +x /usr/local/bin/g++ && \
     printf '#!/bin/sh\nexec riscv64-linux-gnu-gcc -march=rv32imac -mabi=ilp32 "$@"\n' \
