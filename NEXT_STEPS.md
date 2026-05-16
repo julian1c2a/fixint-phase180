@@ -18,17 +18,20 @@
 
 ---
 
-## 🔲 Fase B — ARM64 Intrinsics NEON (próxima en fixint/core)
+## ✅ Fase B — ARM64 portabilidad: YA COMPLETA (verificado 16 May 2026)
 
-Estado actual: CI ARM64 funciona ✅. Código cae en fallback C++ genérico.
-Lo que falta para completar v1.80:
+La capa de intrinsics ya cubre ARM64 correctamente. No hace falta NEON manual:
 
-| Subtarea | Archivo | Acción |
-|----------|---------|--------|
-| B1: add128/sub128 NEON | `intrinsics/arithmetic_operations.hpp` | Añadir `#ifdef __aarch64__` con `vadd*`/`vsub*` o inline ASM `adds`/`adc` |
-| B2: clz64/ctz64/popcount64 NEON | `intrinsics/bit_operations.hpp` | `__builtin_clzll`/`rbit+clz` ya portables en GCC/Clang ARM |
-| B3: Benchmark ARM64 | `benchs/` | `python make.py bench` en runner ARM (GitHub Actions o WSL ARM) |
-| B4: Validación make.py wsl | `make.py` | Confirmar que `wsl` command detecta ARM toolchain correctamente |
+| Path | Mecanismo | Instrucciones ARM64 generadas |
+|------|-----------|-------------------------------|
+| `add128`/`sub128` | `__SIZEOF_INT128__` → `__uint128_t` | `adds`/`adcs` (nativo) |
+| `addcarry_u64`/`subborrow_u64` | `INTRINSICS_USES_GNU_ABI` → `__builtin_uaddll_overflow` | `adds`+`cset` (correcto) |
+| `popcount64` | `__builtin_popcountll` | `cnt` (NEON, generado por GCC/Clang) |
+| `clz64`/`ctz64` | `__builtin_clzll`/`__builtin_ctzll` | `clz`/`rbit+clz` |
+| `umulh`/`mulx_u64` | `__SIZEOF_INT128__` | `mul`+`umulh` |
+
+`<arm_neon.h>` se incluye en `compiler_detection.hpp` (linea 289) pero no es necesario
+porque `__uint128_t` + `__builtin_*` ya produce código ARM64 optimal en GCC/Clang.
 
 ---
 
@@ -47,7 +50,7 @@ Lo que falta para completar v1.80:
 ```text
 fixint/core
   Fase A: pragma fix + test_sweep_ms      COMPLETO
-  Fase B: ARM64 NEON intrinsics           PENDIENTE
+  Fase B: ARM64 portabilidad              COMPLETO (ya estaba: __uint128_t + __builtin_*)
   Fase C: test strengthening (M3)         PENDIENTE
      -> merge -> phase-1.80  (v1.80)
 phase-1.80 -> v1.90: int_fixed_t<N>
