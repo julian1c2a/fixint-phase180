@@ -421,6 +421,20 @@ namespace nstd
             }
         }
 
+        // Targeted GCC -O2 workaround: only applied to EK construction.
+        // GCC 15.2.0 incorrectly eliminates the bias addition in EK construction at -O2.
+        // [[gnu::optimize("O0"), gnu::noinline]] suppresses it only for this helper,
+        // leaving TC, MS, and binnat constructors fully optimizable.
+#if defined(__GNUC__) && !defined(__clang__)
+        [[gnu::optimize("O0"), gnu::noinline]]
+#endif
+        void ek_store_bias(std::uint64_t low, std::uint64_t high) noexcept
+        {
+            constexpr std::uint64_t bias_high{1ULL << 62};
+            data[0] = low;
+            data[1] = high + bias_high;
+        }
+
     public:
         // ===================== Constructors =====================
 
@@ -494,61 +508,57 @@ namespace nstd
 
         /// @brief Constructor from single integral value (zero-extends or sign-extends)
         ///
-        /// ⚠️ GCC BUG WORKAROUND: GCC 15.2.0 with -O2 optimization incorrectly eliminates
-        /// the EK branch code that adds bias, even with volatile and explicit control flow.
-        /// Using #pragma GCC optimize("O0") for this function only as a workaround.
-#pragma GCC push_options
-#pragma GCC optimize("O0")
+        /// EK construction dispatches to ek_store_bias() at runtime to work around
+        /// a GCC 15.2.0 -O2 bug that incorrectly eliminated the bias addition.
+        /// TC, MS, and binnat paths compile fully optimized.
         template <typename T,
                   typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
         explicit constexpr int128_param_t(T value) noexcept : data{0, 0}
         {
-            // NOTE: Each representation form handled in separate branch
-            // CRITICAL: Must use if constexpr (not else-if) to ensure correct evaluation with -O2
-
             // ========================================================================
             // EXCESS-K Representation (Bias Notation)
             // ========================================================================
             if constexpr (is_excess_k && is_signed)
             {
-                static_assert(is_excess_k, "EK branch: is_excess_k must be true");
-                static_assert(is_signed, "EK branch: is_signed must be true");
-                // Excess-K: stored_value = real_value + bias (K = 2^126)
                 constexpr std::uint64_t bias_high{1ULL << 62};
-                constexpr std::uint64_t bias_low{0ULL};
 
                 if constexpr (std::is_signed_v<T>)
                 {
-                    // Sign-extend to 128 bits first
-                    const bool negative{value < 0};
                     const std::uint64_t value_low{static_cast<std::uint64_t>(value)};
-                    const std::uint64_t value_high{negative ? std::numeric_limits<std::uint64_t>::max() : std::uint64_t{0}};
+                    const std::uint64_t value_high{(value < 0) ? std::numeric_limits<std::uint64_t>::max() : std::uint64_t{0}};
 
-                    // Add bias - Use volatile to prevent optimizer from eliminating this
-                    volatile std::uint64_t vtemp_low{value_low};
-                    const std::uint64_t sum_low{vtemp_low + bias_low};
-                    const std::uint64_t carry{(sum_low < vtemp_low) ? 1ULL : 0ULL};
-                    data[0] = sum_low;
-                    data[1] = value_high + bias_high + carry;
+                    if (std::is_constant_evaluated())
+                    {
+                        data[0] = value_low;
+                        data[1] = value_high + bias_high;
+                    }
+                    else
+                    {
+                        ek_store_bias(value_low, value_high);
+                    }
                 }
                 else
                 {
-                    // Zero-extend to 128 bits
                     const std::uint64_t value_low{static_cast<std::uint64_t>(value)};
-                    std::uint64_t value_high{0};
-                    if constexpr (sizeof(T) > sizeof(std::uint64_t))
-                    {
-                        value_high = static_cast<std::uint64_t>(value >> 64);
-                    }
+                    const std::uint64_t value_high{[&]() constexpr noexcept -> std::uint64_t {
+                        if constexpr (sizeof(T) > sizeof(std::uint64_t)) {
+                            return static_cast<std::uint64_t>(value >> 64);
+                        } else {
+                            return std::uint64_t{0};
+                        }
+                    }()};
 
-                    // Add bias - Use volatile to prevent optimizer from eliminating this
-                    volatile std::uint64_t vtemp_low{value_low};
-                    const std::uint64_t sum_low{vtemp_low + bias_low};
-                    const std::uint64_t carry{(sum_low < vtemp_low) ? 1ULL : 0ULL};
-                    data[0] = sum_low;
-                    data[1] = value_high + bias_high + carry;
+                    if (std::is_constant_evaluated())
+                    {
+                        data[0] = value_low;
+                        data[1] = value_high + bias_high;
+                    }
+                    else
+                    {
+                        ek_store_bias(value_low, value_high);
+                    }
                 }
-                return; // Early return to ensure no other branch executes
+                return;
             }
 
             // ========================================================================
@@ -562,7 +572,7 @@ namespace nstd
                     {
                         using UnsignedT = std::make_unsigned_t<T>;
                         data[0] = static_cast<std::uint64_t>(-static_cast<UnsignedT>(value));
-                        data[1] = std::uint64_t{1ULL << 63}; // Set sign bit
+                        data[1] = std::uint64_t{1ULL << 63};
                     }
                     else
                     {
@@ -582,13 +592,12 @@ namespace nstd
                         data[1] = std::uint64_t{0};
                     }
                 }
-                return; // Early return
+                return;
             }
 
             // ========================================================================
             // TWO'S COMPLEMENT (TC) and BINNAT (unsigned binary natural)
             // ========================================================================
-            // Default: TC for signed, binnat for unsigned
             if constexpr (std::is_signed_v<T>)
             {
                 const bool negative{value < 0};
@@ -608,7 +617,6 @@ namespace nstd
                 }
             }
         }
-#pragma GCC pop_options
 
         // ===================== Assignment Operators =====================
 
