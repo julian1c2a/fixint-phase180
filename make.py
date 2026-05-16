@@ -666,6 +666,13 @@ def cmd_docker(args: argparse.Namespace) -> int:
                 print()
                 continue
 
+        # Named volume para build/: los binarios ARM/RISC-V se almacenan en
+        # ext4 dentro de Docker, no en NTFS, para preservar el bit de ejecución.
+        build_vol = f'fixint-{a}-build'
+        if force_build:
+            subprocess.run(['docker', 'volume', 'rm', '-f', build_vol],
+                           capture_output=True)
+
         # Ejecutar tests en el contenedor
         cmd = ['docker', 'run', '--rm']
         if cfg['platform']:
@@ -673,6 +680,7 @@ def cmd_docker(args: argparse.Namespace) -> int:
         if cfg['privileged']:
             cmd += ['--privileged']
         cmd += ['-v', f'{str(PROJECT_ROOT).replace(chr(92), "/")}:/project']
+        cmd += ['-v', f'{build_vol}:/project/build']  # ext4, no NTFS
         cmd += [image, 'python3', '/project/make.py', 'test', 'gcc', mode]
 
         echo_info(f"Ejecutando tests en {a} ({cfg.get('platform') or 'cross-compilation'}) ...")

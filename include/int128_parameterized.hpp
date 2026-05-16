@@ -25,6 +25,7 @@
 #define INT128_PARAMETERIZED_HPP
 
 // Include standard library headers first
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <string>
