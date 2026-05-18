@@ -4404,7 +4404,9 @@ namespace nstd
             // [3] OPTIMIZATION FOR 64-BIT DIVISOR (128-bit dividend)
             // ========================================================================
 
-            if (divisor.data[1] == 0)
+            // Safe only when divisor_64 <= 2^63: remainder << 1 stays within uint64_t.
+            // Divisors > 2^63 (e.g. 10^19) fall through to the general 128/128 path below.
+            if (divisor.data[1] == 0 && divisor.data[0] <= (uint64_t{1} << 63))
             {
                 const uint64_t divisor_64 = divisor.data[0];
 
