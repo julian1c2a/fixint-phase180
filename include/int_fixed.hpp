@@ -1,0 +1,545 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+// =============================================================================
+// int_fixed.hpp — Unsigned fixed-width integer template (N x 64-bit limbs)
+// Part of int128 Library - Phase 1.90
+// License: BSL-1.0
+// =============================================================================
+//
+// uint_fixed_t<N>: unsigned two's-complement integer over N uint64_t limbs.
+// data[0] = lowest limb (LSB), data[N-1] = highest limb (MSB).
+//
+// N=1 → 64-bit   (alias uint64_fixed_t)
+// N=2 → 128-bit  (alias uint128_fixed_t)
+// N=4 → 256-bit  (alias uint256_fixed_t)
+// N=8 → 512-bit  (alias uint512_fixed_t)
+//
+// Operations (all mod 2^(64N)):
+//   Construction: from uint64_t, from limb array
+//   Arithmetic:   +, -, *, unary -, ++, --
+//   Bitwise:      &, |, ^, ~, <<, >>
+//   Comparison:   ==, !=, <, <=, >, >=
+//   Conversion:   to_string (base 10), from_string (base 10)
+//   Utilities:    zero(), max(), one(), is_zero(), bit_width(), popcount()
+
+#ifndef INT_FIXED_HPP
+#define INT_FIXED_HPP
+
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <stdexcept>
+#include <string>
+
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+#include "intrinsics/arithmetic_operations.hpp"
+#endif
+
+namespace nstd
+{
+
+template <std::size_t N>
+class uint_fixed_t
+{
+    static_assert(N >= 1, "uint_fixed_t requires at least 1 limb");
+
+public:
+    // data[0] = least-significant limb, data[N-1] = most-significant limb
+    std::array<std::uint64_t, N> data{};
+
+    // =========================================================================
+    // Construction
+    // =========================================================================
+
+    constexpr uint_fixed_t() noexcept = default;
+
+    explicit constexpr uint_fixed_t(std::uint64_t v) noexcept
+    {
+        data[0] = v;
+        for (std::size_t i{1}; i < N; ++i)
+            data[i] = 0;
+    }
+
+    // Construct from array of limbs (data[0]=LSB, data[N-1]=MSB)
+    explicit constexpr uint_fixed_t(std::array<std::uint64_t, N> limbs) noexcept
+        : data{limbs}
+    {}
+
+    // =========================================================================
+    // Named constructors
+    // =========================================================================
+
+    static constexpr uint_fixed_t zero() noexcept { return uint_fixed_t{}; }
+
+    static constexpr uint_fixed_t one() noexcept
+    {
+        return uint_fixed_t{std::uint64_t{1}};
+    }
+
+    static constexpr uint_fixed_t max() noexcept
+    {
+        uint_fixed_t r{};
+        for (auto &limb : r.data)
+            limb = ~std::uint64_t{0};
+        return r;
+    }
+
+    // =========================================================================
+    // Predicates
+    // =========================================================================
+
+    constexpr bool is_zero() const noexcept
+    {
+        for (const auto &limb : data)
+            if (limb != 0)
+                return false;
+        return true;
+    }
+
+    // =========================================================================
+    // Comparison
+    // =========================================================================
+
+    constexpr bool operator==(const uint_fixed_t &o) const noexcept
+    {
+        return data == o.data;
+    }
+
+    constexpr bool operator!=(const uint_fixed_t &o) const noexcept
+    {
+        return !(*this == o);
+    }
+
+    constexpr bool operator<(const uint_fixed_t &o) const noexcept
+    {
+        for (std::size_t i{N}; i-- > 0;)
+        {
+            if (data[i] != o.data[i])
+                return data[i] < o.data[i];
+        }
+        return false;
+    }
+
+    constexpr bool operator<=(const uint_fixed_t &o) const noexcept
+    {
+        return !(o < *this);
+    }
+
+    constexpr bool operator>(const uint_fixed_t &o) const noexcept
+    {
+        return o < *this;
+    }
+
+    constexpr bool operator>=(const uint_fixed_t &o) const noexcept
+    {
+        return !(*this < o);
+    }
+
+    // =========================================================================
+    // Bitwise
+    // =========================================================================
+
+    constexpr uint_fixed_t operator~() const noexcept
+    {
+        uint_fixed_t r{};
+        for (std::size_t i{0}; i < N; ++i)
+            r.data[i] = ~data[i];
+        return r;
+    }
+
+    constexpr uint_fixed_t operator&(const uint_fixed_t &o) const noexcept
+    {
+        uint_fixed_t r{};
+        for (std::size_t i{0}; i < N; ++i)
+            r.data[i] = data[i] & o.data[i];
+        return r;
+    }
+
+    constexpr uint_fixed_t operator|(const uint_fixed_t &o) const noexcept
+    {
+        uint_fixed_t r{};
+        for (std::size_t i{0}; i < N; ++i)
+            r.data[i] = data[i] | o.data[i];
+        return r;
+    }
+
+    constexpr uint_fixed_t operator^(const uint_fixed_t &o) const noexcept
+    {
+        uint_fixed_t r{};
+        for (std::size_t i{0}; i < N; ++i)
+            r.data[i] = data[i] ^ o.data[i];
+        return r;
+    }
+
+    constexpr uint_fixed_t &operator&=(const uint_fixed_t &o) noexcept
+    {
+        *this = *this & o;
+        return *this;
+    }
+
+    constexpr uint_fixed_t &operator|=(const uint_fixed_t &o) noexcept
+    {
+        *this = *this | o;
+        return *this;
+    }
+
+    constexpr uint_fixed_t &operator^=(const uint_fixed_t &o) noexcept
+    {
+        *this = *this ^ o;
+        return *this;
+    }
+
+    // Left shift (logical)
+    constexpr uint_fixed_t operator<<(unsigned shift) const noexcept
+    {
+        uint_fixed_t r{};
+        if (shift >= 64U * N)
+            return r;
+        const std::size_t ls = shift / 64U;
+        const unsigned bs = shift % 64U;
+        if (bs == 0)
+        {
+            for (std::size_t i{ls}; i < N; ++i)
+                r.data[i] = data[i - ls];
+        }
+        else
+        {
+            for (std::size_t i{ls}; i < N; ++i)
+            {
+                r.data[i] = data[i - ls] << bs;
+                if (i > ls)
+                    r.data[i] |= data[i - ls - 1] >> (64U - bs);
+            }
+        }
+        return r;
+    }
+
+    // Right shift (logical / unsigned)
+    constexpr uint_fixed_t operator>>(unsigned shift) const noexcept
+    {
+        uint_fixed_t r{};
+        if (shift >= 64U * N)
+            return r;
+        const std::size_t ls = shift / 64U;
+        const unsigned bs = shift % 64U;
+        if (bs == 0)
+        {
+            for (std::size_t i{0}; i + ls < N; ++i)
+                r.data[i] = data[i + ls];
+        }
+        else
+        {
+            for (std::size_t i{0}; i + ls < N; ++i)
+            {
+                r.data[i] = data[i + ls] >> bs;
+                if (i + ls + 1 < N)
+                    r.data[i] |= data[i + ls + 1] << (64U - bs);
+            }
+        }
+        return r;
+    }
+
+    constexpr uint_fixed_t &operator<<=(unsigned shift) noexcept
+    {
+        *this = *this << shift;
+        return *this;
+    }
+
+    constexpr uint_fixed_t &operator>>=(unsigned shift) noexcept
+    {
+        *this = *this >> shift;
+        return *this;
+    }
+
+    // =========================================================================
+    // Arithmetic — addition/subtraction (ripple-carry via intrinsics or portable)
+    // =========================================================================
+
+    constexpr uint_fixed_t operator+(const uint_fixed_t &o) const noexcept
+    {
+        uint_fixed_t r{};
+        unsigned char carry{0};
+        for (std::size_t i{0}; i < N; ++i)
+        {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+            carry = intrinsics::addcarry_u64(carry, data[i], o.data[i], &r.data[i]);
+#else
+            const std::uint64_t s = data[i] + o.data[i] + carry;
+            carry = static_cast<unsigned char>(
+                (s < data[i]) || (carry != 0 && s == data[i]) ? 1 : 0);
+            r.data[i] = s;
+#endif
+        }
+        return r;
+    }
+
+    constexpr uint_fixed_t operator-(const uint_fixed_t &o) const noexcept
+    {
+        uint_fixed_t r{};
+        unsigned char borrow{0};
+        for (std::size_t i{0}; i < N; ++i)
+        {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+            borrow = intrinsics::subborrow_u64(borrow, data[i], o.data[i], &r.data[i]);
+#else
+            const std::uint64_t d = data[i] - o.data[i] - borrow;
+            borrow = static_cast<unsigned char>(
+                (data[i] < o.data[i]) || (borrow != 0 && data[i] == o.data[i]) ? 1 : 0);
+            r.data[i] = d;
+#endif
+        }
+        return r;
+    }
+
+    constexpr uint_fixed_t operator-() const noexcept
+    {
+        return ~(*this) + one();
+    }
+
+    constexpr uint_fixed_t &operator+=(const uint_fixed_t &o) noexcept
+    {
+        *this = *this + o;
+        return *this;
+    }
+
+    constexpr uint_fixed_t &operator-=(const uint_fixed_t &o) noexcept
+    {
+        *this = *this - o;
+        return *this;
+    }
+
+    constexpr uint_fixed_t &operator++() noexcept
+    {
+        *this += one();
+        return *this;
+    }
+
+    constexpr uint_fixed_t operator++(int) noexcept
+    {
+        uint_fixed_t tmp{*this};
+        ++(*this);
+        return tmp;
+    }
+
+    constexpr uint_fixed_t &operator--() noexcept
+    {
+        *this -= one();
+        return *this;
+    }
+
+    constexpr uint_fixed_t operator--(int) noexcept
+    {
+        uint_fixed_t tmp{*this};
+        --(*this);
+        return tmp;
+    }
+
+    // =========================================================================
+    // Arithmetic — multiplication (schoolbook O(N²), mod 2^(64N))
+    //
+    // For each partial product a[i]*b[j] = (hi:lo) at position i+j:
+    //   1. Add lo to r[i+j] via addcarry → carry c
+    //   2. Add hi+c to r[i+j+1] via addcarry → carry c
+    //   3. Propagate c through r[i+j+2..N-1]
+    //
+    // This keeps each addcarry operand in [0, 2^64-1], avoiding overflow in carry.
+    // =========================================================================
+
+    constexpr uint_fixed_t operator*(const uint_fixed_t &o) const noexcept
+    {
+        uint_fixed_t r{};
+        for (std::size_t i{0}; i < N; ++i)
+        {
+            for (std::size_t j{0}; i + j < N; ++j)
+            {
+                std::uint64_t hi{0};
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                const std::uint64_t lo = intrinsics::umul128(data[i], o.data[j], &hi);
+#else
+                const std::uint64_t a_lo = data[i] & 0xFFFFFFFFULL;
+                const std::uint64_t a_hi = data[i] >> 32;
+                const std::uint64_t b_lo = o.data[j] & 0xFFFFFFFFULL;
+                const std::uint64_t b_hi = o.data[j] >> 32;
+                const std::uint64_t p0 = a_lo * b_lo;
+                const std::uint64_t p1 = a_lo * b_hi;
+                const std::uint64_t p2 = a_hi * b_lo;
+                const std::uint64_t p3 = a_hi * b_hi;
+                const std::uint64_t mid =
+                    (p0 >> 32) + (p1 & 0xFFFFFFFFULL) + (p2 & 0xFFFFFFFFULL);
+                const std::uint64_t lo = (p0 & 0xFFFFFFFFULL) | (mid << 32);
+                hi = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
+#endif
+                // Add lo to r[i+j]
+                unsigned char c = add_limb(r.data[i + j], lo);
+                // Add hi (with carry c) to r[i+j+1], then propagate
+                const std::size_t next = i + j + 1;
+                if (next < N)
+                {
+                    c = add_limb_carry(r.data[next], hi, c);
+                    // Ripple remaining carry
+                    for (std::size_t k{next + 1}; k < N && c; ++k)
+                        c = add_limb(r.data[k], std::uint64_t{c});
+                }
+            }
+        }
+        return r;
+    }
+
+    constexpr uint_fixed_t &operator*=(const uint_fixed_t &o) noexcept
+    {
+        *this = *this * o;
+        return *this;
+    }
+
+    // =========================================================================
+    // Utility
+    // =========================================================================
+
+    // Number of significant bits (floor(log2(x))+1), returns 0 for zero
+    constexpr unsigned bit_width() const noexcept
+    {
+        for (std::size_t i{N}; i-- > 0;)
+        {
+            if (data[i] != 0)
+            {
+                unsigned w{0};
+                std::uint64_t v = data[i];
+                while (v != 0)
+                {
+                    v >>= 1;
+                    ++w;
+                }
+                return static_cast<unsigned>(i * 64U) + w;
+            }
+        }
+        return 0;
+    }
+
+    // Population count (number of set bits)
+    constexpr unsigned popcount() const noexcept
+    {
+        unsigned total{0};
+        for (const auto &limb : data)
+        {
+            std::uint64_t v = limb;
+            while (v != 0)
+            {
+                total += static_cast<unsigned>(v & 1U);
+                v >>= 1;
+            }
+        }
+        return total;
+    }
+
+    // =========================================================================
+    // String conversion — base 10
+    // =========================================================================
+
+    // Convert to decimal string
+    std::string to_string() const
+    {
+        if (is_zero())
+            return "0";
+
+        // Repeated division by 10, collecting remainders (LSdigit first)
+        uint_fixed_t tmp{*this};
+        std::string digits{};
+        digits.reserve(static_cast<std::size_t>(N) * 20);
+        while (!tmp.is_zero())
+        {
+            std::uint64_t rem{0};
+            for (std::size_t i{N}; i-- > 0;)
+                div_by10_step(rem, tmp.data[i], rem, tmp.data[i]);
+            digits += static_cast<char>('0' + static_cast<int>(rem));
+        }
+        std::reverse(digits.begin(), digits.end());
+        return digits;
+    }
+
+    // Parse from decimal string (throws std::invalid_argument on bad input)
+    static uint_fixed_t from_string(const char *s)
+    {
+        if (!s || *s == '\0')
+            throw std::invalid_argument("uint_fixed_t::from_string: empty string");
+        const uint_fixed_t ten{std::uint64_t{10}};
+        uint_fixed_t result{};
+        bool any{false};
+        for (; *s != '\0'; ++s)
+        {
+            const char c{*s};
+            if (c < '0' || c > '9')
+                throw std::invalid_argument("uint_fixed_t::from_string: invalid character");
+            result = result * ten + uint_fixed_t{static_cast<std::uint64_t>(c - '0')};
+            any = true;
+        }
+        if (!any)
+            throw std::invalid_argument("uint_fixed_t::from_string: no digits");
+        return result;
+    }
+
+private:
+    // Add v to limb, return carry (0 or 1)
+    static constexpr unsigned char add_limb(std::uint64_t &limb, std::uint64_t v) noexcept
+    {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+        return intrinsics::addcarry_u64(0, limb, v, &limb);
+#else
+        const std::uint64_t old{limb};
+        limb += v;
+        return static_cast<unsigned char>(limb < old ? 1 : 0);
+#endif
+    }
+
+    // Add v + carry_in to limb, return carry_out (0 or 1)
+    static constexpr unsigned char add_limb_carry(std::uint64_t &limb, std::uint64_t v,
+                                                   unsigned char c) noexcept
+    {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+        return intrinsics::addcarry_u64(c, limb, v, &limb);
+#else
+        const std::uint64_t old{limb};
+        limb += v + c;
+        return static_cast<unsigned char>((limb < old || (c && limb == old)) ? 1 : 0);
+#endif
+    }
+
+    // Division step: (rem_hi : limb) / 10
+    // Precondition: rem_hi < 10 (guaranteed by induction in to_string).
+    // Uses two-phase 32-bit decomposition (rem_hi < 10 < 2^32, so no overflow).
+    static constexpr void div_by10_step(std::uint64_t rem_hi, std::uint64_t limb,
+                                        std::uint64_t &rem_out,
+                                        std::uint64_t &q_out) noexcept
+    {
+        constexpr std::uint64_t D{10};
+        if (rem_hi == 0)
+        {
+            q_out = limb / D;
+            rem_out = limb % D;
+            return;
+        }
+        // Phase 1: high 32 bits of limb
+        const std::uint64_t limb_hi{limb >> 32};
+        const std::uint64_t r1{(rem_hi << 32) | limb_hi}; // rem_hi < 10, safe
+        const std::uint64_t q_hi{r1 / D};
+        const std::uint64_t r1_rem{r1 % D};
+        // Phase 2: low 32 bits of limb
+        const std::uint64_t limb_lo{limb & 0xFFFFFFFFULL};
+        const std::uint64_t r2{(r1_rem << 32) | limb_lo};
+        q_out = (q_hi << 32) | (r2 / D);
+        rem_out = r2 % D;
+    }
+};
+
+// =============================================================================
+// Type aliases
+// =============================================================================
+
+using uint128_fixed_t = uint_fixed_t<2>;
+using uint256_fixed_t = uint_fixed_t<4>;
+using uint512_fixed_t = uint_fixed_t<8>;
+using uint1024_fixed_t = uint_fixed_t<16>;
+
+} // namespace nstd
+
+#endif // INT_FIXED_HPP
