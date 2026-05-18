@@ -248,7 +248,6 @@ namespace nstd
     private:
         std::uint64_t data[2]{0, 0};
 
-
         /// @internal
         /// @brief Two-digit lookup table: "00", "01", ..., "99" concatenated.
         /// Used by write_u64_digits and write_19_padded_digits for 2x fewer divisions.
@@ -271,7 +270,7 @@ namespace nstd
         {
             // Use GM divmod_const<100> for 2-digit extraction
             int128_param_t<signedness::unsigned_type, representation_form::binnat> temp{0, val};
-            
+
             while (temp.low() >= 100)
             {
                 auto [q, r] = temp.template divmod_const<100>();
@@ -280,7 +279,7 @@ namespace nstd
                 buf[--pos] = DIGIT_PAIRS_[pair * 2];
                 temp = q;
             }
-            
+
             const std::uint64_t final_val = temp.low();
             if (final_val >= 10)
             {
@@ -300,11 +299,11 @@ namespace nstd
         {
             // Use GM divmod_const for digit extraction
             int128_param_t<signedness::unsigned_type, representation_form::binnat> temp{0, val};
-            
+
             // 19 is odd: extract 1 digit first, then 9 pairs
             auto [q1, r1] = temp.template divmod_const<10>();
             buf[--pos] = static_cast<char>('0' + r1.low());
-            
+
             for (int i{0}; i < 9; ++i)
             {
                 auto [q, r] = q1.template divmod_const<100>();
@@ -541,13 +540,17 @@ namespace nstd
                 else
                 {
                     const std::uint64_t value_low{static_cast<std::uint64_t>(value)};
-                    const std::uint64_t value_high{[&]() constexpr noexcept -> std::uint64_t {
-                        if constexpr (sizeof(T) > sizeof(std::uint64_t)) {
-                            return static_cast<std::uint64_t>(value >> 64);
-                        } else {
-                            return std::uint64_t{0};
-                        }
-                    }()};
+                    const std::uint64_t value_high{[&]() constexpr noexcept -> std::uint64_t
+                                                   {
+                                                       if constexpr (sizeof(T) > sizeof(std::uint64_t))
+                                                       {
+                                                           return static_cast<std::uint64_t>(value >> 64);
+                                                       }
+                                                       else
+                                                       {
+                                                           return std::uint64_t{0};
+                                                       }
+                                                   }()};
 
                     if (std::is_constant_evaluated())
                     {
@@ -1017,7 +1020,7 @@ namespace nstd
                 // 128-bit value: use GM divmod_const for chunking
                 // Create temporary int128_param_t for divmod_const
                 int128_param_t<signedness::unsigned_type, representation_form::binnat> temp{n_hi, n_lo};
-                
+
                 // Extract lowest 19-digit chunk using divmod_const<10^19>
                 constexpr std::uint64_t pow19 = 10000000000000000000ull;
                 auto [q1, r0_obj] = temp.template divmod_const<pow19>();
@@ -4607,7 +4610,7 @@ namespace nstd
                     return {int128_param_t{q_hi, q_lo}, int128_param_t{0ull, r_final}};
                 }
                 // MSVC constexpr: fall through to big_bin_divrem below
-#else
+#elif INTRINSICS_HAS_INT128
                 {
                     const uint64_t q_hi = data[1] / d;
                     const uint64_t r_hi = data[1] % d;
@@ -4615,6 +4618,7 @@ namespace nstd
                     const uint64_t q_lo = intrinsics::div128_64_composed(r_hi, data[0], d, &r_final);
                     return {int128_param_t{q_hi, q_lo}, int128_param_t{0ull, r_final}};
                 }
+                // No __uint128_t (e.g. arm32): fall through to big_bin_divrem below
 #endif
             }
 
