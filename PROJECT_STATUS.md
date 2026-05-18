@@ -1,9 +1,9 @@
-# PROJECT STATUS: All Phases Complete + GM Constexpr Division + A1/A2/A4 Performance & Sweep
+# PROJECT STATUS: All Phases Complete + GM Constexpr Division + A1/A2/A4 + Fase A (deuda técnica)
 
-**Date:** 15 May 2026
-**Last Session:** Test suite consolidation oleadas 1-5 + PATH fix para GCC (v1.77)
-**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅ + Test Suite Fixed ✅ + API Docs ✅ + Cross-Repr Operators ✅ + Benchmark Methodology ✅ + All 5 Criticisms ✅ + Karatsuba ✅ + Format ✅ + Hash ✅ + Benchmarks ✅ + **GM Constexpr Division ✅** + **A1 Sub/Add Opt ✅** + **A2 4-Compiler Benchmarks ✅** + **A4 Sweep Migration ✅** + **Test Suite Consolidation ✅**
-**Current Status:** 🎉 **All tests pass (GCC release) | 24 headers | 8 benchmarks | 15 API docs | All HIGH priorities done**
+**Date:** 16 May 2026
+**Last Session:** Fase A deuda técnica — pragma GCC scope fix + test_sweep_ms.cpp (41/41, branch fixint/core)
+**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅ + Test Suite Fixed ✅ + API Docs ✅ + Cross-Repr Operators ✅ + Benchmark Methodology ✅ + All 5 Criticisms ✅ + Karatsuba ✅ + Format ✅ + Hash ✅ + Benchmarks ✅ + **GM Constexpr Division ✅** + **A1 Sub/Add Opt ✅** + **A2 4-Compiler Benchmarks ✅** + **A4 Sweep Migration ✅** + **Test Suite Consolidation ✅** + **Fase A deuda técnica ✅**
+**Current Status:** 🎉 **41/41 tests pass (GCC release) | 24 headers | 8 benchmarks | 15 API docs | Fase A done → Fase B ARM64 pending**
 
 ## Phase Status Summary
 
@@ -246,7 +246,7 @@ Full data: `build/benchmark_results_multicompiler.md`
 | test_param_thread_safety.cpp | Atomic / concurrent access |
 | test_param_traits.cpp | STL type_traits specializations |
 
-**test_sweep_* — Property-Based Sweep Tests (~455M+ value checks):**
+**test_sweep_* — Property-Based Sweep Tests (~588M+ value checks):**
 
 | File | Tests |
 |------|-------|
@@ -255,7 +255,9 @@ Full data: `build/benchmark_results_multicompiler.md`
 | test_sweep_bitwise.cpp | Bitwise properties |
 | test_sweep_comparison.cpp | Reflexivity, trichotomy, antisymmetry (11 tests) |
 | test_sweep_division.cpp | q*d+r=n, r\<d, pow2 equiv (13 tests) |
+| test_sweep_ek.cpp | EK: +, -, ++, -- (11 tests, 88M verifications) |
 | test_sweep_framework_validation.cpp | Framework self-validation |
+| test_sweep_ms.cpp | MS: +, -, *, /, ++, -- (15 tests, 133M verifications) — Added 16 May 2026 |
 | test_sweep_shift.cpp | Identity, roundtrip, composition (16 tests) |
 | test_sweep_string.cpp | Decimal/hex/octal/binary roundtrip (8 tests) |
 | test_sweep_unary_ops.cpp | inc/dec, negation, bool (12 tests) |
@@ -313,9 +315,41 @@ Full data: `build/benchmark_results_multicompiler.md`
 - `benchmark_divmod_const.cpp` — 4-7x speedup over Knuth D for constant divisors
 - Constexpr step limits documented for Clang/MSVC/ICX
 
+## Branch fixint/core — Fase A (16 May 2026)
+
+### Fix: `#pragma GCC optimize("O0")` scope demasiado amplio
+
+- El pragma envolvía toda la función plantilla del constructor, desactivando optimizaciones para
+  TODAS las instanciaciones (no solo EK). Afectaba a `uint128_t{42}`, `int128_ms_t{}`, etc.
+- **Fix:** Helper privado `ek_store_bias()` con `[[gnu::optimize("O0"), gnu::noinline]]` solo para
+  la ruta EK. Usa `std::is_constant_evaluated()` para dispatch constexpr/runtime.
+- Compiladores afectados: GCC 15.2.0 con -O2 (bug de eliminación incorrecta del bias EK).
+- Tests: 41/41 PASS (gcc release).
+
+### Nuevo: `tests/test_sweep_ms.cpp` — 15 tests, ~133M verificaciones
+
+| Sección | Propiedad |
+|---------|-----------|
+| 1 | add_commutativity, sub_antisymmetry (`(a-b)+(b-a)==+0`) |
+| 2 | add_zero_identity, add_neg_inverse |
+| 3 | sub_eq_add_neg (`a-b == a+(-b)`) |
+| 4 | sub_zero_identity, sub_self_zero |
+| 5 | pre_inc_eq_add1, inc_dec_roundtrip |
+| 6 | pre_dec_eq_sub1, dec_inc_roundtrip |
+| 7 | mul_commutativity |
+| 8 | mul_sign_rule (XOR de signos con resultado no cero) |
+| 9 | mul_one_identity |
+| 10 | div_identity_q\*d+r==n |
+
+**Nota técnica:** MS no usa aritmética modular en suma de mismo signo (trunca el bit de desbordamiento),
+por lo que los roundtrips `(a+b)-b==a` NO son propiedades válidas para MS (sí para TC/EK).
+Se usan propiedades de antisimetría y definición que sí son invariantes para todos los valores.
+
+---
+
 ## Next Steps (Priority Order)
 
-### ✅ ALL PHASES COMPLETE + GM CONSTEXPR COMPLETE
+### ✅ ALL PHASES COMPLETE + GM CONSTEXPR COMPLETE + Fase A COMPLETE
 
 All 6 phases, 13 feature headers, intrinsics audit, and GM constexpr division are complete.
 
@@ -376,11 +410,12 @@ All 6 phases, 13 feature headers, intrinsics audit, and GM constexpr division ar
 - `std::ofstream` inside non-main function triggers MSYS2 ucrt64 GCC 15.2.0 runtime crash at -O1+
 - Removed the debug ofstream block entirely; all 42/42 tests pass at -O2
 
-### Known Limitations (unchanged)
+### Known Limitations (updated 16 May 2026)
 
-- Cross-representation casts (MS↔TC↔EK): low-level functions in `representation.hpp` work, but not wired as constructors/operators in `int128_param_t`
-- MS `operator*=`: not implemented (wrong results)
-- EK `*`, `/`, `%`: require bias adjustment
+- ~~Cross-representation casts~~: ✅ RESOLVED (20 Mar 2026) — full constructors/operators between all 4 forms
+- ~~MS `operator*=` not implemented~~: ✅ RESOLVED (20 Mar 2026) — two bugs fixed (zero×neg sign bit, magnitude→sign overflow)
+- ~~EK `*`, `/`, `%` require bias~~: ✅ VERIFIED (20 Mar 2026) — these are `= delete` by design (compile-time error)
+- `representation.hpp` incomplete note in MENSAJES_IA_TEMPORALES.md: ✅ STALE (16 May 2026) — all 6 conversion functions implemented
 
 ---
 

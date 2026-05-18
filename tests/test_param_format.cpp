@@ -8,6 +8,8 @@
 
 #include "int128_parameterized.hpp"
 #include "int128_param_format.hpp"
+
+#if __has_include(<format>)
 #include <iostream>
 #include <format>
 #include <cassert>
@@ -620,3 +622,12 @@ int main()
 
     return (g_failed == 0) ? 0 : 1;
 }
+
+#else // !__has_include(<format>)
+
+int main()
+{
+    return 0; // std::format not available in this compiler (requires GCC 13+)
+}
+
+#endif // __has_include(<format>)

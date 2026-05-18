@@ -25,6 +25,7 @@
 #define INT128_PARAMETERIZED_HPP
 
 // Include standard library headers first
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <string>
@@ -247,7 +248,6 @@ namespace nstd
     private:
         std::uint64_t data[2]{0, 0};
 
-
         /// @internal
         /// @brief Two-digit lookup table: "00", "01", ..., "99" concatenated.
         /// Used by write_u64_digits and write_19_padded_digits for 2x fewer divisions.
@@ -270,7 +270,7 @@ namespace nstd
         {
             // Use GM divmod_const<100> for 2-digit extraction
             int128_param_t<signedness::unsigned_type, representation_form::binnat> temp{0, val};
-            
+
             while (temp.low() >= 100)
             {
                 auto [q, r] = temp.template divmod_const<100>();
@@ -279,7 +279,7 @@ namespace nstd
                 buf[--pos] = DIGIT_PAIRS_[pair * 2];
                 temp = q;
             }
-            
+
             const std::uint64_t final_val = temp.low();
             if (final_val >= 10)
             {
@@ -299,11 +299,11 @@ namespace nstd
         {
             // Use GM divmod_const for digit extraction
             int128_param_t<signedness::unsigned_type, representation_form::binnat> temp{0, val};
-            
+
             // 19 is odd: extract 1 digit first, then 9 pairs
             auto [q1, r1] = temp.template divmod_const<10>();
             buf[--pos] = static_cast<char>('0' + r1.low());
-            
+
             for (int i{0}; i < 9; ++i)
             {
                 auto [q, r] = q1.template divmod_const<100>();
@@ -421,6 +421,20 @@ namespace nstd
             }
         }
 
+        // Targeted GCC -O2 workaround: only applied to EK construction.
+        // GCC 15.2.0 incorrectly eliminates the bias addition in EK construction at -O2.
+        // [[gnu::optimize("O0"), gnu::noinline]] suppresses it only for this helper,
+        // leaving TC, MS, and binnat constructors fully optimizable.
+#if defined(__GNUC__) && !defined(__clang__)
+        [[gnu::optimize("O0"), gnu::noinline]]
+#endif
+        void ek_store_bias(std::uint64_t low, std::uint64_t high) noexcept
+        {
+            constexpr std::uint64_t bias_high{1ULL << 62};
+            data[0] = low;
+            data[1] = high + bias_high;
+        }
+
     public:
         // ===================== Constructors =====================
 
@@ -494,61 +508,61 @@ namespace nstd
 
         /// @brief Constructor from single integral value (zero-extends or sign-extends)
         ///
-        /// ⚠️ GCC BUG WORKAROUND: GCC 15.2.0 with -O2 optimization incorrectly eliminates
-        /// the EK branch code that adds bias, even with volatile and explicit control flow.
-        /// Using #pragma GCC optimize("O0") for this function only as a workaround.
-#pragma GCC push_options
-#pragma GCC optimize("O0")
+        /// EK construction dispatches to ek_store_bias() at runtime to work around
+        /// a GCC 15.2.0 -O2 bug that incorrectly eliminated the bias addition.
+        /// TC, MS, and binnat paths compile fully optimized.
         template <typename T,
                   typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
         explicit constexpr int128_param_t(T value) noexcept : data{0, 0}
         {
-            // NOTE: Each representation form handled in separate branch
-            // CRITICAL: Must use if constexpr (not else-if) to ensure correct evaluation with -O2
-
             // ========================================================================
             // EXCESS-K Representation (Bias Notation)
             // ========================================================================
             if constexpr (is_excess_k && is_signed)
             {
-                static_assert(is_excess_k, "EK branch: is_excess_k must be true");
-                static_assert(is_signed, "EK branch: is_signed must be true");
-                // Excess-K: stored_value = real_value + bias (K = 2^126)
                 constexpr std::uint64_t bias_high{1ULL << 62};
-                constexpr std::uint64_t bias_low{0ULL};
 
                 if constexpr (std::is_signed_v<T>)
                 {
-                    // Sign-extend to 128 bits first
-                    const bool negative{value < 0};
                     const std::uint64_t value_low{static_cast<std::uint64_t>(value)};
-                    const std::uint64_t value_high{negative ? std::numeric_limits<std::uint64_t>::max() : std::uint64_t{0}};
+                    const std::uint64_t value_high{(value < 0) ? std::numeric_limits<std::uint64_t>::max() : std::uint64_t{0}};
 
-                    // Add bias - Use volatile to prevent optimizer from eliminating this
-                    volatile std::uint64_t vtemp_low{value_low};
-                    const std::uint64_t sum_low{vtemp_low + bias_low};
-                    const std::uint64_t carry{(sum_low < vtemp_low) ? 1ULL : 0ULL};
-                    data[0] = sum_low;
-                    data[1] = value_high + bias_high + carry;
+                    if (std::is_constant_evaluated())
+                    {
+                        data[0] = value_low;
+                        data[1] = value_high + bias_high;
+                    }
+                    else
+                    {
+                        ek_store_bias(value_low, value_high);
+                    }
                 }
                 else
                 {
-                    // Zero-extend to 128 bits
                     const std::uint64_t value_low{static_cast<std::uint64_t>(value)};
-                    std::uint64_t value_high{0};
-                    if constexpr (sizeof(T) > sizeof(std::uint64_t))
-                    {
-                        value_high = static_cast<std::uint64_t>(value >> 64);
-                    }
+                    const std::uint64_t value_high{[&]() constexpr noexcept -> std::uint64_t
+                                                   {
+                                                       if constexpr (sizeof(T) > sizeof(std::uint64_t))
+                                                       {
+                                                           return static_cast<std::uint64_t>(value >> 64);
+                                                       }
+                                                       else
+                                                       {
+                                                           return std::uint64_t{0};
+                                                       }
+                                                   }()};
 
-                    // Add bias - Use volatile to prevent optimizer from eliminating this
-                    volatile std::uint64_t vtemp_low{value_low};
-                    const std::uint64_t sum_low{vtemp_low + bias_low};
-                    const std::uint64_t carry{(sum_low < vtemp_low) ? 1ULL : 0ULL};
-                    data[0] = sum_low;
-                    data[1] = value_high + bias_high + carry;
+                    if (std::is_constant_evaluated())
+                    {
+                        data[0] = value_low;
+                        data[1] = value_high + bias_high;
+                    }
+                    else
+                    {
+                        ek_store_bias(value_low, value_high);
+                    }
                 }
-                return; // Early return to ensure no other branch executes
+                return;
             }
 
             // ========================================================================
@@ -562,7 +576,7 @@ namespace nstd
                     {
                         using UnsignedT = std::make_unsigned_t<T>;
                         data[0] = static_cast<std::uint64_t>(-static_cast<UnsignedT>(value));
-                        data[1] = std::uint64_t{1ULL << 63}; // Set sign bit
+                        data[1] = std::uint64_t{1ULL << 63};
                     }
                     else
                     {
@@ -582,13 +596,12 @@ namespace nstd
                         data[1] = std::uint64_t{0};
                     }
                 }
-                return; // Early return
+                return;
             }
 
             // ========================================================================
             // TWO'S COMPLEMENT (TC) and BINNAT (unsigned binary natural)
             // ========================================================================
-            // Default: TC for signed, binnat for unsigned
             if constexpr (std::is_signed_v<T>)
             {
                 const bool negative{value < 0};
@@ -608,7 +621,6 @@ namespace nstd
                 }
             }
         }
-#pragma GCC pop_options
 
         // ===================== Assignment Operators =====================
 
@@ -1008,7 +1020,7 @@ namespace nstd
                 // 128-bit value: use GM divmod_const for chunking
                 // Create temporary int128_param_t for divmod_const
                 int128_param_t<signedness::unsigned_type, representation_form::binnat> temp{n_hi, n_lo};
-                
+
                 // Extract lowest 19-digit chunk using divmod_const<10^19>
                 constexpr std::uint64_t pow19 = 10000000000000000000ull;
                 auto [q1, r0_obj] = temp.template divmod_const<pow19>();
@@ -4392,7 +4404,9 @@ namespace nstd
             // [3] OPTIMIZATION FOR 64-BIT DIVISOR (128-bit dividend)
             // ========================================================================
 
-            if (divisor.data[1] == 0)
+            // Safe only when divisor_64 <= 2^63: remainder << 1 stays within uint64_t.
+            // Divisors > 2^63 (e.g. 10^19) fall through to the general 128/128 path below.
+            if (divisor.data[1] == 0 && divisor.data[0] <= (uint64_t{1} << 63))
             {
                 const uint64_t divisor_64 = divisor.data[0];
 
@@ -4598,7 +4612,7 @@ namespace nstd
                     return {int128_param_t{q_hi, q_lo}, int128_param_t{0ull, r_final}};
                 }
                 // MSVC constexpr: fall through to big_bin_divrem below
-#else
+#elif INTRINSICS_HAS_INT128
                 {
                     const uint64_t q_hi = data[1] / d;
                     const uint64_t r_hi = data[1] % d;
@@ -4606,6 +4620,7 @@ namespace nstd
                     const uint64_t q_lo = intrinsics::div128_64_composed(r_hi, data[0], d, &r_final);
                     return {int128_param_t{q_hi, q_lo}, int128_param_t{0ull, r_final}};
                 }
+                // No __uint128_t (e.g. arm32): fall through to big_bin_divrem below
 #endif
             }
 

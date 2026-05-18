@@ -25,6 +25,8 @@
 #define INT128_PARAM_FORMAT_HPP
 
 #include "int128_parameterized.hpp"
+
+#if __has_include(<format>)
 #include <format>
 #include <string>
 #include <algorithm>
@@ -286,5 +288,7 @@ struct std::formatter<nstd::int128_param_t<S, F>>
         return out;
     }
 };
+
+#endif // __has_include(<format>)
 
 #endif // INT128_PARAM_FORMAT_HPP
