@@ -983,12 +983,12 @@ namespace nstd
                     }
                     else /* excess_k */
                     {
-                        // Excess-K: subtract bias, then negate if needed
+                        // Excess-K: subtract bias (K = 2^126, K_low = 0)
+                        // Since K_low = 0, no borrow from the low-word subtraction.
                         constexpr std::uint64_t bias_high{std::uint64_t{1} << 62};
-                        const bool borrow{n_lo == 0 && bias_high > 0};
-                        n_lo = n_lo - 0; // bias_low is 0
-                        n_hi = n_hi - bias_high - (borrow ? 1 : 0);
-                        // Negate (two's complement)
+                        n_hi = n_hi - bias_high; // uint64 wrap is correct for 128-bit
+                        // {n_hi, n_lo} is now raw - K (negative, since raw < K)
+                        // Negate to get absolute value.
                         n_lo = ~n_lo + 1;
                         n_hi = ~n_hi + (n_lo == 0 ? 1 : 0);
                     }
@@ -1752,6 +1752,14 @@ namespace nstd
                         return this_mag_high < other_mag_high;
                     return this_mag_low < other_mag_low;
                 }
+            }
+            else if constexpr (is_excess_k)
+            {
+                // Excess-K: raw stored = value + K; larger raw ↔ larger value
+                // Compare raw values as unsigned 128-bit (monotone mapping)
+                if (data[1] != other.data[1])
+                    return data[1] < other.data[1];
+                return data[0] < other.data[0];
             }
             else
             {
