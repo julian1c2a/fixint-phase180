@@ -21,6 +21,14 @@
 //   Comparison:   ==, !=, <, <=, >, >=
 //   Conversion:   to_string (base 10), from_string (base 10)
 //   Utilities:    zero(), max(), one(), is_zero(), bit_width(), popcount()
+//
+// int_fixed_t<N>: signed two's-complement integer over N uint64_t limbs.
+//   Construction: from int64_t, from uint_fixed_t<N> (bit reinterpret)
+//   Arithmetic:   +, -, *, /, %, unary -, ++, --  (mod 2^(64N))
+//   Bitwise:      &, |, ^, ~, << (logical), >> (arithmetic)
+//   Comparison:   ==, !=, <, <=, >, >= (signed)
+//   Utilities:    zero(), one(), max_val(), min_val(), is_zero(), is_negative(), abs()
+//   Conversion:   to_string (signed decimal), from_string
 
 #ifndef INT_FIXED_HPP
 #define INT_FIXED_HPP
@@ -591,13 +599,235 @@ namespace nstd
     };
 
     // =============================================================================
-    // Type aliases
+    // Type aliases — unsigned
     // =============================================================================
 
     using uint128_fixed_t = uint_fixed_t<2>;
     using uint256_fixed_t = uint_fixed_t<4>;
     using uint512_fixed_t = uint_fixed_t<8>;
     using uint1024_fixed_t = uint_fixed_t<16>;
+
+    // =============================================================================
+    // int_fixed_t<N> — signed two's-complement, N × 64-bit limbs
+    // =============================================================================
+
+    template <std::size_t N>
+    class int_fixed_t
+    {
+        static_assert(N >= 1, "int_fixed_t requires at least 1 limb");
+
+    public:
+        uint_fixed_t<N> bits{};
+
+        // =========================================================================
+        // Construction
+        // =========================================================================
+
+        constexpr int_fixed_t() noexcept = default;
+
+        explicit constexpr int_fixed_t(std::int64_t v) noexcept
+        {
+            bits.data[0] = static_cast<std::uint64_t>(v);
+            const std::uint64_t fill = (v < 0) ? ~std::uint64_t{0} : std::uint64_t{0};
+            for (std::size_t i{1}; i < N; ++i)
+                bits.data[i] = fill;
+        }
+
+        explicit constexpr int_fixed_t(const uint_fixed_t<N> &u) noexcept : bits{u} {}
+
+        // =========================================================================
+        // Named constructors
+        // =========================================================================
+
+        static constexpr int_fixed_t zero() noexcept { return int_fixed_t{}; }
+        static constexpr int_fixed_t one() noexcept { return int_fixed_t{std::int64_t{1}}; }
+
+        // max = 0x7FFF…FFFF (MSB=0, rest=1)
+        static constexpr int_fixed_t max_val() noexcept
+        {
+            int_fixed_t r{};
+            r.bits = uint_fixed_t<N>::max();
+            r.bits.data[N - 1] >>= 1;
+            return r;
+        }
+
+        // min = 0x8000…0000 (MSB=1, rest=0)
+        static constexpr int_fixed_t min_val() noexcept
+        {
+            int_fixed_t r{};
+            r.bits.data[N - 1] = std::uint64_t{1} << 63;
+            return r;
+        }
+
+        // =========================================================================
+        // Predicates
+        // =========================================================================
+
+        constexpr bool is_zero() const noexcept { return bits.is_zero(); }
+        constexpr bool is_negative() const noexcept { return (bits.data[N - 1] >> 63) != 0; }
+
+        // =========================================================================
+        // Comparison (signed)
+        // =========================================================================
+
+        constexpr bool operator==(const int_fixed_t &o) const noexcept { return bits == o.bits; }
+        constexpr bool operator!=(const int_fixed_t &o) const noexcept { return bits != o.bits; }
+
+        constexpr bool operator<(const int_fixed_t &o) const noexcept
+        {
+            const bool a_neg = is_negative();
+            const bool b_neg = o.is_negative();
+            if (a_neg != b_neg)
+                return a_neg;
+            return bits < o.bits;
+        }
+
+        constexpr bool operator<=(const int_fixed_t &o) const noexcept { return !(o < *this); }
+        constexpr bool operator>(const int_fixed_t &o) const noexcept { return o < *this; }
+        constexpr bool operator>=(const int_fixed_t &o) const noexcept { return !(*this < o); }
+
+        // =========================================================================
+        // Bitwise
+        // =========================================================================
+
+        constexpr int_fixed_t operator~() const noexcept { return int_fixed_t{~bits}; }
+
+        constexpr int_fixed_t operator&(const int_fixed_t &o) const noexcept
+        { return int_fixed_t{bits & o.bits}; }
+        constexpr int_fixed_t operator|(const int_fixed_t &o) const noexcept
+        { return int_fixed_t{bits | o.bits}; }
+        constexpr int_fixed_t operator^(const int_fixed_t &o) const noexcept
+        { return int_fixed_t{bits ^ o.bits}; }
+
+        constexpr int_fixed_t &operator&=(const int_fixed_t &o) noexcept
+        { bits &= o.bits; return *this; }
+        constexpr int_fixed_t &operator|=(const int_fixed_t &o) noexcept
+        { bits |= o.bits; return *this; }
+        constexpr int_fixed_t &operator^=(const int_fixed_t &o) noexcept
+        { bits ^= o.bits; return *this; }
+
+        // Left shift (logical)
+        constexpr int_fixed_t operator<<(unsigned shift) const noexcept
+        { return int_fixed_t{bits << shift}; }
+
+        // Right shift (arithmetic — fill with sign bit)
+        constexpr int_fixed_t operator>>(unsigned shift) const noexcept
+        {
+            if (shift == 0)
+                return *this;
+            if (shift >= 64U * N)
+                return is_negative() ? int_fixed_t{std::int64_t{-1}} : zero();
+            if (!is_negative())
+                return int_fixed_t{bits >> shift};
+            const uint_fixed_t<N> fill = uint_fixed_t<N>::max() << (64U * N - shift);
+            return int_fixed_t{(bits >> shift) | fill};
+        }
+
+        constexpr int_fixed_t &operator<<=(unsigned shift) noexcept
+        { *this = *this << shift; return *this; }
+        constexpr int_fixed_t &operator>>=(unsigned shift) noexcept
+        { *this = *this >> shift; return *this; }
+
+        // =========================================================================
+        // Arithmetic — add, subtract, negate, inc/dec, multiply (mod 2^(64N))
+        // =========================================================================
+
+        constexpr int_fixed_t operator+(const int_fixed_t &o) const noexcept
+        { return int_fixed_t{bits + o.bits}; }
+        constexpr int_fixed_t operator-(const int_fixed_t &o) const noexcept
+        { return int_fixed_t{bits - o.bits}; }
+        constexpr int_fixed_t operator-() const noexcept { return int_fixed_t{-bits}; }
+
+        constexpr int_fixed_t &operator+=(const int_fixed_t &o) noexcept
+        { bits += o.bits; return *this; }
+        constexpr int_fixed_t &operator-=(const int_fixed_t &o) noexcept
+        { bits -= o.bits; return *this; }
+
+        constexpr int_fixed_t &operator++() noexcept { ++bits; return *this; }
+        constexpr int_fixed_t operator++(int) noexcept
+        { int_fixed_t t{*this}; ++(*this); return t; }
+        constexpr int_fixed_t &operator--() noexcept { --bits; return *this; }
+        constexpr int_fixed_t operator--(int) noexcept
+        { int_fixed_t t{*this}; --(*this); return t; }
+
+        constexpr int_fixed_t operator*(const int_fixed_t &o) const noexcept
+        { return int_fixed_t{bits * o.bits}; }
+        constexpr int_fixed_t &operator*=(const int_fixed_t &o) noexcept
+        { bits *= o.bits; return *this; }
+
+        // =========================================================================
+        // Arithmetic — division and modulo (truncation-toward-zero, C++ semantics)
+        //
+        // Quotient sign: negative iff operands differ in sign.
+        // Remainder sign: same as dividend.
+        // Invariant: a == (a/b)*b + (a%b)
+        // Throws std::domain_error on division by zero.
+        // =========================================================================
+
+        static std::pair<int_fixed_t, int_fixed_t>
+        divmod(const int_fixed_t &a, const int_fixed_t &b)
+        {
+            if (b.is_zero())
+                throw std::domain_error("int_fixed_t::divmod: division by zero");
+
+            const bool a_neg = a.is_negative();
+            const bool b_neg = b.is_negative();
+            const uint_fixed_t<N> ua = a_neg ? (-a).bits : a.bits;
+            const uint_fixed_t<N> ub = b_neg ? (-b).bits : b.bits;
+            const auto [uq, ur] = uint_fixed_t<N>::divmod(ua, ub);
+
+            const bool q_neg = (a_neg != b_neg);
+            int_fixed_t q{q_neg ? -int_fixed_t{uq} : int_fixed_t{uq}};
+            int_fixed_t r{a_neg ? -int_fixed_t{ur} : int_fixed_t{ur}};
+            return {q, r};
+        }
+
+        int_fixed_t operator/(const int_fixed_t &o) const { return divmod(*this, o).first; }
+        int_fixed_t operator%(const int_fixed_t &o) const { return divmod(*this, o).second; }
+        int_fixed_t &operator/=(const int_fixed_t &o) { *this = *this / o; return *this; }
+        int_fixed_t &operator%=(const int_fixed_t &o) { *this = *this % o; return *this; }
+
+        // =========================================================================
+        // Utility
+        // =========================================================================
+
+        // Absolute value (undefined for min_val())
+        constexpr int_fixed_t abs() const noexcept
+        { return is_negative() ? -(*this) : *this; }
+
+        // =========================================================================
+        // String conversion — signed decimal
+        // =========================================================================
+
+        std::string to_string() const
+        {
+            if (is_zero()) return "0";
+            if (is_negative()) return "-" + (-(*this)).bits.to_string();
+            return bits.to_string();
+        }
+
+        static int_fixed_t from_string(const char *s)
+        {
+            if (!s || *s == '\0')
+                throw std::invalid_argument("int_fixed_t::from_string: empty string");
+            if (*s == '-')
+            {
+                if (*(s + 1) == '\0')
+                    throw std::invalid_argument("int_fixed_t::from_string: only minus sign");
+                return -int_fixed_t{uint_fixed_t<N>::from_string(s + 1)};
+            }
+            return int_fixed_t{uint_fixed_t<N>::from_string(s)};
+        }
+    };
+
+    // =============================================================================
+    // Type aliases — signed
+    // =============================================================================
+
+    using int128_fixed_t = int_fixed_t<2>;
+    using int256_fixed_t = int_fixed_t<4>;
+    using int512_fixed_t = int_fixed_t<8>;
+    using int1024_fixed_t = int_fixed_t<16>;
 
 } // namespace nstd
 
