@@ -31,19 +31,19 @@ using nstd::uint_fixed_t;
 static int g_passed{0};
 static int g_failed{0};
 
-#define TEST(name, cond)                               \
-    do                                                 \
-    {                                                  \
-        if (cond)                                      \
-        {                                              \
+#define TEST(name, cond)                              \
+    do                                                \
+    {                                                 \
+        if (cond)                                     \
+        {                                             \
             std::cout << "[OK]   " << (name) << "\n"; \
-            ++g_passed;                                \
-        }                                              \
-        else                                           \
-        {                                              \
+            ++g_passed;                               \
+        }                                             \
+        else                                          \
+        {                                             \
             std::cout << "[FAIL] " << (name) << "\n"; \
-            ++g_failed;                                \
-        }                                              \
+            ++g_failed;                               \
+        }                                             \
     } while (false)
 
 // =============================================================================
@@ -124,37 +124,37 @@ static void test_comparison(const char *tag)
     TEST("zero != m1", z != m1);
 
     // Signed ordering: min < -1 < 0 < 1 < max
-    TEST("min < -1",   mn < m1);
+    TEST("min < -1", mn < m1);
     TEST("min < zero", mn < z);
-    TEST("min < one",  mn < o);
-    TEST("min < max",  mn < mx);
+    TEST("min < one", mn < o);
+    TEST("min < max", mn < mx);
     TEST("-1  < zero", m1 < z);
-    TEST("-1  < one",  m1 < o);
-    TEST("-1  < max",  m1 < mx);
+    TEST("-1  < one", m1 < o);
+    TEST("-1  < max", m1 < mx);
     TEST("zero < one", z < o);
     TEST("zero < max", z < mx);
     TEST("one  < max", o < mx);
 
     TEST("max > zero", mx > z);
     TEST("zero > min", z > mn);
-    TEST("zero > -1",  z > m1);
+    TEST("zero > -1", z > m1);
 
     TEST("zero >= zero", z >= z);
     TEST("one  >= zero", o >= z);
-    TEST("max  >= max",  mx >= mx);
-    TEST("min  <= min",  mn <= mn);
+    TEST("max  >= max", mx >= mx);
+    TEST("min  <= min", mn <= mn);
     TEST("min  <= zero", mn <= z);
 
     // Cross-sign: positive always > negative
     const int_fixed_t<N> two{std::int64_t{2}};
     const int_fixed_t<N> m2{std::int64_t{-2}};
-    TEST("2 > -2",   two > m2);
-    TEST("-2 < 2",   m2 < two);
-    TEST("-1 < 1",   m1 < o);
+    TEST("2 > -2", two > m2);
+    TEST("-2 < 2", m2 < two);
+    TEST("-1 < 1", m1 < o);
 
     // Same sign, magnitude dominates
-    TEST("-1 > -2",  m1 > m2);
-    TEST("-2 < -1",  m2 < m1);
+    TEST("-1 > -2", m1 > m2);
+    TEST("-2 < -1", m2 < m1);
 }
 
 // =============================================================================
@@ -167,20 +167,20 @@ static void test_bitwise(const char *tag)
     std::cout << "\n--- Section 3: Bitwise [N=" << N << " " << tag << "] ---\n";
 
     const int_fixed_t<N> z = int_fixed_t<N>::zero();
-    const int_fixed_t<N> m1{std::int64_t{-1}};   // all bits set
+    const int_fixed_t<N> m1{std::int64_t{-1}}; // all bits set
     const int_fixed_t<N> one = int_fixed_t<N>::one();
 
     // ~0 == -1 (all bits set), ~(-1) == 0
-    TEST("~zero == -1",  ~z == m1);
+    TEST("~zero == -1", ~z == m1);
     TEST("~(-1) == zero", ~m1 == z);
 
     // AND, OR, XOR
     TEST("-1 & zero == zero", (m1 & z) == z);
-    TEST("-1 & -1   == -1",   (m1 & m1) == m1);
-    TEST("-1 | zero == -1",   (m1 | z) == m1);
-    TEST("zero | zero == zero",(z | z) == z);
+    TEST("-1 & -1   == -1", (m1 & m1) == m1);
+    TEST("-1 | zero == -1", (m1 | z) == m1);
+    TEST("zero | zero == zero", (z | z) == z);
     TEST("-1 ^ -1   == zero", (m1 ^ m1) == z);
-    TEST("-1 ^ zero == -1",   (m1 ^ z) == m1);
+    TEST("-1 ^ zero == -1", (m1 ^ z) == m1);
 
     // Left shift (logical): -1 << 1 loses MSB, fills 0 at low end
     const int_fixed_t<N> m1_shl1 = m1 << 1;
@@ -193,7 +193,7 @@ static void test_bitwise(const char *tag)
          int_fixed_t<N>{std::int64_t{1}} >> 1 == z);
 
     // Arithmetic right shift: negative fills 1
-    TEST("-1 >> 1 == -1",  (m1 >> 1) == m1);
+    TEST("-1 >> 1 == -1", (m1 >> 1) == m1);
     TEST("-1 >> 63 == -1", (m1 >> 63) == m1);
     TEST("-2 >> 1 == -1",
          (int_fixed_t<N>{std::int64_t{-2}} >> 1) == m1);
@@ -206,7 +206,7 @@ static void test_bitwise(const char *tag)
 
     // Shift by 0 is identity
     TEST("-1 >> 0 == -1", (m1 >> 0) == m1);
-    TEST("1 << 0 == 1",   (one << 0) == one);
+    TEST("1 << 0 == 1", (one << 0) == one);
 
     // Cross-limb arithmetic shift for N>=2
     if constexpr (N >= 2)
@@ -238,24 +238,24 @@ static void test_addsub(const char *tag)
 
     // Identity
     TEST("zero + zero == zero", (z + z) == z);
-    TEST("zero + one  == one",  (z + o) == o);
-    TEST("one  + zero == one",  (o + z) == o);
+    TEST("zero + one  == one", (z + o) == o);
+    TEST("one  + zero == one", (o + z) == o);
 
     // Known values
-    TEST("1 + (-1) == 0",  (o + m1) == z);
-    TEST("(-1)+(-1) == -2",(m1 + m1) == m2);
-    TEST("2 + (-1) == 1",  (two + m1) == o);
+    TEST("1 + (-1) == 0", (o + m1) == z);
+    TEST("(-1)+(-1) == -2", (m1 + m1) == m2);
+    TEST("2 + (-1) == 1", (two + m1) == o);
 
     // Subtraction
-    TEST("1 - 1 == 0",   (o - o) == z);
-    TEST("0 - 1 == -1",  (z - o) == m1);
-    TEST("(-1) - 1 == -2",(m1 - o) == m2);
+    TEST("1 - 1 == 0", (o - o) == z);
+    TEST("0 - 1 == -1", (z - o) == m1);
+    TEST("(-1) - 1 == -2", (m1 - o) == m2);
 
     // Negation
     TEST("-zero == zero", (-z) == z);
-    TEST("-one  == -1",   (-o) == m1);
-    TEST("-(-1) == 1",    (-m1) == o);
-    TEST("-(-one) == one",(-(-o)) == o);
+    TEST("-one  == -1", (-o) == m1);
+    TEST("-(-1) == 1", (-m1) == o);
+    TEST("-(-one) == one", (-(-o)) == o);
 
     // max_val + 1 wraps to min_val (overflow wraps)
     TEST("max+1 == min (wrap)", (mx + o) == mn);
@@ -312,16 +312,16 @@ static void test_multiply(const char *tag)
     const int_fixed_t<N> twentyone{std::int64_t{21}};
     const int_fixed_t<N> m21{std::int64_t{-21}};
 
-    TEST("a * one  == a",   (three * o) == three);
-    TEST("one  * a == a",   (o * three) == three);
-    TEST("a * zero == zero",(three * z) == z);
-    TEST("zero * a == zero",(z * three) == z);
+    TEST("a * one  == a", (three * o) == three);
+    TEST("one  * a == a", (o * three) == three);
+    TEST("a * zero == zero", (three * z) == z);
+    TEST("zero * a == zero", (z * three) == z);
 
     // Sign rules
-    TEST("3 * 7   == 21",   (three * seven) == twentyone);
+    TEST("3 * 7   == 21", (three * seven) == twentyone);
     TEST("3 * (-7) == -21", (three * m7) == m21);
     TEST("(-3)*7   == -21", (m3 * seven) == m21);
-    TEST("(-3)*(-7)==21",   (m3 * m7) == twentyone);
+    TEST("(-3)*(-7)==21", (m3 * m7) == twentyone);
 
     // (-1)*(-1) == 1
     TEST("(-1)*(-1)==1", (m1 * m1) == o);
@@ -360,36 +360,37 @@ static void test_divmod(const char *tag)
     const int_fixed_t<N> m10{std::int64_t{-10}};
 
     // Basic positive
-    TEST("21/7 == 3",    twentyone / seven == three);
-    TEST("21%7 == 0",    twentyone % seven == z);
-    TEST("21/3 == 7",    twentyone / three == seven);
+    TEST("21/7 == 3", twentyone / seven == three);
+    TEST("21%7 == 0", twentyone % seven == z);
+    TEST("21/3 == 7", twentyone / three == seven);
     TEST("100/10 == 10", hundred / ten == ten);
-    TEST("100%10 == 0",  hundred % ten == z);
-    TEST("7/7 == 1",     seven / seven == o);
-    TEST("7%7 == 0",     seven % seven == z);
-    TEST("3/7 == 0",     three / seven == z);
-    TEST("3%7 == 3",     three % seven == three);
+    TEST("100%10 == 0", hundred % ten == z);
+    TEST("7/7 == 1", seven / seven == o);
+    TEST("7%7 == 0", seven % seven == z);
+    TEST("3/7 == 0", three / seven == z);
+    TEST("3%7 == 3", three % seven == three);
 
     // Sign rules (truncation toward zero, C++ semantics)
     // 21 / (-7) == -3
-    TEST("21/(-7) == -3",    twentyone / m7 == m3);
-    TEST("21%(-7) == 0",     twentyone % m7 == z);
+    TEST("21/(-7) == -3", twentyone / m7 == m3);
+    TEST("21%(-7) == 0", twentyone % m7 == z);
     // (-21) / 7 == -3
-    TEST("(-21)/7 == -3",    m21 / seven == m3);
-    TEST("(-21)%7 == 0",     m21 % seven == z);
+    TEST("(-21)/7 == -3", m21 / seven == m3);
+    TEST("(-21)%7 == 0", m21 % seven == z);
     // (-21) / (-7) == 3
-    TEST("(-21)/(-7) == 3",  m21 / m7 == three);
-    TEST("(-21)%(-7) == 0",  m21 % m7 == z);
+    TEST("(-21)/(-7) == 3", m21 / m7 == three);
+    TEST("(-21)%(-7) == 0", m21 % m7 == z);
 
     // 100 / (-10) == -10
     TEST("100/(-10) == -10", hundred / m10 == m10);
-    TEST("100%(-10) == 0",   hundred % m10 == z);
+    TEST("100%(-10) == 0", hundred % m10 == z);
     // (-100) / 10 == -10
     TEST("(-100)/10 == -10", m100 / ten == m10);
-    TEST("(-100)%10 == 0",   m100 % ten == z);
+    TEST("(-100)%10 == 0", m100 % ten == z);
 
     // Fundamental theorem with signs: a == (a/b)*b + (a%b)
-    auto theorem = [](std::int64_t av, std::int64_t bv) -> bool {
+    auto theorem = [](std::int64_t av, std::int64_t bv) -> bool
+    {
         const int_fixed_t<N> a{av};
         const int_fixed_t<N> b{bv};
         const auto [q, r] = int_fixed_t<N>::divmod(a, b);
@@ -398,27 +399,41 @@ static void test_divmod(const char *tag)
         return (q * b + r) == a && rem_sign_ok;
     };
 
-    TEST("theorem: 7/3",      theorem(7, 3));
-    TEST("theorem: -7/3",     theorem(-7, 3));
-    TEST("theorem: 7/(-3)",   theorem(7, -3));
-    TEST("theorem: -7/(-3)",  theorem(-7, -3));
-    TEST("theorem: 100/7",    theorem(100, 7));
-    TEST("theorem: -100/7",   theorem(-100, 7));
+    TEST("theorem: 7/3", theorem(7, 3));
+    TEST("theorem: -7/3", theorem(-7, 3));
+    TEST("theorem: 7/(-3)", theorem(7, -3));
+    TEST("theorem: -7/(-3)", theorem(-7, -3));
+    TEST("theorem: 100/7", theorem(100, 7));
+    TEST("theorem: -100/7", theorem(-100, 7));
     TEST("theorem: 100/(-7)", theorem(100, -7));
-    TEST("theorem: -100/(-7)",theorem(-100, -7));
-    TEST("theorem: 1/1",      theorem(1, 1));
-    TEST("theorem: -1/1",     theorem(-1, 1));
-    TEST("theorem: -1/(-1)",  theorem(-1, -1));
+    TEST("theorem: -100/(-7)", theorem(-100, -7));
+    TEST("theorem: 1/1", theorem(1, 1));
+    TEST("theorem: -1/1", theorem(-1, 1));
+    TEST("theorem: -1/(-1)", theorem(-1, -1));
 
     // Division by zero throws
-    auto throws_domain = [](auto &&fn) -> bool {
-        try { fn(); return false; }
-        catch (const std::domain_error &) { return true; }
-        catch (...) { return false; }
+    auto throws_domain = [](auto &&fn) -> bool
+    {
+        try
+        {
+            fn();
+            return false;
+        }
+        catch (const std::domain_error &)
+        {
+            return true;
+        }
+        catch (...)
+        {
+            return false;
+        }
     };
-    TEST("1/0 throws",  throws_domain([&]{ (void)(o / z); }));
-    TEST("-1/0 throws", throws_domain([&]{ (void)(m1 / z); }));
-    TEST("divmod(1,0) throws", throws_domain([&]{ (void)int_fixed_t<N>::divmod(o, z); }));
+    TEST("1/0 throws", throws_domain([&]
+                                     { (void)(o / z); }));
+    TEST("-1/0 throws", throws_domain([&]
+                                      { (void)(m1 / z); }));
+    TEST("divmod(1,0) throws", throws_domain([&]
+                                             { (void)int_fixed_t<N>::divmod(o, z); }));
 }
 
 // =============================================================================
@@ -463,14 +478,25 @@ static void test_strings(const char *tag)
     TEST("from_string(\"0\")==zero", int_fixed_t<N>::from_string("0") == z);
 
     // Invalid input throws
-    auto check_invalid = [](const char *s) -> bool {
-        try { (void)int_fixed_t<N>::from_string(s); return false; }
-        catch (const std::invalid_argument &) { return true; }
-        catch (...) { return false; }
+    auto check_invalid = [](const char *s) -> bool
+    {
+        try
+        {
+            (void)int_fixed_t<N>::from_string(s);
+            return false;
+        }
+        catch (const std::invalid_argument &)
+        {
+            return true;
+        }
+        catch (...)
+        {
+            return false;
+        }
     };
-    TEST("invalid: \"abc\"",  check_invalid("abc"));
-    TEST("invalid: \"\"",     check_invalid(""));
-    TEST("invalid: \"-\"",    check_invalid("-"));
+    TEST("invalid: \"abc\"", check_invalid("abc"));
+    TEST("invalid: \"\"", check_invalid(""));
+    TEST("invalid: \"-\"", check_invalid("-"));
     TEST("invalid: \"-abc\"", check_invalid("-abc"));
 }
 
