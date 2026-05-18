@@ -16,7 +16,7 @@
 //
 // Operations (all mod 2^(64N)):
 //   Construction: from uint64_t, from limb array
-//   Arithmetic:   +, -, *, unary -, ++, --
+//   Arithmetic:   +, -, *, /, %, unary -, ++, --
 //   Bitwise:      &, |, ^, ~, <<, >>
 //   Comparison:   ==, !=, <, <=, >, >=
 //   Conversion:   to_string (base 10), from_string (base 10)
@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 #if __has_include("intrinsics/arithmetic_operations.hpp")
 #include "intrinsics/arithmetic_operations.hpp"
@@ -394,8 +395,65 @@ namespace nstd
         }
 
         // =========================================================================
+        // Arithmetic — division and modulo (binary long division, O(64N²))
+        //
+        // Binary long division: process dividend MSB-to-LSB, build remainder r
+        // one bit at a time. When r >= divisor, subtract and set quotient bit.
+        //
+        // Theorem: a == (a/b)*b + (a%b)  with  0 <= a%b < b
+        // Throws std::domain_error on division by zero.
+        // =========================================================================
+
+        static std::pair<uint_fixed_t, uint_fixed_t>
+        divmod(const uint_fixed_t &a, const uint_fixed_t &b)
+        {
+            if (b.is_zero())
+                throw std::domain_error("uint_fixed_t::divmod: division by zero");
+            if (a < b)
+                return {uint_fixed_t{}, a};
+
+            uint_fixed_t q{};
+            uint_fixed_t r{};
+
+            for (std::size_t i{64U * N}; i-- > 0;)
+            {
+                r <<= 1;
+                r.data[0] |= (a.data[i / 64U] >> (i % 64U)) & std::uint64_t{1};
+                if (!(r < b))
+                {
+                    r -= b;
+                    q.data[i / 64U] |= std::uint64_t{1} << (i % 64U);
+                }
+            }
+            return {q, r};
+        }
+
+        uint_fixed_t operator/(const uint_fixed_t &o) const
+        {
+            return divmod(*this, o).first;
+        }
+
+        uint_fixed_t operator%(const uint_fixed_t &o) const
+        {
+            return divmod(*this, o).second;
+        }
+
+        uint_fixed_t &operator/=(const uint_fixed_t &o)
+        {
+            *this = *this / o;
+            return *this;
+        }
+
+        uint_fixed_t &operator%=(const uint_fixed_t &o)
+        {
+            *this = *this % o;
+            return *this;
+        }
+
+        // =========================================================================
         // Utility
         // =========================================================================
+
 
         // Number of significant bits (floor(log2(x))+1), returns 0 for zero
         constexpr unsigned bit_width() const noexcept
