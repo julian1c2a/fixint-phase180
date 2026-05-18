@@ -25,10 +25,10 @@
 #include <cstdlib>
 #include <iostream>
 
-using nstd::uint_fixed_t;
 using nstd::uint128_fixed_t;
 using nstd::uint256_fixed_t;
 using nstd::uint512_fixed_t;
+using nstd::uint_fixed_t;
 
 // =============================================================================
 // Test framework
@@ -37,19 +37,19 @@ using nstd::uint512_fixed_t;
 static int g_passed{0};
 static int g_failed{0};
 
-#define TEST(name, cond)                             \
-    do                                               \
-    {                                                \
-        if (cond)                                    \
-        {                                            \
+#define TEST(name, cond)                              \
+    do                                                \
+    {                                                 \
+        if (cond)                                     \
+        {                                             \
             std::cout << "[OK]   " << (name) << "\n"; \
-            ++g_passed;                              \
-        }                                            \
-        else                                         \
-        {                                            \
+            ++g_passed;                               \
+        }                                             \
+        else                                          \
+        {                                             \
             std::cout << "[FAIL] " << (name) << "\n"; \
-            ++g_failed;                              \
-        }                                            \
+            ++g_failed;                               \
+        }                                             \
     } while (false)
 
 // =============================================================================
@@ -504,13 +504,25 @@ static void test_strings(const char *tag)
 
     // invalid input throws
     bool threw{false};
-    try { (void)uint_fixed_t<N>::from_string("abc"); }
-    catch (const std::invalid_argument &) { threw = true; }
+    try
+    {
+        (void)uint_fixed_t<N>::from_string("abc");
+    }
+    catch (const std::invalid_argument &)
+    {
+        threw = true;
+    }
     TEST("from_string invalid throws", threw);
 
     bool threw2{false};
-    try { (void)uint_fixed_t<N>::from_string(""); }
-    catch (const std::invalid_argument &) { threw2 = true; }
+    try
+    {
+        (void)uint_fixed_t<N>::from_string("");
+    }
+    catch (const std::invalid_argument &)
+    {
+        threw2 = true;
+    }
     TEST("from_string empty throws", threw2);
 }
 
