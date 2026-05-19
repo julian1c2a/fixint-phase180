@@ -15,30 +15,34 @@
 // N=8 → 512-bit  (alias uint512_fixed_t)
 //
 // Operations (all mod 2^(64N)):
-//   Construction: from uint64_t, from limb array
+//   Construction: from any integral T, from limb array, from bytes, from bitset
+//   Assignment:   from any integral T
 //   Arithmetic:   +, -, *, /, %, unary -, ++, --
 //   Bitwise:      &, |, ^, ~, <<, >>
 //   Comparison:   ==, !=, <, <=, >, >=
-//   Conversion:   to_string (base 10), from_string (base 10)
+//   Conversion:   explicit operator bool/T/bytes/bitset; to_string/from_string
 //   Utilities:    zero(), max(), one(), is_zero(), bit_width(), popcount()
 //
 // int_fixed_t<N>: signed two's-complement integer over N uint64_t limbs.
-//   Construction: from int64_t, from uint_fixed_t<N> (bit reinterpret)
+//   Construction: from any integral T, from uint_fixed_t<N>, from bytes, from bitset
+//   Assignment:   from any integral T
 //   Arithmetic:   +, -, *, /, %, unary -, ++, --  (mod 2^(64N))
 //   Bitwise:      &, |, ^, ~, << (logical), >> (arithmetic)
 //   Comparison:   ==, !=, <, <=, >, >= (signed)
 //   Utilities:    zero(), one(), max_val(), min_val(), is_zero(), is_negative(), abs()
-//   Conversion:   to_string (signed decimal), from_string
+//   Conversion:   explicit operator bool/T/bytes/bitset; to_string/from_string
 
 #ifndef FIXED_WIDTH_INT_T_HPP
 #define FIXED_WIDTH_INT_T_HPP
 
 #include <algorithm>
 #include <array>
+#include <bitset>
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 #if __has_include("intrinsics/arithmetic_operations.hpp")
@@ -63,11 +67,14 @@ namespace nstd
 
         constexpr uint_fixed_t() noexcept = default;
 
-        explicit constexpr uint_fixed_t(std::uint64_t v) noexcept
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        explicit constexpr uint_fixed_t(T v) noexcept : data{}
         {
-            data[0] = v;
+            data[0] = static_cast<std::uint64_t>(v);
+            const std::uint64_t fill = (std::is_signed_v<T> && v < 0) ? ~std::uint64_t{0} : std::uint64_t{0};
             for (std::size_t i{1}; i < N; ++i)
-                data[i] = 0;
+                data[i] = fill;
         }
 
         // Construct from array of limbs (data[0]=LSB, data[N-1]=MSB)
@@ -76,11 +83,29 @@ namespace nstd
         {
         }
 
+        explicit constexpr uint_fixed_t(const std::array<std::byte, N * 8> &bytes) noexcept : data{}
+        {
+            for (std::size_t i{0}; i < N; ++i)
+                for (int j{0}; j < 8; ++j)
+                    data[i] |= static_cast<std::uint64_t>(bytes[i * 8 + j]) << (j * 8);
+        }
+
+        explicit constexpr uint_fixed_t(const std::bitset<64 * N> &b) noexcept : data{}
+        {
+            for (std::size_t i{0}; i < N; ++i)
+                for (int j{0}; j < 64; ++j)
+                    if (b.test(i * 64 + j))
+                        data[i] |= std::uint64_t{1} << j;
+        }
+
         // =========================================================================
         // Named constructors
         // =========================================================================
 
-        static constexpr uint_fixed_t zero() noexcept { return uint_fixed_t{}; }
+        static constexpr uint_fixed_t zero() noexcept 
+        { 
+            return uint_fixed_t{}; 
+        }
 
         static constexpr uint_fixed_t one() noexcept
         {
@@ -96,6 +121,17 @@ namespace nstd
         }
 
         // =========================================================================
+        // Assignment
+        // =========================================================================
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr uint_fixed_t &operator=(T v) noexcept
+        {
+            return *this = uint_fixed_t{v};
+        }
+
+        // =========================================================================
         // Predicates
         // =========================================================================
 
@@ -105,6 +141,38 @@ namespace nstd
                 if (limb != 0)
                     return false;
             return true;
+        }
+
+        // =========================================================================
+        // Explicit conversions
+        // =========================================================================
+
+        [[nodiscard]] explicit constexpr operator bool() const noexcept { return !is_zero(); }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        [[nodiscard]] explicit constexpr operator T() const noexcept
+        {
+            return static_cast<T>(data[0]);
+        }
+
+        [[nodiscard]] explicit constexpr operator std::array<std::byte, N * 8>() const noexcept
+        {
+            std::array<std::byte, N * 8> result{};
+            for (std::size_t i{0}; i < N; ++i)
+                for (int j{0}; j < 8; ++j)
+                    result[i * 8 + j] = static_cast<std::byte>((data[i] >> (j * 8)) & 0xFF);
+            return result;
+        }
+
+        [[nodiscard]] explicit constexpr operator std::bitset<64 * N>() const noexcept
+        {
+            std::bitset<64 * N> result{};
+            for (std::size_t i{0}; i < N; ++i)
+                for (int j{0}; j < 64; ++j)
+                    if ((data[i] & (std::uint64_t{1} << j)) != 0)
+                        result.set(i * 64 + j);
+            return result;
         }
 
         // =========================================================================
@@ -624,15 +692,27 @@ namespace nstd
 
         constexpr int_fixed_t() noexcept = default;
 
-        explicit constexpr int_fixed_t(std::int64_t v) noexcept
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        explicit constexpr int_fixed_t(T v) noexcept : bits{}
         {
             bits.data[0] = static_cast<std::uint64_t>(v);
-            const std::uint64_t fill = (v < 0) ? ~std::uint64_t{0} : std::uint64_t{0};
+            const std::uint64_t fill = (std::is_signed_v<T> && v < 0) ? ~std::uint64_t{0} : std::uint64_t{0};
             for (std::size_t i{1}; i < N; ++i)
                 bits.data[i] = fill;
         }
 
         explicit constexpr int_fixed_t(const uint_fixed_t<N> &u) noexcept : bits{u} {}
+
+        explicit constexpr int_fixed_t(const std::array<std::byte, N * 8> &bytes) noexcept
+            : bits{bytes}
+        {
+        }
+
+        explicit constexpr int_fixed_t(const std::bitset<64 * N> &b) noexcept
+            : bits{b}
+        {
+        }
 
         // =========================================================================
         // Named constructors
@@ -659,11 +739,45 @@ namespace nstd
         }
 
         // =========================================================================
+        // Assignment
+        // =========================================================================
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr int_fixed_t &operator=(T v) noexcept
+        {
+            return *this = int_fixed_t{v};
+        }
+
+        // =========================================================================
         // Predicates
         // =========================================================================
 
         constexpr bool is_zero() const noexcept { return bits.is_zero(); }
         constexpr bool is_negative() const noexcept { return (bits.data[N - 1] >> 63) != 0; }
+
+        // =========================================================================
+        // Explicit conversions
+        // =========================================================================
+
+        [[nodiscard]] explicit constexpr operator bool() const noexcept { return !is_zero(); }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        [[nodiscard]] explicit constexpr operator T() const noexcept
+        {
+            return static_cast<T>(bits.data[0]);
+        }
+
+        [[nodiscard]] explicit constexpr operator std::array<std::byte, N * 8>() const noexcept
+        {
+            return static_cast<std::array<std::byte, N * 8>>(bits);
+        }
+
+        [[nodiscard]] explicit constexpr operator std::bitset<64 * N>() const noexcept
+        {
+            return static_cast<std::bitset<64 * N>>(bits);
+        }
 
         // =========================================================================
         // Comparison (signed)
