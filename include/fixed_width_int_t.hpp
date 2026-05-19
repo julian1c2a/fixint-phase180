@@ -52,6 +52,52 @@
 namespace nstd
 {
 
+    // =========================================================================
+    // Parse error codes and result type
+    // =========================================================================
+
+    enum class parse_error : std::uint8_t
+    {
+        success = 0,
+        null_pointer,
+        empty_string,
+        invalid_base,
+        invalid_base_value,
+        invalid_character,
+        digit_out_of_range,
+        no_digits,
+        overflow,
+        separator_at_boundaries,
+        unknown_error
+    };
+
+    template <typename T>
+    struct parse_result
+    {
+        parse_error error;
+        T value;
+        std::size_t error_index;
+
+        constexpr bool success() const noexcept
+        {
+            return error == parse_error::success;
+        }
+
+        constexpr parse_result() noexcept
+            : error(parse_error::success),
+              value(T{}),
+              error_index(std::string::npos)
+        {
+        }
+
+        constexpr parse_result(parse_error err, T val, std::size_t idx) noexcept
+            : error(err),
+              value(val),
+              error_index(idx)
+        {
+        }
+    };
+
     template <std::size_t N>
     class uint_fixed_t
     {
@@ -119,6 +165,8 @@ namespace nstd
                 limb = ~std::uint64_t{0};
             return r;
         }
+
+        static constexpr uint_fixed_t min() noexcept { return zero(); }
 
         // =========================================================================
         // Assignment
@@ -570,25 +618,31 @@ namespace nstd
         // String conversion — base 10
         // =========================================================================
 
-        // Convert to decimal string
+        // Convert to decimal string (chunk-based: divides by 10^19 per iteration)
         std::string to_string() const
         {
             if (is_zero())
                 return "0";
 
-            // Repeated division by 10, collecting remainders (LSdigit first)
+            constexpr std::size_t max_digits = N * 20 + 1;
+            char buf[max_digits];
+            int pos = static_cast<int>(max_digits);
+
+            const uint_fixed_t chunk_base{std::uint64_t{10000000000000000000ULL}};
             uint_fixed_t tmp{*this};
-            std::string digits{};
-            digits.reserve(static_cast<std::size_t>(N) * 20);
+
             while (!tmp.is_zero())
             {
-                std::uint64_t rem{0};
-                for (std::size_t i{N}; i-- > 0;)
-                    div_by10_step(rem, tmp.data[i], rem, tmp.data[i]);
-                digits += static_cast<char>('0' + static_cast<int>(rem));
+                const auto [q, r] = divmod(tmp, chunk_base);
+                const std::uint64_t chunk = r.data[0];
+                if (q.is_zero())
+                    write_u64_digits(buf, pos, chunk);
+                else
+                    write_19_padded_digits(buf, pos, chunk);
+                tmp = q;
             }
-            std::reverse(digits.begin(), digits.end());
-            return digits;
+
+            return std::string(buf + pos, buf + max_digits);
         }
 
         // Parse from decimal string (throws std::invalid_argument on bad input)
@@ -638,30 +692,54 @@ namespace nstd
 #endif
         }
 
-        // Division step: (rem_hi : limb) / 10
-        // Precondition: rem_hi < 10 (guaranteed by induction in to_string).
-        // Uses two-phase 32-bit decomposition (rem_hi < 10 < 2^32, so no overflow).
-        static constexpr void div_by10_step(std::uint64_t rem_hi, std::uint64_t limb,
-                                            std::uint64_t &rem_out,
-                                            std::uint64_t &q_out) noexcept
+        // Two-digit lookup: "00", "01", ..., "99"
+        static constexpr char DIGIT_PAIRS_[201] =
+            "00010203040506070809"
+            "10111213141516171819"
+            "20212223242526272829"
+            "30313233343536373839"
+            "40414243444546474849"
+            "50515253545556575859"
+            "60616263646566676869"
+            "70717273747576777879"
+            "80818283848586878889"
+            "90919293949596979899";
+
+        // Write val as decimal digits into buf[..pos-1] (no zero-padding)
+        static inline void write_u64_digits(char *buf, int &pos, std::uint64_t val) noexcept
         {
-            constexpr std::uint64_t D{10};
-            if (rem_hi == 0)
+            while (val >= 100)
             {
-                q_out = limb / D;
-                rem_out = limb % D;
-                return;
+                const std::uint64_t q = val / 100;
+                const std::uint64_t r = val % 100;
+                buf[--pos] = DIGIT_PAIRS_[r * 2 + 1];
+                buf[--pos] = DIGIT_PAIRS_[r * 2];
+                val = q;
             }
-            // Phase 1: high 32 bits of limb
-            const std::uint64_t limb_hi{limb >> 32};
-            const std::uint64_t r1{(rem_hi << 32) | limb_hi}; // rem_hi < 10, safe
-            const std::uint64_t q_hi{r1 / D};
-            const std::uint64_t r1_rem{r1 % D};
-            // Phase 2: low 32 bits of limb
-            const std::uint64_t limb_lo{limb & 0xFFFFFFFFULL};
-            const std::uint64_t r2{(r1_rem << 32) | limb_lo};
-            q_out = (q_hi << 32) | (r2 / D);
-            rem_out = r2 % D;
+            if (val >= 10)
+            {
+                buf[--pos] = DIGIT_PAIRS_[val * 2 + 1];
+                buf[--pos] = DIGIT_PAIRS_[val * 2];
+            }
+            else
+            {
+                buf[--pos] = static_cast<char>('0' + val);
+            }
+        }
+
+        // Write exactly 19 decimal digits from val into buf[..pos-1] (zero-padded)
+        // Precondition: val < 10^19
+        static inline void write_19_padded_digits(char *buf, int &pos, std::uint64_t val) noexcept
+        {
+            for (int i{0}; i < 9; ++i)
+            {
+                const std::uint64_t q = val / 100;
+                const std::uint64_t r = val % 100;
+                buf[--pos] = DIGIT_PAIRS_[r * 2 + 1];
+                buf[--pos] = DIGIT_PAIRS_[r * 2];
+                val = q;
+            }
+            buf[--pos] = static_cast<char>('0' + val);
         }
     };
 
@@ -737,6 +815,9 @@ namespace nstd
             r.bits.data[N - 1] = std::uint64_t{1} << 63;
             return r;
         }
+
+        static constexpr int_fixed_t min() noexcept { return min_val(); }
+        static constexpr int_fixed_t max() noexcept { return max_val(); }
 
         // =========================================================================
         // Assignment
