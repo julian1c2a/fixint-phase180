@@ -6,7 +6,7 @@
 // License: BSL-1.0
 // =============================================================================
 //
-// Covers N=2 (128-bit), N=4 (256-bit), N=8 (512-bit).
+// Covers N=1 (64-bit), N=2 (128-bit), N=4 (256-bit), N=8 (512-bit).
 // Sections:
 //   1.  Construction and zero/one/max_val/min_val
 //   2.  Signed comparison
@@ -15,6 +15,10 @@
 //   5.  Multiplication
 //   6.  Division and modulo (truncation-toward-zero)
 //   7.  String: to_string and from_string round-trips
+//   8.  Bit utilities: is_positive, signum, clz, ctz, bit_width, popcount
+//   9.  Mixed-type operators (int_fixed_t op integral T)
+//   9b. Cross-N operators (int_fixed_t<N> op int_fixed_t<M>, N != M)
+//   10. Higher arithmetic: mul_wide, pow, gcd, lcm, checked_add/sub/mul
 
 #include "fixed_width_int_t.hpp"
 
@@ -72,11 +76,11 @@ static void test_construction(const char *tag)
 
     // max_val MSB of data[N-1] must be 0
     TEST("max_val MSB==0", (mx.bits.data[N - 1] >> 63) == 0);
-    // max_val lower limbs all 0xFF
-    TEST("max_val data[0]==~0", mx.bits.data[0] == ~std::uint64_t{0});
+    // max_val lower limbs all 0xFF (for N=1 the only limb is INT64_MAX, not ~0)
+    if constexpr (N > 1) TEST("max_val data[0]==~0", mx.bits.data[0] == ~std::uint64_t{0});
     // min_val: only MSB of data[N-1] set, rest 0
     TEST("min_val data[N-1] MSB==1", (mn.bits.data[N - 1] >> 63) == 1);
-    TEST("min_val data[0]==0", mn.bits.data[0] == 0);
+    if constexpr (N > 1) TEST("min_val data[0]==0", mn.bits.data[0] == 0);
 
     // Default constructor gives zero
     const int_fixed_t<N> def{};
@@ -85,7 +89,7 @@ static void test_construction(const char *tag)
     // From int64_t: positive
     const int_fixed_t<N> v42{std::int64_t{42}};
     TEST("from_i64(42) data[0]==42", v42.bits.data[0] == 42);
-    TEST("from_i64(42) data[N-1]==0", v42.bits.data[N - 1] == 0);
+    if constexpr (N > 1) TEST("from_i64(42) data[N-1]==0", v42.bits.data[N - 1] == 0);
     TEST("from_i64(42) not negative", !v42.is_negative());
 
     // From int64_t: negative
@@ -501,8 +505,256 @@ static void test_strings(const char *tag)
 }
 
 // =============================================================================
+// Section 8: Bit utilities — is_positive, signum, clz, ctz, bit_width, popcount
+// =============================================================================
+
+template <std::size_t N>
+static void test_bit_utilities(const char *tag)
+{
+    std::cout << "\n--- Section 8: Bit utilities [N=" << N << " " << tag << "] ---\n";
+
+    const auto z  = int_fixed_t<N>::zero();
+    const auto o  = int_fixed_t<N>::one();
+    const auto mx = int_fixed_t<N>::max_val();
+    const auto mn = int_fixed_t<N>::min_val();
+    const int_fixed_t<N> m1{std::int64_t{-1}};
+    const int_fixed_t<N> two{std::int64_t{2}};
+
+    // is_positive
+    TEST("is_positive(zero)==false",    !z.is_positive());
+    TEST("is_positive(one)==true",      o.is_positive());
+    TEST("is_positive(-1)==false",      !m1.is_positive());
+    TEST("is_positive(max_val)==true",  mx.is_positive());
+    TEST("is_positive(min_val)==false", !mn.is_positive());
+
+    // signum
+    TEST("signum(zero)==0",     z.signum() == 0);
+    TEST("signum(one)==1",      o.signum() == 1);
+    TEST("signum(-1)==-1",      m1.signum() == -1);
+    TEST("signum(max_val)==1",  mx.signum() == 1);
+    TEST("signum(min_val)==-1", mn.signum() == -1);
+
+    // count_leading_zeros (bit pattern, not sign-aware)
+    TEST("clz(zero)==64N",    z.count_leading_zeros() == 64U * N);
+    TEST("clz(one)==64N-1",   o.count_leading_zeros() == 64U * N - 1U);
+    TEST("clz(max_val)==1",   mx.count_leading_zeros() == 1U);
+    TEST("clz(-1)==0",        m1.count_leading_zeros() == 0U);
+
+    // count_trailing_zeros
+    TEST("ctz(zero)==64N", z.count_trailing_zeros() == 64U * N);
+    TEST("ctz(one)==0",    o.count_trailing_zeros() == 0U);
+    TEST("ctz(-1)==0",     m1.count_trailing_zeros() == 0U);
+    TEST("ctz(2)==1",      two.count_trailing_zeros() == 1U);
+
+    // bit_width (raw bit pattern)
+    TEST("bit_width(zero)==0",        z.bit_width() == 0U);
+    TEST("bit_width(one)==1",         o.bit_width() == 1U);
+    TEST("bit_width(max_val)==64N-1", mx.bit_width() == 64U * N - 1U);
+    TEST("bit_width(-1)==64N",        m1.bit_width() == 64U * N);
+
+    // popcount
+    TEST("popcount(zero)==0",        z.popcount() == 0U);
+    TEST("popcount(one)==1",         o.popcount() == 1U);
+    TEST("popcount(-1)==64N",        m1.popcount() == 64U * N);
+    TEST("popcount(max_val)==64N-1", mx.popcount() == 64U * N - 1U);
+}
+
+// =============================================================================
 // Run all sections for one N
 // =============================================================================
+
+// =============================================================================
+// Section 9: Mixed-type operators (int_fixed_t op integral T)
+// =============================================================================
+
+template <std::size_t N>
+static void test_mixed_ops_int(const char *tag)
+{
+    std::cout << "\n--- Section 9: Mixed-type ops [N=" << N << " " << tag << "] ---\n";
+
+    const int_fixed_t<N> five{std::int64_t{5}};
+    const int_fixed_t<N> neg3{std::int64_t{-3}};
+    const int_fixed_t<N> ten{std::int64_t{10}};
+
+    // arithmetic free functions
+    TEST("five+3==8",   (five + 3) == int_fixed_t<N>{std::int64_t{8}});
+    TEST("3+five==8",   (3 + five) == int_fixed_t<N>{std::int64_t{8}});
+    TEST("five-3==2",   (five - 3) == int_fixed_t<N>{std::int64_t{2}});
+    TEST("3-five==-2",  (3 - five) == int_fixed_t<N>{std::int64_t{-2}});
+    TEST("five*(-3)",   (five * (-3)) == int_fixed_t<N>{std::int64_t{-15}});
+    TEST("(-3)*five",   ((-3) * five) == int_fixed_t<N>{std::int64_t{-15}});
+    TEST("ten/3==3",    (ten / 3) == int_fixed_t<N>{std::int64_t{3}});
+    TEST("10/neg3==-3", (10 / neg3) == int_fixed_t<N>{std::int64_t{-3}});
+    TEST("ten%3==1",    (ten % 3) == int_fixed_t<N>{std::int64_t{1}});
+    TEST("10%neg3==1",  (10 % neg3) == int_fixed_t<N>{std::int64_t{1}});
+
+    // comparison free functions
+    TEST("five==5",   (five == 5));
+    TEST("5==five",   (5 == five));
+    TEST("five!=6",   (five != 6));
+    TEST("five<6",    (five < 6));
+    TEST("4<five",    (4 < five));
+    TEST("five>4",    (five > 4));
+    TEST("five>=5",   (five >= 5));
+    TEST("five<=5",   (five <= 5));
+    TEST("neg3<0",    (neg3 < 0));
+    TEST("0>neg3",    (0 > neg3));
+
+    // bitwise free functions
+    const int_fixed_t<N> oxf{std::int64_t{0xF}};
+    TEST("oxf&3==3",     (oxf & 3) == int_fixed_t<N>{std::int64_t{3}});
+    TEST("3&oxf==3",     (3 & oxf) == int_fixed_t<N>{std::int64_t{3}});
+    TEST("oxf|0x10",     (oxf | 0x10) == int_fixed_t<N>{std::int64_t{0x1F}});
+    TEST("oxf^3==0xC",   (oxf ^ 3) == int_fixed_t<N>{std::int64_t{0xC}});
+
+    // compound assignments
+    int_fixed_t<N> x{std::int64_t{7}};
+    x += 3;   TEST("x+=3→10",  x == int_fixed_t<N>{std::int64_t{10}});
+    x -= 4;   TEST("x-=4→6",   x == int_fixed_t<N>{std::int64_t{6}});
+    x *= (-2); TEST("x*=-2→-12", x == int_fixed_t<N>{std::int64_t{-12}});
+    x /= 3;   TEST("x/=3→-4",  x == int_fixed_t<N>{std::int64_t{-4}});
+    x %= 3;   TEST("x%=3→-1",  x == int_fixed_t<N>{std::int64_t{-1}});
+
+#ifdef __SIZEOF_INT128__
+    if constexpr (N >= 2)
+    {
+        const __int128 big = ((__int128)1 << 65) + 7;
+        const int_fixed_t<N> big_f{big};
+        TEST("big_f+big==2*big_f", (big_f + big) == (big_f + big_f));
+        TEST("big==big_f",         (big == big_f));
+        TEST("big_f==big",         (big_f == big));
+        TEST("big_f<big+1",        (big_f < (big + 1)));
+    }
+#endif
+}
+
+// =============================================================================
+// Section 10: Higher arithmetic — mul_wide, pow, gcd, lcm, checked_*
+// =============================================================================
+
+template <std::size_t N>
+static void test_higher_arith_int(const char *tag)
+{
+    std::cout << "\n--- Section 10: Higher arithmetic (signed) [N=" << N << " " << tag << "] ---\n";
+
+    using I  = nstd::int_fixed_t<N>;
+    using I2 = nstd::int_fixed_t<2 * N>;
+    using U  = nstd::uint_fixed_t<N>;
+
+    // mul_wide (signed)
+    {
+        const I2 w1 = nstd::mul_wide(I{-3}, I{5});
+        TEST("mul_wide(-3,5)==-15",  w1 == I2{-15});
+        const I2 w2 = nstd::mul_wide(I{-3}, I{-5});
+        TEST("mul_wide(-3,-5)==15",  w2 == I2{15});
+        TEST("mul_wide(1,1)==1",     nstd::mul_wide(I{1}, I{1}) == I2{1});
+        TEST("mul_wide(0,-7)==0",    nstd::mul_wide(I{}, I{-7}) == I2{});
+    }
+
+    // pow (signed base, unsigned exponent)
+    {
+        const U u3{3};
+        const U u4{4};
+        TEST("pow(-2,3)==-8",  nstd::pow(I{-2}, U{3}) == I{-8});
+        TEST("pow(3,4)==81",   nstd::pow(I{3},  u4)   == I{81});
+        TEST("pow(-1,2)==1",   nstd::pow(I{-1}, U{2}) == I{1});
+        TEST("pow(-1,3)==-1",  nstd::pow(I{-1}, u3)   == I{-1});
+        TEST("pow(base,0)==1", nstd::pow(I{99}, U{})  == I{1});
+    }
+
+    // gcd (signed delegates to unsigned abs)
+    {
+        TEST("gcd(-6,9)==3",    nstd::gcd(I{-6},  I{9})  == U{3});
+        TEST("gcd(12,-8)==4",   nstd::gcd(I{12},  I{-8}) == U{4});
+        TEST("gcd(-35,-21)==7", nstd::gcd(I{-35}, I{-21})== U{7});
+        TEST("gcd(0,5)==5",     nstd::gcd(I{},    I{5})  == U{5});
+        TEST("gcd(5,0)==5",     nstd::gcd(I{5},   I{})   == U{5});
+    }
+
+    // lcm (signed delegates to unsigned abs)
+    {
+        TEST("lcm(-4,6)==12",   nstd::lcm(I{-4}, I{6})  == U{12});
+        TEST("lcm(0,5)==0",     nstd::lcm(I{},   I{5})  == U{});
+        TEST("lcm(3,3)==3",     nstd::lcm(I{3},  I{3})  == U{3});
+    }
+
+    // checked_add (signed)
+    {
+        const I mx = I::max_val();
+        const I mn = I::min_val();
+        TEST("checked_add(3,-4)==-1",    nstd::checked_add(I{3},  I{-4}) == std::optional<I>{I{-1}});
+        TEST("checked_add(max,min)==-1", nstd::checked_add(mx,    mn)    == std::optional<I>{I{-1}});
+        TEST("checked_add(max,1)==null", !nstd::checked_add(mx,   I{1}).has_value());
+        TEST("checked_add(min,-1)==null",!nstd::checked_add(mn,   I{-1}).has_value());
+    }
+
+    // checked_sub (signed)
+    {
+        const I mx = I::max_val();
+        const I mn = I::min_val();
+        TEST("checked_sub(5,3)==2",      nstd::checked_sub(I{5},  I{3})  == std::optional<I>{I{2}});
+        TEST("checked_sub(3,5)==-2",     nstd::checked_sub(I{3},  I{5})  == std::optional<I>{I{-2}});
+        TEST("checked_sub(min,1)==null", !nstd::checked_sub(mn,   I{1}).has_value());
+        TEST("checked_sub(max,-1)==null",!nstd::checked_sub(mx,   I{-1}).has_value());
+    }
+
+    // checked_mul (signed)
+    {
+        const I mx = I::max_val();
+        TEST("checked_mul(3,4)==12",    nstd::checked_mul(I{3},  I{4})  == std::optional<I>{I{12}});
+        TEST("checked_mul(-1,-1)==1",   nstd::checked_mul(I{-1}, I{-1}) == std::optional<I>{I{1}});
+        TEST("checked_mul(max,2)==null",!nstd::checked_mul(mx,   I{2}).has_value());
+        TEST("checked_mul(0,max)==0",   nstd::checked_mul(I{},   mx)    == std::optional<I>{I{}});
+    }
+}
+
+// =============================================================================
+// Section 9b: Cross-N operators (int_fixed_t<N> op int_fixed_t<M>, N != M)
+// =============================================================================
+
+static void test_cross_n_int()
+{
+    std::cout << "\n--- Section 9b: Cross-N int operators ---\n";
+
+    using i1 = int_fixed_t<1>;
+    using i2 = int_fixed_t<2>;
+    using i4 = int_fixed_t<4>;
+
+    const i1 a1{std::int64_t{10}};
+    const i2 a2{std::int64_t{-3}};
+
+    auto sum_21 = a2 + a1;
+    static_assert(std::is_same_v<decltype(sum_21), i2>, "cross-N int: wider wins");
+    TEST("i2{-3}+i1{10}==i2{7}", sum_21 == i2{std::int64_t{7}});
+
+    auto sum_12 = a1 + a2;
+    static_assert(std::is_same_v<decltype(sum_12), i2>, "cross-N int reversed");
+    TEST("i1{10}+i2{-3}==i2{7}", sum_12 == i2{std::int64_t{7}});
+
+    auto diff = a2 - a1;
+    TEST("i2{-3}-i1{10}==i2{-13}", diff == i2{std::int64_t{-13}});
+
+    auto prod = a1 * a2;
+    TEST("i1{10}*i2{-3}==i2{-30}", prod == i2{std::int64_t{-30}});
+
+    const i1 neg7{std::int64_t{-7}};
+    const i2 three2{std::int64_t{3}};
+    auto quot = neg7 / three2;
+    TEST("i1{-7}/i2{3}==i2{-2}",  quot == i2{std::int64_t{-2}});
+    auto rem = neg7 % three2;
+    TEST("i1{-7}%i2{3}==i2{-1}",  rem == i2{std::int64_t{-1}});
+
+    TEST("i1{3}==i2{3}",  i1{std::int64_t{3}} == i2{std::int64_t{3}});
+    TEST("i2{3}==i1{3}",  i2{std::int64_t{3}} == i1{std::int64_t{3}});
+    TEST("i2{-3}<i1{10}", a2 < a1);
+    TEST("i1{10}>i2{-3}", a1 > a2);
+
+    const i4 x4{std::int64_t{-100}};
+    const i2 x2{std::int64_t{7}};
+    auto cross42 = x4 + x2;
+    static_assert(std::is_same_v<decltype(cross42), i4>, "i4+i2 gives i4");
+    TEST("i4{-100}+i2{7}==i4{-93}", cross42 == i4{std::int64_t{-93}});
+}
 
 template <std::size_t N>
 static void run_all(const char *tag)
@@ -514,6 +766,9 @@ static void run_all(const char *tag)
     test_multiply<N>(tag);
     test_divmod<N>(tag);
     test_strings<N>(tag);
+    test_bit_utilities<N>(tag);
+    test_mixed_ops_int<N>(tag);
+    test_higher_arith_int<N>(tag);
 }
 
 // =============================================================================
@@ -526,9 +781,12 @@ int main()
     std::cout << "int_fixed_t<N> Signed Tests (v1.90)\n";
     std::cout << "====================================================================\n";
 
+    run_all<1>("int64_fixed");
     run_all<2>("int128_fixed");
     run_all<4>("int256_fixed");
     run_all<8>("int512_fixed");
+
+    test_cross_n_int();
 
     std::cout << "\n====================================================================\n";
     std::cout << "Results: " << g_passed << " passed, " << g_failed << " failed\n";

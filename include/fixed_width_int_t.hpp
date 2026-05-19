@@ -38,8 +38,10 @@
 #include <algorithm>
 #include <array>
 #include <bitset>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <type_traits>
@@ -47,6 +49,10 @@
 
 #if __has_include("intrinsics/arithmetic_operations.hpp")
 #include "intrinsics/arithmetic_operations.hpp"
+#endif
+
+#if __has_include("intrinsics/bit_operations.hpp")
+#include "intrinsics/bit_operations.hpp"
 #endif
 
 namespace nstd
@@ -184,6 +190,21 @@ namespace nstd
                 data[i] = fill;
         }
 
+        template <typename F, std::enable_if_t<std::is_floating_point_v<F>, int> = 0>
+        explicit uint_fixed_t(F v) noexcept : data{}
+        {
+            if (!(v >= F{1}))
+                return;
+            constexpr long double base = 18446744073709551616.0L; // 2^64
+            long double tmp = std::trunc(static_cast<long double>(v));
+            for (std::size_t i{0}; i < N && tmp >= 1.0L; ++i)
+            {
+                const long double rem = std::fmod(tmp, base);
+                data[i] = static_cast<std::uint64_t>(rem);
+                tmp = std::trunc(tmp / base);
+            }
+        }
+
         // =========================================================================
         // Named constructors
         // =========================================================================
@@ -243,6 +264,12 @@ namespace nstd
             return *this = uint_fixed_t{o};
         }
 
+        template <typename F, std::enable_if_t<std::is_floating_point_v<F>, int> = 0>
+        uint_fixed_t &operator=(F v) noexcept
+        {
+            return *this = uint_fixed_t{v};
+        }
+
         // =========================================================================
         // Predicates
         // =========================================================================
@@ -259,7 +286,9 @@ namespace nstd
         // Explicit conversions
         // =========================================================================
 
-        [[nodiscard]] explicit constexpr operator bool() const noexcept { return !is_zero(); }
+        [[nodiscard]] explicit constexpr operator bool() const noexcept { 
+            return !is_zero(); 
+        }
 
         template <typename T,
                   typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
@@ -302,6 +331,16 @@ namespace nstd
         }
 #endif
 
+        template <typename F, std::enable_if_t<std::is_floating_point_v<F>, int> = 0>
+        [[nodiscard]] explicit operator F() const noexcept
+        {
+            constexpr long double base = 18446744073709551616.0L; // 2^64
+            long double result{0};
+            for (std::size_t i{N}; i-- > 0;)
+                result = result * base + static_cast<long double>(data[i]);
+            return static_cast<F>(result);
+        }
+
         // =========================================================================
         // Comparison
         // =========================================================================
@@ -318,7 +357,7 @@ namespace nstd
 
         constexpr bool operator<(const uint_fixed_t &o) const noexcept
         {
-            for (std::size_t i{N}; i-- > 0;)
+            for (std::size_t i{N}; --i > 0;)
             {
                 if (data[i] != o.data[i])
                     return data[i] < o.data[i];
@@ -654,6 +693,62 @@ namespace nstd
         }
 
         // =========================================================================
+        // Compound assignments — mixed integral types
+        // =========================================================================
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr uint_fixed_t &operator+=(T v) noexcept { *this += uint_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr uint_fixed_t &operator-=(T v) noexcept { *this -= uint_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr uint_fixed_t &operator*=(T v) noexcept { *this *= uint_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        uint_fixed_t &operator/=(T v) { *this /= uint_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        uint_fixed_t &operator%=(T v) { *this %= uint_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr uint_fixed_t &operator&=(T v) noexcept { *this &= uint_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr uint_fixed_t &operator|=(T v) noexcept { *this |= uint_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr uint_fixed_t &operator^=(T v) noexcept { *this ^= uint_fixed_t{v}; return *this; }
+
+#ifdef __SIZEOF_INT128__
+        constexpr uint_fixed_t &operator+=(unsigned __int128 v) noexcept { *this += uint_fixed_t{v}; return *this; }
+        constexpr uint_fixed_t &operator-=(unsigned __int128 v) noexcept { *this -= uint_fixed_t{v}; return *this; }
+        constexpr uint_fixed_t &operator*=(unsigned __int128 v) noexcept { *this *= uint_fixed_t{v}; return *this; }
+        uint_fixed_t &operator/=(unsigned __int128 v) { *this /= uint_fixed_t{v}; return *this; }
+        uint_fixed_t &operator%=(unsigned __int128 v) { *this %= uint_fixed_t{v}; return *this; }
+        constexpr uint_fixed_t &operator&=(unsigned __int128 v) noexcept { *this &= uint_fixed_t{v}; return *this; }
+        constexpr uint_fixed_t &operator|=(unsigned __int128 v) noexcept { *this |= uint_fixed_t{v}; return *this; }
+        constexpr uint_fixed_t &operator^=(unsigned __int128 v) noexcept { *this ^= uint_fixed_t{v}; return *this; }
+
+        constexpr uint_fixed_t &operator+=(__int128 v) noexcept { *this += uint_fixed_t{v}; return *this; }
+        constexpr uint_fixed_t &operator-=(__int128 v) noexcept { *this -= uint_fixed_t{v}; return *this; }
+        constexpr uint_fixed_t &operator*=(__int128 v) noexcept { *this *= uint_fixed_t{v}; return *this; }
+        uint_fixed_t &operator/=(__int128 v) { *this /= uint_fixed_t{v}; return *this; }
+        uint_fixed_t &operator%=(__int128 v) { *this %= uint_fixed_t{v}; return *this; }
+        constexpr uint_fixed_t &operator&=(__int128 v) noexcept { *this &= uint_fixed_t{v}; return *this; }
+        constexpr uint_fixed_t &operator|=(__int128 v) noexcept { *this |= uint_fixed_t{v}; return *this; }
+        constexpr uint_fixed_t &operator^=(__int128 v) noexcept { *this ^= uint_fixed_t{v}; return *this; }
+#endif
+
+        // =========================================================================
         // Utility
         // =========================================================================
 
@@ -691,6 +786,37 @@ namespace nstd
                 }
             }
             return total;
+        }
+
+        // Count leading zeros (MSB end); returns 64*N for zero
+        constexpr unsigned count_leading_zeros() const noexcept
+        {
+            return 64U * static_cast<unsigned>(N) - bit_width();
+        }
+
+        // Count trailing zeros (LSB end); returns 64*N for zero
+        constexpr unsigned count_trailing_zeros() const noexcept
+        {
+            for (std::size_t i{0}; i < N; ++i)
+            {
+                if (data[i] != 0)
+                {
+#if __has_include("intrinsics/bit_operations.hpp")
+                    return static_cast<unsigned>(i * 64U) + intrinsics::ctz64(data[i]);
+#else
+                    std::uint64_t v = data[i];
+                    unsigned n{0};
+                    while ((v & 1U) == 0) { v >>= 1; ++n; }
+                    return static_cast<unsigned>(i * 64U) + n;
+#endif
+                }
+            }
+            return 64U * static_cast<unsigned>(N);
+        }
+
+        [[nodiscard]] constexpr bool is_power_of_two() const noexcept
+        {
+            return !is_zero() && (*this & (*this - one())).is_zero();
         }
 
         // =========================================================================
@@ -826,6 +952,7 @@ namespace nstd
     // Type aliases — unsigned
     // =============================================================================
 
+    using uint64_fixed_t  = uint_fixed_t<1>;
     using uint128_fixed_t = uint_fixed_t<2>;
     using uint256_fixed_t = uint_fixed_t<4>;
     using uint512_fixed_t = uint_fixed_t<8>;
@@ -881,6 +1008,15 @@ namespace nstd
 
         template <std::size_t M, typename = std::enable_if_t<M != N>>
         explicit constexpr int_fixed_t(const int_fixed_t<M> &o) noexcept : bits(o) {}
+
+        template <typename F, std::enable_if_t<std::is_floating_point_v<F>, int> = 0>
+        explicit int_fixed_t(F v) noexcept : bits{}
+        {
+            if (v >= F{0})
+                bits = uint_fixed_t<N>{v};
+            else
+                bits = -uint_fixed_t<N>{-v};
+        }
 
         // =========================================================================
         // Named constructors
@@ -944,6 +1080,12 @@ namespace nstd
             return *this = int_fixed_t{o};
         }
 
+        template <typename F, std::enable_if_t<std::is_floating_point_v<F>, int> = 0>
+        int_fixed_t &operator=(F v) noexcept
+        {
+            return *this = int_fixed_t{v};
+        }
+
         // =========================================================================
         // Predicates
         // =========================================================================
@@ -985,6 +1127,14 @@ namespace nstd
             return static_cast<__int128>(bits);
         }
 #endif
+
+        template <typename F, std::enable_if_t<std::is_floating_point_v<F>, int> = 0>
+        [[nodiscard]] explicit operator F() const noexcept
+        {
+            if (is_negative())
+                return -static_cast<F>((-(*this)).bits);
+            return static_cast<F>(bits);
+        }
 
         // =========================================================================
         // Comparison (signed)
@@ -1170,6 +1320,62 @@ namespace nstd
         }
 
         // =========================================================================
+        // Compound assignments — mixed integral types
+        // =========================================================================
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr int_fixed_t &operator+=(T v) noexcept { *this += int_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr int_fixed_t &operator-=(T v) noexcept { *this -= int_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr int_fixed_t &operator*=(T v) noexcept { *this *= int_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        int_fixed_t &operator/=(T v) { *this /= int_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        int_fixed_t &operator%=(T v) { *this %= int_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr int_fixed_t &operator&=(T v) noexcept { *this &= int_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr int_fixed_t &operator|=(T v) noexcept { *this |= int_fixed_t{v}; return *this; }
+
+        template <typename T,
+                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        constexpr int_fixed_t &operator^=(T v) noexcept { *this ^= int_fixed_t{v}; return *this; }
+
+#ifdef __SIZEOF_INT128__
+        constexpr int_fixed_t &operator+=(unsigned __int128 v) noexcept { *this += int_fixed_t{v}; return *this; }
+        constexpr int_fixed_t &operator-=(unsigned __int128 v) noexcept { *this -= int_fixed_t{v}; return *this; }
+        constexpr int_fixed_t &operator*=(unsigned __int128 v) noexcept { *this *= int_fixed_t{v}; return *this; }
+        int_fixed_t &operator/=(unsigned __int128 v) { *this /= int_fixed_t{v}; return *this; }
+        int_fixed_t &operator%=(unsigned __int128 v) { *this %= int_fixed_t{v}; return *this; }
+        constexpr int_fixed_t &operator&=(unsigned __int128 v) noexcept { *this &= int_fixed_t{v}; return *this; }
+        constexpr int_fixed_t &operator|=(unsigned __int128 v) noexcept { *this |= int_fixed_t{v}; return *this; }
+        constexpr int_fixed_t &operator^=(unsigned __int128 v) noexcept { *this ^= int_fixed_t{v}; return *this; }
+
+        constexpr int_fixed_t &operator+=(__int128 v) noexcept { *this += int_fixed_t{v}; return *this; }
+        constexpr int_fixed_t &operator-=(__int128 v) noexcept { *this -= int_fixed_t{v}; return *this; }
+        constexpr int_fixed_t &operator*=(__int128 v) noexcept { *this *= int_fixed_t{v}; return *this; }
+        int_fixed_t &operator/=(__int128 v) { *this /= int_fixed_t{v}; return *this; }
+        int_fixed_t &operator%=(__int128 v) { *this %= int_fixed_t{v}; return *this; }
+        constexpr int_fixed_t &operator&=(__int128 v) noexcept { *this &= int_fixed_t{v}; return *this; }
+        constexpr int_fixed_t &operator|=(__int128 v) noexcept { *this |= int_fixed_t{v}; return *this; }
+        constexpr int_fixed_t &operator^=(__int128 v) noexcept { *this ^= int_fixed_t{v}; return *this; }
+#endif
+
+        // =========================================================================
         // Utility
         // =========================================================================
 
@@ -1177,6 +1383,19 @@ namespace nstd
         constexpr int_fixed_t abs() const noexcept
         {
             return is_negative() ? -(*this) : *this;
+        }
+
+        constexpr unsigned bit_width() const noexcept { return bits.bit_width(); }
+        constexpr unsigned popcount() const noexcept { return bits.popcount(); }
+        constexpr unsigned count_leading_zeros() const noexcept { return bits.count_leading_zeros(); }
+        constexpr unsigned count_trailing_zeros() const noexcept { return bits.count_trailing_zeros(); }
+
+        [[nodiscard]] constexpr bool is_positive() const noexcept { return !is_zero() && !is_negative(); }
+
+        [[nodiscard]] constexpr int signum() const noexcept
+        {
+            if (is_zero()) return 0;
+            return is_negative() ? -1 : 1;
         }
 
         // =========================================================================
@@ -1210,10 +1429,834 @@ namespace nstd
     // Type aliases — signed
     // =============================================================================
 
+    using int64_fixed_t  = int_fixed_t<1>;
     using int128_fixed_t = int_fixed_t<2>;
     using int256_fixed_t = int_fixed_t<4>;
     using int512_fixed_t = int_fixed_t<8>;
     using int1024_fixed_t = int_fixed_t<16>;
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr uint_fixed_t<N> succ(const uint_fixed_t<N> &x) noexcept
+    {
+        return x + uint_fixed_t<N>::one();
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr uint_fixed_t<N> pred(const uint_fixed_t<N> &x) noexcept
+    {
+        return x - uint_fixed_t<N>::one();
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr int_fixed_t<N> succ(const int_fixed_t<N> &x) noexcept
+    {
+        return x + int_fixed_t<N>::one();
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr int_fixed_t<N> pred(const int_fixed_t<N> &x) noexcept
+    {
+        return x - int_fixed_t<N>::one();
+    }
+
+    // =========================================================================
+    // detail — SFINAE helpers
+    // =========================================================================
+
+    namespace detail
+    {
+        template <typename T>
+        using if_integral = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>;
+    }
+
+    // =========================================================================
+    // Free-function binary operators — uint_fixed_t<N> mixed with integral T
+    // =========================================================================
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr uint_fixed_t<N> operator+(const uint_fixed_t<N> &a, T b) noexcept { return a + uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr uint_fixed_t<N> operator+(T a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} + b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr uint_fixed_t<N> operator-(const uint_fixed_t<N> &a, T b) noexcept { return a - uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr uint_fixed_t<N> operator-(T a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} - b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr uint_fixed_t<N> operator*(const uint_fixed_t<N> &a, T b) noexcept { return a * uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr uint_fixed_t<N> operator*(T a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} * b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    uint_fixed_t<N> operator/(const uint_fixed_t<N> &a, T b) { return a / uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    uint_fixed_t<N> operator/(T a, const uint_fixed_t<N> &b) { return uint_fixed_t<N>{a} / b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    uint_fixed_t<N> operator%(const uint_fixed_t<N> &a, T b) { return a % uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    uint_fixed_t<N> operator%(T a, const uint_fixed_t<N> &b) { return uint_fixed_t<N>{a} % b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr uint_fixed_t<N> operator&(const uint_fixed_t<N> &a, T b) noexcept { return a & uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr uint_fixed_t<N> operator&(T a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} & b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr uint_fixed_t<N> operator|(const uint_fixed_t<N> &a, T b) noexcept { return a | uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr uint_fixed_t<N> operator|(T a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} | b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr uint_fixed_t<N> operator^(const uint_fixed_t<N> &a, T b) noexcept { return a ^ uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr uint_fixed_t<N> operator^(T a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} ^ b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator==(const uint_fixed_t<N> &a, T b) noexcept { return a == uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator==(T a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} == b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator!=(const uint_fixed_t<N> &a, T b) noexcept { return a != uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator!=(T a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} != b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator<(const uint_fixed_t<N> &a, T b) noexcept { return a < uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator<(T a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} < b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator<=(const uint_fixed_t<N> &a, T b) noexcept { return a <= uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator<=(T a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} <= b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator>(const uint_fixed_t<N> &a, T b) noexcept { return a > uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator>(T a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} > b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator>=(const uint_fixed_t<N> &a, T b) noexcept { return a >= uint_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator>=(T a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} >= b; }
+
+#ifdef __SIZEOF_INT128__
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator+(const uint_fixed_t<N> &a, unsigned __int128 b) noexcept { return a + uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator+(unsigned __int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} + b; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator+(const uint_fixed_t<N> &a, __int128 b) noexcept { return a + uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator+(__int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} + b; }
+
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator-(const uint_fixed_t<N> &a, unsigned __int128 b) noexcept { return a - uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator-(unsigned __int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} - b; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator-(const uint_fixed_t<N> &a, __int128 b) noexcept { return a - uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator-(__int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} - b; }
+
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator*(const uint_fixed_t<N> &a, unsigned __int128 b) noexcept { return a * uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator*(unsigned __int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} * b; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator*(const uint_fixed_t<N> &a, __int128 b) noexcept { return a * uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator*(__int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} * b; }
+
+    template <std::size_t N>
+    uint_fixed_t<N> operator/(const uint_fixed_t<N> &a, unsigned __int128 b) { return a / uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    uint_fixed_t<N> operator/(unsigned __int128 a, const uint_fixed_t<N> &b) { return uint_fixed_t<N>{a} / b; }
+    template <std::size_t N>
+    uint_fixed_t<N> operator/(const uint_fixed_t<N> &a, __int128 b) { return a / uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    uint_fixed_t<N> operator/(__int128 a, const uint_fixed_t<N> &b) { return uint_fixed_t<N>{a} / b; }
+
+    template <std::size_t N>
+    uint_fixed_t<N> operator%(const uint_fixed_t<N> &a, unsigned __int128 b) { return a % uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    uint_fixed_t<N> operator%(unsigned __int128 a, const uint_fixed_t<N> &b) { return uint_fixed_t<N>{a} % b; }
+    template <std::size_t N>
+    uint_fixed_t<N> operator%(const uint_fixed_t<N> &a, __int128 b) { return a % uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    uint_fixed_t<N> operator%(__int128 a, const uint_fixed_t<N> &b) { return uint_fixed_t<N>{a} % b; }
+
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator&(const uint_fixed_t<N> &a, unsigned __int128 b) noexcept { return a & uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator&(unsigned __int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} & b; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator&(const uint_fixed_t<N> &a, __int128 b) noexcept { return a & uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator&(__int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} & b; }
+
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator|(const uint_fixed_t<N> &a, unsigned __int128 b) noexcept { return a | uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator|(unsigned __int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} | b; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator|(const uint_fixed_t<N> &a, __int128 b) noexcept { return a | uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator|(__int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} | b; }
+
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator^(const uint_fixed_t<N> &a, unsigned __int128 b) noexcept { return a ^ uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator^(unsigned __int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} ^ b; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator^(const uint_fixed_t<N> &a, __int128 b) noexcept { return a ^ uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr uint_fixed_t<N> operator^(__int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} ^ b; }
+
+    template <std::size_t N>
+    constexpr bool operator==(const uint_fixed_t<N> &a, unsigned __int128 b) noexcept { return a == uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator==(unsigned __int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} == b; }
+    template <std::size_t N>
+    constexpr bool operator==(const uint_fixed_t<N> &a, __int128 b) noexcept { return a == uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator==(__int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} == b; }
+
+    template <std::size_t N>
+    constexpr bool operator!=(const uint_fixed_t<N> &a, unsigned __int128 b) noexcept { return a != uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator!=(unsigned __int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} != b; }
+    template <std::size_t N>
+    constexpr bool operator!=(const uint_fixed_t<N> &a, __int128 b) noexcept { return a != uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator!=(__int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} != b; }
+
+    template <std::size_t N>
+    constexpr bool operator<(const uint_fixed_t<N> &a, unsigned __int128 b) noexcept { return a < uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator<(unsigned __int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} < b; }
+    template <std::size_t N>
+    constexpr bool operator<(const uint_fixed_t<N> &a, __int128 b) noexcept { return a < uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator<(__int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} < b; }
+
+    template <std::size_t N>
+    constexpr bool operator<=(const uint_fixed_t<N> &a, unsigned __int128 b) noexcept { return a <= uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator<=(unsigned __int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} <= b; }
+    template <std::size_t N>
+    constexpr bool operator<=(const uint_fixed_t<N> &a, __int128 b) noexcept { return a <= uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator<=(__int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} <= b; }
+
+    template <std::size_t N>
+    constexpr bool operator>(const uint_fixed_t<N> &a, unsigned __int128 b) noexcept { return a > uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator>(unsigned __int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} > b; }
+    template <std::size_t N>
+    constexpr bool operator>(const uint_fixed_t<N> &a, __int128 b) noexcept { return a > uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator>(__int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} > b; }
+
+    template <std::size_t N>
+    constexpr bool operator>=(const uint_fixed_t<N> &a, unsigned __int128 b) noexcept { return a >= uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator>=(unsigned __int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} >= b; }
+    template <std::size_t N>
+    constexpr bool operator>=(const uint_fixed_t<N> &a, __int128 b) noexcept { return a >= uint_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator>=(__int128 a, const uint_fixed_t<N> &b) noexcept { return uint_fixed_t<N>{a} >= b; }
+#endif
+
+    // =========================================================================
+    // Free-function binary operators — int_fixed_t<N> mixed with integral T
+    // =========================================================================
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr int_fixed_t<N> operator+(const int_fixed_t<N> &a, T b) noexcept { return a + int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr int_fixed_t<N> operator+(T a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} + b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr int_fixed_t<N> operator-(const int_fixed_t<N> &a, T b) noexcept { return a - int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr int_fixed_t<N> operator-(T a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} - b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr int_fixed_t<N> operator*(const int_fixed_t<N> &a, T b) noexcept { return a * int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr int_fixed_t<N> operator*(T a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} * b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    int_fixed_t<N> operator/(const int_fixed_t<N> &a, T b) { return a / int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    int_fixed_t<N> operator/(T a, const int_fixed_t<N> &b) { return int_fixed_t<N>{a} / b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    int_fixed_t<N> operator%(const int_fixed_t<N> &a, T b) { return a % int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    int_fixed_t<N> operator%(T a, const int_fixed_t<N> &b) { return int_fixed_t<N>{a} % b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr int_fixed_t<N> operator&(const int_fixed_t<N> &a, T b) noexcept { return a & int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr int_fixed_t<N> operator&(T a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} & b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr int_fixed_t<N> operator|(const int_fixed_t<N> &a, T b) noexcept { return a | int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr int_fixed_t<N> operator|(T a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} | b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr int_fixed_t<N> operator^(const int_fixed_t<N> &a, T b) noexcept { return a ^ int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr int_fixed_t<N> operator^(T a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} ^ b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator==(const int_fixed_t<N> &a, T b) noexcept { return a == int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator==(T a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} == b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator!=(const int_fixed_t<N> &a, T b) noexcept { return a != int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator!=(T a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} != b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator<(const int_fixed_t<N> &a, T b) noexcept { return a < int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator<(T a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} < b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator<=(const int_fixed_t<N> &a, T b) noexcept { return a <= int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator<=(T a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} <= b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator>(const int_fixed_t<N> &a, T b) noexcept { return a > int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator>(T a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} > b; }
+
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator>=(const int_fixed_t<N> &a, T b) noexcept { return a >= int_fixed_t<N>{b}; }
+    template <std::size_t N, typename T, typename = detail::if_integral<T>>
+    constexpr bool operator>=(T a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} >= b; }
+
+#ifdef __SIZEOF_INT128__
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator+(const int_fixed_t<N> &a, unsigned __int128 b) noexcept { return a + int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator+(unsigned __int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} + b; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator+(const int_fixed_t<N> &a, __int128 b) noexcept { return a + int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator+(__int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} + b; }
+
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator-(const int_fixed_t<N> &a, unsigned __int128 b) noexcept { return a - int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator-(unsigned __int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} - b; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator-(const int_fixed_t<N> &a, __int128 b) noexcept { return a - int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator-(__int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} - b; }
+
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator*(const int_fixed_t<N> &a, unsigned __int128 b) noexcept { return a * int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator*(unsigned __int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} * b; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator*(const int_fixed_t<N> &a, __int128 b) noexcept { return a * int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator*(__int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} * b; }
+
+    template <std::size_t N>
+    int_fixed_t<N> operator/(const int_fixed_t<N> &a, unsigned __int128 b) { return a / int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    int_fixed_t<N> operator/(unsigned __int128 a, const int_fixed_t<N> &b) { return int_fixed_t<N>{a} / b; }
+    template <std::size_t N>
+    int_fixed_t<N> operator/(const int_fixed_t<N> &a, __int128 b) { return a / int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    int_fixed_t<N> operator/(__int128 a, const int_fixed_t<N> &b) { return int_fixed_t<N>{a} / b; }
+
+    template <std::size_t N>
+    int_fixed_t<N> operator%(const int_fixed_t<N> &a, unsigned __int128 b) { return a % int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    int_fixed_t<N> operator%(unsigned __int128 a, const int_fixed_t<N> &b) { return int_fixed_t<N>{a} % b; }
+    template <std::size_t N>
+    int_fixed_t<N> operator%(const int_fixed_t<N> &a, __int128 b) { return a % int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    int_fixed_t<N> operator%(__int128 a, const int_fixed_t<N> &b) { return int_fixed_t<N>{a} % b; }
+
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator&(const int_fixed_t<N> &a, unsigned __int128 b) noexcept { return a & int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator&(unsigned __int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} & b; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator&(const int_fixed_t<N> &a, __int128 b) noexcept { return a & int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator&(__int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} & b; }
+
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator|(const int_fixed_t<N> &a, unsigned __int128 b) noexcept { return a | int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator|(unsigned __int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} | b; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator|(const int_fixed_t<N> &a, __int128 b) noexcept { return a | int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator|(__int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} | b; }
+
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator^(const int_fixed_t<N> &a, unsigned __int128 b) noexcept { return a ^ int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator^(unsigned __int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} ^ b; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator^(const int_fixed_t<N> &a, __int128 b) noexcept { return a ^ int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr int_fixed_t<N> operator^(__int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} ^ b; }
+
+    template <std::size_t N>
+    constexpr bool operator==(const int_fixed_t<N> &a, unsigned __int128 b) noexcept { return a == int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator==(unsigned __int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} == b; }
+    template <std::size_t N>
+    constexpr bool operator==(const int_fixed_t<N> &a, __int128 b) noexcept { return a == int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator==(__int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} == b; }
+
+    template <std::size_t N>
+    constexpr bool operator!=(const int_fixed_t<N> &a, unsigned __int128 b) noexcept { return a != int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator!=(unsigned __int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} != b; }
+    template <std::size_t N>
+    constexpr bool operator!=(const int_fixed_t<N> &a, __int128 b) noexcept { return a != int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator!=(__int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} != b; }
+
+    template <std::size_t N>
+    constexpr bool operator<(const int_fixed_t<N> &a, unsigned __int128 b) noexcept { return a < int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator<(unsigned __int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} < b; }
+    template <std::size_t N>
+    constexpr bool operator<(const int_fixed_t<N> &a, __int128 b) noexcept { return a < int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator<(__int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} < b; }
+
+    template <std::size_t N>
+    constexpr bool operator<=(const int_fixed_t<N> &a, unsigned __int128 b) noexcept { return a <= int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator<=(unsigned __int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} <= b; }
+    template <std::size_t N>
+    constexpr bool operator<=(const int_fixed_t<N> &a, __int128 b) noexcept { return a <= int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator<=(__int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} <= b; }
+
+    template <std::size_t N>
+    constexpr bool operator>(const int_fixed_t<N> &a, unsigned __int128 b) noexcept { return a > int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator>(unsigned __int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} > b; }
+    template <std::size_t N>
+    constexpr bool operator>(const int_fixed_t<N> &a, __int128 b) noexcept { return a > int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator>(__int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} > b; }
+
+    template <std::size_t N>
+    constexpr bool operator>=(const int_fixed_t<N> &a, unsigned __int128 b) noexcept { return a >= int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator>=(unsigned __int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} >= b; }
+    template <std::size_t N>
+    constexpr bool operator>=(const int_fixed_t<N> &a, __int128 b) noexcept { return a >= int_fixed_t<N>{b}; }
+    template <std::size_t N>
+    constexpr bool operator>=(__int128 a, const int_fixed_t<N> &b) noexcept { return int_fixed_t<N>{a} >= b; }
+#endif
+
+    // =========================================================================
+    // Cross-N binary operators — uint_fixed_t<N> op uint_fixed_t<M> (N != M)
+    // =========================================================================
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr uint_fixed_t<(N > M ? N : M)> operator+(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} + uint_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr uint_fixed_t<(N > M ? N : M)> operator-(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} - uint_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr uint_fixed_t<(N > M ? N : M)> operator*(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} * uint_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    uint_fixed_t<(N > M ? N : M)> operator/(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b)
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} / uint_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    uint_fixed_t<(N > M ? N : M)> operator%(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b)
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} % uint_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr uint_fixed_t<(N > M ? N : M)> operator&(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} & uint_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr uint_fixed_t<(N > M ? N : M)> operator|(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} | uint_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr uint_fixed_t<(N > M ? N : M)> operator^(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} ^ uint_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr bool operator==(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} == uint_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr bool operator!=(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} != uint_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr bool operator<(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} < uint_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr bool operator<=(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} <= uint_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr bool operator>(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} > uint_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr bool operator>=(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return uint_fixed_t<R>{a} >= uint_fixed_t<R>{b};
+    }
+
+    // =========================================================================
+    // Cross-N binary operators — int_fixed_t<N> op int_fixed_t<M> (N != M)
+    // =========================================================================
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr int_fixed_t<(N > M ? N : M)> operator+(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} + int_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr int_fixed_t<(N > M ? N : M)> operator-(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} - int_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr int_fixed_t<(N > M ? N : M)> operator*(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} * int_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    int_fixed_t<(N > M ? N : M)> operator/(const int_fixed_t<N> &a, const int_fixed_t<M> &b)
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} / int_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    int_fixed_t<(N > M ? N : M)> operator%(const int_fixed_t<N> &a, const int_fixed_t<M> &b)
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} % int_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr int_fixed_t<(N > M ? N : M)> operator&(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} & int_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr int_fixed_t<(N > M ? N : M)> operator|(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} | int_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr int_fixed_t<(N > M ? N : M)> operator^(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} ^ int_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr bool operator==(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} == int_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr bool operator!=(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} != int_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr bool operator<(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} < int_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr bool operator<=(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} <= int_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr bool operator>(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} > int_fixed_t<R>{b};
+    }
+
+    template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
+    constexpr bool operator>=(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
+    {
+        constexpr std::size_t R = N > M ? N : M;
+        return int_fixed_t<R>{a} >= int_fixed_t<R>{b};
+    }
+
+    // =========================================================================
+    // Higher arithmetic — mul_wide, pow, sqrt, gcd, lcm, checked_*
+    // =========================================================================
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr uint_fixed_t<2 * N>
+    mul_wide(const uint_fixed_t<N> &a, const uint_fixed_t<N> &b) noexcept
+    {
+        return uint_fixed_t<2 * N>{a} * uint_fixed_t<2 * N>{b};
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr int_fixed_t<2 * N>
+    mul_wide(const int_fixed_t<N> &a, const int_fixed_t<N> &b) noexcept
+    {
+        return int_fixed_t<2 * N>{a} * int_fixed_t<2 * N>{b};
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr uint_fixed_t<N>
+    pow(uint_fixed_t<N> base, uint_fixed_t<N> exp) noexcept
+    {
+        uint_fixed_t<N> result = uint_fixed_t<N>::one();
+        while (!exp.is_zero())
+        {
+            if (exp.data[0] & std::uint64_t{1})
+                result *= base;
+            base *= base;
+            exp >>= 1;
+        }
+        return result;
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr int_fixed_t<N>
+    pow(int_fixed_t<N> base, uint_fixed_t<N> exp) noexcept
+    {
+        int_fixed_t<N> result = int_fixed_t<N>::one();
+        while (!exp.is_zero())
+        {
+            if (exp.data[0] & std::uint64_t{1})
+                result *= base;
+            base *= base;
+            exp >>= 1;
+        }
+        return result;
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] uint_fixed_t<N> sqrt(const uint_fixed_t<N> &x)
+    {
+        if (x.is_zero())
+            return uint_fixed_t<N>{};
+        const unsigned bw = x.bit_width();
+        uint_fixed_t<N> r = x >> ((bw + 1) / 2);
+        if (r.is_zero())
+            r = uint_fixed_t<N>::one();
+        for (;;)
+        {
+            const uint_fixed_t<N> nr = (r + x / r) >> 1;
+            if (nr >= r)
+                break;
+            r = nr;
+        }
+        return r;
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr uint_fixed_t<N>
+    gcd(uint_fixed_t<N> a, uint_fixed_t<N> b) noexcept
+    {
+        if (a.is_zero()) return b;
+        if (b.is_zero()) return a;
+        const unsigned ka = a.count_trailing_zeros();
+        const unsigned kb = b.count_trailing_zeros();
+        const unsigned k  = ka < kb ? ka : kb;
+        a >>= ka;
+        b >>= kb;
+        while (!b.is_zero())
+        {
+            if (a < b)
+            {
+                uint_fixed_t<N> t = a;
+                a = b;
+                b = t;
+            }
+            a -= b;
+            if (!a.is_zero())
+                a >>= a.count_trailing_zeros();
+        }
+        return a << k;
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr uint_fixed_t<N>
+    gcd(const int_fixed_t<N> &a, const int_fixed_t<N> &b) noexcept
+    {
+        return gcd(a.is_negative() ? (-a).bits : a.bits,
+                   b.is_negative() ? (-b).bits : b.bits);
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] uint_fixed_t<N>
+    lcm(const uint_fixed_t<N> &a, const uint_fixed_t<N> &b)
+    {
+        if (a.is_zero() || b.is_zero())
+            return uint_fixed_t<N>{};
+        return a / gcd(a, b) * b;
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] uint_fixed_t<N>
+    lcm(const int_fixed_t<N> &a, const int_fixed_t<N> &b)
+    {
+        const uint_fixed_t<N> ua = a.is_negative() ? (-a).bits : a.bits;
+        const uint_fixed_t<N> ub = b.is_negative() ? (-b).bits : b.bits;
+        return lcm(ua, ub);
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr std::optional<uint_fixed_t<N>>
+    checked_add(const uint_fixed_t<N> &a, const uint_fixed_t<N> &b) noexcept
+    {
+        const uint_fixed_t<N> r = a + b;
+        if (r < a) return std::nullopt;
+        return r;
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr std::optional<uint_fixed_t<N>>
+    checked_sub(const uint_fixed_t<N> &a, const uint_fixed_t<N> &b) noexcept
+    {
+        if (b > a) return std::nullopt;
+        return a - b;
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr std::optional<uint_fixed_t<N>>
+    checked_mul(const uint_fixed_t<N> &a, const uint_fixed_t<N> &b) noexcept
+    {
+        const uint_fixed_t<2 * N> wide = mul_wide(a, b);
+        for (std::size_t i = N; i < 2 * N; ++i)
+            if (wide.data[i] != 0)
+                return std::nullopt;
+        return uint_fixed_t<N>{wide};
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr std::optional<int_fixed_t<N>>
+    checked_add(const int_fixed_t<N> &a, const int_fixed_t<N> &b) noexcept
+    {
+        const int_fixed_t<N> r = a + b;
+        const bool a_neg = a.is_negative();
+        if (a_neg == b.is_negative() && r.is_negative() != a_neg)
+            return std::nullopt;
+        return r;
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr std::optional<int_fixed_t<N>>
+    checked_sub(const int_fixed_t<N> &a, const int_fixed_t<N> &b) noexcept
+    {
+        const int_fixed_t<N> r = a - b;
+        const bool a_neg = a.is_negative();
+        if (a_neg != b.is_negative() && r.is_negative() != a_neg)
+            return std::nullopt;
+        return r;
+    }
+
+    template <std::size_t N>
+    [[nodiscard]] constexpr std::optional<int_fixed_t<N>>
+    checked_mul(const int_fixed_t<N> &a, const int_fixed_t<N> &b) noexcept
+    {
+        const int_fixed_t<2 * N> wide = mul_wide(a, b);
+        const std::uint64_t fill = wide.bits.data[N - 1] >> 63 ? ~std::uint64_t{0} : std::uint64_t{0};
+        for (std::size_t i = N; i < 2 * N; ++i)
+            if (wide.bits.data[i] != fill)
+                return std::nullopt;
+        return int_fixed_t<N>{wide};
+    }
 
 } // namespace nstd
 
