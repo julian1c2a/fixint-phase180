@@ -98,6 +98,9 @@ namespace nstd
         }
     };
 
+    template <std::size_t M>
+    class int_fixed_t;
+
     template <std::size_t N>
     class uint_fixed_t
     {
@@ -144,6 +147,43 @@ namespace nstd
                         data[i] |= std::uint64_t{1} << j;
         }
 
+#ifdef __SIZEOF_INT128__
+        explicit constexpr uint_fixed_t(unsigned __int128 v) noexcept : data{}
+        {
+            for (std::size_t i{0}; i < N && i < 2; ++i)
+                data[i] = static_cast<std::uint64_t>(v >> (i * 64));
+        }
+
+        explicit constexpr uint_fixed_t(__int128 v) noexcept : data{}
+        {
+            const unsigned __int128 uv = static_cast<unsigned __int128>(v);
+            for (std::size_t i{0}; i < N && i < 2; ++i)
+                data[i] = static_cast<std::uint64_t>(uv >> (i * 64));
+            const std::uint64_t fill = (v < 0) ? ~std::uint64_t{0} : std::uint64_t{0};
+            for (std::size_t i{2}; i < N; ++i)
+                data[i] = fill;
+        }
+#endif
+
+        template <std::size_t M, typename = std::enable_if_t<M != N>>
+        explicit constexpr uint_fixed_t(const uint_fixed_t<M> &o) noexcept : data{}
+        {
+            constexpr std::size_t copy = M < N ? M : N;
+            for (std::size_t i{0}; i < copy; ++i)
+                data[i] = o.data[i];
+        }
+
+        template <std::size_t M>
+        explicit constexpr uint_fixed_t(const int_fixed_t<M> &o) noexcept : data{}
+        {
+            constexpr std::size_t copy = M < N ? M : N;
+            for (std::size_t i{0}; i < copy; ++i)
+                data[i] = o.bits.data[i];
+            const std::uint64_t fill = (o.bits.data[M - 1] >> 63) ? ~std::uint64_t{0} : std::uint64_t{0};
+            for (std::size_t i{M}; i < N; ++i)
+                data[i] = fill;
+        }
+
         // =========================================================================
         // Named constructors
         // =========================================================================
@@ -177,6 +217,30 @@ namespace nstd
         constexpr uint_fixed_t &operator=(T v) noexcept
         {
             return *this = uint_fixed_t{v};
+        }
+
+#ifdef __SIZEOF_INT128__
+        constexpr uint_fixed_t &operator=(unsigned __int128 v) noexcept
+        {
+            return *this = uint_fixed_t{v};
+        }
+
+        constexpr uint_fixed_t &operator=(__int128 v) noexcept
+        {
+            return *this = uint_fixed_t{v};
+        }
+#endif
+
+        template <std::size_t M, typename = std::enable_if_t<M != N>>
+        constexpr uint_fixed_t &operator=(const uint_fixed_t<M> &o) noexcept
+        {
+            return *this = uint_fixed_t{o};
+        }
+
+        template <std::size_t M>
+        constexpr uint_fixed_t &operator=(const int_fixed_t<M> &o) noexcept
+        {
+            return *this = uint_fixed_t{o};
         }
 
         // =========================================================================
@@ -222,6 +286,21 @@ namespace nstd
                         result.set(i * 64 + j);
             return result;
         }
+
+#ifdef __SIZEOF_INT128__
+        [[nodiscard]] explicit constexpr operator unsigned __int128() const noexcept
+        {
+            unsigned __int128 r{0};
+            for (std::size_t i{0}; i < N && i < 2; ++i)
+                r |= static_cast<unsigned __int128>(data[i]) << (i * 64);
+            return r;
+        }
+
+        [[nodiscard]] explicit constexpr operator __int128() const noexcept
+        {
+            return static_cast<__int128>(static_cast<unsigned __int128>(*this));
+        }
+#endif
 
         // =========================================================================
         // Comparison
@@ -792,6 +871,17 @@ namespace nstd
         {
         }
 
+#ifdef __SIZEOF_INT128__
+        explicit constexpr int_fixed_t(unsigned __int128 v) noexcept : bits(v) {}
+        explicit constexpr int_fixed_t(__int128 v) noexcept : bits(v) {}
+#endif
+
+        template <std::size_t M, typename = std::enable_if_t<M != N>>
+        explicit constexpr int_fixed_t(const uint_fixed_t<M> &o) noexcept : bits(o) {}
+
+        template <std::size_t M, typename = std::enable_if_t<M != N>>
+        explicit constexpr int_fixed_t(const int_fixed_t<M> &o) noexcept : bits(o) {}
+
         // =========================================================================
         // Named constructors
         // =========================================================================
@@ -830,6 +920,30 @@ namespace nstd
             return *this = int_fixed_t{v};
         }
 
+#ifdef __SIZEOF_INT128__
+        constexpr int_fixed_t &operator=(unsigned __int128 v) noexcept
+        {
+            return *this = int_fixed_t{v};
+        }
+
+        constexpr int_fixed_t &operator=(__int128 v) noexcept
+        {
+            return *this = int_fixed_t{v};
+        }
+#endif
+
+        template <std::size_t M, typename = std::enable_if_t<M != N>>
+        constexpr int_fixed_t &operator=(const uint_fixed_t<M> &o) noexcept
+        {
+            return *this = int_fixed_t{o};
+        }
+
+        template <std::size_t M, typename = std::enable_if_t<M != N>>
+        constexpr int_fixed_t &operator=(const int_fixed_t<M> &o) noexcept
+        {
+            return *this = int_fixed_t{o};
+        }
+
         // =========================================================================
         // Predicates
         // =========================================================================
@@ -859,6 +973,18 @@ namespace nstd
         {
             return static_cast<std::bitset<64 * N>>(bits);
         }
+
+#ifdef __SIZEOF_INT128__
+        [[nodiscard]] explicit constexpr operator unsigned __int128() const noexcept
+        {
+            return static_cast<unsigned __int128>(bits);
+        }
+
+        [[nodiscard]] explicit constexpr operator __int128() const noexcept
+        {
+            return static_cast<__int128>(bits);
+        }
+#endif
 
         // =========================================================================
         // Comparison (signed)
