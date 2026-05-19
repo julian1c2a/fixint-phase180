@@ -462,7 +462,6 @@ namespace nstd
         // Utility
         // =========================================================================
 
-
         // Number of significant bits (floor(log2(x))+1), returns 0 for zero
         constexpr unsigned bit_width() const noexcept
         {
@@ -693,22 +692,39 @@ namespace nstd
         constexpr int_fixed_t operator~() const noexcept { return int_fixed_t{~bits}; }
 
         constexpr int_fixed_t operator&(const int_fixed_t &o) const noexcept
-        { return int_fixed_t{bits & o.bits}; }
+        {
+            return int_fixed_t{bits & o.bits};
+        }
         constexpr int_fixed_t operator|(const int_fixed_t &o) const noexcept
-        { return int_fixed_t{bits | o.bits}; }
+        {
+            return int_fixed_t{bits | o.bits};
+        }
         constexpr int_fixed_t operator^(const int_fixed_t &o) const noexcept
-        { return int_fixed_t{bits ^ o.bits}; }
+        {
+            return int_fixed_t{bits ^ o.bits};
+        }
 
         constexpr int_fixed_t &operator&=(const int_fixed_t &o) noexcept
-        { bits &= o.bits; return *this; }
+        {
+            bits &= o.bits;
+            return *this;
+        }
         constexpr int_fixed_t &operator|=(const int_fixed_t &o) noexcept
-        { bits |= o.bits; return *this; }
+        {
+            bits |= o.bits;
+            return *this;
+        }
         constexpr int_fixed_t &operator^=(const int_fixed_t &o) noexcept
-        { bits ^= o.bits; return *this; }
+        {
+            bits ^= o.bits;
+            return *this;
+        }
 
         // Left shift (logical)
         constexpr int_fixed_t operator<<(unsigned shift) const noexcept
-        { return int_fixed_t{bits << shift}; }
+        {
+            return int_fixed_t{bits << shift};
+        }
 
         // Right shift (arithmetic — fill with sign bit)
         constexpr int_fixed_t operator>>(unsigned shift) const noexcept
@@ -724,36 +740,73 @@ namespace nstd
         }
 
         constexpr int_fixed_t &operator<<=(unsigned shift) noexcept
-        { *this = *this << shift; return *this; }
+        {
+            *this = *this << shift;
+            return *this;
+        }
         constexpr int_fixed_t &operator>>=(unsigned shift) noexcept
-        { *this = *this >> shift; return *this; }
+        {
+            *this = *this >> shift;
+            return *this;
+        }
 
         // =========================================================================
         // Arithmetic — add, subtract, negate, inc/dec, multiply (mod 2^(64N))
         // =========================================================================
 
         constexpr int_fixed_t operator+(const int_fixed_t &o) const noexcept
-        { return int_fixed_t{bits + o.bits}; }
+        {
+            return int_fixed_t{bits + o.bits};
+        }
         constexpr int_fixed_t operator-(const int_fixed_t &o) const noexcept
-        { return int_fixed_t{bits - o.bits}; }
+        {
+            return int_fixed_t{bits - o.bits};
+        }
         constexpr int_fixed_t operator-() const noexcept { return int_fixed_t{-bits}; }
 
         constexpr int_fixed_t &operator+=(const int_fixed_t &o) noexcept
-        { bits += o.bits; return *this; }
+        {
+            bits += o.bits;
+            return *this;
+        }
         constexpr int_fixed_t &operator-=(const int_fixed_t &o) noexcept
-        { bits -= o.bits; return *this; }
+        {
+            bits -= o.bits;
+            return *this;
+        }
 
-        constexpr int_fixed_t &operator++() noexcept { ++bits; return *this; }
+        constexpr int_fixed_t &operator++() noexcept
+        {
+            ++bits;
+            return *this;
+        }
         constexpr int_fixed_t operator++(int) noexcept
-        { int_fixed_t t{*this}; ++(*this); return t; }
-        constexpr int_fixed_t &operator--() noexcept { --bits; return *this; }
+        {
+            int_fixed_t t{*this};
+            ++(*this);
+            return t;
+        }
+        constexpr int_fixed_t &operator--() noexcept
+        {
+            --bits;
+            return *this;
+        }
         constexpr int_fixed_t operator--(int) noexcept
-        { int_fixed_t t{*this}; --(*this); return t; }
+        {
+            int_fixed_t t{*this};
+            --(*this);
+            return t;
+        }
 
         constexpr int_fixed_t operator*(const int_fixed_t &o) const noexcept
-        { return int_fixed_t{bits * o.bits}; }
+        {
+            return int_fixed_t{bits * o.bits};
+        }
         constexpr int_fixed_t &operator*=(const int_fixed_t &o) noexcept
-        { bits *= o.bits; return *this; }
+        {
+            bits *= o.bits;
+            return *this;
+        }
 
         // =========================================================================
         // Arithmetic — division and modulo (truncation-toward-zero, C++ semantics)
@@ -784,8 +837,16 @@ namespace nstd
 
         int_fixed_t operator/(const int_fixed_t &o) const { return divmod(*this, o).first; }
         int_fixed_t operator%(const int_fixed_t &o) const { return divmod(*this, o).second; }
-        int_fixed_t &operator/=(const int_fixed_t &o) { *this = *this / o; return *this; }
-        int_fixed_t &operator%=(const int_fixed_t &o) { *this = *this % o; return *this; }
+        int_fixed_t &operator/=(const int_fixed_t &o)
+        {
+            *this = *this / o;
+            return *this;
+        }
+        int_fixed_t &operator%=(const int_fixed_t &o)
+        {
+            *this = *this % o;
+            return *this;
+        }
 
         // =========================================================================
         // Utility
@@ -793,7 +854,9 @@ namespace nstd
 
         // Absolute value (undefined for min_val())
         constexpr int_fixed_t abs() const noexcept
-        { return is_negative() ? -(*this) : *this; }
+        {
+            return is_negative() ? -(*this) : *this;
+        }
 
         // =========================================================================
         // String conversion — signed decimal
@@ -801,8 +864,10 @@ namespace nstd
 
         std::string to_string() const
         {
-            if (is_zero()) return "0";
-            if (is_negative()) return "-" + (-(*this)).bits.to_string();
+            if (is_zero())
+                return "0";
+            if (is_negative())
+                return "-" + (-(*this)).bits.to_string();
             return bits.to_string();
         }
 
