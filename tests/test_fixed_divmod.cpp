@@ -15,7 +15,7 @@
 //   5.  Division by zero throws std::domain_error
 //   6.  divmod() returns consistent quotient and remainder pair
 
-#include "int_fixed.hpp"
+#include "fixed_width_int_t.hpp"
 
 #include <cstdlib>
 #include <iostream>

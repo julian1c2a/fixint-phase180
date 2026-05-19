@@ -16,7 +16,7 @@
 //   6.  Division and modulo (truncation-toward-zero)
 //   7.  String: to_string and from_string round-trips
 
-#include "int_fixed.hpp"
+#include "fixed_width_int_t.hpp"
 
 #include <cstdlib>
 #include <iostream>

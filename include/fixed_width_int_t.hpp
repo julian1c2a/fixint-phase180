@@ -1,7 +1,7 @@
 // This is an open source non-commercial project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // =============================================================================
-// int_fixed.hpp — Unsigned fixed-width integer template (N x 64-bit limbs)
+// fixed_width_int_t.hpp — Fixed-width integer templates (N x 64-bit limbs)
 // Part of int128 Library - Phase 1.90
 // License: BSL-1.0
 // =============================================================================
@@ -30,8 +30,8 @@
 //   Utilities:    zero(), one(), max_val(), min_val(), is_zero(), is_negative(), abs()
 //   Conversion:   to_string (signed decimal), from_string
 
-#ifndef INT_FIXED_HPP
-#define INT_FIXED_HPP
+#ifndef FIXED_WIDTH_INT_T_HPP
+#define FIXED_WIDTH_INT_T_HPP
 
 #include <algorithm>
 #include <array>
@@ -831,4 +831,4 @@ namespace nstd
 
 } // namespace nstd
 
-#endif // INT_FIXED_HPP
+#endif // FIXED_WIDTH_INT_T_HPP

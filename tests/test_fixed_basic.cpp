@@ -20,7 +20,7 @@
 //   10. Utility: is_zero, bit_width, popcount
 //   11. String: to_string and from_string round-trips
 
-#include "int_fixed.hpp"
+#include "fixed_width_int_t.hpp"
 
 #include <cstdlib>
 #include <iostream>
