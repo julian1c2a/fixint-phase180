@@ -682,28 +682,34 @@ static void test_higher_arith_int(const char *tag)
     {
         const I mx = I::max_val();
         const I mn = I::min_val();
+        I pos_one{std::int64_t{1}};
+        I neg_one{std::int64_t{-1}};
         TEST("checked_add(3,-4)==-1",    nstd::checked_add(I{3},  I{-4}) == std::optional<I>{I{-1}});
         TEST("checked_add(max,min)==-1", nstd::checked_add(mx,    mn)    == std::optional<I>{I{-1}});
-        TEST("checked_add(max,1)==null", !nstd::checked_add(mx,   I{1}).has_value());
-        TEST("checked_add(min,-1)==null",!nstd::checked_add(mn,   I{-1}).has_value());
+        TEST("checked_add(max,1)==null", !nstd::checked_add(mx,   pos_one).has_value());
+        TEST("checked_add(min,-1)==null",!nstd::checked_add(mn,   neg_one).has_value());
     }
 
     // checked_sub (signed)
     {
         const I mx = I::max_val();
         const I mn = I::min_val();
+        I pos_one{std::int64_t{1}};
+        I neg_one{std::int64_t{-1}};
         TEST("checked_sub(5,3)==2",      nstd::checked_sub(I{5},  I{3})  == std::optional<I>{I{2}});
         TEST("checked_sub(3,5)==-2",     nstd::checked_sub(I{3},  I{5})  == std::optional<I>{I{-2}});
-        TEST("checked_sub(min,1)==null", !nstd::checked_sub(mn,   I{1}).has_value());
-        TEST("checked_sub(max,-1)==null",!nstd::checked_sub(mx,   I{-1}).has_value());
+        TEST("checked_sub(min,1)==null", !nstd::checked_sub(mn,   pos_one).has_value());
+        TEST("checked_sub(max,-1)==null",!nstd::checked_sub(mx,   neg_one).has_value());
     }
 
     // checked_mul (signed)
     {
         const I mx = I::max_val();
+        I neg_one{std::int64_t{-1}};
+        I two{std::int64_t{2}};
         TEST("checked_mul(3,4)==12",    nstd::checked_mul(I{3},  I{4})  == std::optional<I>{I{12}});
-        TEST("checked_mul(-1,-1)==1",   nstd::checked_mul(I{-1}, I{-1}) == std::optional<I>{I{1}});
-        TEST("checked_mul(max,2)==null",!nstd::checked_mul(mx,   I{2}).has_value());
+        TEST("checked_mul(-1,-1)==1",   nstd::checked_mul(neg_one, neg_one) == std::optional<I>{I{1}});
+        TEST("checked_mul(max,2)==null",!nstd::checked_mul(mx,   two).has_value());
         TEST("checked_mul(0,max)==0",   nstd::checked_mul(I{},   mx)    == std::optional<I>{I{}});
     }
 }

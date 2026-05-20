@@ -659,9 +659,8 @@ static void test_higher_arith(const char *tag)
 
         const U mx = U::max();
         const U2 sq = nstd::mul_wide(mx, mx);
-        // (2^(64N)-1)^2 = 2^(128N) - 2^(64N+1) + 1
-        // low N limbs should all be 1s except last which is ~0 that wraps.
-        // Simply verify that squaring max and coming back fits: mul_wide(1,1)==1
+        // (2^(64N)-1)^2 = 2^(128N) - 2^(64N+1) + 1 => low limb is always 1
+        TEST("mul_wide(max,max): low limb==1", sq.data[0] == std::uint64_t{1});
         TEST("mul_wide(1,1)==1", nstd::mul_wide(U{1}, U{1}) == U2{1});
         TEST("mul_wide(0,max)==0", nstd::mul_wide(U{}, mx) == U2{});
     }
@@ -709,8 +708,9 @@ static void test_higher_arith(const char *tag)
     // checked_add unsigned
     {
         const U mx = U::max();
+        U one{std::uint64_t{1}};
         TEST("checked_add(1,2)==3",          nstd::checked_add(U{1}, U{2}) == std::optional<U>{U{3}});
-        TEST("checked_add(max,1)==nullopt",  !nstd::checked_add(mx, U{1}).has_value());
+        TEST("checked_add(max,1)==nullopt",  !nstd::checked_add(mx, one).has_value());
         TEST("checked_add(max,max)==nullopt",!nstd::checked_add(mx, mx).has_value());
         TEST("checked_add(0,0)==0",          nstd::checked_add(U{}, U{}) == std::optional<U>{U{}});
     }
@@ -718,8 +718,10 @@ static void test_higher_arith(const char *tag)
     // checked_sub unsigned
     {
         const U mx = U::max();
-        TEST("checked_sub(5,3)==2",          nstd::checked_sub(U{5}, U{3}) == std::optional<U>{U{2}});
-        TEST("checked_sub(3,5)==nullopt",   !nstd::checked_sub(U{3}, U{5}).has_value());
+        U three{std::uint64_t{3}};
+        U five{std::uint64_t{5}};
+        TEST("checked_sub(5,3)==2",          nstd::checked_sub(U{5}, three) == std::optional<U>{U{2}});
+        TEST("checked_sub(3,5)==nullopt",   !nstd::checked_sub(U{3}, five).has_value());
         TEST("checked_sub(max,max)==0",      nstd::checked_sub(mx, mx) == std::optional<U>{U{}});
         TEST("checked_sub(0,0)==0",          nstd::checked_sub(U{}, U{}) == std::optional<U>{U{}});
     }
@@ -727,8 +729,9 @@ static void test_higher_arith(const char *tag)
     // checked_mul unsigned
     {
         const U mx = U::max();
+        U two{std::uint64_t{2}};
         TEST("checked_mul(3,4)==12",         nstd::checked_mul(U{3}, U{4}) == std::optional<U>{U{12}});
-        TEST("checked_mul(max,2)==nullopt", !nstd::checked_mul(mx, U{2}).has_value());
+        TEST("checked_mul(max,2)==nullopt", !nstd::checked_mul(mx, two).has_value());
         TEST("checked_mul(0,max)==0",        nstd::checked_mul(U{}, mx) == std::optional<U>{U{}});
         TEST("checked_mul(1,max)==max",      nstd::checked_mul(U{1}, mx) == std::optional<U>{mx});
     }
