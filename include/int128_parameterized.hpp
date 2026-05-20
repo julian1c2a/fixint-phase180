@@ -60,6 +60,8 @@ namespace nstd
     // Parse Error Enums and Result Structures
     // =============================================================================
 
+#ifndef NSTD_PARSE_COMMON_DEFINED
+#define NSTD_PARSE_COMMON_DEFINED
     /**
      * @brief Enum for parsing error codes
      */
@@ -89,9 +91,9 @@ namespace nstd
     template <typename T>
     struct parse_result
     {
-        parse_error error;  ///< Error code
-        T value;            ///< Parsed value
-        size_t error_index; ///< Index of error in string (npos if success)
+        parse_error error;       ///< Error code
+        T value;                 ///< Parsed value
+        std::size_t error_index; ///< Index of error in string (npos if success)
 
         /**
          * @brief Checks if parse was successful
@@ -116,13 +118,14 @@ namespace nstd
         /**
          * @brief Custom constructor
          */
-        constexpr parse_result(parse_error err, T val, size_t idx) noexcept
+        constexpr parse_result(parse_error err, T val, std::size_t idx) noexcept
             : error(err),
               value(val),
               error_index(idx)
         {
         }
     };
+#endif // NSTD_PARSE_COMMON_DEFINED
 
     // =============================================================================
     // Main Parameterized Integer Template

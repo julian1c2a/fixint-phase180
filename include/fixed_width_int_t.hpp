@@ -55,6 +55,8 @@ namespace nstd
     // Parse error codes and result type
     // =========================================================================
 
+#ifndef NSTD_PARSE_COMMON_DEFINED
+#define NSTD_PARSE_COMMON_DEFINED
     enum class parse_error : std::uint8_t
     {
         success = 0,
@@ -96,6 +98,7 @@ namespace nstd
         {
         }
     };
+#endif // NSTD_PARSE_COMMON_DEFINED
 
     // Forward declaration so cross-type constructors can reference the alias
     template <std::size_t N,
