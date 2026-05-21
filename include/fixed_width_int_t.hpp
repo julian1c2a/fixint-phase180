@@ -704,7 +704,10 @@ namespace nstd
         // N=2 fast path:
         //   GCC/Clang/ICX (has __uint128_t): single __uint128_t multiply (constexpr-safe)
         //   MSVC x64 (no __uint128_t):       _umul128 + two 64-bit muls (runtime only)
-        // Fallback: schoolbook O(N^2) for all other N
+        // N=4/8 Karatsuba (runtime only): T(N)=3·T(N/2)+O(N), T(2)=3 umul128
+        //   kmul_full<N/2> for the full lower product; half-width operator* for middle terms
+        //   N=4: 9 umul128+0 (vs 10 schoolbook); N=8: 19 umul128+8 muls (vs 36)
+        // Fallback: schoolbook O(N^2) for N∉{2,4,8} or constexpr on MSVC
         // =========================================================================
 
         constexpr fixed_int_t operator*(const fixed_int_t &o) const noexcept
@@ -739,7 +742,34 @@ namespace nstd
             }
 #endif
 
-            // General schoolbook O(N^2) — used for N != 2 or constexpr on MSVC
+            // N=4/8 Karatsuba: full lower product via kmul_full<N/2>,
+            // middle terms via half-width operator* (recurses automatically for N=8).
+            if constexpr (N == 4 || N == 8)
+            {
+                if (!std::is_constant_evaluated())
+                {
+                    constexpr std::size_t HH = N / 2;
+                    using half_t = uint_fixed_t<HH>;
+
+                    half_t a_lo{}, a_hi{}, b_lo{}, b_hi{};
+                    for (std::size_t i = 0; i < HH; ++i)
+                    {
+                        a_lo.data[i] = data[i];       a_hi.data[i] = data[HH + i];
+                        b_lo.data[i] = o.data[i];     b_hi.data[i] = o.data[HH + i];
+                    }
+
+                    const auto z0    = kmul_full<HH>(a_lo.data, b_lo.data);
+                    const half_t mid = a_lo * b_hi + a_hi * b_lo;
+
+                    for (std::size_t i = 0; i < N; ++i) r.data[i] = z0[i];
+                    unsigned char c = 0;
+                    for (std::size_t i = 0; i < HH; ++i)
+                        c = add_limb_carry(r.data[HH + i], mid.data[i], c);
+                    return r;
+                }
+            }
+
+            // General schoolbook O(N^2) — used for N∉{2,4,8} or constexpr on MSVC
             for (std::size_t i{0}; i < N; ++i)
             {
                 for (std::size_t j{0}; i + j < N; ++j)
@@ -1700,6 +1730,140 @@ namespace nstd
             limb += v + c;
             return static_cast<unsigned char>((limb < old || (c && limb == old)) ? 1 : 0);
 #endif
+        }
+
+        // =========================================================================
+        // Karatsuba full multiply: M×M → 2M limb product (unsigned, limb arrays).
+        // Recurrence T(1)=1, T(M)=3·T(M/2)+O(M):  T(2)=3, T(4)=9 umul128 calls.
+        // =========================================================================
+
+        template <std::size_t M>
+        [[nodiscard]] static std::array<std::uint64_t, 2 * M>
+        kmul_full(const std::array<std::uint64_t, M> &a,
+                  const std::array<std::uint64_t, M> &b) noexcept
+        {
+            std::array<std::uint64_t, 2 * M> r{};
+
+            if constexpr (M == 1)
+            {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                r[0] = intrinsics::umul128(a[0], b[0], &r[1]);
+#else
+                const std::uint64_t al = a[0] & 0xFFFF'FFFFull;
+                const std::uint64_t ah = a[0] >> 32;
+                const std::uint64_t bl = b[0] & 0xFFFF'FFFFull;
+                const std::uint64_t bh = b[0] >> 32;
+                const std::uint64_t p0 = al * bl, p1 = al * bh;
+                const std::uint64_t p2 = ah * bl, p3 = ah * bh;
+                const std::uint64_t mid =
+                    (p0 >> 32) + (p1 & 0xFFFF'FFFFull) + (p2 & 0xFFFF'FFFFull);
+                r[0] = (p0 & 0xFFFF'FFFFull) | (mid << 32);
+                r[1] = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
+#endif
+                return r;
+            }
+            else
+            {
+                static_assert(M % 2 == 0, "kmul_full: M must be even");
+                constexpr std::size_t HH = M / 2;
+
+                // ── Split into low/high halves ────────────────────────────────────
+                std::array<std::uint64_t, HH> a_lo{}, a_hi{}, b_lo{}, b_hi{};
+                for (std::size_t i = 0; i < HH; ++i)
+                {
+                    a_lo[i] = a[i];    a_hi[i] = a[HH + i];
+                    b_lo[i] = b[i];    b_hi[i] = b[HH + i];
+                }
+
+                // ── z0 = a_lo·b_lo,  z2 = a_hi·b_hi  (each 2HH limbs) ───────────
+                const auto z0 = kmul_full<HH>(a_lo, b_lo);
+                const auto z2 = kmul_full<HH>(a_hi, b_hi);
+
+                // ── sum_a = a_lo + a_hi,  sum_b = b_lo + b_hi  (+carry ca, cb) ───
+                std::array<std::uint64_t, HH> sum_a{}, sum_b{};
+                unsigned char ca = 0, cb = 0;
+                for (std::size_t i = 0; i < HH; ++i)
+                {
+                    sum_a[i] = a_hi[i];
+                    ca = add_limb_carry(sum_a[i], a_lo[i], ca);
+                    sum_b[i] = b_hi[i];
+                    cb = add_limb_carry(sum_b[i], b_lo[i], cb);
+                }
+
+                // ── p = (sum_a + ca·B^HH) · (sum_b + cb·B^HH)  (2HH+1 limbs) ───
+                // = sum_a·sum_b + ca·sum_b·B^HH + cb·sum_a·B^HH + ca·cb·B^(2HH)
+                std::array<std::uint64_t, 2 * HH + 1> p{};
+                {
+                    const auto pp = kmul_full<HH>(sum_a, sum_b);
+                    for (std::size_t i = 0; i < 2 * HH; ++i) p[i] = pp[i];
+                }
+                if (ca)
+                {
+                    unsigned char c = 0;
+                    for (std::size_t i = 0; i < HH; ++i)
+                        c = add_limb_carry(p[HH + i], sum_b[i], c);
+                    p[2 * HH] += c;
+                }
+                if (cb)
+                {
+                    unsigned char c = 0;
+                    for (std::size_t i = 0; i < HH; ++i)
+                        c = add_limb_carry(p[HH + i], sum_a[i], c);
+                    p[2 * HH] += c;
+                }
+                if (ca & cb) ++p[2 * HH];
+
+                // ── z1 = p − z0 − z2  (guaranteed ≥ 0, fits in 2HH+1 limbs) ─────
+                std::array<std::uint64_t, 2 * HH + 1> z1 = p;
+                {
+                    unsigned char borrow = 0;
+                    for (std::size_t i = 0; i < 2 * HH; ++i)
+                    {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                        borrow = intrinsics::subborrow_u64(borrow, z1[i], z0[i], &z1[i]);
+#else
+                        const std::uint64_t av = z1[i];
+                        z1[i] = av - z0[i] - borrow;
+                        borrow = static_cast<unsigned char>(
+                            (av < z0[i]) || (borrow && av == z0[i]) ? 1 : 0);
+#endif
+                    }
+                    z1[2 * HH] -= borrow;
+                }
+                {
+                    unsigned char borrow = 0;
+                    for (std::size_t i = 0; i < 2 * HH; ++i)
+                    {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                        borrow = intrinsics::subborrow_u64(borrow, z1[i], z2[i], &z1[i]);
+#else
+                        const std::uint64_t av = z1[i];
+                        z1[i] = av - z2[i] - borrow;
+                        borrow = static_cast<unsigned char>(
+                            (av < z2[i]) || (borrow && av == z2[i]) ? 1 : 0);
+#endif
+                    }
+                    z1[2 * HH] -= borrow;
+                }
+
+                // ── Combine: r = z0 + z1·B^HH + z2·B^(2HH) ─────────────────────
+                for (std::size_t i = 0; i < 2 * HH; ++i) r[i] = z0[i];
+                {
+                    unsigned char c = 0;
+                    std::size_t i = 0;
+                    for (; i <= 2 * HH; ++i)
+                        c = add_limb_carry(r[HH + i], z1[i], c);
+                    for (; c && HH + i < 2 * M; ++i)
+                        c = add_limb(r[HH + i], std::uint64_t{1});
+                }
+                {
+                    unsigned char c = 0;
+                    for (std::size_t i = 0; i < 2 * HH; ++i)
+                        c = add_limb_carry(r[2 * HH + i], z2[i], c);
+                }
+
+                return r;
+            }
         }
 
         // Two-digit lookup: "00", "01", ..., "99"
