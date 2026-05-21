@@ -1,9 +1,9 @@
-# PROJECT STATUS: All Phases Complete + GM Constexpr Division + A1/A2/A4 + Fase A (deuda técnica)
+# PROJECT STATUS: v1.80 Complete + v1.90 fixed_int_t\<N\> en desarrollo
 
-**Date:** 16 May 2026
-**Last Session:** Fase A deuda técnica — pragma GCC scope fix + test_sweep_ms.cpp (41/41, branch fixint/core)
-**Overall Progress:** Phases 1-6 Complete ✅ + Intrinsics Audit ✅ + MS/EK Fixes ✅ + Test Suite Fixed ✅ + API Docs ✅ + Cross-Repr Operators ✅ + Benchmark Methodology ✅ + All 5 Criticisms ✅ + Karatsuba ✅ + Format ✅ + Hash ✅ + Benchmarks ✅ + **GM Constexpr Division ✅** + **A1 Sub/Add Opt ✅** + **A2 4-Compiler Benchmarks ✅** + **A4 Sweep Migration ✅** + **Test Suite Consolidation ✅** + **Fase A deuda técnica ✅**
-**Current Status:** 🎉 **41/41 tests pass (GCC release) | 24 headers | 8 benchmarks | 15 API docs | Fase A done → Fase B ARM64 pending**
+**Date:** 21 May 2026
+**Last Session:** Knuth Algorithm D para N-limb ÷ M-limb en `fixed_int_t<N>` (branch phase-1.80)
+**Overall Progress:** v1.80 ✅ (ARM/RISC-V Docker, 42/42 GCC) + **v1.90 en desarrollo** (`fixed_int_t<N>` unificado, fast paths mul/div, Knuth D)
+**Current Status:** 🚀 **218/218 test_fixed_divmod | 804/804 test_fixed_vs_param | 4 compiladores | Knuth D implementado**
 
 ## Phase Status Summary
 

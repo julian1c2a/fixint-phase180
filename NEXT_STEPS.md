@@ -1,8 +1,32 @@
-# 🔮 NEXT STEPS - Post-Phase 1.75
+# 🔮 NEXT STEPS - v1.90: fixed_int_t\<N\> generalización
 
-**Status:** P1 ✅ | P2 ✅ | P3 ✅ KNUTH D | P4 ✅ | P5 ✅ | P6 13/13 ✅ | Intrinsics ✅ | Cross-Repr ✅ | API Docs ✅ | Karatsuba ✅ | Format ✅ | Hash ✅ | Benchmarks ✅ | Replanteamiento ✅ | **GM Constexpr ✅** | **A1 Sub/Add Opt ✅** | **A2 4-Compiler Benchmarks ✅** | **A4 Sweep Migration ✅** | **v1.76 ✅** | **v1.77 ✅** | **CI/CD ✅** | **ARM/RISC-V ✅** | **MS 107 tests ✅** | **EK 100 tests ✅** | **M2 compare ✅** | **Fase A deuda técnica ✅**
-**Last Updated:** 16 May 2026
-**Focus:** Fase A completa (pragma GCC + test_sweep_ms, 41/41). Siguiente: Fase B ARM64 intrinsics NEON.
+**Status:** v1.80 ✅ | `fixed_int_t<N>` unificado ✅ | fast paths N=2 ✅ | single-limb fast path ✅ | **Knuth D ✅**
+**Last Updated:** 21 May 2026
+**Focus:** v1.90 `fixed_int_t<N>` — Knuth D completo. Próximo: Karatsuba para N=4/8, luego to_string para N>2.
+
+---
+
+## 🚧 v1.90 — fixed_int_t\<N\>: estado actual (21 May 2026)
+
+### Completado ✅
+
+| Item | Commits | Tests |
+|------|---------|-------|
+| `fixed_int_t<N,Sign,Form>` unificado | 6c53a8e | test_cross_operators 106/106 |
+| Fast paths `operator*`/`*=` N=2 (schoolbook) | 97e27ab | test_fixed_vs_param 804/804 |
+| Fast paths `operator+=`/`-=` in-place | 97e27ab | test_fixed_vs_param 804/804 |
+| `divmod` fast paths N=2 (`__uint128_t`/`divq`/`_udiv128`) | 97e27ab | test_fixed_divmod 218/218 |
+| Single-limb divisor fast path O(N) | 72497d5 | test_fixed_divmod Section 7 |
+| **Knuth Algorithm D** N-limb ÷ M-limb (M ≥ 2) | 6fba207 | test_fixed_divmod Section 8 |
+
+### Pendiente (prioridad)
+
+| # | Item | Impacto |
+|---|------|---------|
+| 1 | **Karatsuba `operator*` N=4/8** | `algorithms/karatsuba.hpp` existe pero no conectado; O(N^1.585) vs O(N²) para N≥4 |
+| 2 | **`to_string` para N>2** | Actualmente delega a lógica parameterized o no existe; necesita loop ÷10^19 |
+| 3 | **`from_string` para N>2** | Similar al anterior |
+| 4 | **Aritmética segura** (`checked_add`/`checked_sub` → `optional`) | Idea pendiente de conversación anterior |
 
 ---
 

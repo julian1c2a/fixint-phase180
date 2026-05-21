@@ -1,3 +1,52 @@
+## [v1.90 — en desarrollo] — fixed_int_t\<N\>: Tipo entero N×64-bit generalizado
+
+### New: fixed_int_t\<N, Sign, Form\> — plantilla unificada (commit 6c53a8e)
+
+Refactorización mayor: `uint_fixed_t<N>` e `int_fixed_t<N>` unificados en
+`fixed_int_t<N, signedness, representation_form>`. N=2 → 128-bit, N=4 → 256-bit,
+N=8 → 512-bit. Arquitectura: `data[0]` = LSB, `data[N-1]` = MSB (little-endian limbs).
+
+### Perf: fast paths aritméticos N=2 (commit 97e27ab)
+
+- `operator*` / `operator*=` N=2: schoolbook explícito `(a0·b0 as __int128) + a0·b1 + a1·b0`;
+  elimina la penalización de registro de `a128 * b128` en GCC → MUL 14-16% más rápido.
+- `operator+=` / `operator-=`: reescritos en-place sobre `data[i]` directamente;
+  evita que MSVC genere temporales no elisionables → ADD/SUB 2× más rápido en MSVC.
+- `divmod` N=2: tres fast paths plataforma (`__uint128_t`, `__asm__("divq")`, `_udiv128`).
+
+### Perf: single-limb divisor fast path O(N) (commit 72497d5)
+
+Cuando `b.data[1..N-1] == 0`, `divmod` sustituye la long division binaria O(64N²) por
+N instrucciones hardware DIV (cascada rem < d). Gano: de O(64N²) a O(N).
+
+### Feat: Knuth Algorithm D — N-limb ÷ M-limb (M ≥ 2) (commit 6fba207)
+
+TAOCP Vol.2 §4.3.1 implementado en `fixed_int_t<N>::divmod`. Jerarquía final de paths:
+
+| Path | Condición | Coste |
+|------|-----------|-------|
+| `__uint128_t` (GCC/Clang/ICX-Linux) | N=2 | O(1) |
+| `divq`/`_udiv128` (Windows) | N=2, divisor 1 limb | O(1) |
+| Single-limb fast path | cualquier N, divisor 1 limb | O(N) |
+| **Knuth D** | **cualquier N, divisor ≥ 2 limbs** | **O(N·M)** |
+| Long div binaria | dead code | O(64·N²) |
+
+Detalles del algoritmo: D1 normalización (`clz64`), D3 trial quotient 128÷64 con
+guards por plataforma, D3 refinement 128-bit mul-compare, D4 mul-subtract con
+`__uint128_t`/`_umul128`, D5 add-back (prob ~2/2⁶⁴), D8 unnormalización.
+
+### Tests
+
+- `test_fixed_vs_param.cpp` — 804/804 paridad con `int128_param_t` (4 compiladores)
+- `test_cross_operators.cpp` — 106/106 operadores cross-N/mixed-sign
+- `test_fixed_divmod.cpp` — 218/218:
+  - Sección 7: 23 casos single-limb divisor fast path (N=2,4,8)
+  - Sección 8: 23 casos Knuth D multi-limb (N=4,8): 2/3/4-limb divisors,
+    self-div, 2^128/(2^64+1), max÷(max/2+1), 8-limb÷4-limb, s=0/s=63 paths
+- `benchmark_fixed_vs_param.cpp` — benchmark comparativo vs `int128_param_t`
+
+---
+
 ## [v1.77 — 15 May 2026] - Test Suite Consolidation (oleadas 1-5)
 
 ### Refactor: Test Suite Unified Under test_param_* Framework
