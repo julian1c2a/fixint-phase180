@@ -1,6 +1,6 @@
 # int128 Library — Parameterized Types + fixed_int_t\<N\>
 
-> **Status:** ✅ **v1.80 PUBLISHED** — 42/42 tests, ARM64/ARM32/RISC-V Docker ✅ | 🚧 **v1.90 IN DEVELOPMENT** — `fixed_int_t<N>` N×64-bit generalization, Knuth D
+> **Status:** ✅ **v1.80 PUBLISHED** — 42/42 tests, ARM64/ARM32/RISC-V Docker ✅ | 🚧 **v1.90 IN DEVELOPMENT** — `fixed_int_t<N>` N×64-bit generalization, Knuth D, Karatsuba N=4/8
 > **Started:** 11 January 2026
 > **Last Updated:** 21 May 2026
 > **Objective:** Parameterized 128-bit integer types (TC/MS/EK/binnat) + generalization to N×64-bit fixed-width integers
@@ -20,7 +20,8 @@ C++20 library providing parameterized 128-bit integer types with four representa
 - **Fast paths `operator*`/`+=`/`-=` N=2:** Explicit schoolbook mul avoids GCC register-allocation overhead; in-place operators avoid MSVC temporaries. MUL 14-16% faster; ADD/SUB 2× faster on MSVC.
 - **Single-limb divisor fast path O(N):** When divisor fits in 1 limb, replaces O(64N²) long division with N hardware DIV instructions (cascading rem < d invariant).
 - **Knuth Algorithm D — N-limb ÷ M-limb (M ≥ 2):** Full TAOCP Vol.2 §4.3.1 implementation. D1 normalize (`clz64`), D3 trial quotient 128÷64 (platform-guarded), D3 refine (128-bit mul-compare), D4 mul-subtract, D5 add-back, D8 unnormalize. All 4 Windows compilers.
-- **Tests:** `test_fixed_divmod` **218/218** | `test_fixed_vs_param` **804/804** | `test_cross_operators` **106/106**
+- **Karatsuba `operator*`/`*=` for N=4/8 (runtime):** `kmul_full<M>` private static template (T(1)=1, T(2)=3, T(4)=9 umul128 calls). N=4: 9 vs 10 schoolbook muls; N=8: 19+8 muls vs 36. `!std::is_constant_evaluated()` guard; constexpr falls through to schoolbook. N=8 middle terms recurse automatically via `uint_fixed_t<4>::operator*`.
+- **Tests:** `test_fixed_divmod` **218/218** | `test_fixed_vs_param` **804/804** | `test_cross_operators` **106/106** | `test_fixed_karatsuba` **49/49**
 
 | Division path | Condition | Cost |
 |--------------|-----------|------|
@@ -28,6 +29,14 @@ C++20 library providing parameterized 128-bit integer types with four representa
 | `divq`/`_udiv128` (Windows) | N=2, 1-limb divisor | O(1) |
 | Single-limb fast path | any N, 1-limb divisor | O(N) |
 | **Knuth D** | **any N, ≥2-limb divisor** | **O(N·M)** |
+
+| Multiplication path | Condition | umul128 calls |
+|---------------------|-----------|---------------|
+| `__uint128_t` / `_umul128` (N=2, runtime) | N=2 | 3 |
+| Schoolbook | N=2, constexpr | 3 |
+| **Karatsuba** | **N=4, runtime** | **9** |
+| **Karatsuba** | **N=8, runtime** | **27** |
+| Schoolbook fallback | any N, constexpr | N² |
 
 **v1.80 — ARM/RISC-V Docker + v1.77 test suite (May 2026):**
 
@@ -202,6 +211,7 @@ fixint-phase180/
 │   ├── test_fixed_vs_param.cpp         # fixed_int_t<2> vs int128_param_t parity (804 tests)
 │   ├── test_fixed_basic.cpp            # fixed_int_t<N> construction and basic ops
 │   ├── test_fixed_signed.cpp           # int_fixed_t<N> signed arithmetic
+│   ├── test_fixed_karatsuba.cpp        # Karatsuba N=4/8 multiplication (49 tests)
 │   ├── test_cross_operators.cpp        # Cross-N/mixed-sign operators (106 tests)
 │   ├── test_param_algorithm.cpp        # STL algorithm integration
 │   ├── test_param_arithmetic.cpp       # Karatsuba, widening_mul
@@ -478,7 +488,7 @@ Phase 1.66 (Stable)
 
 - [x] **v1.80:** ARM/RISC-V portability (Docker arm64/arm32/riscv64), 42/42 all compilers ✅
 - [x] **v1.90 `fixed_int_t<N>` foundation:** unify template, fast paths, single-limb O(N), Knuth D ✅
-- [ ] **v1.90 next:** Karatsuba `operator*` for N=4/8 — `algorithms/karatsuba.hpp` exists, needs wiring
+- [x] **v1.90 Karatsuba:** `operator*`/`*=` for N=4/8 — `kmul_full<M>` (T(4)=9 umul128) — 49/49 tests ✅
 - [ ] **v1.90 next:** `to_string`/`from_string` for N>2 (loop ÷10^19)
 - [ ] **BCD Decimal Types:** aplazado post-v1.90
 
@@ -582,7 +592,7 @@ Progreso evaluado contra los 12 objetivos y 9 etapas definidos en [`AI_PROMPT/GE
 | 1 | Implementación básica int128/uint128 | ✅ Terminado | |
 | 2 | Unificación template | ✅ Terminado | `int128_param_t<Sign, Form>` |
 | 3 | Representaciones M&S y Exceso-K | ✅ Terminado | M&S operativo con operadores cross-repr; EK operacional (100 tests) |
-| 4 | Arrays N×64 bits (fase 1.80/1.90) | 🚧 En progreso | `fixed_int_t<N>`: unificado ✅, fast paths ✅, Knuth D ✅; pendiente: Karatsuba, to_string N>2 |
+| 4 | Arrays N×64 bits (fase 1.80/1.90) | 🚧 En progreso | `fixed_int_t<N>`: unificado ✅, fast paths ✅, Knuth D ✅, Karatsuba N=4/8 ✅; pendiente: to_string N>2 |
 | 5 | Punto fijo configurable | ⬜ No iniciado | |
 | 6 | IEEE 754 Generalizado | ⬜ No iniciado | |
 | 7 | Big integers (longitud arbitraria) | ⬜ No iniciado | |
