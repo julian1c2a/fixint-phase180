@@ -342,6 +342,179 @@ static void test_single_limb_divisor(const char *tag)
 }
 
 // =============================================================================
+// Section 8: Knuth Algorithm D — multi-limb divisor (M ≥ 2)
+//
+// Exercises the Knuth D path: divisor has ≥ 2 significant limbs.
+// Only meaningful for N ≥ 4 (N=2 with 2-limb divisors is handled by the
+// __uint128_t fast path on GCC/Clang, and by Knuth D on MSVC/ICX-Win).
+// Correctness criterion: q * b + r == a  AND  r < b.
+// =============================================================================
+
+template <std::size_t N>
+static void test_knuth_d(const char *tag)
+{
+    std::cout << "\n--- Section 8: Knuth D multi-limb divisor [N=" << N << " " << tag << "] ---\n";
+
+    if constexpr (N < 4)
+    {
+        std::cout << "  (skipped: N<4 covered by __uint128_t path)\n";
+        return;
+    }
+
+    // Helper: verify fundamental theorem  q*b + r == a  AND  r < b
+    auto check = [](const char *name, uint_fixed_t<N> a, uint_fixed_t<N> b) -> bool
+    {
+        const auto [q, r] = uint_fixed_t<N>::divmod(a, b);
+        bool ok = (q * b + r) == a && r < b;
+        if (!ok)
+            std::cout << "  FAIL detail: " << name << "\n";
+        return ok;
+    };
+
+    // Build helpers: set specific limbs
+    auto make = [](std::initializer_list<std::uint64_t> limbs) -> uint_fixed_t<N>
+    {
+        uint_fixed_t<N> v{};
+        std::size_t i = 0;
+        for (std::uint64_t w : limbs) { if (i < N) v.data[i++] = w; }
+        return v;
+    };
+
+    // ── 1. Dividend just above divisor (quotient = 1) ──
+    {
+        uint_fixed_t<N> b{};
+        b.data[0] = 0xFEDCBA9876543210ULL;
+        b.data[1] = 0x0123456789ABCDEFULL; // 2-limb divisor
+        uint_fixed_t<N> a = b;
+        a += uint_fixed_t<N>{std::uint64_t{1}};
+        const auto [q, r] = uint_fixed_t<N>::divmod(a, b);
+        TEST("(b+1)/b == 1 r1 (2-limb div)",
+             q == uint_fixed_t<N>::one() && r == uint_fixed_t<N>::one());
+    }
+
+    // ── 2. 2^128 / (2^64 + 1)  ──  divisor has 2 limbs, dividend has 3
+    if constexpr (N >= 4)
+    {
+        uint_fixed_t<N> a{};
+        a.data[2] = 1; // a = 2^128
+        uint_fixed_t<N> b{};
+        b.data[0] = 1;
+        b.data[1] = 1; // b = 2^64 + 1
+        TEST("2^128 / (2^64+1)", check("2^128/(2^64+1)", a, b));
+    }
+
+    // ── 3. max-value / 3-limb divisor ──
+    if constexpr (N >= 4)
+    {
+        const auto a = uint_fixed_t<N>::max();
+        uint_fixed_t<N> b{};
+        b.data[0] = 0xFFFFFFFFFFFFFFFFULL;
+        b.data[1] = 0xAAAAAAAAAAAAAAAAULL;
+        b.data[2] = 0x5555555555555555ULL;
+        TEST("maxN / 3-limb divisor", check("maxN/3limb", a, b));
+    }
+
+    // ── 4. Alternating-pattern 4-limb dividend, 2-limb divisor ──
+    if constexpr (N >= 4)
+    {
+        uint_fixed_t<N> a{};
+        a.data[0] = 0xDEADBEEFCAFEBABEULL;
+        a.data[1] = 0x0123456789ABCDEFULL;
+        a.data[2] = 0xFEDCBA9876543210ULL;
+        a.data[3] = 0x1111111111111111ULL;
+        uint_fixed_t<N> b{};
+        b.data[0] = 0xFFFFFFFF00000001ULL;
+        b.data[1] = 0x0000000100000000ULL;
+        TEST("4-limb / 2-limb patterned", check("4limb/2limb", a, b));
+    }
+
+    // ── 5. 4-limb dividend / 3-limb divisor ──
+    if constexpr (N >= 4)
+    {
+        uint_fixed_t<N> a{};
+        a.data[0] = 0x123456789ABCDEF0ULL;
+        a.data[1] = 0xFEDCBA9876543210ULL;
+        a.data[2] = 0xAAAABBBBCCCCDDDDULL;
+        a.data[3] = 0x0000000000000007ULL;
+        uint_fixed_t<N> b{};
+        b.data[0] = 0x9999999999999999ULL;
+        b.data[1] = 0x7777777777777777ULL;
+        b.data[2] = 0x0000000000000003ULL;
+        TEST("4-limb / 3-limb divisor", check("4limb/3limb", a, b));
+    }
+
+    // ── 6. Self-division (N-limb / N-limb == 1, rem == 0) ──
+    {
+        uint_fixed_t<N> a{};
+        for (std::size_t i = 0; i < N; ++i)
+            a.data[i] = 0xABCDEF0123456789ULL ^ (std::uint64_t{i + 1} * 0x1111111111111111ULL);
+        const auto [q, r] = uint_fixed_t<N>::divmod(a, a);
+        TEST("self-division == 1 r0",
+             q == uint_fixed_t<N>::one() && r == uint_fixed_t<N>::zero());
+    }
+
+    // ── 7. Divisor = 2^64 (exactly, in limb 1) ──  quotient = a >> 64
+    if constexpr (N >= 4)
+    {
+        uint_fixed_t<N> a{};
+        a.data[0] = 0xABCDEF0123456789ULL;
+        a.data[1] = 0x0FEDCBA987654321ULL;
+        a.data[2] = 0x1234567890ABCDEFULL;
+        uint_fixed_t<N> b{};
+        b.data[1] = 1; // b = 2^64
+        const auto [q, r] = uint_fixed_t<N>::divmod(a, b);
+        // q should be a >> 64: data[0]=a.data[1], data[1]=a.data[2], ...
+        uint_fixed_t<N> expected_q{};
+        for (std::size_t i = 0; i < N - 1; ++i) expected_q.data[i] = a.data[i + 1];
+        TEST("a / 2^64 == a>>64", q == expected_q);
+        TEST("a % 2^64 == a[0]",  r == uint_fixed_t<N>{a.data[0]});
+    }
+
+    // ── 8. max / (max/2 + 1): quotient = 1, remainder = max/2 - 1 ──
+    {
+        const auto max_val = uint_fixed_t<N>::max();
+        uint_fixed_t<N> half = max_val >> 1;   // max/2
+        uint_fixed_t<N> b    = half + uint_fixed_t<N>{std::uint64_t{1}}; // max/2+1
+        TEST("max/(max/2+1)", check("max/(max/2+1)", max_val, b));
+    }
+
+    // ── 9. Large N: 8-limb / 4-limb ──
+    if constexpr (N >= 8)
+    {
+        uint_fixed_t<N> a{};
+        for (std::size_t i = 0; i < N; ++i)
+            a.data[i] = 0xFEDCBA9876543210ULL - i * 0x1111111111111111ULL;
+        uint_fixed_t<N> b{};
+        for (std::size_t i = 0; i < 4; ++i)
+            b.data[i] = 0x123456789ABCDEF0ULL + i * 0x0101010101010101ULL;
+        TEST("8-limb / 4-limb", check("8limb/4limb", a, b));
+    }
+
+    // ── 10. Normalisation: divisor top limb = 1 (s=63, maximum shift) ──
+    if constexpr (N >= 4)
+    {
+        uint_fixed_t<N> b{};
+        b.data[0] = 0xFFFFFFFFFFFFFFFFULL;
+        b.data[1] = 1; // top limb = 1  ⟹  s = 63
+        uint_fixed_t<N> a{};
+        a.data[0] = 0;
+        a.data[1] = 0xFFFFFFFFFFFFFFFFULL;
+        a.data[2] = 2; // a = 2·(2^128) + 0xFFFF...:0
+        TEST("s=63 normalisation path", check("s63norm", a, b));
+    }
+
+    // ── 11. Normalisation: divisor top limb = 0x8000..0 (s=0, no shift) ──
+    if constexpr (N >= 4)
+    {
+        uint_fixed_t<N> b{};
+        b.data[0] = 0x1ULL;
+        b.data[1] = std::uint64_t{1} << 63; // top limb MSB set ⟹ s = 0
+        const auto a = uint_fixed_t<N>::max();
+        TEST("s=0 normalisation path", check("s0norm", a, b));
+    }
+}
+
+// =============================================================================
 // Run all sections for one N
 // =============================================================================
 
@@ -355,6 +528,7 @@ static void run_all(const char *tag)
     test_divzero<N>(tag);
     test_divmod_consistency<N>(tag);
     test_single_limb_divisor<N>(tag);
+    test_knuth_d<N>(tag);
 }
 
 // =============================================================================

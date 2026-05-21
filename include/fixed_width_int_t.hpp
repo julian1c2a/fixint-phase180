@@ -973,7 +973,226 @@ namespace nstd
                     }
                 }
 
+                // ─────────────────────────────────────────────────────────────────
+                // Knuth Algorithm D — general N-limb ÷ M-limb (M ≥ 2)
+                // TAOCP Vol. 2 §4.3.1. Base B = 2^64.
+                // Reached only when b has ≥ 2 significant limbs.
+                // ─────────────────────────────────────────────────────────────────
+                {
+                    // Count significant limbs of b (guaranteed ≥ 2 here)
+                    std::size_t n = N;
+                    while (b.data[n - 1] == 0) --n;
+
+                    const std::size_t m_quot = N - n; // quotient digits: q.data[0..m_quot]
+
+                    // D1. Normalize: find shift s so that v[n-1] has its MSB set.
+#if __has_include("intrinsics/bit_operations.hpp")
+                    const int s = intrinsics::clz64(b.data[n - 1]);
+#else
+                    int s = 0;
+                    {
+                        std::uint64_t tmp = b.data[n - 1];
+                        while ((tmp & (std::uint64_t{1} << 63)) == 0) { ++s; tmp <<= 1; }
+                    }
+#endif
+
+                    std::array<std::uint64_t, N>     v{}; // normalized divisor  [0..n-1]
+                    std::array<std::uint64_t, N + 1> u{}; // normalized dividend [0..N]
+
+                    if (s == 0)
+                    {
+                        for (std::size_t i = 0; i < n; ++i) v[i] = b.data[i];
+                        for (std::size_t i = 0; i < N; ++i) u[i] = a.data[i];
+                        // u[N] stays 0
+                    }
+                    else
+                    {
+                        for (std::size_t i = n - 1; i > 0; --i)
+                            v[i] = (b.data[i] << s) | (b.data[i - 1] >> (64 - s));
+                        v[0] = b.data[0] << s;
+                        u[N] = a.data[N - 1] >> (64 - s);
+                        for (std::size_t i = N - 1; i > 0; --i)
+                            u[i] = (a.data[i] << s) | (a.data[i - 1] >> (64 - s));
+                        u[0] = a.data[0] << s;
+                    }
+
+                    const std::uint64_t v1 = v[n - 1];
+                    const std::uint64_t v2 = v[n - 2]; // safe: n ≥ 2
+
+                    fixed_int_t q{};
+
+                    // D2–D7. Main loop: j = m_quot down to 0
+                    for (std::size_t j = m_quot + 1; j-- > 0;)
+                    {
+                        const std::uint64_t u0 = u[j + n];       // top window limb
+                        const std::uint64_t u1 = u[j + n - 1];   // next limb
+                        const std::uint64_t u2 = u[j + n - 2];   // limb below (n≥2,j≥0)
+
+                        // D3. Estimate trial quotient q̂
+                        std::uint64_t q_hat, r_hat = 0;
+                        bool skip_refine = false;
+
+                        if (u0 > v1)
+                        {
+                            // r̂ ≥ B for sure — skip refinement entirely
+                            q_hat = ~std::uint64_t{0};
+                            skip_refine = true;
+                        }
+                        else if (u0 == v1)
+                        {
+                            q_hat = ~std::uint64_t{0};
+                            r_hat = u1 + v1;
+                            skip_refine = (r_hat < u1); // overflow ⟹ r̂ ≥ B
+                        }
+                        else
+                        {
+                            // 0 ≤ u0 < v1: exact 128/64 hardware division
+#if defined(__SIZEOF_INT128__) && \
+    !(defined(__INTEL_LLVM_COMPILER) && (defined(_WIN32) || defined(_WIN64)))
+                            {
+                                const unsigned __int128 ud =
+                                    (static_cast<unsigned __int128>(u0) << 64) | u1;
+                                q_hat = static_cast<std::uint64_t>(ud / v1);
+                                r_hat = static_cast<std::uint64_t>(ud % v1);
+                            }
+#elif defined(__INTEL_LLVM_COMPILER) && \
+      (defined(_WIN32) || defined(_WIN64)) && defined(_M_X64)
+                            __asm__("divq %4"
+                                    : "=a"(q_hat), "=d"(r_hat)
+                                    : "0"(u1), "1"(u0), "rm"(v1));
+#elif defined(_MSC_VER) && defined(_M_X64)
+                            q_hat = _udiv128(u0, u1, v1, &r_hat);
+#else
+                            // Portable bit-by-bit 128/64 (v1 ≥ 2^63 after normalization)
+                            {
+                                std::uint64_t rem = u0;
+                                q_hat = 0;
+                                for (int bit = 63; bit >= 0; --bit)
+                                {
+                                    const bool ovf = (rem >> 63) != 0;
+                                    rem = (rem << 1) | ((u1 >> bit) & 1);
+                                    if (ovf || rem >= v1)
+                                    {
+                                        rem -= v1;
+                                        q_hat |= std::uint64_t{1} << bit;
+                                    }
+                                }
+                                r_hat = rem;
+                            }
+#endif
+                        }
+
+                        // D3. Refinement: while q̂·v2 > r̂·B + u2, do q̂--, r̂ += v1
+                        if (!skip_refine)
+                        {
+                            while (true)
+                            {
+#if defined(__SIZEOF_INT128__)
+                                const unsigned __int128 lhs =
+                                    static_cast<unsigned __int128>(q_hat) * v2;
+                                const unsigned __int128 rhs =
+                                    (static_cast<unsigned __int128>(r_hat) << 64) | u2;
+                                if (lhs <= rhs) break;
+#elif defined(_MSC_VER) && defined(_M_X64)
+                                std::uint64_t lhs_hi;
+                                const std::uint64_t lhs_lo = _umul128(q_hat, v2, &lhs_hi);
+                                if (lhs_hi < r_hat ||
+                                    (lhs_hi == r_hat && lhs_lo <= u2)) break;
+#else
+                                break; // conservative: D5 add-back corrects any error
+#endif
+                                --q_hat;
+                                const std::uint64_t r_new = r_hat + v1;
+                                if (r_new < r_hat) break; // r̂ overflowed B
+                                r_hat = r_new;
+                            }
+                        }
+
+                        // D4. Multiply-subtract: u[j..j+n] -= q̂ × v[0..n-1]
+                        std::uint64_t borrow = 0;
+                        for (std::size_t i = 0; i < n; ++i)
+                        {
+#if defined(__SIZEOF_INT128__)
+                            const unsigned __int128 prod =
+                                static_cast<unsigned __int128>(q_hat) * v[i] + borrow;
+                            const std::uint64_t sub = static_cast<std::uint64_t>(prod);
+                            borrow = static_cast<std::uint64_t>(prod >> 64);
+                            if (u[j + i] < sub) ++borrow;
+                            u[j + i] -= sub;
+#elif defined(_MSC_VER) && defined(_M_X64)
+                            {
+                                std::uint64_t prod_hi;
+                                const std::uint64_t prod_lo = _umul128(q_hat, v[i], &prod_hi);
+                                const std::uint64_t sub     = prod_lo + borrow;
+                                borrow = prod_hi + (sub < prod_lo ? 1U : 0U);
+                                if (u[j + i] < sub) ++borrow;
+                                u[j + i] -= sub;
+                            }
+#else
+                            // Portable 32×32→64 school multiply
+                            {
+                                const std::uint64_t ql = q_hat & 0xFFFFFFFFU;
+                                const std::uint64_t qh = q_hat >> 32;
+                                const std::uint64_t vl = v[i]   & 0xFFFFFFFFU;
+                                const std::uint64_t vh = v[i]   >> 32;
+                                const std::uint64_t p0 = ql * vl;
+                                const std::uint64_t p1 = ql * vh + qh * vl;
+                                const std::uint64_t p2 = qh * vh;
+                                const std::uint64_t mid_lo  = p1 << 32;
+                                const std::uint64_t mid_ov  = (p1 < ql * vh) ? std::uint64_t{1} << 32 : 0;
+                                const std::uint64_t prod_lo = p0 + mid_lo;
+                                const std::uint64_t lo_ov   = prod_lo < p0 ? 1U : 0U;
+                                const std::uint64_t prod_hi = p2 + (p1 >> 32) + mid_ov + lo_ov;
+                                const std::uint64_t sub     = prod_lo + borrow;
+                                borrow = prod_hi + (sub < prod_lo ? 1U : 0U);
+                                if (u[j + i] < sub) ++borrow;
+                                u[j + i] -= sub;
+                            }
+#endif
+                        }
+
+                        // D5. Add-back if underflow (happens with prob ~2/B per step)
+                        if (u[j + n] < borrow)
+                        {
+                            u[j + n] -= borrow; // intentional wrap
+                            std::uint64_t carry = 0;
+                            for (std::size_t i = 0; i < n; ++i)
+                            {
+                                const std::uint64_t s1 = u[j + i] + v[i];
+                                const std::uint64_t s2 = s1 + carry;
+                                carry = (s1 < u[j + i]) + (s2 < s1);
+                                u[j + i] = s2;
+                            }
+                            u[j + n] += carry;
+                            --q_hat;
+                        }
+                        else
+                        {
+                            u[j + n] -= borrow;
+                        }
+
+                        // D6. Store quotient digit
+                        q.data[j] = q_hat;
+                    }
+
+                    // D8. Unnormalize: remainder is u[0..n-1] right-shifted by s
+                    fixed_int_t r{};
+                    if (s == 0)
+                    {
+                        for (std::size_t i = 0; i < n; ++i) r.data[i] = u[i];
+                    }
+                    else
+                    {
+                        for (std::size_t i = 0; i < n - 1; ++i)
+                            r.data[i] = (u[i] >> s) | (u[i + 1] << (64 - s));
+                        r.data[n - 1] = u[n - 1] >> s;
+                    }
+
+                    return {q, r};
+                }
+
                 // Fallback: binary long division O(64N^2)
+                // (dead code when Knuth D is compiled — kept as safety net)
                 fixed_int_t q{};
                 fixed_int_t r{};
 
