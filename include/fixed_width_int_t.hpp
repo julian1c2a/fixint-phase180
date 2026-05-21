@@ -640,13 +640,35 @@ namespace nstd
 
         constexpr fixed_int_t &operator+=(const fixed_int_t &o) noexcept
         {
-            *this = *this + o;
+            unsigned char carry{0};
+            for (std::size_t i{0}; i < N; ++i)
+            {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                carry = intrinsics::addcarry_u64(carry, data[i], o.data[i], &data[i]);
+#else
+                const std::uint64_t a = data[i];
+                const std::uint64_t s = a + o.data[i] + carry;
+                carry = static_cast<unsigned char>((s < a) || (carry != 0 && s == a) ? 1 : 0);
+                data[i] = s;
+#endif
+            }
             return *this;
         }
 
         constexpr fixed_int_t &operator-=(const fixed_int_t &o) noexcept
         {
-            *this = *this - o;
+            unsigned char borrow{0};
+            for (std::size_t i{0}; i < N; ++i)
+            {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                borrow = intrinsics::subborrow_u64(borrow, data[i], o.data[i], &data[i]);
+#else
+                const std::uint64_t a = data[i];
+                const std::uint64_t d = a - o.data[i] - borrow;
+                borrow = static_cast<unsigned char>((a < o.data[i]) || (borrow != 0 && a == o.data[i]) ? 1 : 0);
+                data[i] = d;
+#endif
+            }
             return *this;
         }
 
@@ -677,12 +699,47 @@ namespace nstd
         }
 
         // =========================================================================
-        // Arithmetic — multiplication (schoolbook O(N^2), mod 2^(64N))
+        // Arithmetic — multiplication (mod 2^(64N))
+        //
+        // N=2 fast path:
+        //   GCC/Clang/ICX (has __uint128_t): single __uint128_t multiply (constexpr-safe)
+        //   MSVC x64 (no __uint128_t):       _umul128 + two 64-bit muls (runtime only)
+        // Fallback: schoolbook O(N^2) for all other N
         // =========================================================================
 
         constexpr fixed_int_t operator*(const fixed_int_t &o) const noexcept
         {
             fixed_int_t r{};
+
+#ifdef __SIZEOF_INT128__
+            if constexpr (N == 2)
+            {
+                const std::uint64_t a0 = data[0], a1 = data[1];
+                const std::uint64_t b0 = o.data[0], b1 = o.data[1];
+                const unsigned __int128 p = static_cast<unsigned __int128>(a0) * b0;
+                r.data[0] = static_cast<std::uint64_t>(p);
+                r.data[1] = static_cast<std::uint64_t>(p >> 64) + a0 * b1 + a1 * b0;
+                return r;
+            }
+#elif defined(_MSC_VER) && defined(_M_X64)
+            if constexpr (N == 2)
+            {
+                if (!std::is_constant_evaluated())
+                {
+                    // 128x128 -> 128 (low): need only 3 of the 4 partial products
+                    // a0*b0: full 128-bit product (both halves used)
+                    // a0*b1, a1*b0: only low 64 bits (upper half -> result[2], discarded)
+                    // a1*b1: entirely discarded (-> result[2+], mod 2^128)
+                    std::uint64_t hi00;
+                    const std::uint64_t lo00 = _umul128(data[0], o.data[0], &hi00);
+                    r.data[0] = lo00;
+                    r.data[1] = hi00 + data[0] * o.data[1] + data[1] * o.data[0];
+                    return r;
+                }
+            }
+#endif
+
+            // General schoolbook O(N^2) — used for N != 2 or constexpr on MSVC
             for (std::size_t i{0}; i < N; ++i)
             {
                 for (std::size_t j{0}; i + j < N; ++j)
@@ -704,14 +761,11 @@ namespace nstd
                     const std::uint64_t lo = (p0 & 0xFFFFFFFFULL) | (mid << 32);
                     hi = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
 #endif
-                    // Add lo to r[i+j]
                     unsigned char c = add_limb(r.data[i + j], lo);
-                    // Add hi (with carry c) to r[i+j+1], then propagate
                     const std::size_t next = i + j + 1;
                     if (next < N)
                     {
                         c = add_limb_carry(r.data[next], hi, c);
-                        // Ripple remaining carry
                         for (std::size_t k{next + 1}; k < N && c; ++k)
                             c = add_limb(r.data[k], std::uint64_t{c});
                     }
@@ -722,6 +776,32 @@ namespace nstd
 
         constexpr fixed_int_t &operator*=(const fixed_int_t &o) noexcept
         {
+#ifdef __SIZEOF_INT128__
+            if constexpr (N == 2)
+            {
+                // Schoolbook 128x128->128 with explicit 64-bit variables.
+                // GCC/Clang generate better register allocation than a128*b128.
+                const std::uint64_t a0 = data[0], a1 = data[1];
+                const std::uint64_t b0 = o.data[0], b1 = o.data[1];
+                const unsigned __int128 p = static_cast<unsigned __int128>(a0) * b0;
+                data[0] = static_cast<std::uint64_t>(p);
+                data[1] = static_cast<std::uint64_t>(p >> 64) + a0 * b1 + a1 * b0;
+                return *this;
+            }
+#elif defined(_MSC_VER) && defined(_M_X64)
+            if constexpr (N == 2)
+            {
+                if (!std::is_constant_evaluated())
+                {
+                    const std::uint64_t a0 = data[0], a1 = data[1];
+                    std::uint64_t hi00;
+                    const std::uint64_t lo00 = _umul128(a0, o.data[0], &hi00);
+                    data[0] = lo00;
+                    data[1] = hi00 + a0 * o.data[1] + a1 * o.data[0];
+                    return *this;
+                }
+            }
+#endif
             *this = *this * o;
             return *this;
         }
@@ -729,9 +809,13 @@ namespace nstd
         // =========================================================================
         // Arithmetic — division and modulo
         //
-        // Unsigned: binary long division (O(64N^2))
-        // Signed: reduce to unsigned, apply sign rules
+        // Unsigned N=2 fast paths (in order):
+        //   [0]  a < b                  → {0, a}  (early-out, all N)
+        //   [1]  __uint128_t available  → 128/64 or 128/128 via hardware  (GCC/Clang/ICX)
+        //   [2]  MSVC x64               → 128/64 via _udiv128; 128/128 → binary long div
+        //   [3]  fallback               → binary long division O(64N^2)
         //
+        // Signed: reduce to unsigned, apply sign rules.
         // Throws std::domain_error on division by zero.
         // =========================================================================
 
@@ -746,6 +830,82 @@ namespace nstd
                 if (a < b)
                     return {fixed_int_t{}, a};
 
+// Intel ICX on Windows (MSVC ABI) defines __SIZEOF_INT128__ but ships without
+// __udivti3/__umodti3 in its runtime — those calls would fail to link.
+// We fall through to the _udiv128 path (same as pure MSVC) instead.
+#if defined(__SIZEOF_INT128__) && \
+    !(defined(__INTEL_LLVM_COMPILER) && (defined(_WIN32) || defined(_WIN64)))
+                if constexpr (N == 2)
+                {
+                    const unsigned __int128 u =
+                        (static_cast<unsigned __int128>(a.data[1]) << 64) | a.data[0];
+
+                    if (b.data[1] == 0)
+                    {
+                        // Fast path: 64-bit divisor — single 128/64 hardware division
+                        const std::uint64_t d = b.data[0];
+                        const unsigned __int128 q128 = u / d;
+                        const std::uint64_t rem = static_cast<std::uint64_t>(u % d);
+                        fixed_int_t q{};
+                        q.data[0] = static_cast<std::uint64_t>(q128);
+                        q.data[1] = static_cast<std::uint64_t>(q128 >> 64);
+                        return {q, fixed_int_t{rem}};
+                    }
+
+                    // General 128/128: compiler emits __udivti3 (Knuth D internally)
+                    const unsigned __int128 v =
+                        (static_cast<unsigned __int128>(b.data[1]) << 64) | b.data[0];
+                    const unsigned __int128 q128 = u / v;
+                    const unsigned __int128 r128 = u % v;
+                    fixed_int_t q{}, r{};
+                    q.data[0] = static_cast<std::uint64_t>(q128);
+                    q.data[1] = static_cast<std::uint64_t>(q128 >> 64);
+                    r.data[0] = static_cast<std::uint64_t>(r128);
+                    r.data[1] = static_cast<std::uint64_t>(r128 >> 64);
+                    return {q, r};
+                }
+#elif defined(__INTEL_LLVM_COMPILER) && (defined(_WIN32) || defined(_WIN64)) && defined(_M_X64)
+                // ICX Windows: no __udivti3 runtime, no _udiv128 intrinsic.
+                // ICX uses the Clang/LLVM frontend which supports GCC-style inline asm.
+                if constexpr (N == 2)
+                {
+                    if (b.data[1] == 0)
+                    {
+                        const std::uint64_t d = b.data[0];
+                        const std::uint64_t q_hi = a.data[1] / d;
+                        const std::uint64_t r_hi = a.data[1] % d;
+                        std::uint64_t q_lo, rem;
+                        __asm__("divq %4"
+                                : "=a"(q_lo), "=d"(rem)
+                                : "0"(a.data[0]), "1"(r_hi), "rm"(d));
+                        fixed_int_t q{};
+                        q.data[0] = q_lo;
+                        q.data[1] = q_hi;
+                        return {q, fixed_int_t{rem}};
+                    }
+                    // 128/128: fall through to binary long division
+                }
+#elif defined(_MSC_VER) && defined(_M_X64)
+                if constexpr (N == 2)
+                {
+                    if (b.data[1] == 0)
+                    {
+                        // MSVC x64: two-step 128/64 via _udiv128
+                        const std::uint64_t d = b.data[0];
+                        const std::uint64_t q_hi = a.data[1] / d;
+                        const std::uint64_t r_hi = a.data[1] % d;
+                        std::uint64_t rem;
+                        const std::uint64_t q_lo = _udiv128(r_hi, a.data[0], d, &rem);
+                        fixed_int_t q{};
+                        q.data[0] = q_lo;
+                        q.data[1] = q_hi;
+                        return {q, fixed_int_t{rem}};
+                    }
+                    // MSVC 128/128: fall through to binary long division below
+                }
+#endif
+
+                // Fallback: binary long division O(64N^2)
                 fixed_int_t q{};
                 fixed_int_t r{};
 
