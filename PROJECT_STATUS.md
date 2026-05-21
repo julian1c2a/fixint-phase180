@@ -1,9 +1,9 @@
 # PROJECT STATUS: v1.80 Complete + v1.90 fixed_int_t\<N\> en desarrollo
 
 **Date:** 21 May 2026
-**Last Session:** Knuth Algorithm D para N-limb ÷ M-limb en `fixed_int_t<N>` (branch phase-1.80)
-**Overall Progress:** v1.80 ✅ (ARM/RISC-V Docker, 42/42 GCC) + **v1.90 en desarrollo** (`fixed_int_t<N>` unificado, fast paths mul/div, Knuth D)
-**Current Status:** 🚀 **218/218 test_fixed_divmod | 804/804 test_fixed_vs_param | 4 compiladores | Knuth D implementado**
+**Last Session:** Karatsuba operator* para N=4/8 en `fixed_int_t<N>` (branch phase-1.80)
+**Overall Progress:** v1.80 ✅ + **v1.90 en desarrollo** (`fixed_int_t<N>` unificado, fast paths mul/div, Knuth D, **Karatsuba**)
+**Current Status:** 🚀 **49/49 test_fixed_karatsuba | 218/218 test_fixed_divmod | 804/804 test_fixed_vs_param | 4 compiladores**
 
 ## Phase Status Summary
 

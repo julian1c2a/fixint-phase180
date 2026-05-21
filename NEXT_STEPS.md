@@ -1,8 +1,8 @@
 # 🔮 NEXT STEPS - v1.90: fixed_int_t\<N\> generalización
 
-**Status:** v1.80 ✅ | `fixed_int_t<N>` unificado ✅ | fast paths N=2 ✅ | single-limb fast path ✅ | **Knuth D ✅**
+**Status:** v1.80 ✅ | `fixed_int_t<N>` unificado ✅ | fast paths N=2 ✅ | single-limb fast path ✅ | **Knuth D ✅** | **Karatsuba N=4/8 ✅**
 **Last Updated:** 21 May 2026
-**Focus:** v1.90 `fixed_int_t<N>` — Knuth D completo. Próximo: Karatsuba para N=4/8, luego to_string para N>2.
+**Focus:** v1.90 `fixed_int_t<N>` — Karatsuba completo. Próximo: to_string para N>2.
 
 ---
 
@@ -18,15 +18,15 @@
 | `divmod` fast paths N=2 (`__uint128_t`/`divq`/`_udiv128`) | 97e27ab | test_fixed_divmod 218/218 |
 | Single-limb divisor fast path O(N) | 72497d5 | test_fixed_divmod Section 7 |
 | **Knuth Algorithm D** N-limb ÷ M-limb (M ≥ 2) | 6fba207 | test_fixed_divmod Section 8 |
+| **Karatsuba `operator*`/`*=` N=4/8** | 89aa9b7 | test_fixed_karatsuba 49/49 |
 
 ### Pendiente (prioridad)
 
 | # | Item | Impacto |
 |---|------|---------|
-| 1 | **Karatsuba `operator*` N=4/8** | `algorithms/karatsuba.hpp` existe pero no conectado; O(N^1.585) vs O(N²) para N≥4 |
-| 2 | **`to_string` para N>2** | Actualmente delega a lógica parameterized o no existe; necesita loop ÷10^19 |
-| 3 | **`from_string` para N>2** | Similar al anterior |
-| 4 | **Aritmética segura** (`checked_add`/`checked_sub` → `optional`) | Idea pendiente de conversación anterior |
+| 1 | **`to_string` para N>2** | Actualmente delega a lógica parameterized o no existe; necesita loop ÷10^19 |
+| 2 | **`from_string` para N>2** | Similar al anterior |
+| 3 | **Aritmética segura** (`checked_add`/`checked_sub` → `optional`) | Idea pendiente de conversación anterior |
 
 ---
 

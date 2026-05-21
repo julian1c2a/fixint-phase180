@@ -35,6 +35,21 @@ Detalles del algoritmo: D1 normalización (`clz64`), D3 trial quotient 128÷64 c
 guards por plataforma, D3 refinement 128-bit mul-compare, D4 mul-subtract con
 `__uint128_t`/`_umul128`, D5 add-back (prob ~2/2⁶⁴), D8 unnormalización.
 
+### Perf: Karatsuba operator* para N=4/8 (commit 89aa9b7)
+
+Multiplicación mod 2^(N·64) vía Karatsuba recursivo. Nuevo helper privado
+`kmul_full<M>` que computa el producto completo M×M→2M limbs:
+
+| N | Método | umul128 calls | vs schoolbook |
+|---|--------|--------------|---------------|
+| 2 | `__uint128_t` / `_umul128` fast path | 1 | – |
+| 4 | Karatsuba: `kmul_full<2>` + 2× truncated N=2 | 9 | 10 (−10%) |
+| 8 | Karatsuba: `kmul_full<4>` + 2× truncated N=4 | 19+8 muls | 36 (−36%) |
+
+Recurrencia `kmul_full`: T(1)=1, T(M)=3·T(M/2)+O(M) → T(2)=3, T(4)=9.
+La ruta N=8 recurre automáticamente a través del `operator*` N=4 para los
+términos medios. Solo activa en runtime; constexpr sigue usando schoolbook.
+
 ### Tests
 
 - `test_fixed_vs_param.cpp` — 804/804 paridad con `int128_param_t` (4 compiladores)
@@ -43,6 +58,8 @@ guards por plataforma, D3 refinement 128-bit mul-compare, D4 mul-subtract con
   - Sección 7: 23 casos single-limb divisor fast path (N=2,4,8)
   - Sección 8: 23 casos Knuth D multi-limb (N=4,8): 2/3/4-limb divisors,
     self-div, 2^128/(2^64+1), max÷(max/2+1), 8-limb÷4-limb, s=0/s=63 paths
+- **`test_fixed_karatsuba.cpp`** — **49/49**: productos conocidos, identidades,
+  commutativity, `*=` consistency; cross-check vs schoolbook reference N=4 (11 casos) y N=8 (8 casos)
 - `benchmark_fixed_vs_param.cpp` — benchmark comparativo vs `int128_param_t`
 
 ---
