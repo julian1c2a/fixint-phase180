@@ -905,6 +905,74 @@ namespace nstd
                 }
 #endif
 
+                // ─────────────────────────────────────────────────────────────────
+                // Single-limb divisor fast path — b fits entirely in data[0].
+                //
+                // Replaces O(64N²) binary long div with O(N) hardware DIV instructions:
+                // iterate from MSL to LSL, each step divides (rem:a[i]) by d where
+                // rem < d is a loop invariant (guaranteed: each remainder < divisor).
+                //
+                // With rem < d, libgcc's __udivti3 / _udiv128 emit a SINGLE divq.
+                // Total cost: N divq instructions instead of 64N² bit-loop iterations.
+                //
+                // (For N=2 on GCC/Clang, the __uint128_t block above already handled
+                //  the b.data[1]==0 case and returned; this is the critical path for N≥3.
+                //  For N=2 on MSVC/ICX-Win, the check below finds single_limb=false
+                //  since the 128/128 fallback only reaches here when b.data[1]!=0.)
+                // ─────────────────────────────────────────────────────────────────
+                {
+                    bool single_limb_b = true;
+                    for (std::size_t k = 1; k < N; ++k)
+                        if (b.data[k] != 0) { single_limb_b = false; break; }
+
+                    if (single_limb_b)
+                    {
+                        const std::uint64_t d = b.data[0];
+                        fixed_int_t q{};
+                        std::uint64_t rem = 0;
+                        for (std::size_t i = N; i-- > 0;)
+                        {
+#if defined(__SIZEOF_INT128__) && \
+    !(defined(__INTEL_LLVM_COMPILER) && (defined(_WIN32) || defined(_WIN64)))
+                            // __udivti3 detects rem < d and emits a single divq
+                            const unsigned __int128 cur =
+                                (static_cast<unsigned __int128>(rem) << 64) | a.data[i];
+                            q.data[i] = static_cast<std::uint64_t>(cur / d);
+                            rem       = static_cast<std::uint64_t>(cur % d);
+#elif defined(__INTEL_LLVM_COMPILER) && \
+      (defined(_WIN32) || defined(_WIN64)) && defined(_M_X64)
+                            // ICX Windows: GCC-style inline asm (Clang/LLVM frontend)
+                            __asm__("divq %4"
+                                    : "=a"(q.data[i]), "=d"(rem)
+                                    : "0"(a.data[i]), "1"(rem), "rm"(d));
+#elif defined(_MSC_VER) && defined(_M_X64)
+                            // MSVC x64: rem < d invariant → single DIV instruction
+                            q.data[i] = _udiv128(rem, a.data[i], d, &rem);
+#else
+                            // Portable fallback: rem==0 fast case + bit-by-bit otherwise
+                            if (rem == 0)
+                            {
+                                q.data[i] = a.data[i] / d;
+                                rem       = a.data[i] % d;
+                            }
+                            else
+                            {
+                                std::uint64_t qi = 0;
+                                std::uint64_t n  = a.data[i];
+                                for (int bit = 63; bit >= 0; --bit)
+                                {
+                                    rem = (rem << 1) | (n >> 63);
+                                    n <<= 1;
+                                    if (rem >= d) { rem -= d; qi |= std::uint64_t{1} << bit; }
+                                }
+                                q.data[i] = qi;
+                            }
+#endif
+                        }
+                        return {q, fixed_int_t{rem}};
+                    }
+                }
+
                 // Fallback: binary long division O(64N^2)
                 fixed_int_t q{};
                 fixed_int_t r{};

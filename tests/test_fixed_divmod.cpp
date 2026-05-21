@@ -262,6 +262,86 @@ static void test_divmod_consistency(const char *tag)
 }
 
 // =============================================================================
+// Section 7: Single-limb divisor fast path — multi-limb dividend
+//
+// Exercises the O(N) hardware-division path added for the case where the
+// divisor fits in a single 64-bit limb (data[1..N-1] == 0).
+// All N limbs of the dividend are non-zero to trigger carry propagation
+// through every divq step.
+// Correctness criterion: q * d + r == a  AND  r < d.
+// =============================================================================
+
+template <std::size_t N>
+static void test_single_limb_divisor(const char *tag)
+{
+    std::cout << "\n--- Section 7: Single-limb divisor fast path [N=" << N << " " << tag << "] ---\n";
+
+    // Helper: build from explicit limb array and verify fundamental theorem
+    auto check = [](const char *name, uint_fixed_t<N> a, std::uint64_t d) -> bool
+    {
+        const uint_fixed_t<N> divisor{d};
+        const auto [q, r] = uint_fixed_t<N>::divmod(a, divisor);
+        bool ok = (q * divisor + r) == a && r < divisor;
+        if (!ok)
+            std::cout << "  FAIL detail: " << name << "\n";
+        return ok;
+    };
+
+    // 1. All-ones dividend (0xFFFF...FFFF) / small divisors
+    const auto all_ones = uint_fixed_t<N>::max();
+    TEST("all_ones/1",   check("all_ones/1",   all_ones, 1));
+    TEST("all_ones/2",   check("all_ones/2",   all_ones, 2));
+    TEST("all_ones/3",   check("all_ones/3",   all_ones, 3));
+    TEST("all_ones/7",   check("all_ones/7",   all_ones, 7));
+    TEST("all_ones/10",  check("all_ones/10",  all_ones, 10));
+    TEST("all_ones/100", check("all_ones/100", all_ones, 100));
+
+    // 2. Powers of 2 as divisor (shift-like behaviour)
+    TEST("all_ones/2^32",  check("all_ones/2^32",  all_ones, std::uint64_t{1} << 32));
+    TEST("all_ones/2^48",  check("all_ones/2^48",  all_ones, std::uint64_t{1} << 48));
+    TEST("all_ones/2^63",  check("all_ones/2^63",  all_ones, std::uint64_t{1} << 63));
+
+    // 3. Near-max divisor: divisor = 2^64 - 1 (= 0xFFFF...FFFF in 64 bits)
+    TEST("all_ones/max64", check("all_ones/max64", all_ones, ~std::uint64_t{0}));
+
+    // 4. Dividend with all limbs set to distinct non-zero patterns
+    if constexpr (N >= 2)
+    {
+        uint_fixed_t<N> patterned{};
+        for (std::size_t i = 0; i < N; ++i)
+            patterned.data[i] = 0xDEADBEEF00000000ULL | static_cast<std::uint64_t>(i + 1);
+
+        TEST("patterned/3",       check("patterned/3",       patterned, 3));
+        TEST("patterned/7",       check("patterned/7",       patterned, 7));
+        TEST("patterned/10^9+7",  check("patterned/10^9+7",  patterned, 1'000'000'007ULL));
+        TEST("patterned/2^32+1",  check("patterned/2^32+1",  patterned, (std::uint64_t{1} << 32) + 1));
+        TEST("patterned/max64-1", check("patterned/max64-1", patterned, ~std::uint64_t{0} - 1));
+        TEST("patterned/max64",   check("patterned/max64",   patterned, ~std::uint64_t{0}));
+    }
+
+    // 5. Dividend fits in one limb (a < 2^64): verify same result as native uint64_t
+    if constexpr (N >= 2)
+    {
+        const std::uint64_t av = 0xCAFEBABEDEADBEEFULL;
+        const std::uint64_t dv = 0x0000'0000'FFFF'FFFFULL;
+        const uint_fixed_t<N> a{av};
+        const uint_fixed_t<N> divisor{dv};
+        const auto [q, r] = uint_fixed_t<N>::divmod(a, divisor);
+        TEST("single-limb a/d matches u64",
+             q == uint_fixed_t<N>{av / dv} && r == uint_fixed_t<N>{av % dv});
+    }
+
+    // 6. Dividend just larger than divisor (quotient = 1, remainder = a - d)
+    {
+        const std::uint64_t d = 0xABCDEF0123456789ULL;
+        uint_fixed_t<N> a{d};
+        a += uint_fixed_t<N>{std::uint64_t{1}};  // a = d + 1
+        const auto [q, r] = uint_fixed_t<N>::divmod(a, uint_fixed_t<N>{d});
+        TEST("d+1 / d == 1 r1", q == uint_fixed_t<N>::one() && r == uint_fixed_t<N>::one());
+    }
+}
+
+// =============================================================================
 // Run all sections for one N
 // =============================================================================
 
@@ -274,6 +354,7 @@ static void run_all(const char *tag)
     test_crosslimb<N>(tag);
     test_divzero<N>(tag);
     test_divmod_consistency<N>(tag);
+    test_single_limb_divisor<N>(tag);
 }
 
 // =============================================================================
