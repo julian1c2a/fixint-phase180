@@ -1,18 +1,39 @@
-# Phase 1.75 - Representation Forms Investigation
+# int128 Library — Parameterized Types + fixed_int_t\<N\>
 
-> **Status:** ✅ **ALL 6 PHASES COMPLETE — 13 feature headers, 11 compilers — all tests pass (v1.77)**
+> **Status:** ✅ **v1.80 PUBLISHED** — 42/42 tests, ARM64/ARM32/RISC-V Docker ✅ | 🚧 **v1.90 IN DEVELOPMENT** — `fixed_int_t<N>` N×64-bit generalization, Knuth D
 > **Started:** 11 January 2026
-> **Last Updated:** 15 May 2026
-> **Objective:** Investigate different number representations for IEEE 754 floating-point generalization  
+> **Last Updated:** 21 May 2026
+> **Objective:** Parameterized 128-bit integer types (TC/MS/EK/binnat) + generalization to N×64-bit fixed-width integers
 > **Parent Project:** [int128-phase166](../int128-phase166/)
 
 ---
 
-## 🎯 Phase 1.75 Overview
+## 🎯 Project Overview
 
-This parallel project investigates **representation forms** for 128-bit integers beyond the standard two's complement used in Phase 1.66. The goal is to provide a foundation for understanding and implementing IEEE 754 floating-point generalizations.
+C++20 library providing parameterized 128-bit integer types with four representations (TC, MS, EK, binnat) and a generalized `fixed_int_t<N>` template for N×64-bit integers (N=2→128-bit, N=4→256-bit, N=8→512-bit).
 
 ### Latest Achievements ✅
+
+**v1.90 (en desarrollo) — fixed_int_t\<N\> generalization (21 May 2026):**
+
+- **`fixed_int_t<N,Sign,Form>`:** Unified N×64-bit integer template. `data[0]`=LSB, `data[N-1]`=MSB. Aliases: `uint_fixed_t<N>`, `int_fixed_t<N>`.
+- **Fast paths `operator*`/`+=`/`-=` N=2:** Explicit schoolbook mul avoids GCC register-allocation overhead; in-place operators avoid MSVC temporaries. MUL 14-16% faster; ADD/SUB 2× faster on MSVC.
+- **Single-limb divisor fast path O(N):** When divisor fits in 1 limb, replaces O(64N²) long division with N hardware DIV instructions (cascading rem < d invariant).
+- **Knuth Algorithm D — N-limb ÷ M-limb (M ≥ 2):** Full TAOCP Vol.2 §4.3.1 implementation. D1 normalize (`clz64`), D3 trial quotient 128÷64 (platform-guarded), D3 refine (128-bit mul-compare), D4 mul-subtract, D5 add-back, D8 unnormalize. All 4 Windows compilers.
+- **Tests:** `test_fixed_divmod` **218/218** | `test_fixed_vs_param` **804/804** | `test_cross_operators` **106/106**
+
+| Division path | Condition | Cost |
+|--------------|-----------|------|
+| `__uint128_t` (GCC/Clang/ICX-Linux) | N=2 | O(1) |
+| `divq`/`_udiv128` (Windows) | N=2, 1-limb divisor | O(1) |
+| Single-limb fast path | any N, 1-limb divisor | O(N) |
+| **Knuth D** | **any N, ≥2-limb divisor** | **O(N·M)** |
+
+**v1.80 — ARM/RISC-V Docker + v1.77 test suite (May 2026):**
+
+- **Docker cross-compilation:** `arm64` 42/42 ✅, `arm32` 42/42 ✅, `riscv64` 42/42 ✅ (QEMU). `python make.py docker arm64|arm32|riscv64`
+- **CI/CD:** GitHub Actions — GCC/Clang/MSVC/Intel, ARM64 native, ARM32/RISC-V QEMU, sanitizers, cppcheck, clang-tidy
+- **v1.77:** 29 standalone test files → unified `test_param_*` + `test_sweep_*` framework
 
 **v1.77 — Test Suite Consolidation (15 May 2026):**
 
@@ -112,16 +133,17 @@ using int128_ek_t = int128_param_t<signed_type, excess_k>;          // Excess-k 
 - Comparison operators adapted per representation
 - Conversions between representations provided
 
-✅ **Knuth Algorithm D Division (Phase 3):**
+✅ **Knuth Algorithm D Division:**
 
-- `D_knuth_divrem()` with 5 fast paths + MSVC fallback
-- All division operators chain through: `op` → `divmod()` → `D_knuth_divrem()`
-- GCC/Clang use `__uint128_t` native; MSVC uses binary long division fallback
+- `int128_param_t`: `D_knuth_divrem()` with 5 fast paths — GCC/Clang use `__uint128_t` native
+- `fixed_int_t<N>`: full N-limb Knuth D (TAOCP §4.3.1) with single-limb O(N) fast path
+- All division operators chain through: `op` → `divmod()` → platform-optimal path
 
 ### Core Implementation
 
-**File:** `include/int128_parameterized.hpp` (4,345 lines, 170KB)
-**Total library:** 24 headers, ~11,500 lines
+**Parameterized type:** `include/int128_parameterized.hpp` (~4,400 lines)
+**Fixed-width N-limb:** `include/fixed_width_int_t.hpp` (~1,150 lines)
+**Total library:** 25 headers, ~12,500 lines
 
 - 7 constructor variants + cross-representation copy/move constructors
 - 6 comparison operators (cross-representation aware)
@@ -141,9 +163,10 @@ using int128_ek_t = int128_param_t<signed_type, excess_k>;          // Excess-k 
 ## 📂 Directory Structure
 
 ```
-int128-phase175/
-├── include/                            # 24 headers, ~11,500 lines
-│   ├── int128_parameterized.hpp        # Main template (4,345 lines)
+fixint-phase180/
+├── include/                            # 25 headers, ~12,500 lines
+│   ├── int128_parameterized.hpp        # Parameterized 128-bit type (~4,400 lines)
+│   ├── fixed_width_int_t.hpp           # fixed_int_t<N> N×64-bit template (~1,150 lines)
 │   ├── int128_param_safe.hpp           # Overflow-checked arithmetic
 │   ├── int128_param_traits_specializations.hpp  # STL type traits
 │   ├── int128_param_cmath.hpp          # Math functions
@@ -174,7 +197,12 @@ int128-phase175/
 │   ├── API_*.md                        # Feature module API (14 files)
 │   ├── PLAN_DIVMOD_CONSTEXPR.md        # Granlund-Montgomery plan
 │   └── PLAN_*.md                       # Other plans
-├── tests/                              # Test suite unificado (v1.77)
+├── tests/                              # Test suite unificado (v1.77+)
+│   ├── test_fixed_divmod.cpp           # fixed_int_t<N> division (218 tests, N=2/4/8)
+│   ├── test_fixed_vs_param.cpp         # fixed_int_t<2> vs int128_param_t parity (804 tests)
+│   ├── test_fixed_basic.cpp            # fixed_int_t<N> construction and basic ops
+│   ├── test_fixed_signed.cpp           # int_fixed_t<N> signed arithmetic
+│   ├── test_cross_operators.cpp        # Cross-N/mixed-sign operators (106 tests)
 │   ├── test_param_algorithm.cpp        # STL algorithm integration
 │   ├── test_param_arithmetic.cpp       # Karatsuba, widening_mul
 │   ├── test_param_array.cpp            # Array/container usage
@@ -199,8 +227,9 @@ int128-phase175/
 │   ├── test_sweep_*.cpp                # 9 property-based sweep tests (~455M+ checks)
 │   ├── test_sweep_framework.hpp        # Sweep infrastructure
 │   └── test_*.cpp                      # Otros tests de cobertura e intrinsics
-├── benchs/                             # 8 benchmarks + shared header
+├── benchs/                             # 9 benchmarks + shared header
 │   ├── bench_common.hpp                # RDTSC infrastructure
+│   ├── benchmark_fixed_vs_param.cpp    # fixed_int_t<2> vs int128_param_t comparison
 │   ├── bench_divmod_performance.cpp    # Division performance (RDTSC)
 │   ├── benchmark_addsub.cpp            # Add/sub vs __int128
 │   ├── benchmark_divmod_const.cpp      # GM vs Knuth D
@@ -445,12 +474,13 @@ Phase 1.66 (Stable)
 - [x] **v1.76:** GM integrado en `to_string()` — reemplaza ~105 líneas duplicadas; `rt_mulhi_128` 1.8-2.2x speedup
 - [x] **v1.77:** Test suite consolidado — 29 archivos standalone → framework `test_param_*` unificado
 
-### Next Up
+### In Progress / Next Up
 
-- [ ] **BCD Decimal Types:** BCD128 prototype para aritmética decimal (previsto en Phase 1.80)
-- [ ] **Phase 1.80:** Generalización N×64-bit (enteros de ancho arbitrario)
-- [x] **CI/CD:** GitHub Actions completo — ci.yml (GCC/Clang/MSVC/Intel/ARM64/RISC-V/sanitizers/cppcheck/clang-tidy), benchmarks.yml, release.yml
-- [x] **ARM/RISC-V:** ARM64 nativo (`ubuntu-24.04-arm`); ARM32 + RISC-V via QEMU; `bench_common.hpp` con `cntvct_el0` / `rdtime`
+- [x] **v1.80:** ARM/RISC-V portability (Docker arm64/arm32/riscv64), 42/42 all compilers ✅
+- [x] **v1.90 `fixed_int_t<N>` foundation:** unify template, fast paths, single-limb O(N), Knuth D ✅
+- [ ] **v1.90 next:** Karatsuba `operator*` for N=4/8 — `algorithms/karatsuba.hpp` exists, needs wiring
+- [ ] **v1.90 next:** `to_string`/`from_string` for N>2 (loop ÷10^19)
+- [ ] **BCD Decimal Types:** aplazado post-v1.90
 
 ---
 
@@ -552,7 +582,7 @@ Progreso evaluado contra los 12 objetivos y 9 etapas definidos en [`AI_PROMPT/GE
 | 1 | Implementación básica int128/uint128 | ✅ Terminado | |
 | 2 | Unificación template | ✅ Terminado | `int128_param_t<Sign, Form>` |
 | 3 | Representaciones M&S y Exceso-K | ✅ Terminado | M&S operativo con operadores cross-repr; EK operacional (100 tests) |
-| 4 | Arrays N×64 bits (fase 1.80) | ⬜ No iniciado | |
+| 4 | Arrays N×64 bits (fase 1.80/1.90) | 🚧 En progreso | `fixed_int_t<N>`: unificado ✅, fast paths ✅, Knuth D ✅; pendiente: Karatsuba, to_string N>2 |
 | 5 | Punto fijo configurable | ⬜ No iniciado | |
 | 6 | IEEE 754 Generalizado | ⬜ No iniciado | |
 | 7 | Big integers (longitud arbitraria) | ⬜ No iniciado | |
@@ -584,6 +614,6 @@ Copyright © 2024-2026 Julián Calderón Almendros
 
 ---
 
-**Last Updated:** 15 May 2026  
+**Last Updated:** 21 May 2026  
 **Phase Lead:** int128 Project Contributors  
-**Status:** 🔬 Active Research
+**Status:** 🚧 v1.90 Active Development — fixed_int_t\<N\>
