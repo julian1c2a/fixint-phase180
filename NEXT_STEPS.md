@@ -1,12 +1,12 @@
 # 🔮 NEXT STEPS - v1.90: fixed_int_t\<N\> generalización
 
-**Status:** v1.80 ✅ | `fixed_int_t<N>` unificado ✅ | fast paths N=2 ✅ | single-limb fast path ✅ | **Knuth D ✅** | **Karatsuba N=4/8 ✅**
-**Last Updated:** 21 May 2026
-**Focus:** v1.90 `fixed_int_t<N>` — Karatsuba completo. Próximo: to_string para N>2.
+**Status:** v1.80 ✅ | v1.81 MS-INTEROP ✅ | `fixed_int_t<N>` unificado ✅ | fast paths N=2 ✅ | single-limb fast path ✅ | **Knuth D ✅** | **Karatsuba N=4/8 ✅**
+**Last Updated:** 22 May 2026
+**Focus:** v1.90 `fixed_int_t<N>` — Fase MS-INTEROP completa. Próximo: to_string para N>2.
 
 ---
 
-## 🚧 v1.90 — fixed_int_t\<N\>: estado actual (21 May 2026)
+## 🚧 v1.90 — fixed_int_t\<N\>: estado actual (22 May 2026)
 
 ### Completado ✅
 
@@ -24,9 +24,261 @@
 
 | # | Item | Impacto |
 |---|------|---------|
+| ~~1~~ | ~~**Fase MS-INTEROP** — cross-sign interop completa~~ | ✅ **COMPLETADA v1.81 (22 May 2026)** |
 | 1 | **`to_string` para N>2** | Actualmente delega a lógica parameterized o no existe; necesita loop ÷10^19 |
 | 2 | **`from_string` para N>2** | Similar al anterior |
 | 3 | **Aritmética segura** (`checked_add`/`checked_sub` → `optional`) | Idea pendiente de conversación anterior |
+
+---
+
+## 🎯 Fase MS-INTEROP — Cross-sign interop al estilo built-in (planificada 22 May 2026)
+
+### Contexto y alcance
+
+**Decisión:** `int128_param_t` se deja tal cual (no se añadirán operadores cross-sign entre `uint128_t` e `int128_t`). El esfuerzo de paridad con built-ins se concentra **únicamente en `fixed_int_t<N, Sign, Form>`**.
+
+**Motivación:** la auditoría 22 May 2026 confirmó dos asimetrías concretas:
+
+| Caso | int128_param_t | fixed_int_t<N> | Built-in equivalente |
+|------|----------------|----------------|----------------------|
+| `unsigned op signed` (mismo ancho) | ❌ no compila / ambiguous | ✅ funciona (mixed_iu_t) | ✅ unsigned wins |
+| `op<<` con count cross-sign | n/a (count siempre unsigned built-in) | ❌ no compila | ✅ cualquier integral |
+| `std::common_type<u,s>` | n/a | ❌ ausente | ✅ → unsigned |
+| `std::is_signed<T>` | ❌ ausente (probable) | ❌ ausente | ✅ built-in |
+| `std::numeric_limits<T>::is_signed` | n/a (instancia única) | ❌ ausente | ✅ |
+| `operator<=>` (C++20) | ❌ ausente | ❌ ausente | ✅ |
+
+### Estado actual de cross-sign en fixed_int_t (lo que YA funciona)
+
+| Categoría | Operadores | Líneas | Tests |
+|-----------|-----------|--------|-------|
+| Binarios free | `+ - * / % & \| ^` (28 overloads, ambas orientaciones) | 2588-2648 | test_cross_operators §3-5 |
+| Comparaciones free | `== != < <= > >=` (12 overloads) | 2650-2690 | test_cross_operators §3-5 |
+| Compound aritmético | `+= -= *= /= %=` (`enable_if<S2 != Sign>`) | 1397-1487 | test_cross_operators §3-4 |
+| Compound bitwise | `&= \|= ^=` (`enable_if<S2 != Sign>`) | 1490-1546 | test_cross_operators §3 |
+| Trait UAC | `detail::mixed_iu_t<N,M>` | 1973-1977 | implícito |
+
+**Regla UAC implementada:** `mixed_iu_t<N,M> = (N > M) ? int_fixed_t<N> : uint_fixed_t<M>`
+(signed gana solo si es estrictamente más ancho; en empate gana unsigned — idéntico a C++ built-in).
+
+### Gaps identificados (a cerrar en esta fase)
+
+| # | Gap | Severidad | Detalle |
+|---|-----|-----------|---------|
+| **G1** | Shifts con RHS `fixed_int_t<M>` (cualquier Sign) | 🔴 crítico | `operator<<`/`>>` solo aceptan `unsigned` (líneas 520, 545). `x << uint_fixed_t<2>{3}` no compila. Compound `<<= >>=` mismo problema. |
+| **G2** | `operator<=>` C++20 (same-sign y cross-sign) | 🟡 importante | 12 comparadores a mano. `<=>` los reemplaza con 2 (same-sign + cross-sign). Habilita interop con `std::sort`, `std::set` y código que usa spaceship. |
+| **G3** | `std::common_type<int_fixed_t<N>, uint_fixed_t<M>>` | 🔴 crítico | Sin esto, código genérico tipo `template<class A, class B> common_type_t<A,B> f(A,B)` no funciona con mezcla signed/unsigned. |
+| **G4** | `std::is_signed` / `is_unsigned` / `make_signed` / `make_unsigned` | 🔴 crítico | Conceptos C++20 (`std::signed_integral`) y SFINAE clásica rompen. |
+| **G5** | `std::numeric_limits<fixed_int_t<N,Sign,Form>>` | 🟡 importante | `min()`, `max()`, `is_signed`, `digits`, `radix`, etc. Actualmente solo hay métodos estáticos en la clase. |
+| **G6** | Unary `operator+()` | 🟢 trivial | Solo existe unary `-`. Built-in tienen ambos. Línea ~636. |
+| **G7** | Cobertura de tests: edge cases cross-sign | 🟡 importante | INT_MIN ± UINT_MAX, overflow boundary, sign-extension al promover, `int_fixed_t<1>{-1} == uint_fixed_t<2>{2^128-1}` (extensión de signo a unsigned wider), etc. |
+| **G8** | Documentación API_*.md y README para `fixed_int_t` | 🟢 estética | El header carece de la familia `API_*.md` que sí tiene `int128_param_t`. |
+
+### Tareas — Fase MS-INTEROP
+
+#### T1 — Shift operators cross-sign (G1) 🔴
+
+**Objetivo:** que `x << y` y `x >> y` acepten cualquier `fixed_int_t<M, S2, F2>` como count, además de `unsigned`.
+
+**Diseño propuesto:**
+- LHS conserva su tipo: el resultado de `int_fixed_t<N> << anything` es `int_fixed_t<N>` (igual que built-in `int << unsigned == int`).
+- Count se convierte a `unsigned` (o `std::size_t`) tras chequear que cabe; si no cabe → UB equivalente a built-in (sin chequeo runtime, igual que `int << 64u`).
+- Free-function overload: `operator<<(const fixed_int_t<N,Sign,Form>&, const fixed_int_t<M,S2,F2>&)`.
+- Compound: `operator<<=(const fixed_int_t<M,S2,F2>&)`.
+- Mantener el overload `unsigned` existente como fast path.
+
+**Archivos:** `include/fixed_width_int_t.hpp` (insertar tras línea 545).
+
+**Tests:** ampliar `test_cross_operators.cpp` con sección 8 (shifts cross-sign) — ~16 casos: 4 combos sign × {<<,>>,<<=,>>=}.
+
+**Riesgo:** bajo. Trivial wrapper que llama al overload `unsigned` existente.
+
+---
+
+#### T2 — `operator<=>` three-way cross-sign (G2) 🟡 — COEXISTE con comparadores manuales
+
+**Objetivo:** añadir `operator<=>` (same-sign y cross-sign) **sin eliminar** los 12 comparadores manuales existentes.
+
+**Diseño propuesto:**
+- Dentro de la clase: `constexpr std::strong_ordering operator<=>(const fixed_int_t&) const noexcept` para same-type.
+- Free function: `operator<=>(const fixed_int_t<N,Sign>&, const fixed_int_t<M,S2>&)` para cross-N y/o cross-sign — usa `mixed_iu_t` para promocionar y compara.
+- Los `operator==`, `!=`, `<`, `<=`, `>`, `>=` actuales **se mantienen intactos**. El compilador prefiere overloads explícitos sobre síntesis desde `<=>`, así que no hay conflicto.
+
+**Archivos:** `include/fixed_width_int_t.hpp` (insertar `<=>` cerca de la zona de comparadores existentes, ~línea 2650).
+
+**Tests:** `test_cross_operators.cpp` debe seguir pasando 106/106 sin cambios. Añadir 4-6 casos con `<=>` explícito (verificar `strong_ordering::less`, etc.).
+
+**Riesgo:** bajo. Sin eliminación, no hay regresión posible — solo adición de capacidad.
+
+**Tipo de orden:** `strong_ordering` (enteros nuestros, todo total y exacto).
+
+---
+
+#### T3 — `std::common_type<int_fixed_t<N>, uint_fixed_t<M>>` (G3) 🔴
+
+**Objetivo:** que `std::common_type_t<int_fixed_t<2>, uint_fixed_t<4>>` resuelva a `uint_fixed_t<4>` (= `mixed_iu_t<2,4>`).
+
+**Diseño propuesto:**
+
+```cpp
+namespace std {
+    template <size_t N, size_t M>
+    struct common_type<nstd::int_fixed_t<N>, nstd::uint_fixed_t<M>> {
+        using type = nstd::detail::mixed_iu_t<N, M>;
+    };
+    // simétrico para uint_fixed_t<M>, int_fixed_t<N>
+    // Y: common_type<int_fixed_t<N>, int_fixed_t<M>> = int_fixed_t<max(N,M)>
+    // Y: common_type<uint_fixed_t<N>, uint_fixed_t<M>> = uint_fixed_t<max(N,M)>
+    // Y: common_type con built-in integral T (8 casos: int_fixed_t × {char,short,int,long,…})
+}
+```
+
+**Archivos:** nuevo header `include/fixed_int_traits_specializations.hpp` (paralelo a `int128_param_traits_specializations.hpp`).
+
+**Tests:** sección nueva en `test_cross_operators.cpp` o archivo nuevo `test_fixed_traits.cpp`, ~12-16 `static_assert`.
+
+**Riesgo:** bajo. Es declarativo.
+
+---
+
+#### T4 — `std::is_signed` / `is_unsigned` / `make_signed` / `make_unsigned` (G4) 🔴
+
+**Objetivo:** que `std::is_signed_v<int_fixed_t<4>> == true`, `std::is_unsigned_v<uint_fixed_t<4>> == true`, `std::make_signed_t<uint_fixed_t<4>> == int_fixed_t<4>`, etc.
+
+**Diseño:** specializations en `namespace std` dentro del mismo `fixed_int_traits_specializations.hpp` de T3.
+
+**Cuidado:** `std::is_integral` y `std::is_arithmetic` son **non-specializable** en el estándar (UB modificarlas). Para conceptos C++20 (`std::integral`, `std::signed_integral`, `std::unsigned_integral`) que dependen de `is_integral`, **no podemos hacer que `fixed_int_t` los satisfaga**.
+
+**Solución elegida:** definir nuestros conceptos en `include/fixed_int_concepts.hpp`:
+- `nstd::integral<T>` = `std::integral<T>` ‖ `is_fixed_int_v<T>`
+- `nstd::signed_integral<T>` = `std::signed_integral<T>` ‖ (`is_fixed_int_v<T>` ∧ `T::is_signed`)
+- `nstd::unsigned_integral<T>` = `std::unsigned_integral<T>` ‖ (`is_fixed_int_v<T>` ∧ `!T::is_signed`)
+
+Código del usuario que quiera aceptar built-ins y `fixed_int_t` por igual usará `nstd::integral` en lugar de `std::integral`.
+
+**Archivos:** `fixed_int_traits_specializations.hpp` (T3) + `fixed_int_concepts.hpp` (nuevo).
+
+**Tests:** ~10 `static_assert` por trait + ~6 por concepto nuestro.
+
+**Riesgo:** bajo. UB-free porque `is_signed`, `make_signed`, etc. SÍ son specializables (lo dice el estándar: "If T is a (possibly cv-qualified) user-defined type..."). Confirmar antes con la regla 17.6.4.2.1.
+
+---
+
+#### T5 — `std::numeric_limits<fixed_int_t<N,Sign,Form>>` (G5) 🟡
+
+**Objetivo:** specialization completa con todos los miembros relevantes (`min`, `max`, `lowest`, `digits`, `digits10`, `is_signed`, `is_integer`, `is_exact`, `radix`, `is_modulo`, `is_specialized`, etc.).
+
+**Diseño:** copiar/adaptar `int128_param_limits.hpp` (que ya hace esto para `int128_param_t`). Probablemente se puede generalizar a N limbs.
+
+**Archivos:** nuevo `include/fixed_int_limits.hpp`.
+
+**Tests:** archivo nuevo `test_fixed_limits.cpp` (~20 asserts) o sección de `test_cross_operators.cpp`.
+
+**Riesgo:** bajo. Patrón ya establecido.
+
+---
+
+#### T6 — Unary `operator+()` (G6) 🟢
+
+**Objetivo:** `+x` devuelve copia (igual que built-in).
+
+**Diseño:**
+
+```cpp
+constexpr fixed_int_t operator+() const noexcept { return *this; }
+```
+
+**Archivos:** `include/fixed_width_int_t.hpp` (junto a operator- línea 636).
+
+**Tests:** 2-3 asserts.
+
+**Riesgo:** ninguno.
+
+---
+
+#### T7 — Cobertura tests cross-sign edge cases (G7) 🟡
+
+**Objetivo:** ampliar `test_cross_operators.cpp` con casos de frontera que el suite actual no cubre:
+
+- `int_fixed_t<1>::min() + uint_fixed_t<2>::max()` — overflow al promocionar
+- `int_fixed_t<1>{-1} == uint_fixed_t<2>{2^128 - 1}` — extensión de signo
+- `uint_fixed_t<1>{0} - int_fixed_t<1>{1}` — wraparound unsigned
+- `(int_fixed_t<2>::min() / uint_fixed_t<2>::max()) == 0` — división cross-sign con extremos
+- Mismas comprobaciones con shifts cross-sign (T1)
+- `<=>` returns correctos en frontera (T2)
+
+**Archivos:** `tests/test_cross_operators.cpp` — sección nueva 8 y 9.
+
+**Tests añadidos:** ~30-40 casos. Pasar de 106 a ~140 tests.
+
+**Riesgo:** medio. Estos edge cases pueden revelar bugs en la implementación actual de `mixed_iu_t` que el suite "happy path" no destapa.
+
+---
+
+#### T8 — Documentación (G8) 🟢
+
+**Objetivo:** documentar `fixed_int_t<N>` al nivel de detalle que tiene `int128_param_t`.
+
+**Entregables:**
+- `docs/API_fixed_int.md` — clase + operadores + cross-sign semantics
+- `docs/API_fixed_int_traits.md` — common_type, is_signed, numeric_limits
+- Sección nueva en README con tabla "interop signed/unsigned"
+- CHANGELOG entry "v1.90 — Fase MS-INTEROP completa"
+
+**Archivos:** `docs/API_fixed_int*.md`, `README.md`, `CHANGELOG.md`.
+
+**Riesgo:** ninguno.
+
+---
+
+### Resumen de archivos tocados
+
+| Archivo | T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8 |
+|---------|----|----|----|----|----|----|----|----|
+| `include/fixed_width_int_t.hpp` | ✏️ | ✏️ |  |  |  | ✏️ |  |  |
+| `include/fixed_int_traits_specializations.hpp` (nuevo) |  |  | 🆕 | 🆕 |  |  |  |  |
+| `include/fixed_int_concepts.hpp` (nuevo, opcional) |  |  |  | 🆕 |  |  |  |  |
+| `include/fixed_int_limits.hpp` (nuevo) |  |  |  |  | 🆕 |  |  |  |
+| `tests/test_cross_operators.cpp` | ✏️ | ✏️ |  |  |  | ✏️ | ✏️ |  |
+| `tests/test_fixed_traits.cpp` (nuevo) |  |  | 🆕 | 🆕 |  |  |  |  |
+| `tests/test_fixed_limits.cpp` (nuevo) |  |  |  |  | 🆕 |  |  |  |
+| `docs/API_fixed_int*.md` (nuevo) |  |  |  |  |  |  |  | 🆕 |
+| `README.md`, `CHANGELOG.md` |  |  |  |  |  |  |  | ✏️ |
+
+### Orden de ejecución sugerido
+
+1. **T6** (5 minutos, trivial, calienta motores) — unary `+`
+2. **T3 + T4** (juntos: traits + common_type, son co-dependientes) — desbloquea código genérico
+3. **T1** (shifts cross-sign) — el gap "duro" más visible para usuario
+4. **T5** (numeric_limits) — necesita T4 para coherencia de `is_signed`
+5. **T2** (`<=>`) — refactor delicado, mejor con todo lo demás verde
+6. **T7** (edge cases tests) — al final, una vez todo lo nuevo existe
+7. **T8** (docs) — cierre de fase
+
+### Criterios de aceptación (Fase MS-INTEROP completa)
+
+- ✅ `test_cross_operators.cpp` pasa en los 4 compiladores Windows + WSL (140+ tests)
+- ✅ `test_fixed_traits.cpp` y `test_fixed_limits.cpp` pasan en los 4 compiladores
+- ✅ `static_assert(std::is_same_v<std::common_type_t<int_fixed_t<2>, uint_fixed_t<4>>, uint_fixed_t<4>>)` compila
+- ✅ `static_assert(std::is_signed_v<int_fixed_t<4>>)` compila y es `true`
+- ✅ `x << uint_fixed_t<2>{3}` compila y produce el resultado correcto para todo `x` de cualquier `fixed_int_t<N,Sign>`
+- ✅ `(int_fixed_t<4>{1} <=> int_fixed_t<4>{2}) == std::strong_ordering::less` compila
+- ✅ La interop con built-ins (`fixed_int_t<N> + int`) sigue funcionando como antes (sin regresión)
+- ✅ `int128_param_t` permanece intacto
+
+### Decisiones resueltas (22 May 2026)
+
+1. **T2 (`<=>`): COEXISTENCIA.** Se añade `operator<=>` sin eliminar los 12 comparadores manuales existentes. Más seguro frente a regresiones; el compilador usará `<=>` cuando no haya match directo más específico.
+
+2. **T4: definimos `nstd::integral` / `nstd::signed_integral` / `nstd::unsigned_integral`** que aglutinen built-ins y `fixed_int_t`. Vive en `include/fixed_int_concepts.hpp`. El usuario puede usar nuestros conceptos en código genérico que mezcle ambos.
+
+3. **T5 (`numeric_limits`): cubre TODAS las Forms** (`binnat`, `twos_complement`, y por extensión MS/EK cuando lleguen). La specialization se escribe genérica sobre `<N, Sign, Form>`, no por instancia.
+
+4. **`mixed_iu_t` se promueve de `detail::` a `nstd::`.** Pasa a formar parte de la API pública para que código del usuario pueda usarlo. Se mantiene un alias en `detail::` para compatibilidad interna.
+
+5. **Cross-sign con built-ins:** sin cambios. `u2{5} + (-3)` ya funciona y wrappea como built-in — no se toca. Solo se verifica en T7.
+
+6. **Versión que cierra esta fase: v1.81.** (Decisión del usuario, no v1.90.) La rama sigue siendo `phase-1.80`.
 
 ---
 

@@ -30,6 +30,7 @@
 #include <array>
 #include <bitset>
 #include <cmath>
+#include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -462,6 +463,18 @@ namespace nstd
             return !(*this < o);
         }
 
+        // Three-way comparison (C++20). Coexists with the 6 manual comparators
+        // above — overload resolution prefers the explicit ones, so existing
+        // call sites are unchanged. New code can use `a <=> b` directly, and
+        // generic algorithms / containers that require <=> can now use
+        // fixed_int_t. T2 — Fase MS-INTEROP.
+        constexpr std::strong_ordering operator<=>(const fixed_int_t &o) const noexcept
+        {
+            if (*this < o) return std::strong_ordering::less;
+            if (o < *this) return std::strong_ordering::greater;
+            return std::strong_ordering::equal;
+        }
+
         // =========================================================================
         // Bitwise
         // =========================================================================
@@ -594,6 +607,42 @@ namespace nstd
         }
 
         // =========================================================================
+        // Shift overloads with fixed_int_t<M, S2, F2> count  (T1 — Fase MS-INTEROP)
+        //
+        // Built-in semantics: `x << n` accepts any integral n; negative or
+        // out-of-range counts yield UB. We mirror that — the count is reduced to
+        // an `unsigned` (truncating high bits), then dispatched to the existing
+        // unsigned overload. Counts >= 64*N produce zero (or sign-fill on signed
+        // right shift), matching the unsigned-overload's existing behavior. A
+        // negative signed count maps to a huge unsigned via two's-complement
+        // representation in data[0] — same wraparound as built-in `int << -1`.
+        // =========================================================================
+
+        template <std::size_t M, signedness S2, representation_form F2>
+        constexpr fixed_int_t operator<<(const fixed_int_t<M, S2, F2> &shift) const noexcept
+        {
+            return *this << static_cast<unsigned>(shift.data[0]);
+        }
+
+        template <std::size_t M, signedness S2, representation_form F2>
+        constexpr fixed_int_t operator>>(const fixed_int_t<M, S2, F2> &shift) const noexcept
+        {
+            return *this >> static_cast<unsigned>(shift.data[0]);
+        }
+
+        template <std::size_t M, signedness S2, representation_form F2>
+        constexpr fixed_int_t &operator<<=(const fixed_int_t<M, S2, F2> &shift) noexcept
+        {
+            return *this <<= static_cast<unsigned>(shift.data[0]);
+        }
+
+        template <std::size_t M, signedness S2, representation_form F2>
+        constexpr fixed_int_t &operator>>=(const fixed_int_t<M, S2, F2> &shift) noexcept
+        {
+            return *this >>= static_cast<unsigned>(shift.data[0]);
+        }
+
+        // =========================================================================
         // Arithmetic — addition/subtraction (ripple-carry via intrinsics or portable)
         // =========================================================================
 
@@ -636,6 +685,12 @@ namespace nstd
         constexpr fixed_int_t operator-() const noexcept
         {
             return ~(*this) + one();
+        }
+
+        /// Unary plus — returns a copy. Mirrors built-in `+x` semantics.
+        constexpr fixed_int_t operator+() const noexcept
+        {
+            return *this;
         }
 
         constexpr fixed_int_t &operator+=(const fixed_int_t &o) noexcept
@@ -1962,6 +2017,64 @@ namespace nstd
     }
 
     // =========================================================================
+    // Public trait: mixed_iu_t (C++ usual arithmetic conversions for fixed_int_t)
+    // Promoted from nstd::detail::mixed_iu_t to nstd::mixed_iu_t — Fase MS-INTEROP.
+    // =========================================================================
+
+    /// @brief Result type of `int_fixed_t<N> op uint_fixed_t<M>` per C++ UAC.
+    ///
+    /// Rule (mirrors built-in `signed op unsigned`):
+    ///   - N > M  -> int_fixed_t<N>  (signed wider rank wins, unsigned zero-extends)
+    ///   - N <= M -> uint_fixed_t<M> (unsigned rank >= signed → signed converts to unsigned)
+    ///
+    /// Both orientations (int op uint, uint op int) yield the same type. The order
+    /// of template parameters here is conventionally (N = signed side, M = unsigned side).
+    template <std::size_t N, std::size_t M>
+    using mixed_iu_t = std::conditional_t<(N > M), int_fixed_t<N>, uint_fixed_t<M>>;
+
+    // =========================================================================
+    // Detection traits for fixed_int_t — Fase MS-INTEROP
+    // =========================================================================
+
+    namespace detail
+    {
+        template <typename T>
+        struct is_fixed_int_impl : std::false_type {};
+
+        template <std::size_t N, signedness S, representation_form F>
+        struct is_fixed_int_impl<fixed_int_t<N, S, F>> : std::true_type {};
+    }
+
+    /// @brief Trait class: true iff T is some `fixed_int_t<N, Sign, Form>`.
+    template <typename T>
+    struct is_fixed_int : detail::is_fixed_int_impl<std::remove_cv_t<T>> {};
+
+    template <typename T>
+    inline constexpr bool is_fixed_int_v = is_fixed_int<T>::value;
+
+    /// @brief Trait class: true iff T is a signed `fixed_int_t<N>` instance.
+    template <typename T>
+    struct is_signed_fixed_int : std::false_type {};
+
+    template <std::size_t N, representation_form F>
+    struct is_signed_fixed_int<fixed_int_t<N, signedness::signed_type, F>> : std::true_type {};
+
+    template <typename T>
+    inline constexpr bool is_signed_fixed_int_v
+        = is_signed_fixed_int<std::remove_cv_t<T>>::value;
+
+    /// @brief Trait class: true iff T is an unsigned `fixed_int_t<N>` instance.
+    template <typename T>
+    struct is_unsigned_fixed_int : std::false_type {};
+
+    template <std::size_t N, representation_form F>
+    struct is_unsigned_fixed_int<fixed_int_t<N, signedness::unsigned_type, F>> : std::true_type {};
+
+    template <typename T>
+    inline constexpr bool is_unsigned_fixed_int_v
+        = is_unsigned_fixed_int<std::remove_cv_t<T>>::value;
+
+    // =========================================================================
     // detail — SFINAE helpers
     // =========================================================================
 
@@ -1970,11 +2083,10 @@ namespace nstd
         template <typename T>
         using if_integral = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>;
 
-        // C++ usual arithmetic conversions for int_fixed_t<N> op uint_fixed_t<M>:
-        // N > M  -> int_fixed_t<N>  (signed has higher rank, unsigned zero-extends)
-        // N <= M -> uint_fixed_t<M> (unsigned has >= rank, signed converts to unsigned)
+        // Compatibility alias: kept so internal code referencing detail::mixed_iu_t
+        // continues to work after the trait was promoted to nstd::mixed_iu_t.
         template <std::size_t N, std::size_t M>
-        using mixed_iu_t = std::conditional_t<(N > M), int_fixed_t<N>, uint_fixed_t<M>>;
+        using mixed_iu_t = nstd::mixed_iu_t<N, M>;
     }
 
     // =========================================================================
@@ -2646,6 +2758,41 @@ namespace nstd
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator^(const uint_fixed_t<M> &a, const int_fixed_t<N> &b) noexcept
     { using R = detail::mixed_iu_t<N, M>; return R{a} ^ R{b}; }
+
+    // Free three-way comparison for cross-N and/or cross-sign fixed_int_t.
+    // Coexists with the 12 manual cross-sign comparators below (T2 — MS-INTEROP):
+    // explicit comparators win during overload resolution; this <=> kicks in
+    // when user code writes `a <=> b` directly, or when generic code routes
+    // comparisons through <=> (std::strong_order, std::compare_three_way).
+    //
+    // Constrained so it does NOT match same-type same-N (which is handled by the
+    // member <=>); ambiguity would otherwise arise.
+    template <std::size_t N1, signedness S1, representation_form F1,
+              std::size_t N2, signedness S2, representation_form F2>
+        requires (N1 != N2 || S1 != S2)
+    constexpr std::strong_ordering operator<=>(
+        const fixed_int_t<N1, S1, F1> &a,
+        const fixed_int_t<N2, S2, F2> &b) noexcept
+    {
+        if constexpr (S1 == S2)
+        {
+            // Same-sign cross-N: promote to wider, same Sign and Form (default alias).
+            using R = fixed_int_t<(N1 > N2 ? N1 : N2), S1, F1>;
+            return R{a} <=> R{b};
+        }
+        else if constexpr (S1 == signedness::signed_type)
+        {
+            // a is signed (rank N1), b is unsigned (rank N2) → mixed_iu_t<N1, N2>.
+            using R = mixed_iu_t<N1, N2>;
+            return R{a} <=> R{b};
+        }
+        else
+        {
+            // a is unsigned (rank N1), b is signed (rank N2) → mixed_iu_t<N2, N1>.
+            using R = mixed_iu_t<N2, N1>;
+            return R{a} <=> R{b};
+        }
+    }
 
     template <std::size_t N, std::size_t M>
     constexpr bool operator==(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept

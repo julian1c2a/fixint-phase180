@@ -1,9 +1,26 @@
-# PROJECT STATUS: v1.80 Complete + v1.90 fixed_int_t\<N\> en desarrollo
+# PROJECT STATUS: v1.80 + v1.81 (MS-INTEROP) Complete + v1.90 fixed_int_t\<N\> en desarrollo
 
-**Date:** 21 May 2026
-**Last Session:** Karatsuba operator* para N=4/8 en `fixed_int_t<N>` (branch phase-1.80)
-**Overall Progress:** v1.80 ✅ + **v1.90 en desarrollo** (`fixed_int_t<N>` unificado, fast paths mul/div, Knuth D, **Karatsuba**)
-**Current Status:** 🚀 **49/49 test_fixed_karatsuba | 218/218 test_fixed_divmod | 804/804 test_fixed_vs_param | 4 compiladores**
+**Date:** 22 May 2026
+**Last Session:** Fase MS-INTEROP — interop signed/unsigned built-in-style en `fixed_int_t<N, Sign>` (branch phase-1.80)
+**Overall Progress:** v1.80 ✅ + **v1.81 MS-INTEROP ✅** + **v1.90 en desarrollo** (`fixed_int_t<N>` unificado, fast paths mul/div, Knuth D, Karatsuba)
+**Current Status:** 🚀 **197/197 test_cross_operators | 8+~70 test_fixed_traits | 16+~50 test_fixed_limits | 804/804 test_fixed_vs_param | 4 compiladores**
+
+## v1.81 — Fase MS-INTEROP (22 May 2026) ✅
+
+| Tarea | Cambio | Tests añadidos |
+|---|---|---|
+| T6 | Unary `operator+()` | +6 |
+| T3 | `std::common_type` para fixed_int_t (4 cruces + 2 con built-in) | (junto a T4) |
+| T4 | `nstd::is_integral/is_signed/is_unsigned`, `make_signed/unsigned`, conceptos `nstd::integral/signed_integral/unsigned_integral`, detection traits | 8 runtime + ~70 SA |
+| T1 | Shifts cross-sign (count = `fixed_int_t<M, S2, F2>`) en `<<`, `>>`, `<<=`, `>>=` | +22 |
+| T5 | `std::numeric_limits<fixed_int_t<N, Sign, Form>>` partial spec genérica | 16 runtime + ~50 SA |
+| T2 | `operator<=>` member + free (coexiste con 12 manuales) | +25 |
+| T7 | Edge cases: sign extension, wraparound, INT_MIN ± UINT_MAX, `<=>` boundary | +38 |
+| T8 | docs/API_fixed_int.md, docs/API_fixed_int_traits.md, README, CHANGELOG | n/a |
+
+**Promoción API pública:** `detail::mixed_iu_t<N, M>` → `nstd::mixed_iu_t<N, M>` (alias `detail::` conservado).
+
+**Decisión:** `int128_param_t` se deja intacto. La interop natural se concentra en `fixed_int_t`.
 
 ## Phase Status Summary
 

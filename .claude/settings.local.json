@@ -109,7 +109,24 @@
       "Bash(/c/msys64/ucrt64/bin/g++ -std=c++20 -O2 -I include tests/test_fixed_vs_param.cpp -o /tmp/tvp_gcc.exe)",
       "Bash(/tmp/tvp_gcc.exe)",
       "Bash(build/build_tests/msvc/release-O2/test_cross_operators_msvc.exe)",
-      "Bash(build/build_tests/intel/release-O2/test_cross_operators_intel.exe)"
+      "Bash(build/build_tests/intel/release-O2/test_cross_operators_intel.exe)",
+      "PowerShell(if \\($env:ANTHROPIC_API_KEY\\) { \"ANTHROPIC_API_KEY: SET \\(longitud $\\($env:ANTHROPIC_API_KEY.Length\\)\\)\" } else { \"ANTHROPIC_API_KEY: no definida\" }; if \\($env:ANTHROPIC_AUTH_TOKEN\\) { \"ANTHROPIC_AUTH_TOKEN: SET\" } else { \"ANTHROPIC_AUTH_TOKEN: no definida\" }; if \\($env:ANTHROPIC_BASE_URL\\) { \"ANTHROPIC_BASE_URL: $env:ANTHROPIC_BASE_URL\" } else { \"ANTHROPIC_BASE_URL: no definida \\(usa default\\)\" })",
+      "Bash(/c/msys64/ucrt64/bin/g++ -std=c++20 -O2 -Iinclude build/probe_mixed_sign.cpp -o build/probe_mixed_sign.exe)",
+      "Bash(/c/msys64/ucrt64/bin/g++ -std=c++20 -O2 -Iinclude -fmax-errors=8 build/probe_mixed_sign.cpp -o build/probe_mixed_sign.exe)",
+      "Bash(/c/msys64/ucrt64/bin/g++ -std=c++20 -O2 -Iinclude -fmax-errors=20 build/probe_mixed_sign.cpp -o build/probe_mixed_sign.exe)",
+      "Bash(build/build_tests/msvc/release/test_cross_operators_msvc.exe)",
+      "Bash(build/build_tests/gcc/release/test_fixed_traits_gcc.exe)",
+      "Bash(build/build_tests/clang/release/test_fixed_traits_clang.exe)",
+      "Bash(build/build_tests/msvc/release/test_fixed_traits_msvc.exe)",
+      "Bash(build/build_tests/intel/release/test_fixed_traits_intel.exe)",
+      "Bash(build/build_tests/gcc/release/test_fixed_vs_param_gcc.exe)",
+      "Bash(build/build_tests/gcc/release/test_fixed_limits_gcc.exe)",
+      "Bash(build/build_tests/clang/release/test_fixed_limits_clang.exe)",
+      "Bash(build/build_tests/msvc/release/test_fixed_limits_msvc.exe)",
+      "Bash(build/build_tests/intel/release/test_fixed_limits_intel.exe)",
+      "Bash(build/build_tests/gcc/release/test_fixed_basic_gcc.exe)",
+      "Bash(build/build_tests/gcc/release/test_fixed_signed_gcc.exe)",
+      "Bash(build/build_tests/msvc/release/test_fixed_signed_msvc.exe)"
     ]
   }
 }

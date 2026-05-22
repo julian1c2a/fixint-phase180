@@ -1,8 +1,8 @@
 # int128 Library — Parameterized Types + fixed_int_t\<N\>
 
-> **Status:** ✅ **v1.80 PUBLISHED** — 42/42 tests, ARM64/ARM32/RISC-V Docker ✅ | 🚧 **v1.90 IN DEVELOPMENT** — `fixed_int_t<N>` N×64-bit generalization, Knuth D, Karatsuba N=4/8
+> **Status:** ✅ **v1.80 PUBLISHED** — 42/42 tests, ARM64/ARM32/RISC-V Docker ✅ | ✅ **v1.81 — Fase MS-INTEROP** (interop signed/unsigned built-in-style en `fixed_int_t<N>`) | 🚧 **v1.90 IN DEVELOPMENT** — Knuth D, Karatsuba N=4/8
 > **Started:** 11 January 2026
-> **Last Updated:** 21 May 2026
+> **Last Updated:** 22 May 2026
 > **Objective:** Parameterized 128-bit integer types (TC/MS/EK/binnat) + generalization to N×64-bit fixed-width integers
 > **Parent Project:** [int128-phase166](../int128-phase166/)
 
@@ -13,6 +13,35 @@
 C++20 library providing parameterized 128-bit integer types with four representations (TC, MS, EK, binnat) and a generalized `fixed_int_t<N>` template for N×64-bit integers (N=2→128-bit, N=4→256-bit, N=8→512-bit).
 
 ### Latest Achievements ✅
+
+**v1.81 — Fase MS-INTEROP (22 May 2026): interop signed/unsigned built-in-style en `fixed_int_t<N>`**
+
+`fixed_int_t<N, Sign>` ahora imita el comportamiento de los enteros built-in de C++ en mezclas signed/unsigned. `int128_param_t` se deja intacto por decisión (su falta de operadores cross-sign queda como gap conocido).
+
+| Capability | Built-in C++ | `fixed_int_t<N>` v1.81 |
+|---|---|---|
+| `unsigned + signed` (same rank) | unsigned wins | `u<N> + i<N>` → `u<N>` ✓ |
+| `signed + unsigned` (signed wider) | signed wins | `i<N> + u<M>`, `N>M` → `i<N>` ✓ |
+| `signed + unsigned` (unsigned ≥ wider) | unsigned wins | `i<N> + u<M>`, `N≤M` → `u<M>` ✓ |
+| `(int)INT_MIN > (unsigned)0` | true (gotcha) | `i<2>::min() > u<2>{0}` true ✓ |
+| `(unsigned)-1 == UINT_MAX` | true (sign-ext) | `static_cast<u<N>>(i<N>{-1}) == max()` ✓ |
+| `x << any_integral` | OK | `x << fixed_int_t<M,Sign>{...}` ✓ (cross-sign count) |
+| `<=>` C++20 | yes | yes (member same-type + free cross-type) ✓ |
+| Unary `+x` | yes | yes ✓ |
+| `std::common_type<a,b>` | yes | yes (4 fixed×fixed combos + fixed×builtin) ✓ |
+| `std::numeric_limits<T>` | yes | yes (partial spec genérica sobre N, Sign, Form) ✓ |
+| `std::is_integral<T>` | yes | **no** (estándar prohíbe specialization) — usar `nstd::integral<T>` ✓ |
+
+**Headers nuevos:**
+- `include/fixed_int_traits_specializations.hpp` — `nstd::is_*`, `nstd::make_signed/unsigned`, `std::common_type`
+- `include/fixed_int_concepts.hpp` — `nstd::integral`/`signed_integral`/`unsigned_integral` (aglutinan built-in ∪ `fixed_int_t`), conceptos de detección
+- `include/fixed_int_limits.hpp` — `std::numeric_limits<fixed_int_t<...>>`
+
+**Tests:** test_cross_operators 106 → **197** (+91); test_fixed_traits 8 + ~70 static_asserts; test_fixed_limits 16 + ~50 static_asserts. Todos en GCC 15.2 / Clang 19+ / MSVC 2026 / Intel ICX. **Cero regresiones** en baseline (test_fixed_vs_param 804/804).
+
+Detalles completos: [docs/API_fixed_int.md](docs/API_fixed_int.md), [docs/API_fixed_int_traits.md](docs/API_fixed_int_traits.md).
+
+---
 
 **v1.90 (en desarrollo) — fixed_int_t\<N\> generalization (21 May 2026):**
 
@@ -489,6 +518,7 @@ Phase 1.66 (Stable)
 - [x] **v1.80:** ARM/RISC-V portability (Docker arm64/arm32/riscv64), 42/42 all compilers ✅
 - [x] **v1.90 `fixed_int_t<N>` foundation:** unify template, fast paths, single-limb O(N), Knuth D ✅
 - [x] **v1.90 Karatsuba:** `operator*`/`*=` for N=4/8 — `kmul_full<M>` (T(4)=9 umul128) — 49/49 tests ✅
+- [x] **v1.81 Fase MS-INTEROP:** built-in-style signed/unsigned interop en `fixed_int_t<N>`; `<=>`, shifts cross-sign, `std::common_type`, `std::numeric_limits`, `nstd::integral`/concepts — 197/197 + 24 nuevos + ~120 static_asserts ✅
 - [ ] **v1.90 next:** `to_string`/`from_string` for N>2 (loop ÷10^19)
 - [ ] **BCD Decimal Types:** aplazado post-v1.90
 
