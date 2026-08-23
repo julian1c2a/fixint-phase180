@@ -188,6 +188,144 @@ static void test_from_string_errors()
 }
 
 // =============================================================================
+// 3b. from_string / try_from_string — deteccion de desbordamiento (T2.1)
+//
+// Antes de T2.1 esto NO se detectaba: from_string("2^256") sobre un
+// uint_fixed_t<4> devolvia 0 en silencio, con el valor truncado modulo 2^256.
+// =============================================================================
+
+// Comprueba que `expr` lanza std::out_of_range.
+#define TEST_THROWS_RANGE(name, expr)     \
+    do                                    \
+    {                                     \
+        bool threw_{false};               \
+        try                               \
+        {                                 \
+            (void)(expr);                 \
+        }                                 \
+        catch (const std::out_of_range &) \
+        {                                 \
+            threw_ = true;                \
+        }                                 \
+        catch (...)                       \
+        {                                 \
+            threw_ = false;               \
+        }                                 \
+        TEST(name, threw_);               \
+    } while (false)
+
+// Devuelve la representacion decimal de `v` con `delta` sumado, usando el propio
+// to_string sobre un tipo mas ancho para no depender de aritmetica externa.
+template <std::size_t N>
+static std::string decimal_of(const uint_fixed_t<N> &v)
+{
+    return v.to_string();
+}
+
+static void test_from_string_overflow()
+{
+    std::cout << "\n--- 3b. from_string: desbordamiento (T2.1) ---\n";
+
+    using U = uint_fixed_t<4>;
+    using I = int_fixed_t<4>;
+
+    // Cotas exactas calculadas con el propio to_string, para no hardcodear.
+    const std::string u_max_str = decimal_of(U::max()); // 2^256 - 1
+    const std::string u_over_str = decimal_of(uint_fixed_t<8>{U::max()} + uint_fixed_t<8>::one());
+
+    // El maximo justo cabe.
+    const auto ok = U::try_from_string(u_max_str.c_str());
+    TEST("T2.1 u256 max() cabe", ok.success() && ok.value == U::max());
+
+    // max()+1 = 2^256 desborda (antes devolvia 0 en silencio).
+    const auto over = U::try_from_string(u_over_str.c_str());
+    TEST("T2.1 u256 2^256 -> parse_error::overflow", over.error == parse_error::overflow);
+    TEST("T2.1 u256 2^256 -> valor no corrupto", over.value.is_zero());
+    TEST_THROWS_RANGE("T2.1 u256 2^256 -> from_string lanza out_of_range",
+                      U::from_string(u_over_str.c_str()));
+
+    // Un numero absurdamente largo tambien.
+    TEST_THROWS_RANGE("T2.1 u256 200 digitos -> out_of_range", U::from_string(std::string(200, '9').c_str()));
+
+    // Con signo: los limites son asimetricos, [-2^255, 2^255-1].
+    const std::string i_max_str = decimal_of(uint_fixed_t<4>{I::max()}); // 2^255 - 1
+    const std::string i_min_mag = decimal_of(uint_fixed_t<4>{I::min()}); // 2^255 (magnitud)
+
+    const auto imax = I::try_from_string(i_max_str.c_str());
+    TEST("T2.1 i256 max() cabe", imax.success() && imax.value == I::max());
+
+    const auto imin = I::try_from_string(("-" + i_min_mag).c_str());
+    TEST("T2.1 i256 min() cabe", imin.success() && imin.value == I::min());
+
+    // +2^255 NO cabe (max() es 2^255 - 1), aunque su magnitud sí quepa en unsigned.
+    const auto ipos_over = I::try_from_string(i_min_mag.c_str());
+    TEST("T2.1 i256 +2^255 -> overflow", ipos_over.error == parse_error::overflow);
+
+    // -(2^255 + 1) tampoco.
+    const std::string i_below_min = decimal_of(uint_fixed_t<4>{I::min()} + U::one());
+    const auto ineg_over = I::try_from_string(("-" + i_below_min).c_str());
+    TEST("T2.1 i256 -(2^255+1) -> overflow", ineg_over.error == parse_error::overflow);
+
+    // Ceros a la izquierda no cuentan para el desbordamiento.
+    const auto padded = U::try_from_string(("000000" + u_max_str).c_str());
+    TEST("T2.1 ceros a la izquierda no desbordan", padded.success() && padded.value == U::max());
+
+    // --- try_from_string: codigos y posiciones ---
+    const auto e_null = U::try_from_string(nullptr);
+    TEST("T2.1 try_from_string(nullptr) -> null_pointer", e_null.error == parse_error::null_pointer);
+
+    const auto e_empty = U::try_from_string("");
+    TEST("T2.1 try_from_string(\"\") -> empty_string", e_empty.error == parse_error::empty_string);
+
+    const auto e_char = U::try_from_string("12x45");
+    TEST("T2.1 try_from_string(\"12x45\") -> invalid_character",
+         e_char.error == parse_error::invalid_character);
+    TEST("T2.1 error_index apunta al caracter culpable", e_char.error_index == 2);
+
+    const auto e_sign = I::try_from_string("-");
+    TEST("T2.1 try_from_string(\"-\") -> no_digits", e_sign.error == parse_error::no_digits);
+
+    const auto e_ok = U::try_from_string("42");
+    TEST("T2.1 try_from_string valido -> success", e_ok.success());
+    TEST("T2.1 try_from_string valido -> valor", e_ok.value == U{std::uint64_t{42}});
+}
+
+// =============================================================================
+// 3c. Constructor desde punto flotante: valores no finitos (T2.2)
+//
+// Antes, std::fmod(inf, 2^64) daba NaN y el static_cast<uint64_t>(NaN) era UB:
+// uint_fixed_t<4>{inf} producia un valor basura cercano a 2^255.
+// =============================================================================
+
+static void test_float_non_finite()
+{
+    std::cout << "\n--- 3c. constructor desde float no finito (T2.2) ---\n";
+
+    const double inf = std::numeric_limits<double>::infinity();
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+
+    TEST("T2.2 u256(+inf) == max()", uint_fixed_t<4>{inf} == uint_fixed_t<4>::max());
+    TEST("T2.2 u256(-inf) == 0", uint_fixed_t<4>{-inf}.is_zero());
+    TEST("T2.2 u256(NaN)  == 0", uint_fixed_t<4>{nan}.is_zero());
+
+    TEST("T2.2 i256(+inf) == max()", int_fixed_t<4>{inf} == int_fixed_t<4>::max());
+    TEST("T2.2 i256(-inf) == min()", int_fixed_t<4>{-inf} == int_fixed_t<4>::min());
+    TEST("T2.2 i256(NaN)  == 0", int_fixed_t<4>{nan}.is_zero());
+
+    // float y long double toman el mismo camino.
+    TEST("T2.2 u128(+inf f) == max()",
+         uint_fixed_t<2>{std::numeric_limits<float>::infinity()} == uint_fixed_t<2>::max());
+    TEST("T2.2 u128(NaN long double) == 0",
+         uint_fixed_t<2>{std::numeric_limits<long double>::quiet_NaN()}.is_zero());
+
+    // Los finitos siguen comportandose igual que antes.
+    TEST("T2.2 u256(3.9) == 3", uint_fixed_t<4>{3.9} == uint_fixed_t<4>{std::uint64_t{3}});
+    TEST("T2.2 i256(-3.9) == -3", int_fixed_t<4>{-3.9} == int_fixed_t<4>{std::int64_t{-3}});
+    TEST("T2.2 u256(-3.9) == 0 (negativo a unsigned)", uint_fixed_t<4>{-3.9}.is_zero());
+    TEST("T2.2 u256(0.0) == 0", uint_fixed_t<4>{0.0}.is_zero());
+}
+
+// =============================================================================
 // 4. Round-trip to_string -> from_string
 // =============================================================================
 
@@ -272,6 +410,8 @@ int main()
     test_to_string();
     test_from_string_valid();
     test_from_string_errors();
+    test_from_string_overflow();
+    test_float_non_finite();
 
     test_round_trip<1>("N=1 (64-bit)");
     test_round_trip<2>("N=2 (128-bit)");

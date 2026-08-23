@@ -746,10 +746,42 @@ static void test_shift_cross_sign()
     // Mirrors built-in `int x = 1; x << -1;` (UB), but at least we don't crash.
     TEST("u2{1}<<i1{-1}==u2{0}", (u2{1} << i1{-1}) == u2{0});
 
+    // ---- T2.3 (auditoria 23 ago 2026): contadores que no caben en `unsigned` ----
+    //
+    // Antes, el contador se reducia con static_cast<unsigned>(shift.data[0]), lo
+    // que truncaba por dos sitios: los limbos altos y los bits por encima de 32.
+    // Resultado: contadores enormes se comportaban como contadores pequenyos.
+    {
+        // 2^64: data[0] == 0 y data[1] == 1. Antes daba `x << 0` == x.
+        u2 c_2_64{};
+        c_2_64.set_limb(1, 1);
+        TEST("T2.3 u2{1}<<u2{2^64}==0", (u2{1} << c_2_64) == u2{0});
+        TEST("T2.3 u2::max()>>u2{2^64}==0", (u2::max() >> c_2_64) == u2{0});
+
+        // 2^32: cabe en data[0] pero se pierde al truncar a `unsigned` de 32 bits.
+        const u2 c_2_32{std::uint64_t{1} << 32};
+        TEST("T2.3 u2{1}<<u2{2^32}==0", (u2{1} << c_2_32) == u2{0});
+
+        // Justo en la frontera y justo por debajo.
+        TEST("T2.3 u2{1}<<u2{127} tiene solo el MSB", (u2{1} << u2{127}).limb(1) == (std::uint64_t{1} << 63));
+        TEST("T2.3 u2{1}<<u2{128}==0", (u2{1} << u2{128}) == u2{0});
+
+        // Contador con signo negativo y enorme a la vez: mismo camino.
+        i2 c_neg_big{};
+        c_neg_big.set_limb(1, ~std::uint64_t{0});
+        TEST("T2.3 u2{1}<<i2{negativo grande}==0", (u2{1} << c_neg_big) == u2{0});
+
+        // Desplazamiento aritmetico con contador enorme: relleno de signo, no x.
+        TEST("T2.3 i2{-1}>>u2{2^64}==-1", (i2{-1} >> c_2_64) == i2{-1});
+        TEST("T2.3 i2{-8}>>u2{2^64}==-1", (i2{-8} >> c_2_64) == i2{-1});
+        TEST("T2.3 i2{8}>>u2{2^64}==0", (i2{8} >> c_2_64) == i2{0});
+    }
+
     // constexpr: all shift overloads are constexpr.
     static_assert((u2{1} << u1{3}) == u2{8});
     static_assert((u2{8} >> u1{3}) == u2{1});
     static_assert((i2{-1} >> u1{0}) == i2{-1});
+    static_assert((u2{1} << u2{128}) == u2{0});
 }
 
 // =============================================================================

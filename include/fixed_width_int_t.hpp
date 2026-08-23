@@ -236,9 +236,36 @@ namespace nstd
                 data[i] = fill;
         }
 
+        // Construccion desde punto flotante.
+        //
+        // Valores no finitos (T2.2 — auditoria 23 ago 2026): antes se colaban al
+        // bucle de abajo, donde std::fmod(inf, 2^64) da NaN y el
+        // static_cast<uint64_t>(NaN) es comportamiento indefinido (en la practica
+        // producia un valor basura cercano a 2^255 para uint_fixed_t<4>). Ahora se
+        // saturan de forma definida, en linea con la conversion float->int con
+        // saturacion de otros lenguajes y con std::numeric_limits:
+        //
+        //   NaN   -> 0
+        //   +inf  -> max()
+        //   -inf  -> min()   (con signo)  /  0  (sin signo)
+        //
+        // Los valores finitos fuera de rango siguen truncandose modulo 2^(64N),
+        // igual que la conversion entre enteros built-in.
         template <typename F, std::enable_if_t<std::is_floating_point_v<F>, int> = 0>
         explicit fixed_int_t(F v) noexcept : data{}
         {
+            if (!std::isfinite(v))
+            {
+                if (v != v) // NaN
+                    return; // queda en cero
+                if (v > F{0})
+                    *this = max();
+                else if constexpr (is_signed)
+                    *this = min();
+                // sin signo y -inf: queda en cero
+                return;
+            }
+
             if constexpr (is_signed)
             {
                 if (v >= F{0})
@@ -610,36 +637,70 @@ namespace nstd
         // Shift overloads with fixed_int_t<M, S2, F2> count  (T1 — Fase MS-INTEROP)
         //
         // Built-in semantics: `x << n` accepts any integral n; negative or
-        // out-of-range counts yield UB. We mirror that — the count is reduced to
-        // an `unsigned` (truncating high bits), then dispatched to the existing
-        // unsigned overload. Counts >= 64*N produce zero (or sign-fill on signed
-        // right shift), matching the unsigned-overload's existing behavior. A
-        // negative signed count maps to a huge unsigned via two's-complement
-        // representation in data[0] — same wraparound as built-in `int << -1`.
+        // out-of-range counts yield UB. Aqui NO hay UB: el resultado esta siempre
+        // definido y coincide con el de la sobrecarga `unsigned`.
+        //
+        // T2.3 (auditoria 23 ago 2026). Antes se hacia
+        // `static_cast<unsigned>(shift.data[0])`, que truncaba los limbos altos:
+        // `x << u256{2^64}` devolvia `x` en vez de 0, porque data[0] valia 0. Y
+        // `x << u256{2^32}` devolvia `x << 0` por el truncado a 32 bits de
+        // `unsigned`. Ahora cualquier contador que no quepa en el rango util
+        // [0, 64N) satura a 64N, que es justo el camino de "desplazamiento
+        // completo" de la sobrecarga `unsigned`:
+        //
+        //   contador >= 64N  ->  0  (o relleno de signo en >> con signo)
+        //   contador < 0     ->  idem (un contador negativo es, en complemento a
+        //                        dos, un valor enorme: satura igual)
         // =========================================================================
+
+        // Reduce un contador de desplazamiento fixed_int_t<M,S2,F2> a `unsigned`,
+        // saturando a 64*N cuando no cabe o es negativo.
+        template <std::size_t M, signedness S2, representation_form F2>
+        static constexpr unsigned shift_count_of(const fixed_int_t<M, S2, F2> &shift) noexcept
+        {
+            constexpr unsigned saturated = 64U * static_cast<unsigned>(N);
+
+            // Contador negativo (solo posible si el tipo del contador tiene signo).
+            if constexpr (S2 == signedness::signed_type)
+            {
+                if ((shift.data[M - 1] >> 63) != 0)
+                    return saturated;
+            }
+
+            // Cualquier limbo por encima del bajo distinto de cero => enorme.
+            for (std::size_t i{1}; i < M; ++i)
+                if (shift.data[i] != 0)
+                    return saturated;
+
+            const std::uint64_t low = shift.data[0];
+            if (low >= static_cast<std::uint64_t>(saturated))
+                return saturated;
+
+            return static_cast<unsigned>(low);
+        }
 
         template <std::size_t M, signedness S2, representation_form F2>
         constexpr fixed_int_t operator<<(const fixed_int_t<M, S2, F2> &shift) const noexcept
         {
-            return *this << static_cast<unsigned>(shift.data[0]);
+            return *this << shift_count_of(shift);
         }
 
         template <std::size_t M, signedness S2, representation_form F2>
         constexpr fixed_int_t operator>>(const fixed_int_t<M, S2, F2> &shift) const noexcept
         {
-            return *this >> static_cast<unsigned>(shift.data[0]);
+            return *this >> shift_count_of(shift);
         }
 
         template <std::size_t M, signedness S2, representation_form F2>
         constexpr fixed_int_t &operator<<=(const fixed_int_t<M, S2, F2> &shift) noexcept
         {
-            return *this <<= static_cast<unsigned>(shift.data[0]);
+            return *this <<= shift_count_of(shift);
         }
 
         template <std::size_t M, signedness S2, representation_form F2>
         constexpr fixed_int_t &operator>>=(const fixed_int_t<M, S2, F2> &shift) noexcept
         {
-            return *this >>= static_cast<unsigned>(shift.data[0]);
+            return *this >>= shift_count_of(shift);
         }
 
         // =========================================================================
@@ -1824,44 +1885,112 @@ namespace nstd
             return std::string(buf + pos, buf + max_digits);
         }
 
-        static fixed_int_t from_string(const char *s)
+        // Parseo base 10 sin excepciones.
+        //
+        // T2.1 (auditoria 23 ago 2026). Antes, la acumulacion
+        // `result = result * 10 + digito` no comprobaba nada: parsear 2^256 en un
+        // uint_fixed_t<4> devolvia 0 EN SILENCIO, con el valor truncado modulo
+        // 2^(64N). Los codigos `parse_error` y el tipo `parse_result<T>` llevaban
+        // declarados desde el principio de este fichero sin usarse; aqui es donde
+        // se cablean.
+        //
+        // Gramatica aceptada (estricta, sin espacios ni separadores):
+        //   con signo:  [+-]? digito+
+        //   sin signo:  digito+          (el signo NO se acepta, ni '+' ni '-')
+        //
+        // Errores devueltos: null_pointer, empty_string, no_digits,
+        // invalid_character, overflow. `error_index` apunta al caracter culpable
+        // (en overflow, al digito que se sale de rango).
+        [[nodiscard]] static parse_result<fixed_int_t> try_from_string(const char *s) noexcept
         {
+            using U = uint_fixed_t<N>;
+
+            if (!s)
+                return {parse_error::null_pointer, fixed_int_t{}, std::string::npos};
+            if (*s == '\0')
+                return {parse_error::empty_string, fixed_int_t{}, 0};
+
+            const char *p = s;
+            bool negative = false;
+
             if constexpr (is_signed)
             {
-                if (!s || *s == '\0')
-                    throw std::invalid_argument("fixed_int_t::from_string: empty string");
-                if (*s == '-')
+                if (*p == '-' || *p == '+')
                 {
-                    if (*(s + 1) == '\0')
-                        throw std::invalid_argument("fixed_int_t::from_string: only minus sign");
-                    return -fixed_int_t{uint_fixed_t<N>::from_string(s + 1)};
+                    negative = (*p == '-');
+                    ++p;
+                    if (*p == '\0')
+                        return {parse_error::no_digits, fixed_int_t{}, static_cast<std::size_t>(p - s)};
                 }
-                if (*s == '+')
-                {
-                    if (*(s + 1) == '\0')
-                        throw std::invalid_argument("fixed_int_t::from_string: only plus sign");
-                    return fixed_int_t{uint_fixed_t<N>::from_string(s + 1)};
-                }
-                return fixed_int_t{uint_fixed_t<N>::from_string(s)};
+            }
+
+            // Cotas exactas para detectar el desbordamiento digito a digito:
+            // acc cabe tras `acc*10 + d` si y solo si
+            //   acc < max/10, o bien acc == max/10 y d <= max%10.
+            const U ten{std::uint64_t{10}};
+            const U u_max = U::max();
+            const auto [u_max_div10, u_max_mod10] = U::divmod(u_max, ten);
+            const std::uint64_t max_last_digit = u_max_mod10.limb(0);
+
+            U mag{};
+            bool any = false;
+
+            for (; *p != '\0'; ++p)
+            {
+                const char c{*p};
+                if (c < '0' || c > '9')
+                    return {parse_error::invalid_character, fixed_int_t{}, static_cast<std::size_t>(p - s)};
+
+                const std::uint64_t digit = static_cast<std::uint64_t>(c - '0');
+
+                if (mag > u_max_div10 || (mag == u_max_div10 && digit > max_last_digit))
+                    return {parse_error::overflow, fixed_int_t{}, static_cast<std::size_t>(p - s)};
+
+                mag = mag * ten + U{digit};
+                any = true;
+            }
+
+            if (!any)
+                return {parse_error::no_digits, fixed_int_t{}, 0};
+
+            if constexpr (is_signed)
+            {
+                // Rango representable: [-2^(64N-1), 2^(64N-1)-1].
+                const U limit_pos = u_max >> 1;                                        // 2^(64N-1) - 1
+                const U limit_neg = U::one() << (64U * static_cast<unsigned>(N) - 1U); // 2^(64N-1)
+                if (negative ? (mag > limit_neg) : (mag > limit_pos))
+                    return {parse_error::overflow, fixed_int_t{}, static_cast<std::size_t>(p - s - 1)};
+
+                const fixed_int_t value{mag};
+                return {parse_error::success, negative ? -value : value, std::string::npos};
             }
             else
             {
-                if (!s || *s == '\0')
+                return {parse_error::success, fixed_int_t{mag}, std::string::npos};
+            }
+        }
+
+        // Version que lanza. Mensajes de error compatibles con las versiones
+        // anteriores; el desbordamiento es std::out_of_range (como std::stoull),
+        // no std::invalid_argument.
+        static fixed_int_t from_string(const char *s)
+        {
+            const parse_result<fixed_int_t> r = try_from_string(s);
+            switch (r.error)
+            {
+                case parse_error::success:
+                    return r.value;
+                case parse_error::null_pointer:
+                case parse_error::empty_string:
                     throw std::invalid_argument("fixed_int_t::from_string: empty string");
-                const fixed_int_t ten{std::uint64_t{10}};
-                fixed_int_t result{};
-                bool any{false};
-                for (; *s != '\0'; ++s)
-                {
-                    const char c{*s};
-                    if (c < '0' || c > '9')
-                        throw std::invalid_argument("fixed_int_t::from_string: invalid character");
-                    result = result * ten + fixed_int_t{static_cast<std::uint64_t>(c - '0')};
-                    any = true;
-                }
-                if (!any)
+                case parse_error::no_digits:
                     throw std::invalid_argument("fixed_int_t::from_string: no digits");
-                return result;
+                case parse_error::invalid_character:
+                    throw std::invalid_argument("fixed_int_t::from_string: invalid character");
+                case parse_error::overflow:
+                    throw std::out_of_range("fixed_int_t::from_string: value out of range");
+                default:
+                    throw std::invalid_argument("fixed_int_t::from_string: parse error");
             }
         }
 
