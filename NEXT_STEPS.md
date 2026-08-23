@@ -162,14 +162,14 @@ no de arquitectura:
 | ~~T2.4~~ ✅ | ~~**`data` privado**~~ (hecho: `limb`/`set_limb`/`limbs`/`limbs_ref` + friend, 116 accesos migrados, commit `d163e5a`) | Añadir `limb(i)`, `set_limb(i,v)`, `limbs()` + `template <...> friend class fixed_int_t;` (hoy **no hay ni un `friend`**), y migrar los 111 accesos externos. Ver [P13] para el trade-off del *structural type*. | #13 |
 | ~~T2.5~~ ✅ | ~~Header autocontenido~~ (hecho: 28/28 vía `scripts/check_headers_selfcontained.py`, commit `d163e5a`) | `int128_param_traits_specializations.hpp` según [P12b], y añadir a CI un test que compile **cada** header aislado. | #12b |
 
-#### ⚙️ Fase 3 — `constexpr` en división y módulo (objetivo de rama)
+#### ⚙️ Fase 3 — `constexpr` en división y módulo (objetivo de rama) ✅ COMPLETADA (23 ago 2026)
 
 | id | Tarea | Detalle | Ref |
 |----|-------|---------|-----|
-| T3.1 | **`divmod` / `operator/` / `operator%` constexpr** | Es viable y no requiere reescribir el algoritmo: el camino portable de división larga **ya existe** en el código. Lo único no-constexpr son los bloques de intrínsecos: `_udiv128`/`_umul128` (MSVC) y `__asm__("divq")` (ICX Windows). `unsigned __int128` de GCC/Clang **sí** es constexpr. Plan: envolver cada bloque de intrínseco en `if (!std::is_constant_evaluated()) { ... } else { portable }` (patrón que ya usa `intrinsics::addcarry_u64`), y marcar `constexpr` la cadena completa: `divmod`, `/`, `%`, `/=`, `%=` y sus 20+ sobrecargas libres. | #7 |
-| T3.2 | División por cero en contexto constante | El `throw std::domain_error` de [línea 916](include/fixed_width_int_t.hpp#L916) dentro de una función `constexpr` es **exactamente el comportamiento estándar deseado**: en tiempo de compilación hace que la expresión no sea constante → error de compilación, igual que `1/0` con `int`. No hay que quitarlo. | #7 |
-| T3.3 | Arrastre | `sqrt`, `lcm` y todo lo que dependa de `/` pasan a `constexpr` en cascada. Tests: `static_assert` de división en las 4 combinaciones N × signo. | #7 |
-| T3.4 | Ver también | `docs/PLAN_DIVMOD_CONSTEXPR.md` (24 KB) ya tiene análisis previo — revisar y reconciliar con este plan antes de implementar. | #7 |
+| ~~T3.1~~ ✅ | ~~**`divmod` / `operator/` / `operator%` constexpr**~~ (hecho: primitivas `mul_64x64` / `div_128_64`, commit `ceb7421`) | Es viable y no requiere reescribir el algoritmo: el camino portable de división larga **ya existe** en el código. Lo único no-constexpr son los bloques de intrínsecos: `_udiv128`/`_umul128` (MSVC) y `__asm__("divq")` (ICX Windows). `unsigned __int128` de GCC/Clang **sí** es constexpr. Plan: envolver cada bloque de intrínseco en `if (!std::is_constant_evaluated()) { ... } else { portable }` (patrón que ya usa `intrinsics::addcarry_u64`), y marcar `constexpr` la cadena completa: `divmod`, `/`, `%`, `/=`, `%=` y sus 20+ sobrecargas libres. | #7 |
+| ~~T3.2~~ ✅ | ~~División por cero en contexto constante~~ (verificado: el `throw` da error de compilación, como `1/0`) | El `throw std::domain_error` de [línea 916](include/fixed_width_int_t.hpp#L916) dentro de una función `constexpr` es **exactamente el comportamiento estándar deseado**: en tiempo de compilación hace que la expresión no sea constante → error de compilación, igual que `1/0` con `int`. No hay que quitarlo. | #7 |
+| ~~T3.3~~ ✅ | ~~Arrastre~~ (hecho: `sqrt`, `lcm` y 42 sobrecargas de `/` `%`; 30 `static_assert` nuevos) | `sqrt`, `lcm` y todo lo que dependa de `/` pasan a `constexpr` en cascada. Tests: `static_assert` de división en las 4 combinaciones N × signo. | #7 |
+| ~~T3.4~~ ✅ | ~~Ver también~~ (revisado: **no hay conflicto**, ese plan trata de divisores *constantes* (GM `div<D>`), ya implementado para `int128_param_t`) | `docs/PLAN_DIVMOD_CONSTEXPR.md` (24 KB) ya tiene análisis previo — revisar y reconciliar con este plan antes de implementar. | #7 |
 
 #### 📦 Fase 4 — Integración STL de `fixed_int_t` (paridad con los tipos que sustituye)
 
@@ -219,8 +219,8 @@ no de arquitectura:
 2. **T1.4** (`.clang-format`) **antes de tocar código**, o el próximo guardado vuelve a generar ruido.
 3. **T1.1** (compilador correcto) antes de medir o comparar nada.
 4. ~~**Fase 2** (correctitud)~~ ✅ completada 23 ago 2026. Los tres fallos corrompían valores en silencio; el `+` de `from_string` y el `data` privado entraron en el mismo bloque.
-5. **Fase 3** (constexpr div/mod) — es el objetivo declarado de la rama. **← SIGUIENTE**
-6. **Fase 4 + Fase 5** juntas: cada pieza STL entra con sus tests.
+5. ~~**Fase 3** (constexpr div/mod)~~ ✅ completada 23 ago 2026. Sin regresión de rendimiento (verificado con 7 rondas intercaladas, mínimo por caso).
+6. **Fase 4 + Fase 5** juntas: cada pieza STL entra con sus tests. **← SIGUIENTE**
 7. **Fase 6** al final de cada bloque, invocando `ACTUALIZA_DOC`.
 8. **Fase 7** en paralelo, no bloquea a nadie.
 
