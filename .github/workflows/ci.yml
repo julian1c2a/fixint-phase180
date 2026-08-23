@@ -379,6 +379,112 @@ jobs:
           if [ $FAIL -gt 0 ]; then exit 1; fi
 
   # ============================================================================
+  # Compilacion con Clang SIN flags no estandar  (T7.3)
+  #
+  # La biblioteca tiene que compilar con `clang++ -std=c++20 -I include` y nada
+  # mas. Durante meses NO fue asi: la inicializacion de GM_TABLE gastaba unos 2
+  # millones de pasos constexpr, el doble del limite por defecto de Clang, y
+  # hacia falta -fconstexpr-steps=100000000. El flag lo inyectaban los scripts
+  # del proyecto, asi que el problema solo se veia al incluir los headers desde
+  # fuera. Este job existe para que no vuelva a colarse.
+  # ============================================================================
+  clang-no-flags:
+    name: "Clang sin flags extra (consumidor externo)"
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Clang 19
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-19
+
+      - name: Cada header, aislado y sin flags extra
+        run: |
+          echo "=== Un TU por header, solo -std=c++20 -I include ==="
+          FAIL=0; TOTAL=0
+          mkdir -p build_temp
+          for hdr in $(find include -name '*.hpp' | sort); do
+            rel="${hdr#include/}"
+            name=$(echo "$rel" | tr '/' '_')
+            TOTAL=$((TOTAL + 1))
+            printf '  %-52s ' "$rel"
+            printf '#include "%s"\n#include "%s"\n' "$rel" "$rel" > "build_temp/${name}.cpp"
+            if clang++-19 -std=c++20 -I include -fsyntax-only "build_temp/${name}.cpp" 2>"build_temp/${name}.err"; then
+              echo OK
+            else
+              echo FAIL
+              grep -m3 'error:' "build_temp/${name}.err" || true
+              FAIL=$((FAIL + 1))
+            fi
+          done
+          echo ""
+          echo "=== $((TOTAL - FAIL))/$TOTAL headers compilan sin flags extra ==="
+          if [ $FAIL -gt 0 ]; then
+            echo "Algun header necesita flags no estandar. Ver T7.3 en NEXT_STEPS.md."
+            exit 1
+          fi
+
+      - name: La suite, sin flags extra
+        run: |
+          FAIL=0; TOTAL=0
+          for src in tests/test_*.cpp; do
+            name=$(basename "$src" .cpp)
+            TOTAL=$((TOTAL + 1))
+            printf '  %-40s ' "$name"
+            if clang++-19 -std=c++20 -O2 -I include -o "build_temp/$name" "$src" 2>"build_temp/${name}.err"; then
+              echo OK
+            else
+              echo FAIL
+              grep -m3 'error:' "build_temp/${name}.err" || true
+              FAIL=$((FAIL + 1))
+            fi
+          done
+          echo "=== $((TOTAL - FAIL))/$TOTAL tests compilan sin flags extra ==="
+          if [ $FAIL -gt 0 ]; then exit 1; fi
+
+  # ============================================================================
+  # Formato y coherencia de la documentacion  (T1.4, T6.5)
+  # ============================================================================
+  format-and-docs:
+    name: "clang-format + armonizador de documentacion"
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install clang-format 19 y doxygen
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main"
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq clang-format-19 doxygen
+
+      - name: El arbol respeta .clang-format
+        run: |
+          FAIL=0
+          for f in $(find include tests benchs demos -name '*.hpp' -o -name '*.cpp' | sort); do
+            if ! clang-format-19 --dry-run --Werror "$f" 2>/dev/null; then
+              echo "  sin formatear: $f"
+              FAIL=$((FAIL + 1))
+            fi
+          done
+          if [ $FAIL -gt 0 ]; then
+            echo "$FAIL ficheros no respetan .clang-format. Ejecuta: clang-format -i <fichero>"
+            exit 1
+          fi
+          echo "Todo el arbol respeta .clang-format"
+
+      - name: Headers autocontenidos
+        run: python3 scripts/check_headers_selfcontained.py --compiler gcc
+
+      - name: Coherencia de la documentacion
+        run: python3 scripts/check_docs_consistency.py --doxygen
+
+  # ============================================================================
   # Static Analysis — cppcheck (include/ headers)
   # continue-on-error: findings shown in dashboard but don't block CI
   # ============================================================================
@@ -507,6 +613,9 @@ jobs:
           done
           echo ""
           echo "=== INTEL SUMMARY: $PASS/$TOTAL passed ==="
+          # T7.1: mismo caso que x86-32; este job contaba los fallos, los
+          # imprimia y salia con 0. Nunca pudo fallar desde que se creo.
+          if [ $FAIL -gt 0 ]; then exit 1; fi
 
   # ============================================================================
   # CI Dashboard Summary
@@ -514,7 +623,7 @@ jobs:
   ci-summary:
     name: CI Dashboard
     runs-on: ubuntu-latest
-    needs: [native-linux, native-arm64, native-windows, cross-arm64, cross-arm32, cross-riscv64, cross-x86-32, sanitizers, static-cppcheck, static-clang-tidy]
+    needs: [native-linux, native-arm64, native-windows, cross-arm64, cross-arm32, cross-riscv64, cross-x86-32, sanitizers, clang-no-flags, format-and-docs, static-cppcheck, static-clang-tidy]
     if: always()
 
     steps:
@@ -550,5 +659,10 @@ jobs:
           needs.native-arm64.result == 'failure' ||
           needs.native-windows.result == 'failure' ||
           needs.cross-arm64.result == 'failure' ||
-          needs.cross-riscv64.result == 'failure'
+          needs.cross-arm32.result == 'failure' ||
+          needs.cross-riscv64.result == 'failure' ||
+          needs.cross-x86-32.result == 'failure' ||
+          needs.sanitizers.result == 'failure' ||
+          needs.clang-no-flags.result == 'failure' ||
+          needs.format-and-docs.result == 'failure'
         run: exit 1
