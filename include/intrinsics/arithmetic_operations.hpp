@@ -1,5 +1,26 @@
 // This is an open source non-commercial project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
+// =============================================================================
+// int128 Library - 128-bit Integer Types for C++20
+// =============================================================================
+//
+// SPDX-License-Identifier: BSL-1.0
+//
+// Copyright (c) 2024-2026 Julián Calderón Almendros
+// Email: julian.calderon.almendros@gmail.com
+//
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE.txt or copy at
+//  https://www.boost.org/LICENSE_1_0.txt)
+//
+// =============================================================================
+// @file       arithmetic_operations.hpp
+// @brief      Intrinsecos de aritmetica: addcarry, subborrow, mulx, div128
+// @author     Julián Calderón Almendros
+// @date       2026-08-23 (last edit)
+// @version    1.90.0
+// =============================================================================
+
 /*
  * Boost Software License - Version 1.0 - August 17th, 2003
  *

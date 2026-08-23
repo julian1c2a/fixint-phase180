@@ -1,6 +1,66 @@
 // This is an open source non-commercial project. Dear PVS-Studio, please check it.
 // PVS-Studio Static Code Analyzer for C, C++, C#, and Java: https://pvs-studio.com
 // =============================================================================
+// int128 Library - 128-bit Integer Types for C++20
+// =============================================================================
+//
+// SPDX-License-Identifier: BSL-1.0
+//
+// Copyright (c) 2024-2026 Julián Calderón Almendros
+// Email: julian.calderon.almendros@gmail.com
+//
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE.txt or copy at
+//  https://www.boost.org/LICENSE_1_0.txt)
+//
+// =============================================================================
+// @file       fixed_width_int_t.hpp
+// @brief      fixed_int_t<N, Sign, Form>: entero de N x 64 bits
+// @author     Julián Calderón Almendros
+// @date       2026-08-23 (last edit)
+// @version    1.90.0
+// =============================================================================
+
+/**
+ * @file fixed_width_int_t.hpp
+ * @brief `fixed_int_t<N, Sign, Form>`: entero de anchura fija de N x 64 bits.
+ *
+ * @details
+ * Un unico template cubre los enteros con y sin signo de cualquier anchura
+ * multiplo de 64 bits. Los limbos se guardan en orden little-endian:
+ * `limb(0)` es el menos significativo y `limb(N-1)` el mas significativo.
+ *
+ * | Alias | N | Bits |
+ * |---|---|---|
+ * | `uint64_fixed_t` / `int64_fixed_t`   | 1 | 64  |
+ * | `uint128_fixed_t` / `int128_fixed_t` | 2 | 128 |
+ * | `uint256_fixed_t` / `int256_fixed_t` | 4 | 256 |
+ * | `uint512_fixed_t` / `int512_fixed_t` | 8 | 512 |
+ *
+ * **Semantica.** Toda la aritmetica es modular respecto a 2^(64N), igual que la
+ * de los enteros built-in sin signo y la de los enteros con signo en
+ * complemento a dos de C++20. La division trunca hacia cero y el resto toma el
+ * signo del dividendo, como en C++. `min() / -1` envuelve a `min()` en lugar de
+ * ser comportamiento indefinido.
+ *
+ * **constexpr.** Todas las operaciones son evaluables en tiempo de compilacion,
+ * division y modulo incluidos. La division por cero lanza `std::domain_error`,
+ * lo que en contexto constante se traduce en un error de compilacion, igual que
+ * `1/0` con un `int`.
+ *
+ * **Rendimiento.** Hay caminos rapidos por plataforma (intrinsecos de MSVC,
+ * `unsigned __int128` en GCC/Clang, asm en ICX-Windows), Karatsuba para N=4 y
+ * N=8 en la multiplicacion, y el algoritmo D de Knuth para la division con
+ * divisores de dos o mas limbos.
+ *
+ * @see fixed_int_iostreams.hpp  para `operator<<` y `operator>>`
+ * @see fixed_int_format.hpp     para `std::format`
+ * @see fixed_int_hash.hpp       para `std::hash`
+ * @see fixed_int_limits.hpp     para `std::numeric_limits`
+ * @see fixed_int_concepts.hpp   para `nstd::integral` y companyia
+ */
+
+// =============================================================================
 // fixed_width_int_t.hpp — Fixed-width integer templates (N x 64-bit limbs)
 // Part of int128 Library - Phase 1.90
 // License: BSL-1.0
@@ -116,6 +176,31 @@ namespace nstd
               representation_form Form =
                   (Sign == signedness::unsigned_type ? representation_form::binnat
                                                      : representation_form::twos_complement)>
+    /**
+     * @brief Entero de anchura fija de N x 64 bits, con o sin signo.
+     *
+     * @tparam N     Numero de limbos de 64 bits. N >= 1.
+     * @tparam Sign  `signedness::unsigned_type` o `signedness::signed_type`.
+     * @tparam Form  Representacion interna. Se deduce de `Sign`: `binnat` para
+     *               los tipos sin signo y `twos_complement` para los que tienen
+     *               signo. Son las dos unicas combinaciones implementadas.
+     *
+     * @details
+     * Toda la aritmetica es modular respecto a 2^(64N). El tipo es trivialmente
+     * copiable, asi que `std::bit_cast` y `memcpy` funcionan sobre el; no es en
+     * cambio un *structural type*, de modo que no puede usarse como parametro
+     * no-tipo de plantilla (los limbos son privados desde la version 1.90).
+     *
+     * Preferir los alias `uint_fixed_t<N>` e `int_fixed_t<N>` a escribir la
+     * plantilla completa.
+     *
+     * @code
+     * using nstd::uint256_fixed_t;
+     * constexpr uint256_fixed_t a{1000000};
+     * constexpr auto b = a * a;          // constexpr, modular
+     * static_assert(b / a == a);
+     * @endcode
+     */
     class fixed_int_t
     {
         static_assert(N >= 1, "fixed_int_t requires at least 1 limb");
@@ -155,12 +240,17 @@ namespace nstd
         //                           de tests que construyen patrones de bits.
         // =========================================================================
 
+        /// @brief Limbo `i`, con `limb(0)` el menos significativo. `i` en [0, N).
         [[nodiscard]] constexpr std::uint64_t limb(std::size_t i) const noexcept { return data[i]; }
 
+        /// @brief Fija el limbo `i`. No comprueba el rango: `i` debe estar en [0, N).
         constexpr void set_limb(std::size_t i, std::uint64_t v) noexcept { data[i] = v; }
 
+        /// @brief Los N limbos en orden little-endian, solo lectura.
         [[nodiscard]] constexpr const std::array<std::uint64_t, N> &limbs() const noexcept { return data; }
 
+        /// @brief Los N limbos en orden little-endian, con escritura.
+        /// @warning Permite dejar el valor en cualquier estado: usar con cuidado.
         [[nodiscard]] constexpr std::array<std::uint64_t, N> &limbs_ref() noexcept { return data; }
 
     private:
@@ -296,6 +386,7 @@ namespace nstd
 
         static constexpr fixed_int_t one() noexcept { return fixed_int_t{std::uint64_t{1}}; }
 
+        /// @brief Mayor valor representable: 2^(64N)-1 sin signo, 2^(64N-1)-1 con signo.
         static constexpr fixed_int_t max() noexcept
         {
             fixed_int_t r{};
@@ -313,6 +404,7 @@ namespace nstd
             return r;
         }
 
+        /// @brief Menor valor representable: 0 sin signo, -2^(64N-1) con signo.
         static constexpr fixed_int_t min() noexcept
         {
             if constexpr (!is_signed)
@@ -374,6 +466,7 @@ namespace nstd
         // Predicates
         // =========================================================================
 
+        /// @brief `true` si todos los limbos son cero.
         constexpr bool is_zero() const noexcept
         {
             for (const auto &limb : data)
@@ -1644,6 +1737,7 @@ namespace nstd
         // =========================================================================
 
         // Number of significant bits (floor(log2(x))+1), returns 0 for zero
+        /// @brief Numero de bits significativos, floor(log2(x))+1. Devuelve 0 para el cero.
         constexpr unsigned bit_width() const noexcept
         {
             for (std::size_t i{N}; i-- > 0;)
@@ -1664,6 +1758,7 @@ namespace nstd
         }
 
         // Population count (number of set bits)
+        /// @brief Numero de bits a uno.
         constexpr unsigned popcount() const noexcept
         {
             unsigned total{0};
@@ -1680,12 +1775,14 @@ namespace nstd
         }
 
         // Count leading zeros (MSB end); returns 64*N for zero
+        /// @brief Ceros a la izquierda (por el lado del MSB). Devuelve 64*N para el cero.
         constexpr unsigned count_leading_zeros() const noexcept
         {
             return 64U * static_cast<unsigned>(N) - bit_width();
         }
 
         // Count trailing zeros (LSB end); returns 64*N for zero
+        /// @brief Ceros a la derecha (por el lado del LSB). Devuelve 64*N para el cero.
         constexpr unsigned count_trailing_zeros() const noexcept
         {
             for (std::size_t i{0}; i < N; ++i)
@@ -1709,6 +1806,7 @@ namespace nstd
             return 64U * static_cast<unsigned>(N);
         }
 
+        /// @brief `true` si el valor es una potencia de dos exacta. El cero no lo es.
         [[nodiscard]] constexpr bool is_power_of_two() const noexcept
         {
             return !is_zero() && (*this & (*this - one())).is_zero();

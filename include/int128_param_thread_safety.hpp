@@ -45,8 +45,8 @@
  *
  * @par Dependencies:
  * - int128_parameterized.hpp (core type)
- * - <atomic> (C++20 atomic operations)
- * - <mutex> (fallback for non-lock-free operations)
+ * - `<atomic>` (C++20 atomic operations)
+ * - `<mutex>` (fallback for non-lock-free operations)
  *
  * @par Example:
  * @code

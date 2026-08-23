@@ -491,7 +491,7 @@ namespace nstd
         /// Constructor parameters: (high_value, low_value)
         /// Storage: data{low, high}  ← Stored in REVERSE order!
         ///
-        /// @example
+        /// @par Ejemplo:
         /// @code
         ///   // To represent value 2:
         ///   const auto x = int128_param_t{0x0, 0x2};  // ✓ Correct (high=0, low=2)
@@ -1916,7 +1916,7 @@ namespace nstd
         ///   - For MS/EK: converts to real value first, then truncates
         ///   - Values exceeding target range are truncated (no saturation)
         ///
-        /// @example
+        /// @par Ejemplo:
         /// @code
         ///   const uint128_t big{0x1, 0x00000000DEADBEEF};
         ///   const auto lo = static_cast<uint64_t>(big);  // 0x00000000DEADBEEF
@@ -1980,7 +1980,7 @@ namespace nstd
          * - For TC signed: handles negative values via two's complement
          * - Large values may lose precision or become infinity
          *
-         * @example
+         * @par Ejemplo:
          * uint128_tc_t x{0, 100};
          * double d = static_cast<double>(x);  // d = 100.0
          */
@@ -2487,7 +2487,6 @@ namespace nstd
 
         /**
          * @brief Post-increment operator (native for all representations)
-         * @param Dummy parameter (unused)
          * @return Copy of original value before increment
          */
         constexpr int128_param_t operator++(int) noexcept
@@ -2553,7 +2552,6 @@ namespace nstd
 
         /**
          * @brief Post-decrement operator (native for all representations)
-         * @param Dummy parameter (unused)
          * @return Copy of original value before decrement
          */
         constexpr int128_param_t operator--(int) noexcept
@@ -2902,7 +2900,7 @@ namespace nstd
          * @param other Value to multiply
          * @return Reference to this (modified)
          */
-        constexpr int128_param_t &operator*=(const int128_param_t &) noexcept
+        constexpr int128_param_t &operator*=(const int128_param_t &other) noexcept
             requires(is_excess_k)
         = delete;
 
@@ -3025,7 +3023,7 @@ namespace nstd
          * @param other Divisor (must be non-zero)
          * @return Reference to this (modified)
          */
-        constexpr int128_param_t &operator/=(const int128_param_t &) noexcept
+        constexpr int128_param_t &operator/=(const int128_param_t &other) noexcept
             requires(is_excess_k)
         = delete;
 
@@ -4027,12 +4025,12 @@ namespace nstd
          * Efficient combined division and modulo operation.
          * Representation-aware for MS (operates on magnitude).
          *
-         * @example
+         * @par Ejemplo:
          * auto [quot, rem] = uint128_tc_t{100}.divmod(uint128_tc_t{7});
          * // quot = 14, rem = 2
          */
         [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t>
-        divmod(const int128_param_t &) const noexcept
+        divmod(const int128_param_t &divisor) const noexcept
             requires(is_excess_k)
         = delete;
 
@@ -4238,7 +4236,7 @@ namespace nstd
          * evaluates the recursion at compile time, emitting only the minimal
          * sequence of shifts and adds for the specific K value.
          *
-         * @example
+         * @par Ejemplo:
          * const uint128_t n{42};
          * const uint128_t r = n.mul<10>();  // 420
          */

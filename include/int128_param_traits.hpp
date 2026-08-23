@@ -38,8 +38,8 @@
  *
  * @par Dependencies:
  * - int128_parameterized.hpp (core type)
- * - <type_traits> (STL traits)
- * - <utility> (std::declval)
+ * - `<type_traits>` (STL traits)
+ * - `<utility>` (std::declval)
  *
  * @par Example:
  * @code
