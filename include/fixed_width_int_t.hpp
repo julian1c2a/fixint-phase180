@@ -1800,6 +1800,12 @@ namespace nstd
                         throw std::invalid_argument("fixed_int_t::from_string: only minus sign");
                     return -fixed_int_t{uint_fixed_t<N>::from_string(s + 1)};
                 }
+                if (*s == '+')
+                {
+                    if (*(s + 1) == '\0')
+                        throw std::invalid_argument("fixed_int_t::from_string: only plus sign");
+                    return fixed_int_t{uint_fixed_t<N>::from_string(s + 1)};
+                }
                 return fixed_int_t{uint_fixed_t<N>::from_string(s)};
             }
             else
