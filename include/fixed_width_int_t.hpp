@@ -961,7 +961,8 @@ namespace nstd
         // Throws std::domain_error on division by zero.
         // =========================================================================
 
-        static std::pair<fixed_int_t, fixed_int_t> divmod(const fixed_int_t &a, const fixed_int_t &b)
+        static constexpr std::pair<fixed_int_t, fixed_int_t> divmod(const fixed_int_t &a,
+                                                                    const fixed_int_t &b)
         {
             if (b.is_zero())
                 throw std::domain_error("fixed_int_t::divmod: division by zero");
@@ -1002,9 +1003,10 @@ namespace nstd
                     r.data[1] = static_cast<std::uint64_t>(r128 >> 64);
                     return {q, r};
                 }
-#elif defined(__INTEL_LLVM_COMPILER) && (defined(_WIN32) || defined(_WIN64)) && defined(_M_X64)
-                // ICX Windows: no __udivti3 runtime, no _udiv128 intrinsic.
-                // ICX uses the Clang/LLVM frontend which supports GCC-style inline asm.
+#else
+                // MSVC e ICX-Windows: 128/64 en dos pasos. div_128_64 usa el
+                // intrinseco (_udiv128) o el asm `divq` en ejecucion, y la version
+                // portable en contexto constante (T3.1).
                 if constexpr (N == 2)
                 {
                     if (b.data[1] == 0)
@@ -1012,32 +1014,14 @@ namespace nstd
                         const std::uint64_t d = b.data[0];
                         const std::uint64_t q_hi = a.data[1] / d;
                         const std::uint64_t r_hi = a.data[1] % d;
-                        std::uint64_t q_lo, rem;
-                        __asm__("divq %4" : "=a"(q_lo), "=d"(rem) : "0"(a.data[0]), "1"(r_hi), "rm"(d));
+                        std::uint64_t rem = 0;
+                        const std::uint64_t q_lo = div_128_64(r_hi, a.data[0], d, rem);
                         fixed_int_t q{};
                         q.data[0] = q_lo;
                         q.data[1] = q_hi;
                         return {q, fixed_int_t{rem}};
                     }
-                    // 128/128: fall through to binary long division
-                }
-#elif defined(_MSC_VER) && defined(_M_X64)
-                if constexpr (N == 2)
-                {
-                    if (b.data[1] == 0)
-                    {
-                        // MSVC x64: two-step 128/64 via _udiv128
-                        const std::uint64_t d = b.data[0];
-                        const std::uint64_t q_hi = a.data[1] / d;
-                        const std::uint64_t r_hi = a.data[1] % d;
-                        std::uint64_t rem;
-                        const std::uint64_t q_lo = _udiv128(r_hi, a.data[0], d, &rem);
-                        fixed_int_t q{};
-                        q.data[0] = q_lo;
-                        q.data[1] = q_hi;
-                        return {q, fixed_int_t{rem}};
-                    }
-                    // MSVC 128/128: fall through to binary long division below
+                    // 128/128: cae a la division larga binaria de mas abajo.
                 }
 #endif
 
@@ -1072,44 +1056,10 @@ namespace nstd
                         std::uint64_t rem = 0;
                         for (std::size_t i = N; i-- > 0;)
                         {
-#if defined(__SIZEOF_INT128__) && !(defined(__INTEL_LLVM_COMPILER) && (defined(_WIN32) || defined(_WIN64)))
-                            // __udivti3 detects rem < d and emits a single divq
-                            const unsigned __int128 cur =
-                                (static_cast<unsigned __int128>(rem) << 64) | a.data[i];
-                            q.data[i] = static_cast<std::uint64_t>(cur / d);
-                            rem = static_cast<std::uint64_t>(cur % d);
-#elif defined(__INTEL_LLVM_COMPILER) && (defined(_WIN32) || defined(_WIN64)) && defined(_M_X64)
-                            // ICX Windows: GCC-style inline asm (Clang/LLVM frontend)
-                            __asm__("divq %4"
-                                    : "=a"(q.data[i]), "=d"(rem)
-                                    : "0"(a.data[i]), "1"(rem), "rm"(d));
-#elif defined(_MSC_VER) && defined(_M_X64)
-                            // MSVC x64: rem < d invariant → single DIV instruction
-                            q.data[i] = _udiv128(rem, a.data[i], d, &rem);
-#else
-                            // Portable fallback: rem==0 fast case + bit-by-bit otherwise
-                            if (rem == 0)
-                            {
-                                q.data[i] = a.data[i] / d;
-                                rem = a.data[i] % d;
-                            }
-                            else
-                            {
-                                std::uint64_t qi = 0;
-                                std::uint64_t n = a.data[i];
-                                for (int bit = 63; bit >= 0; --bit)
-                                {
-                                    rem = (rem << 1) | (n >> 63);
-                                    n <<= 1;
-                                    if (rem >= d)
-                                    {
-                                        rem -= d;
-                                        qi |= std::uint64_t{1} << bit;
-                                    }
-                                }
-                                q.data[i] = qi;
-                            }
-#endif
+                            // rem < d es invariante del bucle, asi que esto es una
+                            // sola instruccion DIV en hardware. div_128_64 encapsula
+                            // intrinseco (ejecucion) vs. portable (constexpr) -- T3.1.
+                            q.data[i] = div_128_64(rem, a.data[i], d, rem);
                         }
                         return {q, fixed_int_t{rem}};
                     }
@@ -1195,35 +1145,8 @@ namespace nstd
                         }
                         else
                         {
-                            // 0 ≤ u0 < v1: exact 128/64 hardware division
-#if defined(__SIZEOF_INT128__) && !(defined(__INTEL_LLVM_COMPILER) && (defined(_WIN32) || defined(_WIN64)))
-                            {
-                                const unsigned __int128 ud = (static_cast<unsigned __int128>(u0) << 64) | u1;
-                                q_hat = static_cast<std::uint64_t>(ud / v1);
-                                r_hat = static_cast<std::uint64_t>(ud % v1);
-                            }
-#elif defined(__INTEL_LLVM_COMPILER) && (defined(_WIN32) || defined(_WIN64)) && defined(_M_X64)
-                            __asm__("divq %4" : "=a"(q_hat), "=d"(r_hat) : "0"(u1), "1"(u0), "rm"(v1));
-#elif defined(_MSC_VER) && defined(_M_X64)
-                            q_hat = _udiv128(u0, u1, v1, &r_hat);
-#else
-                            // Portable bit-by-bit 128/64 (v1 ≥ 2^63 after normalization)
-                            {
-                                std::uint64_t rem = u0;
-                                q_hat = 0;
-                                for (int bit = 63; bit >= 0; --bit)
-                                {
-                                    const bool ovf = (rem >> 63) != 0;
-                                    rem = (rem << 1) | ((u1 >> bit) & 1);
-                                    if (ovf || rem >= v1)
-                                    {
-                                        rem -= v1;
-                                        q_hat |= std::uint64_t{1} << bit;
-                                    }
-                                }
-                                r_hat = rem;
-                            }
-#endif
+                            // 0 <= u0 < v1: division 128/64 exacta (T3.1).
+                            q_hat = div_128_64(u0, u1, v1, r_hat);
                         }
 
                         // D3. Refinement: while q̂·v2 > r̂·B + u2, do q̂--, r̂ += v1
@@ -1231,20 +1154,15 @@ namespace nstd
                         {
                             while (true)
                             {
-#if defined(__SIZEOF_INT128__)
-                                const unsigned __int128 lhs = static_cast<unsigned __int128>(q_hat) * v2;
-                                const unsigned __int128 rhs =
-                                    (static_cast<unsigned __int128>(r_hat) << 64) | u2;
-                                if (lhs <= rhs)
-                                    break;
-#elif defined(_MSC_VER) && defined(_M_X64)
-                                std::uint64_t lhs_hi;
-                                const std::uint64_t lhs_lo = _umul128(q_hat, v2, &lhs_hi);
+                                // Comparacion exacta q_hat*v2 <= r_hat*B + u2.
+                                // Antes, en plataformas sin __int128 ni _umul128 se
+                                // hacia `break` sin comparar y se dejaba que el
+                                // add-back de D5 corrigiese; con mul_64x64 la
+                                // comparacion es exacta en todas (T3.1).
+                                std::uint64_t lhs_hi = 0;
+                                const std::uint64_t lhs_lo = mul_64x64(q_hat, v2, lhs_hi);
                                 if (lhs_hi < r_hat || (lhs_hi == r_hat && lhs_lo <= u2))
                                     break;
-#else
-                                break; // conservative: D5 add-back corrects any error
-#endif
                                 --q_hat;
                                 const std::uint64_t r_new = r_hat + v1;
                                 if (r_new < r_hat)
@@ -1257,46 +1175,13 @@ namespace nstd
                         std::uint64_t borrow = 0;
                         for (std::size_t i = 0; i < n; ++i)
                         {
-#if defined(__SIZEOF_INT128__)
-                            const unsigned __int128 prod =
-                                static_cast<unsigned __int128>(q_hat) * v[i] + borrow;
-                            const std::uint64_t sub = static_cast<std::uint64_t>(prod);
-                            borrow = static_cast<std::uint64_t>(prod >> 64);
+                            std::uint64_t prod_hi = 0;
+                            const std::uint64_t prod_lo = mul_64x64(q_hat, v[i], prod_hi);
+                            const std::uint64_t sub = prod_lo + borrow;
+                            borrow = prod_hi + (sub < prod_lo ? 1U : 0U);
                             if (u[j + i] < sub)
                                 ++borrow;
                             u[j + i] -= sub;
-#elif defined(_MSC_VER) && defined(_M_X64)
-                            {
-                                std::uint64_t prod_hi;
-                                const std::uint64_t prod_lo = _umul128(q_hat, v[i], &prod_hi);
-                                const std::uint64_t sub = prod_lo + borrow;
-                                borrow = prod_hi + (sub < prod_lo ? 1U : 0U);
-                                if (u[j + i] < sub)
-                                    ++borrow;
-                                u[j + i] -= sub;
-                            }
-#else
-                            // Portable 32×32→64 school multiply
-                            {
-                                const std::uint64_t ql = q_hat & 0xFFFFFFFFU;
-                                const std::uint64_t qh = q_hat >> 32;
-                                const std::uint64_t vl = v[i] & 0xFFFFFFFFU;
-                                const std::uint64_t vh = v[i] >> 32;
-                                const std::uint64_t p0 = ql * vl;
-                                const std::uint64_t p1 = ql * vh + qh * vl;
-                                const std::uint64_t p2 = qh * vh;
-                                const std::uint64_t mid_lo = p1 << 32;
-                                const std::uint64_t mid_ov = (p1 < ql * vh) ? std::uint64_t{1} << 32 : 0;
-                                const std::uint64_t prod_lo = p0 + mid_lo;
-                                const std::uint64_t lo_ov = prod_lo < p0 ? 1U : 0U;
-                                const std::uint64_t prod_hi = p2 + (p1 >> 32) + mid_ov + lo_ov;
-                                const std::uint64_t sub = prod_lo + borrow;
-                                borrow = prod_hi + (sub < prod_lo ? 1U : 0U);
-                                if (u[j + i] < sub)
-                                    ++borrow;
-                                u[j + i] -= sub;
-                            }
-#endif
                         }
 
                         // D5. Add-back if underflow (happens with prob ~2/B per step)
@@ -1372,17 +1257,17 @@ namespace nstd
             }
         }
 
-        fixed_int_t operator/(const fixed_int_t &o) const { return divmod(*this, o).first; }
+        constexpr fixed_int_t operator/(const fixed_int_t &o) const { return divmod(*this, o).first; }
 
-        fixed_int_t operator%(const fixed_int_t &o) const { return divmod(*this, o).second; }
+        constexpr fixed_int_t operator%(const fixed_int_t &o) const { return divmod(*this, o).second; }
 
-        fixed_int_t &operator/=(const fixed_int_t &o)
+        constexpr fixed_int_t &operator/=(const fixed_int_t &o)
         {
             *this = *this / o;
             return *this;
         }
 
-        fixed_int_t &operator%=(const fixed_int_t &o)
+        constexpr fixed_int_t &operator%=(const fixed_int_t &o)
         {
             *this = *this % o;
             return *this;
@@ -1418,7 +1303,7 @@ namespace nstd
 
         template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
-        fixed_int_t &operator/=(T v)
+        constexpr fixed_int_t &operator/=(T v)
         {
             *this /= fixed_int_t{v};
             return *this;
@@ -1426,7 +1311,7 @@ namespace nstd
 
         template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
-        fixed_int_t &operator%=(T v)
+        constexpr fixed_int_t &operator%=(T v)
         {
             *this %= fixed_int_t{v};
             return *this;
@@ -1472,12 +1357,12 @@ namespace nstd
             *this *= fixed_int_t{v};
             return *this;
         }
-        fixed_int_t &operator/=(unsigned __int128 v)
+        constexpr fixed_int_t &operator/=(unsigned __int128 v)
         {
             *this /= fixed_int_t{v};
             return *this;
         }
-        fixed_int_t &operator%=(unsigned __int128 v)
+        constexpr fixed_int_t &operator%=(unsigned __int128 v)
         {
             *this %= fixed_int_t{v};
             return *this;
@@ -1513,12 +1398,12 @@ namespace nstd
             *this *= fixed_int_t{v};
             return *this;
         }
-        fixed_int_t &operator/=(__int128 v)
+        constexpr fixed_int_t &operator/=(__int128 v)
         {
             *this /= fixed_int_t{v};
             return *this;
         }
-        fixed_int_t &operator%=(__int128 v)
+        constexpr fixed_int_t &operator%=(__int128 v)
         {
             *this %= fixed_int_t{v};
             return *this;
@@ -1564,13 +1449,13 @@ namespace nstd
             return *this = fixed_int_t{fixed_int_t<R, Sign, Form>{*this} * fixed_int_t<R, Sign, Form>{o}};
         }
         template <std::size_t M, typename = std::enable_if_t<M != N>>
-        fixed_int_t &operator/=(const fixed_int_t<M, Sign, Form> &o)
+        constexpr fixed_int_t &operator/=(const fixed_int_t<M, Sign, Form> &o)
         {
             constexpr std::size_t R = N > M ? N : M;
             return *this = fixed_int_t{fixed_int_t<R, Sign, Form>{*this} / fixed_int_t<R, Sign, Form>{o}};
         }
         template <std::size_t M, typename = std::enable_if_t<M != N>>
-        fixed_int_t &operator%=(const fixed_int_t<M, Sign, Form> &o)
+        constexpr fixed_int_t &operator%=(const fixed_int_t<M, Sign, Form> &o)
         {
             constexpr std::size_t R = N > M ? N : M;
             return *this = fixed_int_t{fixed_int_t<R, Sign, Form>{*this} % fixed_int_t<R, Sign, Form>{o}};
@@ -1660,7 +1545,7 @@ namespace nstd
         }
         template <std::size_t M, signedness S2, representation_form F2,
                   typename = std::enable_if_t<S2 != Sign>>
-        fixed_int_t &operator/=(const fixed_int_t<M, S2, F2> &o)
+        constexpr fixed_int_t &operator/=(const fixed_int_t<M, S2, F2> &o)
         {
             if constexpr (!is_signed)
             {
@@ -1679,7 +1564,7 @@ namespace nstd
         }
         template <std::size_t M, signedness S2, representation_form F2,
                   typename = std::enable_if_t<S2 != Sign>>
-        fixed_int_t &operator%=(const fixed_int_t<M, S2, F2> &o)
+        constexpr fixed_int_t &operator%=(const fixed_int_t<M, S2, F2> &o)
         {
             if constexpr (!is_signed)
             {
@@ -1995,6 +1880,108 @@ namespace nstd
         }
 
     private:
+        // =========================================================================
+        // Primitivas 64x64 -> 128 y 128/64, constexpr en todas las plataformas
+        //
+        // T3.1 (auditoria 23 ago 2026). Antes, cada uno de estos calculos estaba
+        // escrito en linea dentro de divmod con una cadena #if/#elif/#else por
+        // plataforma; el resultado era que en MSVC e ICX-Windows la unica version
+        // compilada era la del intrinseco, que no es evaluable en tiempo de
+        // compilacion. Eso impedia marcar divmod (y por tanto / y %) como
+        // constexpr.
+        //
+        // Al centralizarlas aqui:
+        //   - el camino de ejecucion no cambia: en GCC/Clang siguen siendo
+        //     operaciones sobre unsigned __int128, y en MSVC/ICX los mismos
+        //     intrinsecos, bajo `if (!std::is_constant_evaluated())`;
+        //   - el camino constexpr existe siempre (version portable);
+        //   - desaparecen 4 copias del multiply 32x32 portable y 2 del bucle de
+        //     division bit a bit que habia repartidas por divmod.
+        // =========================================================================
+
+        // Producto completo x*y: devuelve los 64 bits bajos y deja los altos en hi.
+        [[nodiscard]] static constexpr std::uint64_t mul_64x64(std::uint64_t x, std::uint64_t y,
+                                                               std::uint64_t &hi) noexcept
+        {
+#if defined(__SIZEOF_INT128__)
+            // Constexpr-friendly en GCC/Clang/ICX-Linux: sin rama.
+            const unsigned __int128 p = static_cast<unsigned __int128>(x) * y;
+            hi = static_cast<std::uint64_t>(p >> 64);
+            return static_cast<std::uint64_t>(p);
+#else
+            if (!std::is_constant_evaluated())
+            {
+#if defined(_MSC_VER) && defined(_M_X64)
+                return _umul128(x, y, &hi);
+#endif
+            }
+            // Portable: escuela 32x32 -> 64.
+            const std::uint64_t xl = x & 0xFFFFFFFFU;
+            const std::uint64_t xh = x >> 32;
+            const std::uint64_t yl = y & 0xFFFFFFFFU;
+            const std::uint64_t yh = y >> 32;
+
+            const std::uint64_t p0 = xl * yl;
+            const std::uint64_t p1 = xl * yh;
+            const std::uint64_t p2 = xh * yl;
+            const std::uint64_t p3 = xh * yh;
+
+            const std::uint64_t mid = (p0 >> 32) + (p1 & 0xFFFFFFFFU) + (p2 & 0xFFFFFFFFU);
+            hi = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
+            return (p0 & 0xFFFFFFFFU) | (mid << 32);
+#endif
+        }
+
+        // Division (hi:lo) / d con hi < d (precondicion del llamante).
+        // Devuelve el cociente de 64 bits y deja el resto en rem.
+        [[nodiscard]] static constexpr std::uint64_t div_128_64(std::uint64_t hi, std::uint64_t lo,
+                                                                std::uint64_t d, std::uint64_t &rem) noexcept
+        {
+#if defined(__SIZEOF_INT128__) && !(defined(__INTEL_LLVM_COMPILER) && (defined(_WIN32) || defined(_WIN64)))
+            // GCC/Clang/ICX-Linux: __udivti3 detecta hi < d y emite un solo divq.
+            // Constexpr-friendly, sin rama.
+            const unsigned __int128 u = (static_cast<unsigned __int128>(hi) << 64) | lo;
+            rem = static_cast<std::uint64_t>(u % d);
+            return static_cast<std::uint64_t>(u / d);
+#else
+            if (!std::is_constant_evaluated())
+            {
+#if defined(__INTEL_LLVM_COMPILER) && (defined(_WIN32) || defined(_WIN64)) && defined(_M_X64)
+                // ICX en Windows define __SIZEOF_INT128__ pero su runtime no trae
+                // __udivti3/__umodti3: enlazaria mal. Usa asm estilo GCC (frontend
+                // Clang/LLVM).
+                std::uint64_t q, r;
+                __asm__("divq %4" : "=a"(q), "=d"(r) : "0"(lo), "1"(hi), "rm"(d));
+                rem = r;
+                return q;
+#elif defined(_MSC_VER) && defined(_M_X64)
+                return _udiv128(hi, lo, d, &rem);
+#endif
+            }
+
+            // Portable. Caso rapido hi == 0 y, si no, division larga bit a bit.
+            if (hi == 0)
+            {
+                rem = lo % d;
+                return lo / d;
+            }
+            std::uint64_t r = hi;
+            std::uint64_t q = 0;
+            for (int bit = 63; bit >= 0; --bit)
+            {
+                const bool ovf = (r >> 63) != 0;
+                r = (r << 1) | ((lo >> bit) & 1U);
+                if (ovf || r >= d)
+                {
+                    r -= d;
+                    q |= std::uint64_t{1} << bit;
+                }
+            }
+            rem = r;
+            return q;
+#endif
+        }
+
         // Add v to limb, return carry (0 or 1)
         static constexpr unsigned char add_limb(std::uint64_t &limb, std::uint64_t v) noexcept
         {
@@ -2373,23 +2360,23 @@ namespace nstd
     }
 
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
-    uint_fixed_t<N> operator/(const uint_fixed_t<N> &a, T b)
+    constexpr uint_fixed_t<N> operator/(const uint_fixed_t<N> &a, T b)
     {
         return a / uint_fixed_t<N>{b};
     }
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
-    uint_fixed_t<N> operator/(T a, const uint_fixed_t<N> &b)
+    constexpr uint_fixed_t<N> operator/(T a, const uint_fixed_t<N> &b)
     {
         return uint_fixed_t<N>{a} / b;
     }
 
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
-    uint_fixed_t<N> operator%(const uint_fixed_t<N> &a, T b)
+    constexpr uint_fixed_t<N> operator%(const uint_fixed_t<N> &a, T b)
     {
         return a % uint_fixed_t<N>{b};
     }
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
-    uint_fixed_t<N> operator%(T a, const uint_fixed_t<N> &b)
+    constexpr uint_fixed_t<N> operator%(T a, const uint_fixed_t<N> &b)
     {
         return uint_fixed_t<N>{a} % b;
     }
@@ -2558,43 +2545,43 @@ namespace nstd
     }
 
     template <std::size_t N>
-    uint_fixed_t<N> operator/(const uint_fixed_t<N> &a, unsigned __int128 b)
+    constexpr uint_fixed_t<N> operator/(const uint_fixed_t<N> &a, unsigned __int128 b)
     {
         return a / uint_fixed_t<N>{b};
     }
     template <std::size_t N>
-    uint_fixed_t<N> operator/(unsigned __int128 a, const uint_fixed_t<N> &b)
+    constexpr uint_fixed_t<N> operator/(unsigned __int128 a, const uint_fixed_t<N> &b)
     {
         return uint_fixed_t<N>{a} / b;
     }
     template <std::size_t N>
-    uint_fixed_t<N> operator/(const uint_fixed_t<N> &a, __int128 b)
+    constexpr uint_fixed_t<N> operator/(const uint_fixed_t<N> &a, __int128 b)
     {
         return a / uint_fixed_t<N>{b};
     }
     template <std::size_t N>
-    uint_fixed_t<N> operator/(__int128 a, const uint_fixed_t<N> &b)
+    constexpr uint_fixed_t<N> operator/(__int128 a, const uint_fixed_t<N> &b)
     {
         return uint_fixed_t<N>{a} / b;
     }
 
     template <std::size_t N>
-    uint_fixed_t<N> operator%(const uint_fixed_t<N> &a, unsigned __int128 b)
+    constexpr uint_fixed_t<N> operator%(const uint_fixed_t<N> &a, unsigned __int128 b)
     {
         return a % uint_fixed_t<N>{b};
     }
     template <std::size_t N>
-    uint_fixed_t<N> operator%(unsigned __int128 a, const uint_fixed_t<N> &b)
+    constexpr uint_fixed_t<N> operator%(unsigned __int128 a, const uint_fixed_t<N> &b)
     {
         return uint_fixed_t<N>{a} % b;
     }
     template <std::size_t N>
-    uint_fixed_t<N> operator%(const uint_fixed_t<N> &a, __int128 b)
+    constexpr uint_fixed_t<N> operator%(const uint_fixed_t<N> &a, __int128 b)
     {
         return a % uint_fixed_t<N>{b};
     }
     template <std::size_t N>
-    uint_fixed_t<N> operator%(__int128 a, const uint_fixed_t<N> &b)
+    constexpr uint_fixed_t<N> operator%(__int128 a, const uint_fixed_t<N> &b)
     {
         return uint_fixed_t<N>{a} % b;
     }
@@ -2827,23 +2814,23 @@ namespace nstd
     }
 
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
-    int_fixed_t<N> operator/(const int_fixed_t<N> &a, T b)
+    constexpr int_fixed_t<N> operator/(const int_fixed_t<N> &a, T b)
     {
         return a / int_fixed_t<N>{b};
     }
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
-    int_fixed_t<N> operator/(T a, const int_fixed_t<N> &b)
+    constexpr int_fixed_t<N> operator/(T a, const int_fixed_t<N> &b)
     {
         return int_fixed_t<N>{a} / b;
     }
 
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
-    int_fixed_t<N> operator%(const int_fixed_t<N> &a, T b)
+    constexpr int_fixed_t<N> operator%(const int_fixed_t<N> &a, T b)
     {
         return a % int_fixed_t<N>{b};
     }
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
-    int_fixed_t<N> operator%(T a, const int_fixed_t<N> &b)
+    constexpr int_fixed_t<N> operator%(T a, const int_fixed_t<N> &b)
     {
         return int_fixed_t<N>{a} % b;
     }
@@ -3012,43 +2999,43 @@ namespace nstd
     }
 
     template <std::size_t N>
-    int_fixed_t<N> operator/(const int_fixed_t<N> &a, unsigned __int128 b)
+    constexpr int_fixed_t<N> operator/(const int_fixed_t<N> &a, unsigned __int128 b)
     {
         return a / int_fixed_t<N>{b};
     }
     template <std::size_t N>
-    int_fixed_t<N> operator/(unsigned __int128 a, const int_fixed_t<N> &b)
+    constexpr int_fixed_t<N> operator/(unsigned __int128 a, const int_fixed_t<N> &b)
     {
         return int_fixed_t<N>{a} / b;
     }
     template <std::size_t N>
-    int_fixed_t<N> operator/(const int_fixed_t<N> &a, __int128 b)
+    constexpr int_fixed_t<N> operator/(const int_fixed_t<N> &a, __int128 b)
     {
         return a / int_fixed_t<N>{b};
     }
     template <std::size_t N>
-    int_fixed_t<N> operator/(__int128 a, const int_fixed_t<N> &b)
+    constexpr int_fixed_t<N> operator/(__int128 a, const int_fixed_t<N> &b)
     {
         return int_fixed_t<N>{a} / b;
     }
 
     template <std::size_t N>
-    int_fixed_t<N> operator%(const int_fixed_t<N> &a, unsigned __int128 b)
+    constexpr int_fixed_t<N> operator%(const int_fixed_t<N> &a, unsigned __int128 b)
     {
         return a % int_fixed_t<N>{b};
     }
     template <std::size_t N>
-    int_fixed_t<N> operator%(unsigned __int128 a, const int_fixed_t<N> &b)
+    constexpr int_fixed_t<N> operator%(unsigned __int128 a, const int_fixed_t<N> &b)
     {
         return int_fixed_t<N>{a} % b;
     }
     template <std::size_t N>
-    int_fixed_t<N> operator%(const int_fixed_t<N> &a, __int128 b)
+    constexpr int_fixed_t<N> operator%(const int_fixed_t<N> &a, __int128 b)
     {
         return a % int_fixed_t<N>{b};
     }
     template <std::size_t N>
-    int_fixed_t<N> operator%(__int128 a, const int_fixed_t<N> &b)
+    constexpr int_fixed_t<N> operator%(__int128 a, const int_fixed_t<N> &b)
     {
         return int_fixed_t<N>{a} % b;
     }
@@ -3272,14 +3259,14 @@ namespace nstd
     }
 
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
-    uint_fixed_t<(N > M ? N : M)> operator/(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b)
+    constexpr uint_fixed_t<(N > M ? N : M)> operator/(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b)
     {
         constexpr std::size_t R = N > M ? N : M;
         return uint_fixed_t<R>{a} / uint_fixed_t<R>{b};
     }
 
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
-    uint_fixed_t<(N > M ? N : M)> operator%(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b)
+    constexpr uint_fixed_t<(N > M ? N : M)> operator%(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b)
     {
         constexpr std::size_t R = N > M ? N : M;
         return uint_fixed_t<R>{a} % uint_fixed_t<R>{b};
@@ -3380,14 +3367,14 @@ namespace nstd
     }
 
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
-    int_fixed_t<(N > M ? N : M)> operator/(const int_fixed_t<N> &a, const int_fixed_t<M> &b)
+    constexpr int_fixed_t<(N > M ? N : M)> operator/(const int_fixed_t<N> &a, const int_fixed_t<M> &b)
     {
         constexpr std::size_t R = N > M ? N : M;
         return int_fixed_t<R>{a} / int_fixed_t<R>{b};
     }
 
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
-    int_fixed_t<(N > M ? N : M)> operator%(const int_fixed_t<N> &a, const int_fixed_t<M> &b)
+    constexpr int_fixed_t<(N > M ? N : M)> operator%(const int_fixed_t<N> &a, const int_fixed_t<M> &b)
     {
         constexpr std::size_t R = N > M ? N : M;
         return int_fixed_t<R>{a} % int_fixed_t<R>{b};
@@ -3505,26 +3492,26 @@ namespace nstd
     }
 
     template <std::size_t N, std::size_t M>
-    detail::mixed_iu_t<N, M> operator/(const int_fixed_t<N> &a, const uint_fixed_t<M> &b)
+    constexpr detail::mixed_iu_t<N, M> operator/(const int_fixed_t<N> &a, const uint_fixed_t<M> &b)
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} / R{b};
     }
     template <std::size_t N, std::size_t M>
-    detail::mixed_iu_t<N, M> operator/(const uint_fixed_t<M> &a, const int_fixed_t<N> &b)
+    constexpr detail::mixed_iu_t<N, M> operator/(const uint_fixed_t<M> &a, const int_fixed_t<N> &b)
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} / R{b};
     }
 
     template <std::size_t N, std::size_t M>
-    detail::mixed_iu_t<N, M> operator%(const int_fixed_t<N> &a, const uint_fixed_t<M> &b)
+    constexpr detail::mixed_iu_t<N, M> operator%(const int_fixed_t<N> &a, const uint_fixed_t<M> &b)
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} % R{b};
     }
     template <std::size_t N, std::size_t M>
-    detail::mixed_iu_t<N, M> operator%(const uint_fixed_t<M> &a, const int_fixed_t<N> &b)
+    constexpr detail::mixed_iu_t<N, M> operator%(const uint_fixed_t<M> &a, const int_fixed_t<N> &b)
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} % R{b};
@@ -3728,7 +3715,7 @@ namespace nstd
     }
 
     template <std::size_t N>
-    [[nodiscard]] uint_fixed_t<N> sqrt(const uint_fixed_t<N> &x)
+    [[nodiscard]] constexpr uint_fixed_t<N> sqrt(const uint_fixed_t<N> &x)
     {
         if (x.is_zero())
             return uint_fixed_t<N>{};
@@ -3779,7 +3766,7 @@ namespace nstd
     }
 
     template <std::size_t N>
-    [[nodiscard]] uint_fixed_t<N> lcm(const uint_fixed_t<N> &a, const uint_fixed_t<N> &b)
+    [[nodiscard]] constexpr uint_fixed_t<N> lcm(const uint_fixed_t<N> &a, const uint_fixed_t<N> &b)
     {
         if (a.is_zero() || b.is_zero())
             return uint_fixed_t<N>{};
@@ -3787,7 +3774,7 @@ namespace nstd
     }
 
     template <std::size_t N>
-    [[nodiscard]] uint_fixed_t<N> lcm(const int_fixed_t<N> &a, const int_fixed_t<N> &b)
+    [[nodiscard]] constexpr uint_fixed_t<N> lcm(const int_fixed_t<N> &a, const int_fixed_t<N> &b)
     {
         const uint_fixed_t<N> ua = a.is_negative() ? uint_fixed_t<N>{-a} : uint_fixed_t<N>{a};
         const uint_fixed_t<N> ub = b.is_negative() ? uint_fixed_t<N>{-b} : uint_fixed_t<N>{b};

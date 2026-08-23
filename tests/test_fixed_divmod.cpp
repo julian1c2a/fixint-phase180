@@ -527,6 +527,123 @@ static void test_knuth_d(const char *tag)
 }
 
 // =============================================================================
+// Section 9: division y modulo en tiempo de compilacion (T3.1)
+//
+// Hasta la auditoria del 23 ago 2026, todo el camino de division era solo de
+// ejecucion: los bloques por plataforma usaban _udiv128 / _umul128 / asm divq,
+// que no son evaluables en contexto constante, asi que divmod no podia ser
+// constexpr mientras +, -, * y los bitwise si lo eran.
+//
+// Estos static_assert son la red de seguridad: si alguien vuelve a meter un
+// intrinseco sin su guarda `if (!std::is_constant_evaluated())`, el fichero
+// deja de compilar. Cubren los tres caminos del algoritmo:
+//   - divisor de un limbo (camino rapido O(N))
+//   - Knuth D con divisor de >= 2 limbos
+//   - reduccion con signo a magnitud sin signo
+// =============================================================================
+
+namespace constexpr_division_tests
+{
+    using u2 = nstd::uint_fixed_t<2>;
+    using u4 = nstd::uint_fixed_t<4>;
+    using u8 = nstd::uint_fixed_t<8>;
+    using i2 = nstd::int_fixed_t<2>;
+    using i4 = nstd::int_fixed_t<4>;
+
+    // --- Camino rapido: divisor de un solo limbo ---
+    static_assert((u4{1000000} / u4{7}) == u4{142857});
+    static_assert((u4{1000000} % u4{7}) == u4{1});
+    static_assert((u2{100} / u2{10}) == u2{10});
+    static_assert((u8{999999999999ULL} % u8{1000000}) == u8{999999ULL});
+
+    // --- Divisor mayor que el dividendo: early-out ---
+    static_assert((u4{5} / u4{7}).is_zero());
+    static_assert((u4{5} % u4{7}) == u4{5});
+
+    // --- Knuth D: divisor de >= 2 limbos. Se verifica q*b + r == a y r < b. ---
+    constexpr bool knuth_reconstructs()
+    {
+        u4 a{};
+        a.set_limb(3, 0x1234567890ABCDEFULL);
+        a.set_limb(2, 0xFEDCBA9876543210ULL);
+        a.set_limb(1, 0x0F0F0F0F0F0F0F0FULL);
+        a.set_limb(0, 0xDEADBEEFCAFEBABEULL);
+        u4 b{};
+        b.set_limb(1, 0x00000000FFFFFFFFULL);
+        b.set_limb(0, 0x123456789ABCDEF0ULL);
+        const auto [q, r] = u4::divmod(a, b);
+        return (q * b + r) == a && r < b;
+    }
+    static_assert(knuth_reconstructs());
+
+    // Knuth D con normalizacion s == 0 (limbo alto del divisor con su MSB puesto).
+    constexpr bool knuth_no_shift()
+    {
+        u4 a = u4::max();
+        u4 b{};
+        b.set_limb(1, 0x8000000000000000ULL);
+        b.set_limb(0, 12345);
+        const auto [q, r] = u4::divmod(a, b);
+        return (q * b + r) == a && r < b;
+    }
+    static_assert(knuth_no_shift());
+
+    // N=8 con divisor de 4 limbos.
+    constexpr bool knuth_wide()
+    {
+        u8 a = u8::max();
+        u8 b{};
+        b.set_limb(3, 12345);
+        b.set_limb(0, 6789);
+        const auto [q, r] = u8::divmod(a, b);
+        return (q * b + r) == a && r < b;
+    }
+    static_assert(knuth_wide());
+
+    // --- Con signo: division truncada, como los enteros built-in de C++ ---
+    static_assert((i2{-7} / i2{3}) == i2{-2});
+    static_assert((i2{-7} % i2{3}) == i2{-1});
+    static_assert((i2{7} / i2{-3}) == i2{-2});
+    static_assert((i2{7} % i2{-3}) == i2{1});
+    static_assert((i2{-7} / i2{-3}) == i2{2});
+    static_assert((i2{-7} % i2{-3}) == i2{-1});
+
+    // min()/-1 envuelve (tipo modular), en vez del UB del built-in.
+    static_assert((i4::min() / i4{-1}) == i4::min());
+
+    // --- Operadores libres y compuestos tambien constexpr ---
+    static_assert((u4{100} / 7) == u4{14});
+    static_assert((u4{100} % 7) == u4{2});
+
+    constexpr u4 compound()
+    {
+        u4 x{1000};
+        x /= u4{3}; // 333
+        x %= u4{7}; // 333 % 7 == 4
+        return x;
+    }
+    static_assert(compound() == u4{4});
+
+    // --- Funciones que dependen de la division ---
+    static_assert(nstd::sqrt(u4{144}) == u4{12});
+    static_assert(nstd::sqrt(u4{143}) == u4{11});
+    static_assert(nstd::gcd(u4{48}, u4{18}) == u4{6});
+    static_assert(nstd::lcm(u4{4}, u4{6}) == u4{12});
+
+    // to_string no es constexpr (usa std::string), pero divmod si: comprobamos
+    // que el bucle de chunking por 10^19 funciona en contexto constante.
+    constexpr std::uint64_t last_chunk_of_max()
+    {
+        const u4 chunk_base{10000000000000000000ULL};
+        const auto [q, r] = u4::divmod(u4::max(), chunk_base);
+        (void)q;
+        return r.limb(0);
+    }
+    // (2^256 - 1) mod 10^19
+    static_assert(last_chunk_of_max() == 7584007913129639935ULL);
+} // namespace constexpr_division_tests
+
+// =============================================================================
 // Run all sections for one N
 // =============================================================================
 
