@@ -40,7 +40,13 @@ from pathlib import Path
 from typing import List, Optional
 
 # Add env_setup to path for importing compiler_env module
+sys.path.insert(0, str(Path(__file__).parent))
 sys.path.insert(0, str(Path(__file__).parent / "env_setup"))
+
+# T1.1 (auditoria 23 ago 2026): resolucion centralizada de compiladores.
+# En Windows, "g++"/"clang++" a secas resuelven al toolchain MSYS, que no es
+# el del proyecto. Ver scripts/toolchains.py.
+import toolchains
 
 try:
     from compiler_env import CompilerEnvironment
@@ -393,10 +399,20 @@ def main():
     modes_to_compile = ["debug", "debug-asan", "debug-ubsan", "release", "release-O1", "release-O2", "release-O3", "release-Ofast"] if mode == "all" else [mode]
     
     # Get compiler commands from environment or use defaults
-    gcc_cmd = os.environ.get("GCC_CXX", "g++")
-    clang_cmd = os.environ.get("CLANG_CXX", "clang++")
-    intel_cmd = os.environ.get("INTEL_CXX", "icx")
-    msvc_cmd = os.environ.get("MSVC_CXX", "cl.exe")
+    gcc_cmd = toolchains.resolve("gcc")
+    clang_cmd = toolchains.resolve("clang")
+    intel_cmd = toolchains.resolve("intel")
+    msvc_cmd = toolchains.resolve("msvc")
+
+    # Diagnostico: que compilador se va a usar de verdad (ruta, version, target).
+    for _name, _cmd in (("gcc", gcc_cmd), ("clang", clang_cmd),
+                        ("intel", intel_cmd), ("msvc", msvc_cmd)):
+        if compiler in (_name, "all"):
+            if _name not in ("intel", "msvc"):
+                print(f"[INFO] {toolchains.describe(_name, _cmd)}")
+                toolchains.warn_if_unwanted(_name, _cmd)
+            else:
+                print(f"[INFO] {_name}: {_cmd}")
     
     # For demos, we need to pass empty strings for type_name and feature
     # since they don't apply

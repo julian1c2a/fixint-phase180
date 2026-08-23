@@ -31,6 +31,11 @@ Ejemplos Demos:
 import sys
 import os
 import subprocess
+from pathlib import Path as _Path
+
+sys.path.insert(0, str(_Path(__file__).resolve().parent))
+# T1.1 (auditoria 23 ago 2026): ver scripts/toolchains.py
+import toolchains
 from pathlib import Path
 from typing import Dict, List
 
@@ -127,15 +132,10 @@ def check_demo_compilation(category: str, demo_file: Path, compiler: str, mode: 
             output = output.with_suffix(".exe")
         
         # Compiler command
-        compiler_cmd = compiler + "++" if compiler in ["g", "clang"] else compiler
-        if compiler == "gcc":
-            compiler_cmd = os.environ.get("GCC_CXX", "g++")
-        elif compiler == "clang":
-            compiler_cmd = os.environ.get("CLANG_CXX", "clang++")
-        elif compiler == "intel":
-            compiler_cmd = os.environ.get("INTEL_CXX", "icx")
-        elif compiler == "msvc":
-            compiler_cmd = os.environ.get("MSVC_CXX", "cl.exe")
+        # T1.1: resolucion centralizada (ver scripts/toolchains.py)
+        compiler_cmd = (toolchains.resolve(compiler)
+                        if compiler in ("gcc", "clang", "intel", "msvc")
+                        else compiler)
         
         # Flags
         common_flags = ["-std=c++20", f"-I{project_root}/include"]
@@ -371,20 +371,22 @@ def main():
         echo_header("  RESULTS SUMMARY")
         echo_header("=" * 60)
         print()
-        print(f"{'Compiler':<12} | {'Debug':<12} | {'Release':<12}")
-        print("-" * 42)
-        
+        # NOTA (auditoria 23 ago 2026): esta tabla buscaba las claves fijas
+        # "debug"/"release", pero results[] se indexa por el modo REAL
+        # ("release-O2", "debug-asan"...). Con cualquier modo distinto de esos
+        # dos literales la tabla imprimia FAIL aunque el test hubiera pasado.
+        # Ahora se imprime una fila por (compilador, modo) realmente ejecutado.
+        print(f"{'Compiler':<12} | {'Mode':<16} | {'Result':<12}")
+        print("-" * 46)
+
         for compiler in compilers:
-            debug_result = "[OK] PASS" if results[compiler].get("debug", False) else "[ERROR] FAIL"
-            release_result = "[OK] PASS" if results[compiler].get("release", False) else "[ERROR] FAIL"
-            
-            if mode_arg != "all":
-                if mode_arg == "debug":
-                    print(f"{compiler:<12} | {debug_result:<12} | {'- N/A':<12}")
-                else:
-                    print(f"{compiler:<12} | {'- N/A':<12} | {release_result:<12}")
-            else:
-                print(f"{compiler:<12} | {debug_result:<12} | {release_result:<12}")
+            comp_results = results[compiler]
+            if not comp_results:
+                print(f"{compiler:<12} | {'- N/A':<16} | {'- N/A':<12}")
+                continue
+            for mode_key in sorted(comp_results):
+                cell = "[OK] PASS" if comp_results[mode_key] else "[ERROR] FAIL"
+                print(f"{compiler:<12} | {mode_key:<16} | {cell:<12}")
         
         print()
         

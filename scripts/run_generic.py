@@ -317,20 +317,17 @@ def main():
         echo_header("  RESULTS SUMMARY")
         echo_header("=" * 60)
         print()
-        print(f"{'Compiler':<12} | {'Debug':<15} | {'Release':<15}")
-        print("-" * 47)
-        
+        # Mismo arreglo que en check_generic.py: una fila por modo real.
+        print(f"{'Compiler':<12} | {'Mode':<16} | {'Time':<15}")
+        print("-" * 49)
+
         for compiler in compilers:
-            debug_time = format_time(results[compiler].get("debug"))
-            release_time = format_time(results[compiler].get("release"))
-            
-            if mode_arg != "all":
-                if mode_arg == "debug":
-                    print(f"{compiler:<12} | {debug_time:<15} | {'- N/A':<15}")
-                else:
-                    print(f"{compiler:<12} | {'- N/A':<15} | {release_time:<15}")
-            else:
-                print(f"{compiler:<12} | {debug_time:<15} | {release_time:<15}")
+            comp_results = results[compiler]
+            if not comp_results:
+                print(f"{compiler:<12} | {'- N/A':<16} | {'- N/A':<15}")
+                continue
+            for mode_key in sorted(comp_results):
+                print(f"{compiler:<12} | {mode_key:<16} | {format_time(comp_results[mode_key]):<15}")
         
         print()
         
