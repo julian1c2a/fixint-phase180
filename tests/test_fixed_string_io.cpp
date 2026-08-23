@@ -20,6 +20,9 @@
 //   4.  Round-trip to_string -> from_string
 //   5.  Limites: max(), min(), min()+1, max()-1
 //
+// Las bases distintas de 10 (T4.4) y la integracion con la libreria estandar
+// (iostreams, std::format, std::hash) viven en test_fixed_stl_integration.cpp.
+//
 // NOTA: este fichero usa los accesores limb()/set_limb()/limbs() y el
 // constructor desde std::array<uint64_t, N>. `data` es privado desde T2.4,
 // recuperando el comportamiento de phase-1.75.
@@ -277,10 +280,18 @@ static void test_from_string_overflow()
     const auto e_empty = U::try_from_string("");
     TEST("T2.1 try_from_string(\"\") -> empty_string", e_empty.error == parse_error::empty_string);
 
-    const auto e_char = U::try_from_string("12x45");
-    TEST("T2.1 try_from_string(\"12x45\") -> invalid_character",
+    // Regla fijada en T4.4: `invalid_character` es para lo que no es alfanumerico;
+    // `digit_out_of_range` para lo que si lo es pero vale >= base. En base 10, 'x'
+    // es un digito valido a partir de base 34, asi que cae en el segundo caso.
+    // Ambos siguen lanzando std::invalid_argument desde from_string.
+    const auto e_char = U::try_from_string("12$45");
+    TEST("T2.1 try_from_string(\"12$45\") -> invalid_character",
          e_char.error == parse_error::invalid_character);
     TEST("T2.1 error_index apunta al caracter culpable", e_char.error_index == 2);
+
+    const auto e_digit = U::try_from_string("12x45");
+    TEST("T4.4 try_from_string(\"12x45\") en base 10 -> digit_out_of_range",
+         e_digit.error == parse_error::digit_out_of_range && e_digit.error_index == 2);
 
     const auto e_sign = I::try_from_string("-");
     TEST("T2.1 try_from_string(\"-\") -> no_digits", e_sign.error == parse_error::no_digits);

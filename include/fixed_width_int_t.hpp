@@ -1739,6 +1739,97 @@ namespace nstd
         // String conversion — base 10
         // =========================================================================
 
+        // Conversion a cadena en base 2..36 (T4.4 — auditoria 23 ago 2026).
+        //
+        // base 10  : camino rapido existente, chunking por 10^19.
+        // base 2^k : extraccion directa de bits, sin divisiones.
+        // resto    : chunking por la mayor potencia de `base` que cabe en 64 bits.
+        //
+        // Los digitos por encima de 9 se escriben en MAYUSCULAS ('A'..'Z'), como
+        // hace int128_param_t; operator<< las pasa a minusculas salvo que el flujo
+        // tenga puesto std::uppercase.
+        //
+        // Una base fuera de [2, 36] lanza std::invalid_argument.
+        [[nodiscard]] std::string to_string(int base) const
+        {
+            if (base < 2 || base > 36)
+                throw std::invalid_argument("fixed_int_t::to_string: base out of range [2, 36]");
+            if (base == 10)
+                return to_string();
+            if (is_zero())
+                return "0";
+
+            if constexpr (is_signed)
+            {
+                if (is_negative())
+                    return "-" + uint_fixed_t<N>{-(*this)}.to_string(base);
+            }
+
+            const uint_fixed_t<N> mag{*this};
+
+            // El peor caso de longitud es la base 2: 64*N digitos.
+            std::string out;
+            out.reserve(64U * N + 1U);
+
+            const bool pow2_base = (base & (base - 1)) == 0;
+            if (pow2_base)
+            {
+                // Extraccion directa: log2(base) bits por digito, sin dividir.
+                unsigned bits = 0;
+                for (int t = base; t > 1; t >>= 1)
+                    ++bits;
+                const std::uint64_t mask = (std::uint64_t{1} << bits) - 1U;
+
+                unsigned start = mag.bit_width();
+                start -= start % bits; // primer digito parcial
+                for (unsigned shift = start;; shift -= bits)
+                {
+                    const uint_fixed_t<N> piece = mag >> shift;
+                    const std::uint64_t digit = piece.limb(0) & mask;
+                    if (!out.empty() || digit != 0)
+                        out.push_back(digit_char_(digit));
+                    if (shift < bits)
+                        break;
+                }
+                if (out.empty())
+                    out.push_back('0');
+                return out;
+            }
+
+            // Bases no potencia de dos: chunking por base^k con base^k < 2^64.
+            std::uint64_t chunk_base = 1;
+            unsigned digits_per_chunk = 0;
+            const std::uint64_t limit = ~std::uint64_t{0} / static_cast<std::uint64_t>(base);
+            while (chunk_base <= limit)
+            {
+                chunk_base *= static_cast<std::uint64_t>(base);
+                ++digits_per_chunk;
+            }
+
+            const uint_fixed_t<N> cb{chunk_base};
+            uint_fixed_t<N> tmp{mag};
+            std::string rev; // digitos en orden inverso
+            rev.reserve(64U * N + 1U);
+
+            while (!tmp.is_zero())
+            {
+                const auto [q, r] = uint_fixed_t<N>::divmod(tmp, cb);
+                std::uint64_t chunk = r.limb(0);
+                const bool last = q.is_zero();
+                for (unsigned d = 0; d < digits_per_chunk; ++d)
+                {
+                    rev.push_back(digit_char_(chunk % static_cast<std::uint64_t>(base)));
+                    chunk /= static_cast<std::uint64_t>(base);
+                    if (last && chunk == 0)
+                        break;
+                }
+                tmp = q;
+            }
+
+            out.assign(rev.rbegin(), rev.rend());
+            return out;
+        }
+
         std::string to_string() const
         {
             if (is_zero())
@@ -1783,12 +1874,20 @@ namespace nstd
         //   con signo:  [+-]? digito+
         //   sin signo:  digito+          (el signo NO se acepta, ni '+' ni '-')
         //
-        // Errores devueltos: null_pointer, empty_string, no_digits,
-        // invalid_character, overflow. `error_index` apunta al caracter culpable
-        // (en overflow, al digito que se sale de rango).
-        [[nodiscard]] static parse_result<fixed_int_t> try_from_string(const char *s) noexcept
+        // Errores devueltos: invalid_base, null_pointer, empty_string, no_digits,
+        // invalid_character, digit_out_of_range, overflow. `error_index` apunta al
+        // caracter culpable (en overflow, al digito que se sale de rango).
+        //
+        // T4.4: `base` en [2, 36], o 0 para deducirla del prefijo. Se aceptan los
+        // prefijos 0x/0X (16), 0b/0B (2) y 0o/0O (8), tanto con base 0 como cuando
+        // coinciden con la base pedida. Un '0' suelto NO se interpreta como octal:
+        // ese es un pie de plomo heredado de strtoul que aqui no se replica.
+        [[nodiscard]] static parse_result<fixed_int_t> try_from_string(const char *s, int base = 10) noexcept
         {
             using U = uint_fixed_t<N>;
+
+            if (base != 0 && (base < 2 || base > 36))
+                return {parse_error::invalid_base, fixed_int_t{}, 0};
 
             if (!s)
                 return {parse_error::null_pointer, fixed_int_t{}, std::string::npos};
@@ -1809,29 +1908,53 @@ namespace nstd
                 }
             }
 
+            // Prefijo de base, si lo hay.
+            if (p[0] == '0' && p[1] != '\0')
+            {
+                const char k = p[1];
+                int prefix_base = 0;
+                if (k == 'x' || k == 'X')
+                    prefix_base = 16;
+                else if (k == 'b' || k == 'B')
+                    prefix_base = 2;
+                else if (k == 'o' || k == 'O')
+                    prefix_base = 8;
+
+                if (prefix_base != 0 && (base == 0 || base == prefix_base))
+                {
+                    base = prefix_base;
+                    p += 2;
+                    if (*p == '\0')
+                        return {parse_error::no_digits, fixed_int_t{}, static_cast<std::size_t>(p - s)};
+                }
+            }
+            if (base == 0)
+                base = 10;
+
             // Cotas exactas para detectar el desbordamiento digito a digito:
-            // acc cabe tras `acc*10 + d` si y solo si
-            //   acc < max/10, o bien acc == max/10 y d <= max%10.
-            const U ten{std::uint64_t{10}};
+            // acc cabe tras `acc*base + d` si y solo si
+            //   acc < max/base, o bien acc == max/base y d <= max%base.
+            const U ubase{static_cast<std::uint64_t>(base)};
             const U u_max = U::max();
-            const auto [u_max_div10, u_max_mod10] = U::divmod(u_max, ten);
-            const std::uint64_t max_last_digit = u_max_mod10.limb(0);
+            const auto [u_max_div, u_max_mod] = U::divmod(u_max, ubase);
+            const std::uint64_t max_last_digit = u_max_mod.limb(0);
 
             U mag{};
             bool any = false;
 
             for (; *p != '\0'; ++p)
             {
-                const char c{*p};
-                if (c < '0' || c > '9')
-                    return {parse_error::invalid_character, fixed_int_t{}, static_cast<std::size_t>(p - s)};
+                const unsigned dv = digit_value_(*p);
+                if (dv >= static_cast<unsigned>(base))
+                    return {dv == 255U ? parse_error::invalid_character : parse_error::digit_out_of_range,
+                            fixed_int_t{}, static_cast<std::size_t>(p - s)};
 
-                const std::uint64_t digit = static_cast<std::uint64_t>(c - '0');
+                const std::uint64_t digit = dv;
 
-                if (mag > u_max_div10 || (mag == u_max_div10 && digit > max_last_digit))
+                if (mag > u_max_div || (mag == u_max_div && digit > max_last_digit))
                     return {parse_error::overflow, fixed_int_t{}, static_cast<std::size_t>(p - s)};
 
-                mag = mag * ten + U{digit};
+                mag = mag * ubase + U{digit};
                 any = true;
             }
 
@@ -1858,9 +1981,9 @@ namespace nstd
         // Version que lanza. Mensajes de error compatibles con las versiones
         // anteriores; el desbordamiento es std::out_of_range (como std::stoull),
         // no std::invalid_argument.
-        static fixed_int_t from_string(const char *s)
+        static fixed_int_t from_string(const char *s, int base = 10)
         {
-            const parse_result<fixed_int_t> r = try_from_string(s);
+            const parse_result<fixed_int_t> r = try_from_string(s, base);
             switch (r.error)
             {
                 case parse_error::success:
@@ -1872,6 +1995,10 @@ namespace nstd
                     throw std::invalid_argument("fixed_int_t::from_string: no digits");
                 case parse_error::invalid_character:
                     throw std::invalid_argument("fixed_int_t::from_string: invalid character");
+                case parse_error::digit_out_of_range:
+                    throw std::invalid_argument("fixed_int_t::from_string: digit out of range for base");
+                case parse_error::invalid_base:
+                    throw std::invalid_argument("fixed_int_t::from_string: base out of range [2, 36]");
                 case parse_error::overflow:
                     throw std::out_of_range("fixed_int_t::from_string: value out of range");
                 default:
@@ -2174,6 +2301,24 @@ namespace nstd
             {
                 buf[--pos] = static_cast<char>('0' + val);
             }
+        }
+
+        // Digito -> caracter, mayusculas por encima de 9 (T4.4).
+        [[nodiscard]] static constexpr char digit_char_(std::uint64_t d) noexcept
+        {
+            return d < 10 ? static_cast<char>('0' + d) : static_cast<char>('A' + (d - 10));
+        }
+
+        // Caracter -> digito, o 255 si no es un digito valido. Acepta ambas cajas.
+        [[nodiscard]] static constexpr unsigned digit_value_(char c) noexcept
+        {
+            if (c >= '0' && c <= '9')
+                return static_cast<unsigned>(c - '0');
+            if (c >= 'a' && c <= 'z')
+                return static_cast<unsigned>(c - 'a') + 10U;
+            if (c >= 'A' && c <= 'Z')
+                return static_cast<unsigned>(c - 'A') + 10U;
+            return 255U;
         }
 
         // Write exactly 19 decimal digits from val into buf[..pos-1] (zero-padded)
