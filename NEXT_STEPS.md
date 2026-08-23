@@ -200,16 +200,34 @@ no de arquitectura:
 | ~~T6.6~~ ✅ | ~~Implementar los comandos como slash commands~~ (hecho: `.claude/commands/`) | `.claude/commands/proyecta.md`, `documenta.md`, `actualiza_doc.md` (hoy `.claude/` solo tiene `settings.json`), para que sean invocables de verdad y no solo prosa en la guía. | #12 |
 | T6.7 | Consolidar la doc de raíz | 9.300 líneas en 10 ficheros con solapamiento fuerte (CHANGELOG 4.573, AI-GUIDE 1.704, NEXT_STEPS 1.003). Definir qué fichero es fuente de verdad de qué. | #18 |
 
-#### 🏗️ Fase 7 — CI, Docker y sistemas de build
+#### 🏗️ Fase 7 — CI, Docker y sistemas de build ✅ COMPLETADA (23 ago 2026)
 
 | id | Tarea | Detalle | Ref |
 |----|-------|---------|-----|
-| T7.1 | **Cerrar las puertas del CI** | `exit 1` en `cross-x86-32` e `intel-icx`; quitar `continue-on-error` de `cross-arm32`; tolerancia 10% → 0 en aarch64/riscv64; dejar de mandar errores de compilación a `/dev/null`. Ver [P4]. | #4 |
-| T7.2 | **Docker al día** | `docker/Dockerfile` instala **GCC 12 / Clang 14** mientras el CI valida GCC 13-16 / Clang 18-22. Verificado en contenedor real: GCC 12 compila y pasa; **Clang 14 falla `test_param_format`** (el asunto de `GM_TABLE`, [P3]). Subir a Ubuntu 24.04 + GCC 13/14 + Clang 18/19. Además [Dockerfile:121](docker/Dockerfile#L121): `ENV MAKEFLAGS="-j$(nproc)"` **no expande el shell** — queda como literal. Unificar los 3 Dockerfiles en uno parametrizado por `ARG`. | #8 |
-| T7.3 | **`GM_TABLE` sin flag** | Implementar [P3] + job de CI que compile con Clang **sin** `-fconstexpr-steps`. | #3 |
-| T7.4 | **`CONFIGURE_DEPENDS`** | [tests/CMakeLists.txt:5](tests/CMakeLists.txt#L5): `file(GLOB TEST_SOURCES "*.cpp")` sin `CONFIGURE_DEPENDS` → añadir un test no regenera el build. Añadirlo (y lo mismo en `benchs/` y `demos/`). | #14 |
-| T7.5 | **`toolchains.json`** | Fuente única de rutas/versiones de compilador, consumida por make.py, generación de presets, Docker y CI. Es la causa raíz de [T1.1]. | #17 |
-| T7.6 | Adelgazar la capa de scripts | `Makefile` → shim sobre make.py o eliminarlo; auditar los 45 scripts de `scripts/` y archivar los superados por `build_generic.py`/`run_generic.py`/`check_generic.py`. | #17 |
+| ~~T7.1~~ ✅ | ~~**Cerrar las puertas del CI**~~ (hecho: 3 jobs que no podían fallar + 2 tolerancias del 10% → 0, commit `d9faff5`) | `exit 1` en `cross-x86-32` e `intel-icx`; quitar `continue-on-error` de `cross-arm32`; tolerancia 10% → 0 en aarch64/riscv64; dejar de mandar errores de compilación a `/dev/null`. Ver [P4]. | #4 |
+| ~~T7.2~~ ✅ | ~~**Docker al día**~~ (hecho: Ubuntu 24.04 + GCC 14 + Clang 19, verificado en contenedor real, commit `f405017`) | `docker/Dockerfile` instala **GCC 12 / Clang 14** mientras el CI valida GCC 13-16 / Clang 18-22. Verificado en contenedor real: GCC 12 compila y pasa; **Clang 14 falla `test_param_format`** (el asunto de `GM_TABLE`, [P3]). Subir a Ubuntu 24.04 + GCC 13/14 + Clang 18/19. Además [Dockerfile:121](docker/Dockerfile#L121): `ENV MAKEFLAGS="-j$(nproc)"` **no expande el shell** — queda como literal. Unificar los 3 Dockerfiles en uno parametrizado por `ARG`. | #8 |
+| ~~T7.3~~ ✅ | ~~**`GM_TABLE` sin flag**~~ (hecho: **era código muerto**; eliminada. Compilación 2,4 s → 0,95 s, commit `3a3bb93`) | Implementar [P3] + job de CI que compile con Clang **sin** `-fconstexpr-steps`. | #3 |
+| ~~T7.4~~ ✅ | ~~**`CONFIGURE_DEPENDS`**~~ (hecho, commit `0c6ce0c`) | [tests/CMakeLists.txt:5](tests/CMakeLists.txt#L5): `file(GLOB TEST_SOURCES "*.cpp")` sin `CONFIGURE_DEPENDS` → añadir un test no regenera el build. Añadirlo (y lo mismo en `benchs/` y `demos/`). | #14 |
+| ~~T7.5~~ ✅ | ~~**`toolchains.json`**~~ (hecho: fuente única de verdad, la lee `scripts/toolchains.py`) | Fuente única de rutas/versiones de compilador, consumida por make.py, generación de presets, Docker y CI. Es la causa raíz de [T1.1]. | #17 |
+| ~~T7.6~~ 🔶 | ~~Adelgazar la capa de scripts~~ (inventario hecho en `scripts/README.md`: 32 de 47 superados. **Borrarlos es decisión tuya**) | `Makefile` → shim sobre make.py o eliminarlo; auditar los 45 scripts de `scripts/` y archivar los superados por `build_generic.py`/`run_generic.py`/`check_generic.py`. | #17 |
+
+---
+
+### Estado del plan — 23 ago 2026
+
+**Todas las fases completadas.** Queda pendiente, y son decisiones del autor, no
+trabajo técnico:
+
+| Pendiente | Qué falta decidir |
+|---|---|
+| **T6.7** | Consolidar los ~9.300 renglones de documentación de raíz repartidos en 10 ficheros solapados: qué fichero es fuente de verdad de qué |
+| **T7.6** (resto) | Mover a `scripts/archive/` los 32 scripts superados que identifica `scripts/README.md` |
+| Cobertura Doxygen | `fixed_width_int_t.hpp` está documentado a nivel de fichero, clase y miembros no evidentes (27 comentarios). Documentar uno por uno los ~800 miembros (42 sobrecargas de `/` idénticas incluidas) empeoraría la doc generada; se deja así salvo que se pida lo contrario |
+| `CONTRIBUTING.md`, `SECURITY.md`, `ROADMAP.md` | `AI-GUIDE.md` los lista; no existen. Marcados como pendientes en su tabla |
+
+Verificación al cierre: suite **55/55**, 31/31 headers autocontenidos y sin
+flags no estándar con Clang, armonizador de documentación 9/9, árbol entero
+conforme a `.clang-format`, 0 avisos de Doxygen desde `include/`.
 
 ---
 
@@ -222,7 +240,7 @@ no de arquitectura:
 5. ~~**Fase 3** (constexpr div/mod)~~ ✅ completada 23 ago 2026. Sin regresión de rendimiento (verificado con 7 rondas intercaladas, mínimo por caso).
 6. ~~**Fase 4 + Fase 5** juntas~~ ✅ completadas 23 ago 2026. Suite: 53 → **55 ficheros**.
 7. ~~**Fase 6**~~ ✅ completada 23 ago 2026 salvo **T6.7** (consolidar los 9.300 renglones de doc de raíz), que sigue pendiente.
-8. **Fase 7** (CI, Docker y sistemas de build) — lo único que queda entero. **← SIGUIENTE**
+8. ~~**Fase 7** (CI, Docker y sistemas de build)~~ ✅ completada 23 ago 2026.
 
 ---
 

@@ -1,3 +1,61 @@
+## [1.90.1] - 2026-08-23 — Auditoría completa
+
+Auditoría del proyecto y ejecución de las 8 fases del plan resultante
+(ver la sección «AUDITORÍA 23 ago 2026» de NEXT_STEPS.md).
+
+### Corregido — correctitud
+
+- **`from_string` no detectaba desbordamiento**: `uint_fixed_t<4>::from_string("2^256")`
+  devolvía `0` en silencio. Nuevo `try_from_string` → `parse_result<fixed_int_t>`;
+  `from_string` lanza `std::out_of_range`. Se cablean por fin `parse_error` y
+  `parse_result`, declarados desde el principio y nunca usados.
+- **Constructor desde `float` con infinito era UB**: `std::fmod(inf, 2^64)` → NaN →
+  `static_cast<uint64_t>(NaN)`. Ahora satura: NaN→0, +inf→`max()`, −inf→`min()`.
+- **El contador de desplazamiento `fixed_int_t` se truncaba** por dos sitios (limbos
+  altos y bits por encima de 32): `x << u256{2^64}` devolvía `x`. Ahora satura a 64N.
+- `from_string` acepta el signo `+` en los tipos con signo.
+
+### Añadido
+
+- **`div` y `mod` son `constexpr`** (objetivo de la rama). Dos primitivas privadas,
+  `mul_64x64` y `div_128_64`, encapsulan intrínseco vs. portable. Sin regresión de
+  rendimiento (7 rondas intercaladas, mínimo por caso).
+- **Integración con la biblioteca estándar**: `fixed_int_iostreams.hpp`,
+  `fixed_int_format.hpp` y `fixed_int_hash.hpp`.
+- **`to_string(base)` / `from_string(base)`** en bases 2..36, con prefijos 0x/0b/0o.
+- `tests/test_fixed_stl_integration.cpp` (95 asserts) y
+  `tests/test_fixed_differential.cpp` (46.800 comprobaciones contra un oráculo
+  independiente en base 2^32).
+- `LICENSE.txt` (BSL-1.0) — no existía. SPDX en los 31 headers.
+- `.clang-format`, `.clangd`, `toolchains.json`.
+- Comandos `PROYECTA`, `DOCUMENTA` y `ACTUALIZA_DOC` (AI-GUIDE.md §31 y
+  `.claude/commands/`).
+- `scripts/check_docs_consistency.py`, `scripts/check_headers_selfcontained.py`,
+  `scripts/toolchains.py`.
+- Jobs de CI `clang-no-flags` y `format-and-docs`.
+
+### Cambiado
+
+- **BREAKING**: `data` pasa a privado, con `limb()` / `set_limb()` / `limbs()` /
+  `limbs_ref()`. Se deja decaer el uso como parámetro no-tipo de plantilla,
+  recuperando el comportamiento de phase-1.75.
+- Docker: Ubuntu 24.04 con GCC 14 y Clang 19 (antes GCC 12 y Clang 14, con el que
+  no compilaba el proyecto entero).
+- CI: los tres jobs que no podían fallar ahora fallan; las tolerancias del 10% pasan
+  a 0.
+
+### Eliminado
+
+- **`GM_TABLE`**: código muerto que obligaba a compilar con
+  `-fconstexpr-steps=100000000` en cualquier Clang. Compilar un TU que incluya
+  `int128_param_divmod.hpp` pasa de 2,4 s a 0,95 s.
+- 11 ficheros muertos destrackeados (logs de aider, `.old`, `.bak`).
+
+### Rendimiento
+
+- Suite completa: ~230 s → ~179 s.
+
+
 ## [v1.81 — 22 May 2026] — Fase MS-INTEROP: interop signed/unsigned al estilo built-in
 
 Cierra el gap de interoperabilidad signed/unsigned en `fixed_int_t<N, Sign, Form>`
