@@ -16,10 +16,10 @@
 | **CI Workflow** | [`AI_PROMPT/workflow/ci.yml`](AI_PROMPT/workflow/ci.yml) | Build + test multi-compilador (push/PR) |
 | **Benchmarks Workflow** | [`AI_PROMPT/workflow/benchmarks.yml`](AI_PROMPT/workflow/benchmarks.yml) | Suite completa de benchmarks (semanal) |
 | **Release Workflow** | [`AI_PROMPT/workflow/release.yml`](AI_PROMPT/workflow/release.yml) | Empaquetado de release (tag v*.*.*) |
-| **ROADMAP.md** | [`ROADMAP.md`](ROADMAP.md) | Línea de tiempo: fases pasadas, presente y futuras |
+| **ROADMAP.md** | `ROADMAP.md` — ⬜ pendiente de crear; hoy su papel lo cumple [`NEXT_STEPS.md`](NEXT_STEPS.md) | Línea de tiempo: fases pasadas, presente y futuras |
 | **docs/archive/SESSION_STATE.md** | [`docs/archive/SESSION_STATE.md`](docs/archive/SESSION_STATE.md) | Contexto volátil: estado actual para onboarding rápido |
-| **CONTRIBUTING.md** | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Guía de contribución para colaboradores externos |
-| **SECURITY.md** | [`SECURITY.md`](SECURITY.md) | Política de seguridad y reporte de vulnerabilidades |
+| **CONTRIBUTING.md** | `CONTRIBUTING.md` — ⬜ pendiente de crear | Guía de contribución para colaboradores externos |
+| **SECURITY.md** | `SECURITY.md` — ⬜ pendiente de crear | Política de seguridad y reporte de vulnerabilidades |
 
 ---
 
@@ -69,6 +69,7 @@
 
 1. [Flujo de Trabajo del Desarrollador](#29-flujo-de-trabajo-del-desarrollador)
 2. [Reglas para Agentes IA](#30-reglas-para-agentes-ia)
+3. [Comandos Interactivos para la IA](#31-comandos-interactivos-para-la-ia)
 
 ---
 
@@ -1698,6 +1699,124 @@ y amplían la información aquí contenida:
 | **Release Workflow** | [`AI_PROMPT/workflow/release.yml`](AI_PROMPT/workflow/release.yml) | Empaquetado automático de releases (~150 líneas). Complementa §16. |
 | **CHANGELOG.md** | [`CHANGELOG.md`](CHANGELOG.md) | Registro de cambios del proyecto. |
 | **README.md** | [`README.md`](README.md) | Presentación pública del proyecto. |
+
+---
+
+## 31. Comandos Interactivos para la IA
+
+Adaptación al dominio C++ de la sección homónima de las guías de Lean 4
+(`lean4-project-template/AI-GUIDE.md`). La IA debe obedecer estos comandos
+exactos cuando el usuario los invoque en el chat. Cada uno tiene además su
+*slash command* en `.claude/commands/`, de modo que `/proyecta`, `/documenta` y
+`/actualiza_doc` hacen lo mismo que escribir el nombre.
+
+Los tres se apoyan en dos scripts que son la parte automatizable del trabajo:
+
+| Script | Qué comprueba |
+|---|---|
+| `scripts/check_docs_consistency.py` | Enlaces rotos, cifras de tests desactualizadas, correspondencia `API_*.md` ↔ headers, cabeceras SPDX, `LICENSE.txt`, avisos de Doxygen, coherencia de fechas |
+| `scripts/check_headers_selfcontained.py` | Que cada header de `include/` compile aislado y que sus guardas sean idempotentes |
+
+---
+
+### `PROYECTA`
+
+**Propósito:** actualización *local* de la documentación de API para los headers
+que se han tocado en la sesión. Es el equivalente C++ del `proyecta` de Lean 4:
+allí se proyecta el bloque `export` de un módulo al árbol `REFERENCE`; aquí se
+proyecta la API pública de un header a su `docs/API_*.md`.
+
+**Pasos (en orden):**
+
+1. Identificar los `.hpp` de `include/` modificados en la sesión
+   (`git diff --name-only`).
+2. Por cada uno, extraer su **API pública**: clases, funciones libres, aliases,
+   traits y concepts que no estén en `detail::` ni en una sección `private:`.
+3. Comprobar que cada símbolo público tiene su comentario Doxygen con `@brief`,
+   `@param` y `@return` donde apliquen.
+4. Actualizar el `docs/API_*.md` correspondiente: sinopsis, tabla de funciones
+   con su firma, semántica y complejidad, y al menos un ejemplo compilable.
+5. Verificar que **no se ha filtrado nada privado**: ningún símbolo de
+   `detail::`, ningún miembro privado, ningún helper con sufijo `_`.
+6. Verificar lo contrario: que **nada público se ha quedado sin proyectar**.
+7. Ejecutar `python scripts/check_docs_consistency.py` y dejarlo en verde.
+
+**No hace:** tocar README, CHANGELOG ni NEXT_STEPS. Para eso está
+`ACTUALIZA_DOC`.
+
+---
+
+### `DOCUMENTA`
+
+**Propósito:** generación y control de calidad de la documentación Doxygen.
+
+**Pasos (en orden):**
+
+1. `doxygen Doxyfile` y anotar el número de avisos.
+2. **Criterio duro: cero avisos atribuibles a `include/`.** Los avisos que no
+   son culpa del código (la traducción incompleta de Doxygen al español, los
+   enlaces del README que sí funcionan al navegar por GitHub pero que Doxygen no
+   resuelve como referencia interna) están en la lista blanca de
+   `check_docs_consistency.py`, cada uno con su motivo escrito. Cualquier aviso
+   nuevo hace fallar la comprobación: la lista blanca no crece sin justificación.
+3. Medir la cobertura de comentarios de los headers tocados y anotarla.
+4. Regenerar los `docs/API_*.md` que falten.
+5. `python scripts/check_docs_consistency.py --doxygen`.
+6. Reportar en el chat: avisos antes y después, cobertura y ficheros generados.
+
+**Errores típicos que este comando ha destapado:**
+
+- `@example` usado para introducir un ejemplo en línea. En Doxygen ese comando
+  significa «este comentario documenta un fichero de ejemplo», así que hacía que
+  el header entero se tratase como ejemplo. Lo correcto es `@par Ejemplo:`.
+- Nombres de cabeceras estándar escritos como `<atomic>` dentro de un
+  comentario: Doxygen los lee como etiquetas HTML. Van entre acentos graves.
+- `@param` con un nombre que no está en la firma, casi siempre porque el
+  parámetro no tiene nombre en la declaración.
+- Comandos inventados (`@complexity`) que hay que declarar en `ALIASES`.
+
+---
+
+### `ACTUALIZA_DOC`
+
+**Propósito:** pasada completa al terminar una sesión de trabajo. Sincroniza los
+documentos vivos con el estado real del código.
+
+**Pasos (en orden):**
+
+1. `python make.py test gcc release-O2` — anotar el resultado real, no el
+   esperado.
+2. Leer el estado previo de `NEXT_STEPS.md`, `CHANGELOG.md` y
+   `PROJECT_STATUS.md`.
+3. Identificar qué ha cambiado: tareas cerradas, ficheros nuevos, APIs añadidas,
+   comportamientos modificados.
+4. `CHANGELOG.md`: entrada nueva con fecha y los cambios de la sesión.
+5. `NEXT_STEPS.md`: mover a completado lo que se ha cerrado, con el hash del
+   commit. Si una tarea reveló trabajo nuevo, añadirlo.
+6. `PROJECT_STATUS.md`: instantánea del estado de compilación y de la suite.
+7. `README.md`: métricas y cifras de la cabecera.
+8. Invocar `PROYECTA` para los headers tocados.
+9. **Verificar la coherencia**: `python scripts/check_docs_consistency.py`.
+   Tiene que quedar en verde antes de dar la sesión por cerrada.
+10. Reportar en el chat: qué se cerró, qué ficheros se tocaron y qué queda.
+
+**Regla que motivó este comando:** la auditoría del 23 ago 2026 encontró el
+README diciendo «42/42 tests» en la cabecera, «106/106» en una sección y
+«197/197» en otra, y enlazando a cuatro ficheros inexistentes. Nada de eso
+rompe una compilación, así que había sobrevivido meses. El paso 9 existe
+justamente para que eso no vuelva a pasar en silencio.
+
+---
+
+### Relación con los comandos de las guías de Lean 4
+
+| Lean 4 | C++ | Diferencia |
+|---|---|---|
+| `proyecta` | `PROYECTA` | Allí se proyecta el bloque `export` al árbol `REFERENCE`; aquí, la API pública de un header a su `docs/API_*.md` |
+| `actualiza doc` | `ACTUALIZA_DOC` | Allí se cuentan `sorry`; aquí, tests que pasan y tareas cerradas |
+| `repasa_y_proyecta` | `scripts/check_docs_consistency.py` | Automatizado: en C++ la coherencia es comprobable con un script, no hace falta que la revise la IA a mano |
+| `compila_y_comprueba` | `python make.py test` | Ya existía |
+| — | `DOCUMENTA` | No tiene equivalente en Lean 4: allí la documentación se genera del propio código con `lake`; aquí hace falta Doxygen y su control de avisos |
 
 ---
 
