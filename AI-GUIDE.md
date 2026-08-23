@@ -1707,8 +1707,8 @@ y amplían la información aquí contenida:
 Adaptación al dominio C++ de la sección homónima de las guías de Lean 4
 (`lean4-project-template/AI-GUIDE.md`). La IA debe obedecer estos comandos
 exactos cuando el usuario los invoque en el chat. Cada uno tiene además su
-*slash command* en `.claude/commands/`, de modo que `/proyecta`, `/documenta` y
-`/actualiza_doc` hacen lo mismo que escribir el nombre.
+*slash command* en `.claude/commands/`, de modo que `/proyecta`, `/documenta`,
+`/actualiza_doc` y `/guarda_y_sube` hacen lo mismo que escribir el nombre.
 
 Los tres se apoyan en dos scripts que son la parte automatizable del trabajo:
 
@@ -1808,6 +1808,34 @@ justamente para que eso no vuelva a pasar en silencio.
 
 ---
 
+### `GUARDA_Y_SUBE`
+
+**Propósito:** flujo de git seguro. Equivalente C++ del `guarda_y_sube` de las
+guías de Lean 4: allí el flujo gira en torno a los bloqueos de fichero
+(`git-lock.bash`), aquí no hay bloqueos y su sitio lo ocupan los verificadores.
+
+**Nada se sube sin pasar los cuatro verificadores.** Si alguno falla, se arregla
+o se dice que no se sube; no se sube «con eso pendiente».
+
+**Pasos (en orden):**
+
+1. `python make.py test gcc release-O2`. Anotar el resultado real. Si falla, parar.
+2. Verificadores, los mismos que exige el job `format-and-docs` del CI:
+   - `python scripts/check_headers_selfcontained.py`
+   - `python scripts/check_docs_consistency.py --doxygen`
+   - `clang-format --dry-run --Werror` sobre los ficheros tocados
+3. `git status --short` y `git diff --stat`. **Nunca `git add -A` a ciegas**: se
+   añaden ficheros concretos y solo tras mirar la lista. Si aparece algo
+   inesperado (binarios, `.orig`, `.bak`), se investiga antes de seguir.
+4. Commit con mensaje descriptivo: qué cambia, **por qué**, y qué se verificó.
+   Conventional commits para el prefijo, `!` si rompe compatibilidad. Si el
+   trabajo son varias cosas separables, varios commits, cada uno compilable y con
+   la suite en verde, para que `git bisect` sirva de algo.
+5. `git push origin <rama>`, y confirmar con `git log --oneline origin/<rama> -1`.
+6. Reportar en el chat: commits que han entrado, qué se verificó y qué queda.
+
+---
+
 ### Relación con los comandos de las guías de Lean 4
 
 | Lean 4 | C++ | Diferencia |
@@ -1816,6 +1844,7 @@ justamente para que eso no vuelva a pasar en silencio.
 | `actualiza doc` | `ACTUALIZA_DOC` | Allí se cuentan `sorry`; aquí, tests que pasan y tareas cerradas |
 | `repasa_y_proyecta` | `scripts/check_docs_consistency.py` | Automatizado: en C++ la coherencia es comprobable con un script, no hace falta que la revise la IA a mano |
 | `compila_y_comprueba` | `python make.py test` | Ya existía |
+| `guarda_y_sube` | `GUARDA_Y_SUBE` | Allí el flujo gira en torno a los bloqueos de fichero; aquí, en torno a los cuatro verificadores |
 | — | `DOCUMENTA` | No tiene equivalente en Lean 4: allí la documentación se genera del propio código con `lake`; aquí hace falta Doxygen y su control de avisos |
 
 ---
