@@ -19,6 +19,7 @@
 |---|---|
 | `python make.py test gcc release-O2` | **52/52 ficheros OK** (227 s) |
 | Warnings `-Wall -Wextra -Wshadow -Wconversion -Wsign-conversion` | 2 sitios cosméticos en librería |
+| Suite tras Fase 0 + T1.1 + T1.4 | **53/53** (GCC 16.2.0 ucrt64, 216 s); `test_fixed_string_io` nuevo, 74/74 |
 | **Fuzz diferencial vs enteros grandes de Python** (N=2/4/8, signed+unsigned, `+ - * / % & << >>`, `to_string`) | **17.600 ops, 0 discrepancias** |
 | Headers auto-contenidos | 27/28 |
 | `TODO`/`FIXME` en `include/` | 0 |
@@ -108,8 +109,8 @@ Coste medido de revertirlo: **107 accesos `.data[` en `tests/`, 4 en `benchs/`, 
 declaración `friend`**: el constructor cross-tipo y los operadores libres funcionan
 únicamente porque `data` es público.
 
-**Trade-off a decidir:** con `data` privado el tipo deja de ser *structural type* y no
-podrá usarse como parámetro no-tipo de plantilla (NTTP). No hay ningún uso así hoy.
+**DECIDIDO (23 ago 2026):** se hace `data` privado y **se deja decaer el NTTP**, volviendo
+al comportamiento de phase-1.75. No hay ningún uso como parámetro no-tipo de plantilla hoy.
 Sigue siendo trivialmente copiable, así que `std::bit_cast` y `memcpy` no se ven afectados.
 
 #### [P17] Sobre los sistemas de construcción
@@ -137,19 +138,19 @@ no de arquitectura:
 
 | id | Tarea | Detalle | Ref |
 |----|-------|---------|-----|
-| T0.1 | Destrackear ficheros muertos, **también en remoto** | `git rm --cached .aider.chat.history.md .aider.input.history .aider.conf.yml .aider.tags.cache.v4/cache.db` + los 5 `.old`/`.bak` (`tests/test_param_{bits,cmath,limits,numeric}.cpp.old`, `include/int128_param_limits.hpp.old`, `benchs/benchmark_vs_builtin.cpp.bak`) → commit → push. **Nota:** esto los quita del árbol, no del historial; purgarlos de verdad exige `git filter-repo` y reescribir historia — no recomendado salvo petición expresa. | #10 |
-| T0.2 | Mover `include/test_fixed_string_io.cpp` | Un `.cpp` no vive en `include/`. Va a `tests/`, reescrito con el framework propio del proyecto (hoy usa gtest, que no es dependencia). Su contenido es la base de [T5.1]. | #6, #11 |
-| T0.3 | Limpieza de disco | `build/` ocupa **5,4 GB**; `vc140.pdb` (2,1 MB) y `CRASH` en la raíz. | #10 |
-| T0.4 | Erratas menores | `.dockerignore`: `DOCISION_AND_FUTURE.md` → `DECISION_`. README: "42/42" → 52/52; `test_cross_operators 106/106` → 197. Unificar `#pragma once` (3 headers) vs include guards (25). | #18 |
+| ~~T0.1~~ ✅ | ~~Destrackear ficheros muertos, **también en remoto**~~ (hecho 23 ago 2026, commit `2573ed6`, pusheado) | `git rm --cached .aider.chat.history.md .aider.input.history .aider.conf.yml .aider.tags.cache.v4/cache.db` + los 5 `.old`/`.bak` (`tests/test_param_{bits,cmath,limits,numeric}.cpp.old`, `include/int128_param_limits.hpp.old`, `benchs/benchmark_vs_builtin.cpp.bak`) → commit → push. **Nota:** esto los quita del árbol, no del historial; purgarlos de verdad exige `git filter-repo` y reescribir historia — no recomendado salvo petición expresa. | #10 |
+| ~~T0.2~~ ✅ | ~~Mover `include/test_fixed_string_io.cpp`~~ (hecho: `tests/test_fixed_string_io.cpp`, 74/74, commit `d6575cf`) | Un `.cpp` no vive en `include/`. Va a `tests/`, reescrito con el framework propio del proyecto (hoy usa gtest, que no es dependencia). Su contenido es la base de [T5.1]. | #6, #11 |
+| ~~T0.3~~ ✅ | ~~Limpieza de disco~~ (5,5 GB → 0; resultados de benchmark preservados) | `build/` ocupa **5,4 GB**; `vc140.pdb` (2,1 MB) y `CRASH` en la raíz. | #10 |
+| ~~T0.4~~ ✅ | ~~Erratas menores~~ (hecho; guardas de inclusión unificadas en el commit de estilo) | `.dockerignore`: `DOCISION_AND_FUTURE.md` → `DECISION_`. README: "42/42" → 52/52; `test_cross_operators 106/106` → 197. Unificar `#pragma once` (3 headers) vs include guards (25). | #18 |
 
 #### 🔧 Fase 1 — Toolchain y licencia
 
 | id | Tarea | Detalle | Ref |
 |----|-------|---------|-----|
-| T1.1 | **Fijar el compilador correcto** | Verificado: en este equipo `clang++` y `g++` **a secas** resuelven a `C:\msys64\usr\bin\` (target `x86_64-pc-windows-cygnus`), **no** a `clang64`/`ucrt64`. No hay clang de Lean 4 en el PATH, pero el riesgo es real igualmente. [build_generic.py:397](scripts/build_generic.py#L397) y [check_generic.py:134](scripts/check_generic.py#L134) usan `os.environ.get("CLANG_CXX", "clang++")`. Poner por defecto en Windows `C:/msys64/clang64/bin/clang++.exe` y `C:/msys64/ucrt64/bin/g++.exe`, y que el script **imprima la ruta y el target** del compilador que va a usar. | #1 |
+| ~~T1.1~~ ✅ | ~~**Fijar el compilador correcto**~~ (hecho: `scripts/toolchains.py`, commit `bcdb26e`) | Verificado: en este equipo `clang++` y `g++` **a secas** resuelven a `C:\msys64\usr\bin\` (target `x86_64-pc-windows-cygnus`), **no** a `clang64`/`ucrt64`. No hay clang de Lean 4 en el PATH, pero el riesgo es real igualmente. [build_generic.py:397](scripts/build_generic.py#L397) y [check_generic.py:134](scripts/check_generic.py#L134) usan `os.environ.get("CLANG_CXX", "clang++")`. Poner por defecto en Windows `C:/msys64/clang64/bin/clang++.exe` y `C:/msys64/ucrt64/bin/g++.exe`, y que el script **imprima la ruta y el target** del compilador que va a usar. | #1 |
 | T1.2 | **LICENSE + SPDX completo** | Crear `LICENSE.txt` (BSL-1.0) — hoy **no existe**, pese a que `AI-GUIDE.md:674` lo declara obligatorio y las cabeceras lo citan. Cumplimiento medido: **17/28 headers con SPDX** (faltan `fixed_width_int_t.hpp`, los 3 `fixed_int_*` y los 5 de `intrinsics/`), **1/52 tests**, **0/9 benchs**. Aplicar la cabecera que ya manda `AI_PROMPT/ai-instructions.md` §License Header. Añadir `check_license_headers.py` + job de CI que falle si falta alguna. | #2 |
 | T1.3 | **Empaquetado CMake** | `add_library(int128 INTERFACE)` + `target_include_directories` + `install()` + `export()` + `int128Config.cmake` → consumible por `find_package` y `FetchContent`. Instalar también `LICENSE.txt`. Rellenar o borrar `conanfile.txt` (hoy 1 byte). | #2 |
-| T1.4 | `.clang-format` | **Este es el problema del formateo (#7b):** no existe `.clang-format` en el repo (sí `.clang-tidy`), así que el formateador del editor aplica su estilo por defecto. El diff sin commitear de `fixed_width_int_t.hpp` (396+/157-) es **100% reformateo, cero cambios semánticos**, e introdujo el artefacto `return R{a} ^ R { b };`. Fijar `.clang-format` con el estilo real del proyecto (Allman, 4 espacios, alineación de columnas), decidir si se revierte el diff o se commitea aislado, y añadir `--dry-run --Werror` en CI. | #7b |
+| ~~T1.4~~ ✅ | ~~`.clang-format`~~ (hecho: commit aislado `46b9cb8` + `.clangd`; el diff pendiente era formateo salvo el signo '+', rescatado en `06eac8f`) | **Este es el problema del formateo (#7b):** no existe `.clang-format` en el repo (sí `.clang-tidy`), así que el formateador del editor aplica su estilo por defecto. El diff sin commitear de `fixed_width_int_t.hpp` (396+/157-) era reformateo puro **salvo un cambio real de 5 líneas** (aceptar el signo `+` en `from_string` de tipos con signo), que estaba enterrado ahí dentro y se rescató en el commit `06eac8f`. El reformateo introdujo además el artefacto `return R{a} ^ R { b };`. Fijar `.clang-format` con el estilo real del proyecto (Allman, 4 espacios, alineación de columnas), decidir si se revierte el diff o se commitea aislado, y añadir `--dry-run --Werror` en CI. | #7b |
 
 #### 🐛 Fase 2 — Correctitud
 
