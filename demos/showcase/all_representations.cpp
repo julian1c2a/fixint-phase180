@@ -21,10 +21,9 @@ using nstd::uint128_t;
 
 void print_raw_bits(const std::string &label, uint64_t high, uint64_t low)
 {
-    std::cout << "  " << std::left << std::setw(18) << label
-              << " high = 0x" << std::hex << std::setfill('0') << std::setw(16) << high
-              << "  low = 0x" << std::setw(16) << low << std::dec << std::setfill(' ')
-              << std::endl;
+    std::cout << "  " << std::left << std::setw(18) << label << " high = 0x" << std::hex << std::setfill('0')
+              << std::setw(16) << high << "  low = 0x" << std::setw(16) << low << std::dec
+              << std::setfill(' ') << std::endl;
 }
 
 int main()
@@ -96,8 +95,10 @@ int main()
 
     // --- Properties ---
     std::cout << "--- Type Properties ---" << std::endl;
-    std::cout << "  TC is_twos_complement:  " << (int128_tc_t::is_twos_complement ? "true" : "false") << std::endl;
-    std::cout << "  MS is_magnitude_sign:   " << (int128_ms_t::is_magnitude_sign ? "true" : "false") << std::endl;
+    std::cout << "  TC is_twos_complement:  " << (int128_tc_t::is_twos_complement ? "true" : "false")
+              << std::endl;
+    std::cout << "  MS is_magnitude_sign:   " << (int128_ms_t::is_magnitude_sign ? "true" : "false")
+              << std::endl;
     std::cout << "  EK is_excess_k:         " << (int128_ek_t::is_excess_k ? "true" : "false") << std::endl;
     std::cout << "  BN is_binnat:           " << (uint128_t::is_binnat ? "true" : "false") << std::endl;
     std::cout << std::endl;

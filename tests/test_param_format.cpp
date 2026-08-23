@@ -268,8 +268,7 @@ int main()
 
         // 2^64 = 18446744073709551616 in decimal
         // 2^64 = 10000000000000000 in hex (without 0x prefix)
-        if ((str_dec == "18446744073709551616") &&
-            (str_hex == "10000000000000000"))
+        if ((str_dec == "18446744073709551616") && (str_hex == "10000000000000000"))
         {
             std::cout << "  [OK] large_values\n";
             TEST_PASS();

@@ -24,8 +24,8 @@ int main()
 {
     std::cout << "====================================================================\n";
     std::cout << "Sweep Division Tests (3-region systematic coverage)\n";
-    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS
-              << " = " << SWEEP_REGION_SIZE << " values per region\n";
+    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS << " = " << SWEEP_REGION_SIZE
+              << " values per region\n";
     std::cout << "====================================================================\n\n";
 
     int passed{0};
@@ -48,9 +48,7 @@ int main()
                 const uint128_t r{n % d};
                 return q * d + r;
             },
-            [](const uint128_t &n, const uint128_t &) -> uint128_t
-            { return n; },
-            "div_identity_q_d_plus_r"))
+            [](const uint128_t &n, const uint128_t &) -> uint128_t { return n; }, "div_identity_q_d_plus_r"))
     {
         ++passed;
     }
@@ -71,9 +69,7 @@ int main()
                 const uint128_t r{n % d};
                 return (r < d) ? 1 : 0;
             },
-            [](const uint128_t &, const uint128_t &) -> int
-            { return 1; },
-            "remainder_less_than_divisor"))
+            [](const uint128_t &, const uint128_t &) -> int { return 1; }, "remainder_less_than_divisor"))
     {
         ++passed;
     }
@@ -87,23 +83,15 @@ int main()
     print_sweep_separator();
 
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &n) -> uint128_t
-            { return n / uint128_t{1ULL}; },
-            [](const uint128_t &n) -> uint128_t
-            { return n; },
-            "div_by_one_identity"))
+    if (sweep_unary([](const uint128_t &n) -> uint128_t { return n / uint128_t{1ULL}; },
+                    [](const uint128_t &n) -> uint128_t { return n; }, "div_by_one_identity"))
     {
         ++passed;
     }
 
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &n) -> uint128_t
-            { return n % uint128_t{1ULL}; },
-            [](const uint128_t &) -> uint128_t
-            { return uint128_t{0ULL}; },
-            "mod_by_one_is_zero"))
+    if (sweep_unary([](const uint128_t &n) -> uint128_t { return n % uint128_t{1ULL}; },
+                    [](const uint128_t &) -> uint128_t { return uint128_t{0ULL}; }, "mod_by_one_is_zero"))
     {
         ++passed;
     }
@@ -127,9 +115,7 @@ int main()
                 }
                 return n / n;
             },
-            [](const uint128_t &) -> uint128_t
-            { return uint128_t{1ULL}; },
-            "self_div_is_one"))
+            [](const uint128_t &) -> uint128_t { return uint128_t{1ULL}; }, "self_div_is_one"))
     {
         ++passed;
     }
@@ -145,9 +131,7 @@ int main()
                 }
                 return n % n;
             },
-            [](const uint128_t &) -> uint128_t
-            { return uint128_t{0ULL}; },
-            "self_mod_is_zero"))
+            [](const uint128_t &) -> uint128_t { return uint128_t{0ULL}; }, "self_mod_is_zero"))
     {
         ++passed;
     }
@@ -170,9 +154,7 @@ int main()
                 }
                 return uint128_t{0ULL} / d;
             },
-            [](const uint128_t &) -> uint128_t
-            { return uint128_t{0ULL}; },
-            "zero_div_d_is_zero"))
+            [](const uint128_t &) -> uint128_t { return uint128_t{0ULL}; }, "zero_div_d_is_zero"))
     {
         ++passed;
     }
@@ -187,9 +169,7 @@ int main()
                 }
                 return uint128_t{0ULL} % d;
             },
-            [](const uint128_t &) -> uint128_t
-            { return uint128_t{0ULL}; },
-            "zero_mod_d_is_zero"))
+            [](const uint128_t &) -> uint128_t { return uint128_t{0ULL}; }, "zero_mod_d_is_zero"))
     {
         ++passed;
     }
@@ -204,48 +184,32 @@ int main()
 
     // n / 2 == n >> 1
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &n) -> uint128_t
-            { return n / uint128_t{2ULL}; },
-            [](const uint128_t &n) -> uint128_t
-            { return n >> 1; },
-            "div_by_2_eq_shr1"))
+    if (sweep_unary([](const uint128_t &n) -> uint128_t { return n / uint128_t{2ULL}; },
+                    [](const uint128_t &n) -> uint128_t { return n >> 1; }, "div_by_2_eq_shr1"))
     {
         ++passed;
     }
 
     // n / 4 == n >> 2
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &n) -> uint128_t
-            { return n / uint128_t{4ULL}; },
-            [](const uint128_t &n) -> uint128_t
-            { return n >> 2; },
-            "div_by_4_eq_shr2"))
+    if (sweep_unary([](const uint128_t &n) -> uint128_t { return n / uint128_t{4ULL}; },
+                    [](const uint128_t &n) -> uint128_t { return n >> 2; }, "div_by_4_eq_shr2"))
     {
         ++passed;
     }
 
     // n % 2 == n & 1
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &n) -> uint128_t
-            { return n % uint128_t{2ULL}; },
-            [](const uint128_t &n) -> uint128_t
-            { return n & uint128_t{1ULL}; },
-            "mod_2_eq_and_1"))
+    if (sweep_unary([](const uint128_t &n) -> uint128_t { return n % uint128_t{2ULL}; },
+                    [](const uint128_t &n) -> uint128_t { return n & uint128_t{1ULL}; }, "mod_2_eq_and_1"))
     {
         ++passed;
     }
 
     // n % 4 == n & 3
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &n) -> uint128_t
-            { return n % uint128_t{4ULL}; },
-            [](const uint128_t &n) -> uint128_t
-            { return n & uint128_t{3ULL}; },
-            "mod_4_eq_and_3"))
+    if (sweep_unary([](const uint128_t &n) -> uint128_t { return n % uint128_t{4ULL}; },
+                    [](const uint128_t &n) -> uint128_t { return n & uint128_t{3ULL}; }, "mod_4_eq_and_3"))
     {
         ++passed;
     }
@@ -266,9 +230,7 @@ int main()
                 const uint128_t q{n / d};
                 return (q <= n) ? 1 : 0;
             },
-            [](const uint128_t &, const uint128_t &) -> int
-            { return 1; },
-            "quotient_le_dividend"))
+            [](const uint128_t &, const uint128_t &) -> int { return 1; }, "quotient_le_dividend"))
     {
         ++passed;
     }

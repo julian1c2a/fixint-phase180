@@ -19,7 +19,8 @@
 // @version    1.0.0
 // =============================================================================
 
-#pragma once
+#ifndef INT128_ALGORITHMS_DIV_BY_CONST_HPP
+#define INT128_ALGORITHMS_DIV_BY_CONST_HPP
 
 #include "karatsuba.hpp"
 
@@ -127,10 +128,8 @@ namespace nstd
          * @param shift_minus_1 S - 1, where S = ceil(log2(d))
          * @return floor(n / d)
          */
-        inline uint128_t gm_div_overflow(
-            const uint128_t &n,
-            const uint128_t &M_low,
-            int shift_minus_1) noexcept
+        inline uint128_t gm_div_overflow(const uint128_t &n, const uint128_t &M_low,
+                                         int shift_minus_1) noexcept
         {
             const auto t{mulhi_128(n, M_low)};
             return (t + ((n - t) >> 1)) >> shift_minus_1;
@@ -289,3 +288,5 @@ namespace nstd
 
     } // namespace algorithms
 } // namespace nstd
+
+#endif // INT128_ALGORITHMS_DIV_BY_CONST_HPP

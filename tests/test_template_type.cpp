@@ -19,10 +19,13 @@ int main()
 
     // Verify basic type traits
     std::cout << "\nType traits:\n";
-    std::cout << "  uint128_t is int128_param_t<unsigned_type, binnat>: "
-              << std::is_same_v<uint128_t, int128_param_t<signedness::unsigned_type, representation_form::binnat>> << "\n";
+    std::cout
+        << "  uint128_t is int128_param_t<unsigned_type, binnat>: "
+        << std::is_same_v<uint128_t,
+                          int128_param_t<signedness::unsigned_type, representation_form::binnat>> << "\n";
     std::cout << "  int128_tc_t is int128_param_t<signed_type, twos_complement>: "
-              << std::is_same_v<int128_tc_t, int128_param_t<signedness::signed_type, representation_form::twos_complement>> << "\n";
+              << std::is_same_v<int128_tc_t, int128_param_t<signedness::signed_type,
+                                                            representation_form::twos_complement>> << "\n";
 
     std::cout << "\n[OK] Template type test passed\n";
     return 0;

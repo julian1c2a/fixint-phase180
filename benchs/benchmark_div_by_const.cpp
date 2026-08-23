@@ -98,8 +98,8 @@ static BenchResult measure_u64_div()
 int main()
 {
     std::cout << "============================================================" << std::endl;
-    std::cout << "  Granlund-Montgomery Benchmark: fast_divN vs operator/"     << std::endl;
-    std::cout << "  Iterations: " << ITERATIONS << "  Warmup: " << WARMUP     << std::endl;
+    std::cout << "  Granlund-Montgomery Benchmark: fast_divN vs operator/" << std::endl;
+    std::cout << "  Iterations: " << ITERATIONS << "  Warmup: " << WARMUP << std::endl;
     std::cout << "============================================================" << std::endl;
 
     // ====================================================================
@@ -108,7 +108,8 @@ int main()
     {
         const auto baseline{measure_u64_div<10>()};
         const auto gm{measure("fast_div10(uint128)", [](const uint128_t &n) { return fast_div10(n); })};
-        const auto std_div{measure("uint128 / uint128(10)", [](const uint128_t &n) { return n / uint128_t{10}; })};
+        const auto std_div{
+            measure("uint128 / uint128(10)", [](const uint128_t &n) { return n / uint128_t{10}; })};
 
         print_header("Division by 10");
         print_result(baseline, baseline.cycles_per_op);
@@ -123,7 +124,8 @@ int main()
     {
         const auto baseline{measure_u64_div<3>()};
         const auto gm{measure("fast_div3(uint128)", [](const uint128_t &n) { return fast_div3(n); })};
-        const auto std_div{measure("uint128 / uint128(3)", [](const uint128_t &n) { return n / uint128_t{3}; })};
+        const auto std_div{
+            measure("uint128 / uint128(3)", [](const uint128_t &n) { return n / uint128_t{3}; })};
 
         print_header("Division by 3");
         print_result(baseline, baseline.cycles_per_op);
@@ -138,7 +140,8 @@ int main()
     {
         const auto baseline{measure_u64_div<5>()};
         const auto gm{measure("fast_div5(uint128)", [](const uint128_t &n) { return fast_div5(n); })};
-        const auto std_div{measure("uint128 / uint128(5)", [](const uint128_t &n) { return n / uint128_t{5}; })};
+        const auto std_div{
+            measure("uint128 / uint128(5)", [](const uint128_t &n) { return n / uint128_t{5}; })};
 
         print_header("Division by 5");
         print_result(baseline, baseline.cycles_per_op);
@@ -153,7 +156,8 @@ int main()
     {
         const auto baseline{measure_u64_div<7>()};
         const auto gm{measure("fast_div7(uint128)", [](const uint128_t &n) { return fast_div7(n); })};
-        const auto std_div{measure("uint128 / uint128(7)", [](const uint128_t &n) { return n / uint128_t{7}; })};
+        const auto std_div{
+            measure("uint128 / uint128(7)", [](const uint128_t &n) { return n / uint128_t{7}; })};
 
         print_header("Division by 7");
         print_result(baseline, baseline.cycles_per_op);
@@ -168,7 +172,8 @@ int main()
     {
         const auto baseline{measure_u64_div<100>()};
         const auto gm{measure("fast_div100(uint128)", [](const uint128_t &n) { return fast_div100(n); })};
-        const auto std_div{measure("uint128 / uint128(100)", [](const uint128_t &n) { return n / uint128_t{100}; })};
+        const auto std_div{
+            measure("uint128 / uint128(100)", [](const uint128_t &n) { return n / uint128_t{100}; })};
 
         print_header("Division by 100");
         print_result(baseline, baseline.cycles_per_op);
@@ -184,7 +189,8 @@ int main()
         constexpr uint64_t E19{10000000000000000000ull};
         const auto baseline{measure_u64_div<E19>()};
         const auto gm{measure("fast_div_1e19(uint128)", [](const uint128_t &n) { return fast_div_1e19(n); })};
-        const auto std_div{measure("uint128 / uint128(1e19)", [&](const uint128_t &n) { return n / uint128_t{E19}; })};
+        const auto std_div{
+            measure("uint128 / uint128(1e19)", [&](const uint128_t &n) { return n / uint128_t{E19}; })};
 
         print_header("Division by 10^19");
         print_result(baseline, baseline.cycles_per_op);

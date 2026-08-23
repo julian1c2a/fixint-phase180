@@ -18,8 +18,8 @@ int main()
 {
     std::cout << "====================================================================\n";
     std::cout << "Sweep Arithmetic Tests (3-region systematic coverage)\n";
-    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS
-              << " = " << SWEEP_REGION_SIZE << " values per region\n";
+    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS << " = " << SWEEP_REGION_SIZE
+              << " values per region\n";
     std::cout << "====================================================================\n\n";
 
     int passed{0};
@@ -33,36 +33,29 @@ int main()
 
     // a + b == b + a
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return a + b; },
-            [](const uint128_t &a, const uint128_t &b)
-            { return b + a; },
-            "add_commutativity"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return a + b; },
+                     [](const uint128_t &a, const uint128_t &b) { return b + a; }, "add_commutativity"))
     {
         ++passed;
     }
 
     // a + 0 == a
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a + uint128_t{0ULL}; },
-            [](const uint128_t &a)
-            { return a; },
-            "add_zero_identity"))
+    if (sweep_unary([](const uint128_t &a) { return a + uint128_t{0ULL}; },
+                    [](const uint128_t &a) { return a; }, "add_zero_identity"))
     {
         ++passed;
     }
 
     // (a + b) - b == a (add/sub inverse)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return (a + b) - b; },
-            [](const uint128_t &a, const uint128_t &b)
-            { (void)b; return a; },
-            "add_sub_roundtrip"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return (a + b) - b; },
+                     [](const uint128_t &a, const uint128_t &b)
+                     {
+                         (void)b;
+                         return a;
+                     },
+                     "add_sub_roundtrip"))
     {
         ++passed;
     }
@@ -77,36 +70,29 @@ int main()
 
     // a - 0 == a
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a - uint128_t{0ULL}; },
-            [](const uint128_t &a)
-            { return a; },
-            "sub_zero_identity"))
+    if (sweep_unary([](const uint128_t &a) { return a - uint128_t{0ULL}; },
+                    [](const uint128_t &a) { return a; }, "sub_zero_identity"))
     {
         ++passed;
     }
 
     // a - a == 0
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a - a; },
-            [](const uint128_t &)
-            { return uint128_t{0ULL}; },
-            "sub_self_zero"))
+    if (sweep_unary([](const uint128_t &a) { return a - a; },
+                    [](const uint128_t &) { return uint128_t{0ULL}; }, "sub_self_zero"))
     {
         ++passed;
     }
 
     // (a - b) + b == a (sub/add inverse)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return (a - b) + b; },
-            [](const uint128_t &a, const uint128_t &b)
-            { (void)b; return a; },
-            "sub_add_roundtrip"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return (a - b) + b; },
+                     [](const uint128_t &a, const uint128_t &b)
+                     {
+                         (void)b;
+                         return a;
+                     },
+                     "sub_add_roundtrip"))
     {
         ++passed;
     }
@@ -121,36 +107,24 @@ int main()
 
     // a * b == b * a
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return a * b; },
-            [](const uint128_t &a, const uint128_t &b)
-            { return b * a; },
-            "mul_commutativity"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return a * b; },
+                     [](const uint128_t &a, const uint128_t &b) { return b * a; }, "mul_commutativity"))
     {
         ++passed;
     }
 
     // a * 1 == a
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a * uint128_t{1ULL}; },
-            [](const uint128_t &a)
-            { return a; },
-            "mul_one_identity"))
+    if (sweep_unary([](const uint128_t &a) { return a * uint128_t{1ULL}; },
+                    [](const uint128_t &a) { return a; }, "mul_one_identity"))
     {
         ++passed;
     }
 
     // a * 0 == 0
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a * uint128_t{0ULL}; },
-            [](const uint128_t &)
-            { return uint128_t{0ULL}; },
-            "mul_zero_absorb"))
+    if (sweep_unary([](const uint128_t &a) { return a * uint128_t{0ULL}; },
+                    [](const uint128_t &) { return uint128_t{0ULL}; }, "mul_zero_absorb"))
     {
         ++passed;
     }
@@ -165,24 +139,16 @@ int main()
 
     // (a + 1) - 1 == a (works for all values including MAX due to wrap-around)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return (a + uint128_t{1ULL}) - uint128_t{1ULL}; },
-            [](const uint128_t &a)
-            { return a; },
-            "incr_decr_roundtrip"))
+    if (sweep_unary([](const uint128_t &a) { return (a + uint128_t{1ULL}) - uint128_t{1ULL}; },
+                    [](const uint128_t &a) { return a; }, "incr_decr_roundtrip"))
     {
         ++passed;
     }
 
     // (a - 1) + 1 == a (works for all values including 0 due to wrap-around)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return (a - uint128_t{1ULL}) + uint128_t{1ULL}; },
-            [](const uint128_t &a)
-            { return a; },
-            "decr_incr_roundtrip"))
+    if (sweep_unary([](const uint128_t &a) { return (a - uint128_t{1ULL}) + uint128_t{1ULL}; },
+                    [](const uint128_t &a) { return a; }, "decr_incr_roundtrip"))
     {
         ++passed;
     }

@@ -37,9 +37,7 @@ int main()
         const uint128_t val3{0, 1}; // 0x...0001 → 0 trailing zeros
         const uint128_t val4{0, 0}; // 0x0 → 128 (all zeros)
 
-        if ((val1.trailing_zeros() == 3) &&
-            (val2.trailing_zeros() == 64) &&
-            (val3.trailing_zeros() == 0) &&
+        if ((val1.trailing_zeros() == 3) && (val2.trailing_zeros() == 64) && (val3.trailing_zeros() == 0) &&
             (val4.trailing_zeros() == 128))
         {
             std::cout << "  [OK] trailing_zeros\n";
@@ -65,9 +63,7 @@ int main()
         const uint128_t val3{1ULL << 63, 0}; // 0x8000...0000 → 0 leading zeros
         const uint128_t val4{0, 0};          // 0x0 → 128 (all zeros)
 
-        if ((val1.leading_zeros() == 127) &&
-            (val2.leading_zeros() == 63) &&
-            (val3.leading_zeros() == 0) &&
+        if ((val1.leading_zeros() == 127) && (val2.leading_zeros() == 63) && (val3.leading_zeros() == 0) &&
             (val4.leading_zeros() == 128))
         {
             std::cout << "  [OK] leading_zeros\n";
@@ -93,9 +89,7 @@ int main()
         const uint128_t val3{1, 0};   // bit 64 → width = 65
         const uint128_t val4{0, 0};   // no bits → width = 0
 
-        if ((val1.bit_width() == 1) &&
-            (val2.bit_width() == 8) &&
-            (val3.bit_width() == 65) &&
+        if ((val1.bit_width() == 1) && (val2.bit_width() == 8) && (val3.bit_width() == 65) &&
             (val4.bit_width() == 0))
         {
             std::cout << "  [OK] bit_width\n";
@@ -122,11 +116,8 @@ int main()
         const uint128_t not_pow{0, 3}; // Not a power of 2
         const uint128_t zero{0, 0};    // Zero (not a power of 2)
 
-        if (pow1.is_power_of_2() &&
-            pow8.is_power_of_2() &&
-            pow64.is_power_of_2() &&
-            !not_pow.is_power_of_2() &&
-            !zero.is_power_of_2())
+        if (pow1.is_power_of_2() && pow8.is_power_of_2() && pow64.is_power_of_2() &&
+            !not_pow.is_power_of_2() && !zero.is_power_of_2())
         {
             std::cout << "  [OK] is_power_of_2\n";
             TEST_PASS();
@@ -151,11 +142,8 @@ int main()
         const uint128_t val3{0, 0xFF};      // 8 ones
         const uint128_t val4{~0ULL, ~0ULL}; // 128 ones
 
-        if ((val1.count_ones() == 0) &&
-            (val2.count_ones() == 1) &&
-            (val3.count_ones() == 8) &&
-            (val4.count_ones() == 128) &&
-            (val2.count_ones() == val2.popcount())) // Verify alias
+        if ((val1.count_ones() == 0) && (val2.count_ones() == 1) && (val3.count_ones() == 8) &&
+            (val4.count_ones() == 128) && (val2.count_ones() == val2.popcount())) // Verify alias
         {
             std::cout << "  [OK] count_ones_popcount\n";
             TEST_PASS();
@@ -209,8 +197,7 @@ int main()
 
         // After 1 right rotation, LSB moves to MSB
         // After 128 rotations, returns to original position
-        if ((rotated128 == val) &&
-            (rotated1 == uint128_t{1ULL << 63, 0}))
+        if ((rotated128 == val) && (rotated1 == uint128_t{1ULL << 63, 0}))
         {
             std::cout << "  [OK] rotate_right\n";
             TEST_PASS();

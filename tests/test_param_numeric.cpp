@@ -72,9 +72,7 @@ int main()
         const uint128_t odd_val{0, 43};
         const uint128_t zero{0, 0};
 
-        if (is_even(even_val) && !is_odd(even_val) &&
-            !is_even(odd_val) && is_odd(odd_val) &&
-            is_even(zero))
+        if (is_even(even_val) && !is_odd(even_val) && !is_even(odd_val) && is_odd(odd_val) && is_even(zero))
         {
             std::cout << "  [OK] parity_checks\n";
             TEST_PASS();
@@ -102,9 +100,7 @@ int main()
         const auto diff2{abs_diff(b, a)};
         const auto diff3{abs_diff(a, c)};
 
-        if ((diff1 == uint128_t{0, 50}) &&
-            (diff2 == uint128_t{0, 50}) &&
-            (diff3 == uint128_t{0, 100}))
+        if ((diff1 == uint128_t{0, 50}) && (diff2 == uint128_t{0, 50}) && (diff3 == uint128_t{0, 100}))
         {
             std::cout << "  [OK] abs_diff\n";
             TEST_PASS();
@@ -144,9 +140,7 @@ int main()
         const uint128_t val3{0, 255}; // 2^8 - 1
         const uint128_t val4{1, 0};   // 2^64
 
-        if ((ilog2(val1) == 0) &&
-            (ilog2(val2) == 3) &&
-            (ilog2(val3) == 7) && // floor(log2(255)) = 7
+        if ((ilog2(val1) == 0) && (ilog2(val2) == 3) && (ilog2(val3) == 7) && // floor(log2(255)) = 7
             (ilog2(val4) == 64))
         {
             std::cout << "  [OK] ilog2\n";
@@ -173,10 +167,8 @@ int main()
         const uint128_t val4{0, 100}; // sqrt(100) = 10
         const uint128_t val5{0, 255}; // sqrt(255) = 15
 
-        if ((isqrt(val1) == uint128_t{0, 0}) &&
-            (isqrt(val2) == uint128_t{0, 1}) &&
-            (isqrt(val3) == uint128_t{0, 2}) &&
-            (isqrt(val4) == uint128_t{0, 10}) &&
+        if ((isqrt(val1) == uint128_t{0, 0}) && (isqrt(val2) == uint128_t{0, 1}) &&
+            (isqrt(val3) == uint128_t{0, 2}) && (isqrt(val4) == uint128_t{0, 10}) &&
             (isqrt(val5) == uint128_t{0, 15}))
         {
             std::cout << "  [OK] isqrt\n";

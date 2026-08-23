@@ -312,7 +312,8 @@ int main()
         else
         {
             std::cout << "  [FAIL] byteswap({1,0}) wrong\n";
-            std::cout << "    high=0x" << std::hex << swapped.high() << " low=0x" << swapped.low() << std::dec << "\n";
+            std::cout << "    high=0x" << std::hex << swapped.high() << " low=0x" << swapped.low() << std::dec
+                      << "\n";
             TEST_FAIL();
         }
     }

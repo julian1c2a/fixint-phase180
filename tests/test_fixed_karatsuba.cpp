@@ -30,20 +30,20 @@
 #include <cstdlib>
 #include <iostream>
 
-using nstd::uint_fixed_t;
 using nstd::int_fixed_t;
+using nstd::uint_fixed_t;
 using std::uint64_t;
 
 static int g_passed{0};
 static int g_failed{0};
 
-#define TEST(name, cond)                               \
-    do                                                 \
-    {                                                  \
-        if (cond)                                      \
-        {                                              \
+#define TEST(name, cond)                              \
+    do                                                \
+    {                                                 \
+        if (cond)                                     \
+        {                                             \
             std::cout << "[OK]   " << (name) << "\n"; \
-            ++g_passed;                                \
+            ++g_passed;                               \
         }                                             \
         else                                          \
         {                                             \
@@ -61,7 +61,8 @@ static uint_fixed_t<N> make(std::initializer_list<uint64_t> limbs)
     uint_fixed_t<N> v{};
     std::size_t i = 0;
     for (uint64_t x : limbs)
-        if (i < N) v.data[i++] = x;
+        if (i < N)
+            v.data[i++] = x;
     return v;
 }
 
@@ -88,7 +89,7 @@ static void test_known_n4(const char *tag)
     }
     // 2×3 = 6
     {
-        u256 two  = make<4>({2, 0, 0, 0});
+        u256 two = make<4>({2, 0, 0, 0});
         u256 three = make<4>({3, 0, 0, 0});
         TEST("2*3 = 6", (two * three) == make<4>({6, 0, 0, 0}));
     }
@@ -114,7 +115,7 @@ static void test_known_n4(const char *tag)
     }
     // max×1 = max
     {
-        u256 mx  = make<4>({MAX64, MAX64, MAX64, MAX64});
+        u256 mx = make<4>({MAX64, MAX64, MAX64, MAX64});
         u256 one = make<4>({1, 0, 0, 0});
         TEST("max*1 = max", (mx * one) == mx);
     }
@@ -144,8 +145,10 @@ static void test_identities_n4(const char *tag)
     using u256 = uint_fixed_t<4>;
 
     // Some non-trivial test values
-    const u256 a = make<4>({0xDEADBEEFCAFEBABEULL, 0x0123456789ABCDEFULL, 0xFEDCBA9876543210ULL, 0x1111222233334444ULL});
-    const u256 b = make<4>({0x9999888877776666ULL, 0xAAAABBBBCCCCDDDDULL, 0xEEEEFFFF00001111ULL, 0x2222333344445555ULL});
+    const u256 a =
+        make<4>({0xDEADBEEFCAFEBABEULL, 0x0123456789ABCDEFULL, 0xFEDCBA9876543210ULL, 0x1111222233334444ULL});
+    const u256 b =
+        make<4>({0x9999888877776666ULL, 0xAAAABBBBCCCCDDDDULL, 0xEEEEFFFF00001111ULL, 0x2222333344445555ULL});
     const u256 one = make<4>({1, 0, 0, 0});
     const u256 zero{};
 
@@ -159,8 +162,7 @@ static void test_identities_n4(const char *tag)
     // Distributivity: a*(b+c) == a*b + a*c (for small values where no overflow confusion)
     const u256 c = make<4>({3, 0, 0, 0});
     const u256 d = make<4>({7, 0, 0, 0});
-    TEST("N=4 distributivity: a*(b+c) == a*b+a*c (small)",
-         (c * (d + one)) == (c * d + c * one));
+    TEST("N=4 distributivity: a*(b+c) == a*b+a*c (small)", (c * (d + one)) == (c * d + c * one));
 
     // a*a == a*a (regression: Karatsuba symmetry)
     const u256 x = make<4>({0xFEDCBA9876543210ULL, 0x123456789ABCDEFULL, 1, 0});
@@ -181,7 +183,8 @@ static void test_vs_n2_ref(const char *tag)
     using u128 = uint_fixed_t<2>;
 
     // Assemble 4-limb product from N=2 pieces
-    auto ref_mul = [](u256 a, u256 b) -> u256 {
+    auto ref_mul = [](u256 a, u256 b) -> u256
+    {
         // Extract halves (each 2 limbs)
         u128 a_lo = make<2>({a.data[0], a.data[1]});
         u128 a_hi = make<2>({a.data[2], a.data[3]});
@@ -207,9 +210,11 @@ static void test_vs_n2_ref(const char *tag)
 
         // Full schoolbook 4×4→4 (truncated to 4 limbs)
         u256 r{};
-        auto add_to = [&r](std::size_t pos, uint64_t lo, uint64_t hi) {
+        auto add_to = [&r](std::size_t pos, uint64_t lo, uint64_t hi)
+        {
             // Add lo at r[pos], hi at r[pos+1], with carry propagation
-            if (pos >= 4) return;
+            if (pos >= 4)
+                return;
             uint64_t old = r.data[pos];
             r.data[pos] += lo;
             uint64_t c = (r.data[pos] < old) ? 1 : 0;
@@ -231,16 +236,15 @@ static void test_vs_n2_ref(const char *tag)
         // On MSVC we rely on the N=2 path being tested independently.
         // This reference test is most useful on GCC/Clang where __uint128_t is available.
 #ifdef __SIZEOF_INT128__
-        auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t {
+        auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t
+        {
             unsigned __int128 p = (unsigned __int128)x * y;
             *hi = (uint64_t)(p >> 64);
             return (uint64_t)p;
         };
 #else
         // On MSVC, use _umul128
-        auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t {
-            return _umul128(x, y, hi);
-        };
+        auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t { return _umul128(x, y, hi); };
 #endif
         for (std::size_t i = 0; i < 4; ++i)
         {
@@ -256,40 +260,35 @@ static void test_vs_n2_ref(const char *tag)
         return r;
     };
 
-    auto check = [&](const char *name, u256 a, u256 b) {
-        TEST(name, (a * b) == ref_mul(a, b));
-    };
+    auto check = [&](const char *name, u256 a, u256 b) { TEST(name, (a * b) == ref_mul(a, b)); };
 
-    check("N=4 vs ref: {1,2,3,4}×{5,6,7,8}", make<4>({1,2,3,4}), make<4>({5,6,7,8}));
-    check("N=4 vs ref: {MAX,0,0,0}×{MAX,0,0,0}",
-          make<4>({MAX64,0,0,0}), make<4>({MAX64,0,0,0}));
-    check("N=4 vs ref: {MAX,MAX,0,0}×{MAX,MAX,0,0}",
-          make<4>({MAX64,MAX64,0,0}), make<4>({MAX64,MAX64,0,0}));
-    check("N=4 vs ref: {MAX,MAX,MAX,MAX}×{2,0,0,0}",
-          make<4>({MAX64,MAX64,MAX64,MAX64}), make<4>({2,0,0,0}));
-    check("N=4 vs ref: all-MAX × all-MAX",
-          make<4>({MAX64,MAX64,MAX64,MAX64}), make<4>({MAX64,MAX64,MAX64,MAX64}));
-    check("N=4 vs ref: mixed-limbs A",
-          make<4>({0xDEADBEEFULL,0xCAFEBABEULL,0x01234567ULL,0x89ABCDEFULL}),
-          make<4>({0xFEDCBA98ULL,0x76543210ULL,0x11223344ULL,0x55667788ULL}));
-    check("N=4 vs ref: mixed-limbs B",
-          make<4>({0x1111111111111111ULL,0x2222222222222222ULL,0x3333333333333333ULL,0x4444444444444444ULL}),
-          make<4>({0x5555555555555555ULL,0x6666666666666666ULL,0x7777777777777777ULL,0x8888888888888888ULL}));
-    check("N=4 vs ref: single high limb",
-          make<4>({0,0,0,0x123456789ABCDEFULL}),
-          make<4>({0,0,0,0xFEDCBA9876543210ULL}));
+    check("N=4 vs ref: {1,2,3,4}×{5,6,7,8}", make<4>({1, 2, 3, 4}), make<4>({5, 6, 7, 8}));
+    check("N=4 vs ref: {MAX,0,0,0}×{MAX,0,0,0}", make<4>({MAX64, 0, 0, 0}), make<4>({MAX64, 0, 0, 0}));
+    check("N=4 vs ref: {MAX,MAX,0,0}×{MAX,MAX,0,0}", make<4>({MAX64, MAX64, 0, 0}),
+          make<4>({MAX64, MAX64, 0, 0}));
+    check("N=4 vs ref: {MAX,MAX,MAX,MAX}×{2,0,0,0}", make<4>({MAX64, MAX64, MAX64, MAX64}),
+          make<4>({2, 0, 0, 0}));
+    check("N=4 vs ref: all-MAX × all-MAX", make<4>({MAX64, MAX64, MAX64, MAX64}),
+          make<4>({MAX64, MAX64, MAX64, MAX64}));
+    check("N=4 vs ref: mixed-limbs A", make<4>({0xDEADBEEFULL, 0xCAFEBABEULL, 0x01234567ULL, 0x89ABCDEFULL}),
+          make<4>({0xFEDCBA98ULL, 0x76543210ULL, 0x11223344ULL, 0x55667788ULL}));
+    check(
+        "N=4 vs ref: mixed-limbs B",
+        make<4>({0x1111111111111111ULL, 0x2222222222222222ULL, 0x3333333333333333ULL, 0x4444444444444444ULL}),
+        make<4>(
+            {0x5555555555555555ULL, 0x6666666666666666ULL, 0x7777777777777777ULL, 0x8888888888888888ULL}));
+    check("N=4 vs ref: single high limb", make<4>({0, 0, 0, 0x123456789ABCDEFULL}),
+          make<4>({0, 0, 0, 0xFEDCBA9876543210ULL}));
     check("N=4 vs ref: interleaved non-zero limbs",
-          make<4>({0xAAAAAAAAAAAAAAAAULL,0,0xBBBBBBBBBBBBBBBBULL,0}),
-          make<4>({0,0xCCCCCCCCCCCCCCCCULL,0,0xDDDDDDDDDDDDDDDDULL}));
-    check("N=4 vs ref: (2^64+1)^2",
-          make<4>({1,1,0,0}), make<4>({1,1,0,0}));
-    check("N=4 vs ref: Fibonacci-like limbs",
-          make<4>({1,1,2,3}), make<4>({5,8,13,21}));
+          make<4>({0xAAAAAAAAAAAAAAAAULL, 0, 0xBBBBBBBBBBBBBBBBULL, 0}),
+          make<4>({0, 0xCCCCCCCCCCCCCCCCULL, 0, 0xDDDDDDDDDDDDDDDDULL}));
+    check("N=4 vs ref: (2^64+1)^2", make<4>({1, 1, 0, 0}), make<4>({1, 1, 0, 0}));
+    check("N=4 vs ref: Fibonacci-like limbs", make<4>({1, 1, 2, 3}), make<4>({5, 8, 13, 21}));
 
     // operator*= consistency
     {
-        u256 a = make<4>({0xDEADBEEFCAFEBABEULL,0x123456789ABCDEFULL,1,0});
-        u256 b = make<4>({0x999,0x888,0x777,0x666});
+        u256 a = make<4>({0xDEADBEEFCAFEBABEULL, 0x123456789ABCDEFULL, 1, 0});
+        u256 b = make<4>({0x999, 0x888, 0x777, 0x666});
         u256 r1 = a * b;
         u256 r2 = a;
         r2 *= b;
@@ -315,30 +314,30 @@ static void test_known_n8(const char *tag)
     // 0×big = 0
     {
         u512 zero{};
-        u512 big = make<8>({MAX64,MAX64,MAX64,MAX64,MAX64,MAX64,MAX64,MAX64});
+        u512 big = make<8>({MAX64, MAX64, MAX64, MAX64, MAX64, MAX64, MAX64, MAX64});
         TEST("N=8 0*big = 0", (zero * big) == zero);
     }
     // 2×3 = 6
     {
-        u512 two   = make<8>({2});
+        u512 two = make<8>({2});
         u512 three = make<8>({3});
         TEST("N=8 2*3 = 6", (two * three) == make<8>({6}));
     }
     // (2^128)^2 = 2^256  →  bit 256 = limb 4 = 1
     {
-        u512 b128 = make<8>({0,0,1,0,0,0,0,0});
-        u512 expected = make<8>({0,0,0,0,1,0,0,0});
+        u512 b128 = make<8>({0, 0, 1, 0, 0, 0, 0, 0});
+        u512 expected = make<8>({0, 0, 0, 0, 1, 0, 0, 0});
         TEST("N=8 2^128 * 2^128 = 2^256", (b128 * b128) == expected);
     }
     // max × 1 = max
     {
-        u512 mx  = make<8>({MAX64,MAX64,MAX64,MAX64,MAX64,MAX64,MAX64,MAX64});
+        u512 mx = make<8>({MAX64, MAX64, MAX64, MAX64, MAX64, MAX64, MAX64, MAX64});
         u512 one = make<8>({1});
         TEST("N=8 max*1 = max", (mx * one) == mx);
     }
     // max × max mod 2^512 = 1 (same reasoning as N=4)
     {
-        u512 mx = make<8>({MAX64,MAX64,MAX64,MAX64,MAX64,MAX64,MAX64,MAX64});
+        u512 mx = make<8>({MAX64, MAX64, MAX64, MAX64, MAX64, MAX64, MAX64, MAX64});
         TEST("N=8 max*max mod 2^512 = 1", (mx * mx) == make<8>({1}));
     }
 }
@@ -353,15 +352,15 @@ static void test_identities_n8(const char *tag)
 
     using u512 = uint_fixed_t<8>;
 
-    const u512 a = make<8>({0xDEAD,0xBEEF,0xCAFE,0xBABE,0x1234,0x5678,0x9ABC,0xDEF0});
-    const u512 b = make<8>({0x1111,0x2222,0x3333,0x4444,0x5555,0x6666,0x7777,0x8888});
-    const u512 one  = make<8>({1});
+    const u512 a = make<8>({0xDEAD, 0xBEEF, 0xCAFE, 0xBABE, 0x1234, 0x5678, 0x9ABC, 0xDEF0});
+    const u512 b = make<8>({0x1111, 0x2222, 0x3333, 0x4444, 0x5555, 0x6666, 0x7777, 0x8888});
+    const u512 one = make<8>({1});
     const u512 zero{};
 
     TEST("N=8 commutativity a*b == b*a", (a * b) == (b * a));
-    TEST("N=8 a*1 == a",  (a * one) == a);
-    TEST("N=8 1*a == a",  (one * a) == a);
-    TEST("N=8 a*0 == 0",  (a * zero) == zero);
+    TEST("N=8 a*1 == a", (a * one) == a);
+    TEST("N=8 1*a == a", (one * a) == a);
+    TEST("N=8 a*0 == 0", (a * zero) == zero);
     TEST("N=8 a*a self-consistency", (a * a) == (a * a));
 
     // operator*= consistency
@@ -387,7 +386,8 @@ static void test_vs_n4_ref(const char *tag)
     // For a = [a_hi|a_lo], b = [b_hi|b_lo] (each N=4 halves):
     //   result = a_lo*b_lo (8 limbs, low 8 of full product)
     //          + (a_lo*b_hi + a_hi*b_lo) << 256  mod 2^512
-    auto ref_mul = [](u512 a, u512 b) -> u512 {
+    auto ref_mul = [](u512 a, u512 b) -> u512
+    {
         u256 a_lo = make<4>({a.data[0], a.data[1], a.data[2], a.data[3]});
         u256 a_hi = make<4>({a.data[4], a.data[5], a.data[6], a.data[7]});
         u256 b_lo = make<4>({b.data[0], b.data[1], b.data[2], b.data[3]});
@@ -400,8 +400,10 @@ static void test_vs_n4_ref(const char *tag)
         const uint64_t *bl = b_lo.data.data();
 
         u512 r{};
-        auto add_to = [&r](std::size_t pos, uint64_t lo, uint64_t hi) {
-            if (pos >= 8) return;
+        auto add_to = [&r](std::size_t pos, uint64_t lo, uint64_t hi)
+        {
+            if (pos >= 8)
+                return;
             uint64_t old = r.data[pos];
             r.data[pos] += lo;
             uint64_t c = (r.data[pos] < old) ? 1 : 0;
@@ -420,15 +422,14 @@ static void test_vs_n4_ref(const char *tag)
         };
 
 #ifdef __SIZEOF_INT128__
-        auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t {
+        auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t
+        {
             unsigned __int128 p = (unsigned __int128)x * y;
             *hi = (uint64_t)(p >> 64);
             return (uint64_t)p;
         };
 #else
-        auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t {
-            return _umul128(x, y, hi);
-        };
+        auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t { return _umul128(x, y, hi); };
 #endif
 
         // Full schoolbook 8×8→8 (truncated)
@@ -444,32 +445,27 @@ static void test_vs_n4_ref(const char *tag)
         return r;
     };
 
-    auto check = [&](const char *name, u512 a, u512 b) {
-        TEST(name, (a * b) == ref_mul(a, b));
-    };
+    auto check = [&](const char *name, u512 a, u512 b) { TEST(name, (a * b) == ref_mul(a, b)); };
 
-    check("N=8 vs ref: {1,2,...,8}×{9,10,...,16}",
-          make<8>({1,2,3,4,5,6,7,8}), make<8>({9,10,11,12,13,14,15,16}));
-    check("N=8 vs ref: {MAX,0,...}×{MAX,0,...}",
-          make<8>({MAX64,0,0,0,0,0,0,0}), make<8>({MAX64,0,0,0,0,0,0,0}));
-    check("N=8 vs ref: lower 4 limbs only",
-          make<8>({MAX64,MAX64,MAX64,MAX64,0,0,0,0}),
-          make<8>({MAX64,MAX64,MAX64,MAX64,0,0,0,0}));
+    check("N=8 vs ref: {1,2,...,8}×{9,10,...,16}", make<8>({1, 2, 3, 4, 5, 6, 7, 8}),
+          make<8>({9, 10, 11, 12, 13, 14, 15, 16}));
+    check("N=8 vs ref: {MAX,0,...}×{MAX,0,...}", make<8>({MAX64, 0, 0, 0, 0, 0, 0, 0}),
+          make<8>({MAX64, 0, 0, 0, 0, 0, 0, 0}));
+    check("N=8 vs ref: lower 4 limbs only", make<8>({MAX64, MAX64, MAX64, MAX64, 0, 0, 0, 0}),
+          make<8>({MAX64, MAX64, MAX64, MAX64, 0, 0, 0, 0}));
     check("N=8 vs ref: mixed all-limb A",
-          make<8>({0xDEAD,0xBEEF,0xCAFE,0xBABE,0x1234,0x5678,0x9ABC,0xDEF0}),
-          make<8>({0x1111,0x2222,0x3333,0x4444,0x5555,0x6666,0x7777,0x8888}));
+          make<8>({0xDEAD, 0xBEEF, 0xCAFE, 0xBABE, 0x1234, 0x5678, 0x9ABC, 0xDEF0}),
+          make<8>({0x1111, 0x2222, 0x3333, 0x4444, 0x5555, 0x6666, 0x7777, 0x8888}));
     check("N=8 vs ref: mixed all-limb B",
-          make<8>({0xAAAAAAAAAAAAAAAAULL,0,0xBBBBBBBBBBBBBBBBULL,0,
-                   0xCCCCCCCCCCCCCCCCULL,0,0xDDDDDDDDDDDDDDDDULL,0}),
-          make<8>({0,0xEEEEEEEEEEEEEEEEULL,0,0xFFFFFFFFFFFFFFFFULL,
-                   0,0x1111111111111111ULL,0,0x2222222222222222ULL}));
-    check("N=8 vs ref: all MAX",
-          make<8>({MAX64,MAX64,MAX64,MAX64,MAX64,MAX64,MAX64,MAX64}),
-          make<8>({MAX64,MAX64,MAX64,MAX64,MAX64,MAX64,MAX64,MAX64}));
-    check("N=8 vs ref: 2^256 × 3",
-          make<8>({0,0,0,0,1,0,0,0}), make<8>({3}));
-    check("N=8 vs ref: commutativity via ref",
-          make<8>({1,2,3,4,5,6,7,8}), make<8>({8,7,6,5,4,3,2,1}));
+          make<8>({0xAAAAAAAAAAAAAAAAULL, 0, 0xBBBBBBBBBBBBBBBBULL, 0, 0xCCCCCCCCCCCCCCCCULL, 0,
+                   0xDDDDDDDDDDDDDDDDULL, 0}),
+          make<8>({0, 0xEEEEEEEEEEEEEEEEULL, 0, 0xFFFFFFFFFFFFFFFFULL, 0, 0x1111111111111111ULL, 0,
+                   0x2222222222222222ULL}));
+    check("N=8 vs ref: all MAX", make<8>({MAX64, MAX64, MAX64, MAX64, MAX64, MAX64, MAX64, MAX64}),
+          make<8>({MAX64, MAX64, MAX64, MAX64, MAX64, MAX64, MAX64, MAX64}));
+    check("N=8 vs ref: 2^256 × 3", make<8>({0, 0, 0, 0, 1, 0, 0, 0}), make<8>({3}));
+    check("N=8 vs ref: commutativity via ref", make<8>({1, 2, 3, 4, 5, 6, 7, 8}),
+          make<8>({8, 7, 6, 5, 4, 3, 2, 1}));
 }
 
 // =============================================================================

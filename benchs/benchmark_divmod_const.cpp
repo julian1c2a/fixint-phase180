@@ -180,8 +180,7 @@ static BenchResult bench_mul_standard(const char *name)
 template <uint64_t D>
 static BenchResult bench_div_builtin(const char *name)
 {
-    unsigned __int128 a{static_cast<unsigned __int128>(0xDEADBEEF12345678ULL) << 64 |
-                        0x1234567890ABCDEFULL};
+    unsigned __int128 a{static_cast<unsigned __int128>(0xDEADBEEF12345678ULL) << 64 | 0x1234567890ABCDEFULL};
     constexpr unsigned __int128 d{D};
     for (std::size_t i{0}; i < WARMUP; ++i)
     {
@@ -219,9 +218,9 @@ static void print_bench_header(const char *section)
 static void print_bench_row(const BenchResult &r, double baseline)
 {
     const double speedup{(r.cycles_per_op > 0.0) ? baseline / r.cycles_per_op : 0.0};
-    std::cout << "| " << std::left << std::setw(33) << r.name << " | "
-              << std::right << std::fixed << std::setprecision(2) << std::setw(12) << r.cycles_per_op << " | "
-              << std::fixed << std::setprecision(2) << std::setw(6) << speedup << "x   |\n";
+    std::cout << "| " << std::left << std::setw(33) << r.name << " | " << std::right << std::fixed
+              << std::setprecision(2) << std::setw(12) << r.cycles_per_op << " | " << std::fixed
+              << std::setprecision(2) << std::setw(6) << speedup << "x   |\n";
 }
 
 static void print_bench_footer()

@@ -43,38 +43,38 @@ namespace std
         using value_type = ::nstd::fixed_int_t<N, Sign, Form>;
 
         static constexpr bool is_specialized = true;
-        static constexpr bool is_signed      = (Sign == ::nstd::signedness::signed_type);
-        static constexpr bool is_integer     = true;
-        static constexpr bool is_exact       = true;
-        static constexpr bool has_infinity        = false;
-        static constexpr bool has_quiet_NaN       = false;
-        static constexpr bool has_signaling_NaN   = false;
+        static constexpr bool is_signed = (Sign == ::nstd::signedness::signed_type);
+        static constexpr bool is_integer = true;
+        static constexpr bool is_exact = true;
+        static constexpr bool has_infinity = false;
+        static constexpr bool has_quiet_NaN = false;
+        static constexpr bool has_signaling_NaN = false;
         static constexpr float_denorm_style has_denorm = denorm_absent;
-        static constexpr bool has_denorm_loss     = false;
+        static constexpr bool has_denorm_loss = false;
         static constexpr float_round_style round_style = round_toward_zero;
-        static constexpr bool is_iec559           = false;
-        static constexpr bool is_bounded          = true;
-        static constexpr bool is_modulo           = !is_signed;  // unsigned wraps; signed overflow is UB
-        static constexpr int  digits              = static_cast<int>(64 * N) - (is_signed ? 1 : 0);
-        static constexpr int  digits10            = (digits * 30103) / 100000; // floor(digits * log10(2))
-        static constexpr int  max_digits10        = 0;
-        static constexpr int  radix               = 2;
-        static constexpr int  min_exponent        = 0;
-        static constexpr int  min_exponent10      = 0;
-        static constexpr int  max_exponent        = 0;
-        static constexpr int  max_exponent10      = 0;
-        static constexpr bool traps               = false;
-        static constexpr bool tinyness_before     = false;
+        static constexpr bool is_iec559 = false;
+        static constexpr bool is_bounded = true;
+        static constexpr bool is_modulo = !is_signed; // unsigned wraps; signed overflow is UB
+        static constexpr int digits = static_cast<int>(64 * N) - (is_signed ? 1 : 0);
+        static constexpr int digits10 = (digits * 30103) / 100000; // floor(digits * log10(2))
+        static constexpr int max_digits10 = 0;
+        static constexpr int radix = 2;
+        static constexpr int min_exponent = 0;
+        static constexpr int min_exponent10 = 0;
+        static constexpr int max_exponent = 0;
+        static constexpr int max_exponent10 = 0;
+        static constexpr bool traps = false;
+        static constexpr bool tinyness_before = false;
 
-        static constexpr value_type min() noexcept   { return value_type::min(); }
-        static constexpr value_type max() noexcept   { return value_type::max(); }
+        static constexpr value_type min() noexcept { return value_type::min(); }
+        static constexpr value_type max() noexcept { return value_type::max(); }
         static constexpr value_type lowest() noexcept { return value_type::min(); }
-        static constexpr value_type epsilon() noexcept       { return value_type::zero(); }
-        static constexpr value_type round_error() noexcept   { return value_type::zero(); }
-        static constexpr value_type infinity() noexcept      { return value_type::zero(); }
-        static constexpr value_type quiet_NaN() noexcept     { return value_type::zero(); }
+        static constexpr value_type epsilon() noexcept { return value_type::zero(); }
+        static constexpr value_type round_error() noexcept { return value_type::zero(); }
+        static constexpr value_type infinity() noexcept { return value_type::zero(); }
+        static constexpr value_type quiet_NaN() noexcept { return value_type::zero(); }
         static constexpr value_type signaling_NaN() noexcept { return value_type::zero(); }
-        static constexpr value_type denorm_min() noexcept    { return value_type::zero(); }
+        static constexpr value_type denorm_min() noexcept { return value_type::zero(); }
     };
 
 } // namespace std

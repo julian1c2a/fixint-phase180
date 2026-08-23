@@ -29,19 +29,19 @@ using nstd::uint_fixed_t;
 static int g_passed{0};
 static int g_failed{0};
 
-#define TEST(name, cond)                               \
-    do                                                 \
-    {                                                  \
-        if (cond)                                      \
-        {                                              \
+#define TEST(name, cond)                              \
+    do                                                \
+    {                                                 \
+        if (cond)                                     \
+        {                                             \
             std::cout << "[OK]   " << (name) << "\n"; \
-            ++g_passed;                                \
-        }                                              \
-        else                                           \
-        {                                              \
+            ++g_passed;                               \
+        }                                             \
+        else                                          \
+        {                                             \
             std::cout << "[FAIL] " << (name) << "\n"; \
-            ++g_failed;                                \
-        }                                              \
+            ++g_failed;                               \
+        }                                             \
     } while (false)
 
 // =============================================================================
@@ -142,16 +142,16 @@ static void test_fundamental(const char *tag)
         return (q * b + r) == a && r < b;
     };
 
-    TEST("theorem: 0/7",        check("0/7",        0,                       7));
-    TEST("theorem: 1/7",        check("1/7",        1,                       7));
-    TEST("theorem: 6/7",        check("6/7",        6,                       7));
-    TEST("theorem: 7/7",        check("7/7",        7,                       7));
-    TEST("theorem: 100/7",      check("100/7",      100,                     7));
-    TEST("theorem: 100/10",     check("100/10",     100,                     10));
-    TEST("theorem: max64/1",    check("max64/1",    ~std::uint64_t{0},       1));
-    TEST("theorem: max64/3",    check("max64/3",    ~std::uint64_t{0},       3));
-    TEST("theorem: max64/7",    check("max64/7",    ~std::uint64_t{0},       7));
-    TEST("theorem: max64/max64",check("max64/max64",~std::uint64_t{0}, ~std::uint64_t{0}));
+    TEST("theorem: 0/7", check("0/7", 0, 7));
+    TEST("theorem: 1/7", check("1/7", 1, 7));
+    TEST("theorem: 6/7", check("6/7", 6, 7));
+    TEST("theorem: 7/7", check("7/7", 7, 7));
+    TEST("theorem: 100/7", check("100/7", 100, 7));
+    TEST("theorem: 100/10", check("100/10", 100, 10));
+    TEST("theorem: max64/1", check("max64/1", ~std::uint64_t{0}, 1));
+    TEST("theorem: max64/3", check("max64/3", ~std::uint64_t{0}, 3));
+    TEST("theorem: max64/7", check("max64/7", ~std::uint64_t{0}, 7));
+    TEST("theorem: max64/max64", check("max64/max64", ~std::uint64_t{0}, ~std::uint64_t{0}));
 
     // Multi-limb check using larger values
     {
@@ -179,12 +179,12 @@ static void test_crosslimb(const char *tag)
         const uint_fixed_t<N> two{std::uint64_t{2}};
         uint_fixed_t<N> pow63{std::uint64_t{1} << 63};
         TEST("2^64 / 2 == 2^63", pow64 / two == pow63);
-        TEST("2^64 % 2 == 0",    pow64 % two == uint_fixed_t<N>::zero());
+        TEST("2^64 % 2 == 0", pow64 % two == uint_fixed_t<N>::zero());
 
         // 2^64 / 2^32 == 2^32
         const uint_fixed_t<N> pow32{std::uint64_t{1} << 32};
         TEST("2^64 / 2^32 == 2^32", pow64 / pow32 == pow32);
-        TEST("2^64 % 2^32 == 0",    pow64 % pow32 == uint_fixed_t<N>::zero());
+        TEST("2^64 % 2^32 == 0", pow64 % pow32 == uint_fixed_t<N>::zero());
 
         // (2^64 + 1) / 2 == 2^63, remainder 1
         uint_fixed_t<N> pow64p1{};
@@ -192,7 +192,7 @@ static void test_crosslimb(const char *tag)
         pow64p1.data[0] = 1;
         const auto [q2, r2] = uint_fixed_t<N>::divmod(pow64p1, two);
         TEST("(2^64+1)/2 == 2^63", q2 == pow63);
-        TEST("(2^64+1)%2 == 1",    r2 == uint_fixed_t<N>::one());
+        TEST("(2^64+1)%2 == 1", r2 == uint_fixed_t<N>::one());
 
         // large / large: dividend has high limb, divisor spans two limbs
         // (2^64 + 5) / (2^32 + 1): check fundamental theorem
@@ -225,16 +225,26 @@ static void test_divzero(const char *tag)
 
     auto throws_domain = [](auto &&fn) -> bool
     {
-        try { fn(); return false; }
-        catch (const std::domain_error &) { return true; }
-        catch (...) { return false; }
+        try
+        {
+            fn();
+            return false;
+        }
+        catch (const std::domain_error &)
+        {
+            return true;
+        }
+        catch (...)
+        {
+            return false;
+        }
     };
 
-    TEST("1/0 throws", throws_domain([&]{ (void)(o / z); }));
-    TEST("max/0 throws", throws_domain([&]{ (void)(m / z); }));
-    TEST("0/0 throws", throws_domain([&]{ (void)(z / z); }));
-    TEST("1%0 throws", throws_domain([&]{ (void)(o % z); }));
-    TEST("divmod(1,0) throws", throws_domain([&]{ (void)uint_fixed_t<N>::divmod(o, z); }));
+    TEST("1/0 throws", throws_domain([&] { (void)(o / z); }));
+    TEST("max/0 throws", throws_domain([&] { (void)(m / z); }));
+    TEST("0/0 throws", throws_domain([&] { (void)(z / z); }));
+    TEST("1%0 throws", throws_domain([&] { (void)(o % z); }));
+    TEST("divmod(1,0) throws", throws_domain([&] { (void)uint_fixed_t<N>::divmod(o, z); }));
 }
 
 // =============================================================================
@@ -254,11 +264,11 @@ static void test_divmod_consistency(const char *tag)
         return q == a / b && r == a % b;
     };
 
-    TEST("divmod==op pair: 100/7",    check_pair(100, 7));
-    TEST("divmod==op pair: 999/37",   check_pair(999, 37));
-    TEST("divmod==op pair: max64/255",check_pair(~std::uint64_t{0}, 255));
-    TEST("divmod==op pair: 0/1",      check_pair(0, 1));
-    TEST("divmod==op pair: 1/1",      check_pair(1, 1));
+    TEST("divmod==op pair: 100/7", check_pair(100, 7));
+    TEST("divmod==op pair: 999/37", check_pair(999, 37));
+    TEST("divmod==op pair: max64/255", check_pair(~std::uint64_t{0}, 255));
+    TEST("divmod==op pair: 0/1", check_pair(0, 1));
+    TEST("divmod==op pair: 1/1", check_pair(1, 1));
 }
 
 // =============================================================================
@@ -289,17 +299,17 @@ static void test_single_limb_divisor(const char *tag)
 
     // 1. All-ones dividend (0xFFFF...FFFF) / small divisors
     const auto all_ones = uint_fixed_t<N>::max();
-    TEST("all_ones/1",   check("all_ones/1",   all_ones, 1));
-    TEST("all_ones/2",   check("all_ones/2",   all_ones, 2));
-    TEST("all_ones/3",   check("all_ones/3",   all_ones, 3));
-    TEST("all_ones/7",   check("all_ones/7",   all_ones, 7));
-    TEST("all_ones/10",  check("all_ones/10",  all_ones, 10));
+    TEST("all_ones/1", check("all_ones/1", all_ones, 1));
+    TEST("all_ones/2", check("all_ones/2", all_ones, 2));
+    TEST("all_ones/3", check("all_ones/3", all_ones, 3));
+    TEST("all_ones/7", check("all_ones/7", all_ones, 7));
+    TEST("all_ones/10", check("all_ones/10", all_ones, 10));
     TEST("all_ones/100", check("all_ones/100", all_ones, 100));
 
     // 2. Powers of 2 as divisor (shift-like behaviour)
-    TEST("all_ones/2^32",  check("all_ones/2^32",  all_ones, std::uint64_t{1} << 32));
-    TEST("all_ones/2^48",  check("all_ones/2^48",  all_ones, std::uint64_t{1} << 48));
-    TEST("all_ones/2^63",  check("all_ones/2^63",  all_ones, std::uint64_t{1} << 63));
+    TEST("all_ones/2^32", check("all_ones/2^32", all_ones, std::uint64_t{1} << 32));
+    TEST("all_ones/2^48", check("all_ones/2^48", all_ones, std::uint64_t{1} << 48));
+    TEST("all_ones/2^63", check("all_ones/2^63", all_ones, std::uint64_t{1} << 63));
 
     // 3. Near-max divisor: divisor = 2^64 - 1 (= 0xFFFF...FFFF in 64 bits)
     TEST("all_ones/max64", check("all_ones/max64", all_ones, ~std::uint64_t{0}));
@@ -311,12 +321,12 @@ static void test_single_limb_divisor(const char *tag)
         for (std::size_t i = 0; i < N; ++i)
             patterned.data[i] = 0xDEADBEEF00000000ULL | static_cast<std::uint64_t>(i + 1);
 
-        TEST("patterned/3",       check("patterned/3",       patterned, 3));
-        TEST("patterned/7",       check("patterned/7",       patterned, 7));
-        TEST("patterned/10^9+7",  check("patterned/10^9+7",  patterned, 1'000'000'007ULL));
-        TEST("patterned/2^32+1",  check("patterned/2^32+1",  patterned, (std::uint64_t{1} << 32) + 1));
+        TEST("patterned/3", check("patterned/3", patterned, 3));
+        TEST("patterned/7", check("patterned/7", patterned, 7));
+        TEST("patterned/10^9+7", check("patterned/10^9+7", patterned, 1'000'000'007ULL));
+        TEST("patterned/2^32+1", check("patterned/2^32+1", patterned, (std::uint64_t{1} << 32) + 1));
         TEST("patterned/max64-1", check("patterned/max64-1", patterned, ~std::uint64_t{0} - 1));
-        TEST("patterned/max64",   check("patterned/max64",   patterned, ~std::uint64_t{0}));
+        TEST("patterned/max64", check("patterned/max64", patterned, ~std::uint64_t{0}));
     }
 
     // 5. Dividend fits in one limb (a < 2^64): verify same result as native uint64_t
@@ -327,15 +337,14 @@ static void test_single_limb_divisor(const char *tag)
         const uint_fixed_t<N> a{av};
         const uint_fixed_t<N> divisor{dv};
         const auto [q, r] = uint_fixed_t<N>::divmod(a, divisor);
-        TEST("single-limb a/d matches u64",
-             q == uint_fixed_t<N>{av / dv} && r == uint_fixed_t<N>{av % dv});
+        TEST("single-limb a/d matches u64", q == uint_fixed_t<N>{av / dv} && r == uint_fixed_t<N>{av % dv});
     }
 
     // 6. Dividend just larger than divisor (quotient = 1, remainder = a - d)
     {
         const std::uint64_t d = 0xABCDEF0123456789ULL;
         uint_fixed_t<N> a{d};
-        a += uint_fixed_t<N>{std::uint64_t{1}};  // a = d + 1
+        a += uint_fixed_t<N>{std::uint64_t{1}}; // a = d + 1
         const auto [q, r] = uint_fixed_t<N>::divmod(a, uint_fixed_t<N>{d});
         TEST("d+1 / d == 1 r1", q == uint_fixed_t<N>::one() && r == uint_fixed_t<N>::one());
     }
@@ -376,7 +385,11 @@ static void test_knuth_d(const char *tag)
     {
         uint_fixed_t<N> v{};
         std::size_t i = 0;
-        for (std::uint64_t w : limbs) { if (i < N) v.data[i++] = w; }
+        for (std::uint64_t w : limbs)
+        {
+            if (i < N)
+                v.data[i++] = w;
+        }
         return v;
     };
 
@@ -388,8 +401,7 @@ static void test_knuth_d(const char *tag)
         uint_fixed_t<N> a = b;
         a += uint_fixed_t<N>{std::uint64_t{1}};
         const auto [q, r] = uint_fixed_t<N>::divmod(a, b);
-        TEST("(b+1)/b == 1 r1 (2-limb div)",
-             q == uint_fixed_t<N>::one() && r == uint_fixed_t<N>::one());
+        TEST("(b+1)/b == 1 r1 (2-limb div)", q == uint_fixed_t<N>::one() && r == uint_fixed_t<N>::one());
     }
 
     // ── 2. 2^128 / (2^64 + 1)  ──  divisor has 2 limbs, dividend has 3
@@ -449,8 +461,7 @@ static void test_knuth_d(const char *tag)
         for (std::size_t i = 0; i < N; ++i)
             a.data[i] = 0xABCDEF0123456789ULL ^ (std::uint64_t{i + 1} * 0x1111111111111111ULL);
         const auto [q, r] = uint_fixed_t<N>::divmod(a, a);
-        TEST("self-division == 1 r0",
-             q == uint_fixed_t<N>::one() && r == uint_fixed_t<N>::zero());
+        TEST("self-division == 1 r0", q == uint_fixed_t<N>::one() && r == uint_fixed_t<N>::zero());
     }
 
     // ── 7. Divisor = 2^64 (exactly, in limb 1) ──  quotient = a >> 64
@@ -465,16 +476,17 @@ static void test_knuth_d(const char *tag)
         const auto [q, r] = uint_fixed_t<N>::divmod(a, b);
         // q should be a >> 64: data[0]=a.data[1], data[1]=a.data[2], ...
         uint_fixed_t<N> expected_q{};
-        for (std::size_t i = 0; i < N - 1; ++i) expected_q.data[i] = a.data[i + 1];
+        for (std::size_t i = 0; i < N - 1; ++i)
+            expected_q.data[i] = a.data[i + 1];
         TEST("a / 2^64 == a>>64", q == expected_q);
-        TEST("a % 2^64 == a[0]",  r == uint_fixed_t<N>{a.data[0]});
+        TEST("a % 2^64 == a[0]", r == uint_fixed_t<N>{a.data[0]});
     }
 
     // ── 8. max / (max/2 + 1): quotient = 1, remainder = max/2 - 1 ──
     {
         const auto max_val = uint_fixed_t<N>::max();
-        uint_fixed_t<N> half = max_val >> 1;   // max/2
-        uint_fixed_t<N> b    = half + uint_fixed_t<N>{std::uint64_t{1}}; // max/2+1
+        uint_fixed_t<N> half = max_val >> 1;                          // max/2
+        uint_fixed_t<N> b = half + uint_fixed_t<N>{std::uint64_t{1}}; // max/2+1
         TEST("max/(max/2+1)", check("max/(max/2+1)", max_val, b));
     }
 

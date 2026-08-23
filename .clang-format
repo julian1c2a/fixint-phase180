@@ -1,0 +1,95 @@
+# =============================================================================
+# .clang-format — estilo canónico del proyecto int128 / fixed_int_t
+# =============================================================================
+# Reproduce el estilo escrito a mano en include/ (llaves Allman, 4 espacios,
+# contenido de namespace indentado, alineación de = y de comentarios finales).
+#
+# Motivo (T1.4, auditoría 23 ago 2026): sin este fichero el formateador del
+# editor aplicaba su estilo por defecto y generaba diffs de cientos de líneas
+# de puro reformateo sobre ficheros escritos a mano.
+#
+# Uso:
+#   clang-format -i include/**.hpp tests/*.cpp benchs/*.cpp
+#   clang-format --dry-run --Werror <fichero>   # comprobación en CI
+# =============================================================================
+
+Language: Cpp
+Standard: c++20
+BasedOnStyle: LLVM
+
+# --- Indentación --------------------------------------------------------------
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ContinuationIndentWidth: 4
+AccessModifierOffset: -4
+NamespaceIndentation: All
+IndentCaseLabels: true
+IndentPPDirectives: None
+
+# --- Llaves -------------------------------------------------------------------
+BreakBeforeBraces: Allman
+
+# --- Ancho de línea -----------------------------------------------------------
+# p99 del código actual = 114 columnas; 110 evita reflujo masivo.
+ColumnLimit: 110
+
+# --- Alineación ---------------------------------------------------------------
+# El código alinea "=" solo en algunos bloques; alinear siempre generaría
+# huecos enormes y mucho ruido. Se deja desactivado.
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignTrailingComments: true
+AlignAfterOpenBracket: Align
+AlignEscapedNewlines: Left
+AlignOperands: Align
+PointerAlignment: Right
+ReferenceAlignment: Pointer
+DerivePointerAlignment: false
+
+# --- Cuerpos cortos en una línea ----------------------------------------------
+AllowShortFunctionsOnASingleLine: All
+AllowShortBlocksOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortLambdasOnASingleLine: All
+AllowShortEnumsOnASingleLine: false
+
+# --- Plantillas y saltos ------------------------------------------------------
+AlwaysBreakTemplateDeclarations: Yes
+# No re-empaquetar listas de parámetros que están escritas una por línea a propósito.
+BinPackParameters: true
+BinPackArguments: true
+AllowAllParametersOfDeclarationOnNextLine: false
+AllowAllArgumentsOnNextLine: false
+BreakBeforeBinaryOperators: None
+BreakBeforeTernaryOperators: true
+BreakConstructorInitializers: BeforeColon
+PackConstructorInitializers: NextLine
+BreakInheritanceList: BeforeColon
+RequiresClausePosition: OwnLine
+IndentRequiresClause: true
+
+# --- Espaciado ----------------------------------------------------------------
+SpaceBeforeParens: ControlStatements
+SpaceAfterTemplateKeyword: true
+SpacesInAngles: Never
+SpaceBeforeCpp11BracedList: false
+SpaceBeforeRangeBasedForLoopColon: true
+Cpp11BracedListStyle: true
+
+# --- Includes -----------------------------------------------------------------
+# El orden de includes del proyecto es deliberado (fixed_width_int_t.hpp antes
+# que los <system>), así que no se reordena automáticamente.
+SortIncludes: Never
+IncludeBlocks: Preserve
+
+# --- Varios -------------------------------------------------------------------
+FixNamespaceComments: true
+ShortNamespaceLines: 0
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+ReflowComments: false
+SeparateDefinitionBlocks: Leave
+InsertNewlineAtEOF: true

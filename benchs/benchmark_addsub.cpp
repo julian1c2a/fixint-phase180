@@ -195,8 +195,7 @@ int main()
 {
     std::printf("================================================================\n");
     std::printf("  Benchmark: ADD/SUB optimization (nstd vs __int128 vs uint64)\n");
-    std::printf("  Iterations: %zu  |  Warmup: %zu  |  Runs: %d\n",
-                ITERATIONS, WARMUP, NUM_RUNS);
+    std::printf("  Iterations: %zu  |  Warmup: %zu  |  Runs: %d\n", ITERATIONS, WARMUP, NUM_RUNS);
     std::printf("================================================================\n\n");
 
     // Collect multiple runs and report median

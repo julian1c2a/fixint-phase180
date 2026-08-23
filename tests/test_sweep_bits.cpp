@@ -22,8 +22,8 @@ int main()
 {
     std::cout << "====================================================================\n";
     std::cout << "Sweep Bit-Query & Rotation Tests (3-region systematic coverage)\n";
-    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS
-              << " = " << SWEEP_REGION_SIZE << " values per region\n";
+    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS << " = " << SWEEP_REGION_SIZE
+              << " values per region\n";
     std::cout << "====================================================================\n\n";
 
     int passed{0};
@@ -37,12 +37,8 @@ int main()
 
     // leading_zeros(x) + bit_width(x) == 128  (always, including x=0)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a) -> int
-            { return a.leading_zeros() + a.bit_width(); },
-            [](const uint128_t &) -> int
-            { return 128; },
-            "lz_plus_bw_eq_128"))
+    if (sweep_unary([](const uint128_t &a) -> int { return a.leading_zeros() + a.bit_width(); },
+                    [](const uint128_t &) -> int { return 128; }, "lz_plus_bw_eq_128"))
     {
         ++passed;
     }
@@ -52,12 +48,8 @@ int main()
     {
         const uint128_t msb{0x8000000000000000ULL, 0ULL};
         ++total;
-        if (sweep_unary(
-                [msb](const uint128_t &a) -> int
-                { return (a | msb).leading_zeros(); },
-                [](const uint128_t &) -> int
-                { return 0; },
-                "lz_with_msb_set_is_zero"))
+        if (sweep_unary([msb](const uint128_t &a) -> int { return (a | msb).leading_zeros(); },
+                        [](const uint128_t &) -> int { return 0; }, "lz_with_msb_set_is_zero"))
         {
             ++passed;
         }
@@ -73,12 +65,8 @@ int main()
 
     // trailing_zeros(x | 1) == 0  (setting bit 0 forces tz=0)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a) -> int
-            { return (a | uint128_t{1ULL}).trailing_zeros(); },
-            [](const uint128_t &) -> int
-            { return 0; },
-            "tz_with_bit0_set_is_zero"))
+    if (sweep_unary([](const uint128_t &a) -> int { return (a | uint128_t{1ULL}).trailing_zeros(); },
+                    [](const uint128_t &) -> int { return 0; }, "tz_with_bit0_set_is_zero"))
     {
         ++passed;
     }
@@ -90,12 +78,8 @@ int main()
     // We test: trailing_zeros(x) <= bit_width(x) - 1 for x != 0
     // Better: verify trailing_zeros matches countr_zero free function
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a) -> int
-            { return a.trailing_zeros(); },
-            [](const uint128_t &a) -> int
-            { return nstd::countr_zero(a); },
-            "tz_matches_countr_zero"))
+    if (sweep_unary([](const uint128_t &a) -> int { return a.trailing_zeros(); },
+                    [](const uint128_t &a) -> int { return nstd::countr_zero(a); }, "tz_matches_countr_zero"))
     {
         ++passed;
     }
@@ -104,20 +88,18 @@ int main()
     // where -x is two's complement negation; x & -x isolates lowest set bit
     // For x == 0, both return 128
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a) -> int
-            { return a.trailing_zeros(); },
-            [](const uint128_t &a) -> int
-            {
-                if (a.is_zero())
-                {
-                    return 128;
-                }
-                // -a for unsigned is ~a + 1 (wrapping)
-                const uint128_t neg_a{~a + uint128_t{1ULL}};
-                return (a & neg_a).trailing_zeros();
-            },
-            "tz_equals_tz_of_lowest_bit"))
+    if (sweep_unary([](const uint128_t &a) -> int { return a.trailing_zeros(); },
+                    [](const uint128_t &a) -> int
+                    {
+                        if (a.is_zero())
+                        {
+                            return 128;
+                        }
+                        // -a for unsigned is ~a + 1 (wrapping)
+                        const uint128_t neg_a{~a + uint128_t{1ULL}};
+                        return (a & neg_a).trailing_zeros();
+                    },
+                    "tz_equals_tz_of_lowest_bit"))
     {
         ++passed;
     }
@@ -132,30 +114,25 @@ int main()
 
     // is_power_of_2(x) == (x != 0 && popcount(x) == 1)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a) -> int
-            { return a.is_power_of_2() ? 1 : 0; },
-            [](const uint128_t &a) -> int
-            { return (!a.is_zero() && a.count_ones() == 1) ? 1 : 0; },
-            "pow2_iff_popcount_eq_1"))
+    if (sweep_unary([](const uint128_t &a) -> int { return a.is_power_of_2() ? 1 : 0; },
+                    [](const uint128_t &a) -> int { return (!a.is_zero() && a.count_ones() == 1) ? 1 : 0; },
+                    "pow2_iff_popcount_eq_1"))
     {
         ++passed;
     }
 
     // is_power_of_2(x) == (x != 0 && (x & (x-1)) == 0)  [bit trick]
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a) -> int
-            { return a.is_power_of_2() ? 1 : 0; },
-            [](const uint128_t &a) -> int
-            {
-                if (a.is_zero())
-                {
-                    return 0;
-                }
-                return ((a & (a - uint128_t{1ULL})).is_zero()) ? 1 : 0;
-            },
-            "pow2_bit_trick_identity"))
+    if (sweep_unary([](const uint128_t &a) -> int { return a.is_power_of_2() ? 1 : 0; },
+                    [](const uint128_t &a) -> int
+                    {
+                        if (a.is_zero())
+                        {
+                            return 0;
+                        }
+                        return ((a & (a - uint128_t{1ULL})).is_zero()) ? 1 : 0;
+                    },
+                    "pow2_bit_trick_identity"))
     {
         ++passed;
     }
@@ -170,36 +147,24 @@ int main()
 
     // rotate_left(rotate_right(x, 37), 37) == x
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a.rotate_right(37).rotate_left(37); },
-            [](const uint128_t &a)
-            { return a; },
-            "rotl_rotr_roundtrip_37"))
+    if (sweep_unary([](const uint128_t &a) { return a.rotate_right(37).rotate_left(37); },
+                    [](const uint128_t &a) { return a; }, "rotl_rotr_roundtrip_37"))
     {
         ++passed;
     }
 
     // rotate_right(rotate_left(x, 91), 91) == x
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a.rotate_left(91).rotate_right(91); },
-            [](const uint128_t &a)
-            { return a; },
-            "rotr_rotl_roundtrip_91"))
+    if (sweep_unary([](const uint128_t &a) { return a.rotate_left(91).rotate_right(91); },
+                    [](const uint128_t &a) { return a; }, "rotr_rotl_roundtrip_91"))
     {
         ++passed;
     }
 
     // rotate_left(x, 64) == rotate_right(x, 64)  (half rotation)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a.rotate_left(64); },
-            [](const uint128_t &a)
-            { return a.rotate_right(64); },
-            "rot64_left_eq_right"))
+    if (sweep_unary([](const uint128_t &a) { return a.rotate_left(64); },
+                    [](const uint128_t &a) { return a.rotate_right(64); }, "rot64_left_eq_right"))
     {
         ++passed;
     }
@@ -214,24 +179,16 @@ int main()
 
     // popcount(rotate_left(x, 37)) == popcount(x)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a) -> int
-            { return a.rotate_left(37).count_ones(); },
-            [](const uint128_t &a) -> int
-            { return a.count_ones(); },
-            "rotl37_preserves_popcount"))
+    if (sweep_unary([](const uint128_t &a) -> int { return a.rotate_left(37).count_ones(); },
+                    [](const uint128_t &a) -> int { return a.count_ones(); }, "rotl37_preserves_popcount"))
     {
         ++passed;
     }
 
     // popcount(rotate_right(x, 91)) == popcount(x)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a) -> int
-            { return a.rotate_right(91).count_ones(); },
-            [](const uint128_t &a) -> int
-            { return a.count_ones(); },
-            "rotr91_preserves_popcount"))
+    if (sweep_unary([](const uint128_t &a) -> int { return a.rotate_right(91).count_ones(); },
+                    [](const uint128_t &a) -> int { return a.count_ones(); }, "rotr91_preserves_popcount"))
     {
         ++passed;
     }
@@ -247,24 +204,16 @@ int main()
     // rotate_left(x, a) then rotate_left(x, b) == rotate_left(x, a+b)
     // rotl(rotl(x, 17), 29) == rotl(x, 46)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a.rotate_left(17).rotate_left(29); },
-            [](const uint128_t &a)
-            { return a.rotate_left(46); },
-            "rotl_composition_17_29"))
+    if (sweep_unary([](const uint128_t &a) { return a.rotate_left(17).rotate_left(29); },
+                    [](const uint128_t &a) { return a.rotate_left(46); }, "rotl_composition_17_29"))
     {
         ++passed;
     }
 
     // rotr(rotr(x, 50), 13) == rotr(x, 63)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a.rotate_right(50).rotate_right(13); },
-            [](const uint128_t &a)
-            { return a.rotate_right(63); },
-            "rotr_composition_50_13"))
+    if (sweep_unary([](const uint128_t &a) { return a.rotate_right(50).rotate_right(13); },
+                    [](const uint128_t &a) { return a.rotate_right(63); }, "rotr_composition_50_13"))
     {
         ++passed;
     }
@@ -281,35 +230,31 @@ int main()
     // We test: popcount(a & b) <= popcount(a) (always true)
     // Expressed as equality check: min(popcount(a), popcount(a&b)) == popcount(a&b)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b) -> int
-            { return (a & b).count_ones(); },
-            [](const uint128_t &a, const uint128_t &b) -> int
-            {
-                const int pab{(a & b).count_ones()};
-                const int pa{a.count_ones()};
-                // If pab <= pa, return pab (match); otherwise return -1 (mismatch)
-                return (pab <= pa) ? pab : -1;
-            },
-            "popcount_and_leq_popcount"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) -> int { return (a & b).count_ones(); },
+                     [](const uint128_t &a, const uint128_t &b) -> int
+                     {
+                         const int pab{(a & b).count_ones()};
+                         const int pa{a.count_ones()};
+                         // If pab <= pa, return pab (match); otherwise return -1 (mismatch)
+                         return (pab <= pa) ? pab : -1;
+                     },
+                     "popcount_and_leq_popcount"))
     {
         ++passed;
     }
 
     // bit_width(a | b) >= max(bit_width(a), bit_width(b))
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b) -> int
-            { return (a | b).bit_width(); },
-            [](const uint128_t &a, const uint128_t &b) -> int
-            {
-                const int bw_or{(a | b).bit_width()};
-                const int bw_a{a.bit_width()};
-                const int bw_b{b.bit_width()};
-                const int mx{(bw_a > bw_b) ? bw_a : bw_b};
-                return (bw_or >= mx) ? bw_or : -1;
-            },
-            "bw_or_geq_max_bw"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) -> int { return (a | b).bit_width(); },
+                     [](const uint128_t &a, const uint128_t &b) -> int
+                     {
+                         const int bw_or{(a | b).bit_width()};
+                         const int bw_a{a.bit_width()};
+                         const int bw_b{b.bit_width()};
+                         const int mx{(bw_a > bw_b) ? bw_a : bw_b};
+                         return (bw_or >= mx) ? bw_or : -1;
+                     },
+                     "bw_or_geq_max_bw"))
     {
         ++passed;
     }

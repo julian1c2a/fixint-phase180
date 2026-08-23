@@ -22,8 +22,8 @@ int main()
 {
     std::cout << "====================================================================\n";
     std::cout << "Sweep String Roundtrip Tests (3-region systematic coverage)\n";
-    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS
-              << " = " << SWEEP_REGION_SIZE << " values per region\n";
+    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS << " = " << SWEEP_REGION_SIZE
+              << " values per region\n";
     std::cout << "====================================================================\n\n";
 
     int passed{0};
@@ -42,9 +42,7 @@ int main()
                 const std::string s{a.to_string(10)};
                 return uint128_t::from_string(s.c_str());
             },
-            [](const uint128_t &a) -> uint128_t
-            { return a; },
-            "decimal_roundtrip"))
+            [](const uint128_t &a) -> uint128_t { return a; }, "decimal_roundtrip"))
     {
         ++passed;
     }
@@ -65,9 +63,7 @@ int main()
                 const std::string prefixed{"0x" + hex};
                 return uint128_t::from_string(prefixed.c_str());
             },
-            [](const uint128_t &a) -> uint128_t
-            { return a; },
-            "hex_roundtrip"))
+            [](const uint128_t &a) -> uint128_t { return a; }, "hex_roundtrip"))
     {
         ++passed;
     }
@@ -88,9 +84,7 @@ int main()
                 const std::string prefixed{"0" + oct};
                 return uint128_t::from_string(prefixed.c_str());
             },
-            [](const uint128_t &a) -> uint128_t
-            { return a; },
-            "octal_roundtrip"))
+            [](const uint128_t &a) -> uint128_t { return a; }, "octal_roundtrip"))
     {
         ++passed;
     }
@@ -111,9 +105,7 @@ int main()
                 const std::string prefixed{"0b" + bin};
                 return uint128_t::from_string(prefixed.c_str());
             },
-            [](const uint128_t &a) -> uint128_t
-            { return a; },
-            "binary_roundtrip"))
+            [](const uint128_t &a) -> uint128_t { return a; }, "binary_roundtrip"))
     {
         ++passed;
     }
@@ -131,8 +123,8 @@ int main()
     {
         const std::string s{uint128_t{0ULL}.to_string()};
         const bool ok{s == "0"};
-        std::cout << "  " << std::left << std::setw(30) << "zero_to_string"
-                  << (ok ? " [OK]" : " [FAIL]") << "\n";
+        std::cout << "  " << std::left << std::setw(30) << "zero_to_string" << (ok ? " [OK]" : " [FAIL]")
+                  << "\n";
         if (ok)
         {
             ++passed;
@@ -151,9 +143,7 @@ int main()
                 const std::string s{a.to_string(10)};
                 return (s[0] != '0') ? 1 : 0;
             },
-            [](const uint128_t &) -> int
-            { return 1; },
-            "no_leading_zeros_decimal"))
+            [](const uint128_t &) -> int { return 1; }, "no_leading_zeros_decimal"))
     {
         ++passed;
     }
@@ -170,21 +160,15 @@ int main()
                 const std::string s{a.to_string(16)};
                 return (s[0] != '0') ? 1 : 0;
             },
-            [](const uint128_t &) -> int
-            { return 1; },
-            "no_leading_zeros_hex"))
+            [](const uint128_t &) -> int { return 1; }, "no_leading_zeros_hex"))
     {
         ++passed;
     }
 
     // Decimal string length: <= 39 chars (max uint128 = 39 digits)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a) -> int
-            { return (a.to_string(10).length() <= 39) ? 1 : 0; },
-            [](const uint128_t &) -> int
-            { return 1; },
-            "decimal_length_le_39"))
+    if (sweep_unary([](const uint128_t &a) -> int { return (a.to_string(10).length() <= 39) ? 1 : 0; },
+                    [](const uint128_t &) -> int { return 1; }, "decimal_length_le_39"))
     {
         ++passed;
     }

@@ -49,10 +49,10 @@ int main()
     const int128_ms_t ms_pos(42LL);
     const int128_ms_t ms_neg(-42LL);
 
-    std::cout << " 42 : high = 0x" << std::hex << ms_pos.high()
-              << ", low = 0x" << ms_pos.low() << std::dec << std::endl;
-    std::cout << "-42 : high = 0x" << std::hex << ms_neg.high()
-              << ", low = 0x" << ms_neg.low() << std::dec << std::endl;
+    std::cout << " 42 : high = 0x" << std::hex << ms_pos.high() << ", low = 0x" << ms_pos.low() << std::dec
+              << std::endl;
+    std::cout << "-42 : high = 0x" << std::hex << ms_neg.high() << ", low = 0x" << ms_neg.low() << std::dec
+              << std::endl;
     std::cout << " 42 : is_negative = " << (ms_pos.is_negative() ? "true" : "false") << std::endl;
     std::cout << "-42 : is_negative = " << (ms_neg.is_negative() ? "true" : "false") << std::endl;
 
@@ -77,14 +77,10 @@ int main()
     // --- Type properties ---
     std::cout << "--- Type Properties ---" << std::endl;
 
-    std::cout << "uint128_t : is_signed = "
-              << (uint128_t::is_signed ? "true" : "false") << std::endl;
-    std::cout << "int128_tc_t : is_signed = "
-              << (int128_tc_t::is_signed ? "true" : "false") << std::endl;
-    std::cout << "int128_ms_t : is_signed = "
-              << (int128_ms_t::is_signed ? "true" : "false") << std::endl;
-    std::cout << "int128_ek_t : is_signed = "
-              << (int128_ek_t::is_signed ? "true" : "false") << std::endl;
+    std::cout << "uint128_t : is_signed = " << (uint128_t::is_signed ? "true" : "false") << std::endl;
+    std::cout << "int128_tc_t : is_signed = " << (int128_tc_t::is_signed ? "true" : "false") << std::endl;
+    std::cout << "int128_ms_t : is_signed = " << (int128_ms_t::is_signed ? "true" : "false") << std::endl;
+    std::cout << "int128_ek_t : is_signed = " << (int128_ek_t::is_signed ? "true" : "false") << std::endl;
     std::cout << std::endl;
 
     std::cout << "[OK] Tutorial 02 complete." << std::endl;

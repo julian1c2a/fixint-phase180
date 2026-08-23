@@ -26,15 +26,9 @@ using tc_t = nstd::int128_tc_t;
 
 static constexpr uint64_t EK_SEED_Y{SWEEP_FIXED_SEED + 0x0123456789ABCDEFULL};
 
-static ek_t ek_first_region(uint64_t i) noexcept
-{
-    return ek_t{static_cast<int64_t>(i)};
-}
+static ek_t ek_first_region(uint64_t i) noexcept { return ek_t{static_cast<int64_t>(i)}; }
 
-static ek_t ek_last_region(uint64_t i) noexcept
-{
-    return ek_t{-static_cast<int64_t>(SWEEP_REGION_SIZE - i)};
-}
+static ek_t ek_last_region(uint64_t i) noexcept { return ek_t{-static_cast<int64_t>(SWEEP_REGION_SIZE - i)}; }
 
 static ek_t ek_random_region(uint64_t i, uint64_t seed = SWEEP_FIXED_SEED) noexcept
 {
@@ -57,17 +51,38 @@ static bool sweep_unary_ek(F &&func, Oracle &&oracle, const char *name)
     for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)
     {
         const ek_t x{ek_first_region(i)};
-        if (func(x) != oracle(x)) { ++fail; } else { ++pass; }
+        if (func(x) != oracle(x))
+        {
+            ++fail;
+        }
+        else
+        {
+            ++pass;
+        }
     }
     for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)
     {
         const ek_t x{ek_last_region(i)};
-        if (func(x) != oracle(x)) { ++fail; } else { ++pass; }
+        if (func(x) != oracle(x))
+        {
+            ++fail;
+        }
+        else
+        {
+            ++pass;
+        }
     }
     for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)
     {
         const ek_t x{ek_random_region(i)};
-        if (func(x) != oracle(x)) { ++fail; } else { ++pass; }
+        if (func(x) != oracle(x))
+        {
+            ++fail;
+        }
+        else
+        {
+            ++pass;
+        }
     }
 
     print_sweep_result({name, pass, fail, pass + fail});
@@ -86,20 +101,27 @@ static bool sweep_binary_ek(F &&func, Oracle &&oracle, const char *name)
 
     const auto check = [&](const ek_t &a, const ek_t &b)
     {
-        if (func(a, b) != oracle(a, b)) { ++fail; } else { ++pass; }
+        if (func(a, b) != oracle(a, b))
+        {
+            ++fail;
+        }
+        else
+        {
+            ++pass;
+        }
     };
 
-    for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)   // (first, first)
+    for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i) // (first, first)
         check(ek_first_region(i), ek_first_region(i));
-    for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)   // (first, last)
+    for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i) // (first, last)
         check(ek_first_region(i), ek_last_region(i));
-    for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)   // (first, random)
+    for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i) // (first, random)
         check(ek_first_region(i), ek_random_region(i, EK_SEED_Y));
-    for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)   // (last, last)
+    for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i) // (last, last)
         check(ek_last_region(i), ek_last_region(i));
-    for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)   // (last, random)
+    for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i) // (last, random)
         check(ek_last_region(i), ek_random_region(i, EK_SEED_Y));
-    for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)   // (random, random)
+    for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i) // (random, random)
         check(ek_random_region(i), ek_random_region(i, EK_SEED_Y));
 
     print_sweep_result({name, pass, fail, pass + fail});
@@ -114,12 +136,12 @@ int main()
 {
     std::cout << "====================================================================\n";
     std::cout << "Sweep EK Tests (3-region signed coverage: +, -, ++, --)\n";
-    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS
-              << " = " << SWEEP_REGION_SIZE << " values per region\n";
-    std::cout << "  Binary: 6 combos x " << SWEEP_REGION_SIZE << " = "
-              << 6 * SWEEP_REGION_SIZE << " verifications/test\n";
-    std::cout << "  Unary:  3 regions x " << SWEEP_REGION_SIZE << " = "
-              << 3 * SWEEP_REGION_SIZE << " verifications/test\n";
+    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS << " = " << SWEEP_REGION_SIZE
+              << " values per region\n";
+    std::cout << "  Binary: 6 combos x " << SWEEP_REGION_SIZE << " = " << 6 * SWEEP_REGION_SIZE
+              << " verifications/test\n";
+    std::cout << "  Unary:  3 regions x " << SWEEP_REGION_SIZE << " = " << 3 * SWEEP_REGION_SIZE
+              << " verifications/test\n";
     std::cout << "====================================================================\n\n";
 
     int passed{0};
@@ -133,18 +155,14 @@ int main()
 
     // a + b == b + a
     ++total;
-    if (sweep_binary_ek(
-            [](const ek_t &a, const ek_t &b) { return a + b; },
-            [](const ek_t &a, const ek_t &b) { return b + a; },
-            "add_commutativity"))
+    if (sweep_binary_ek([](const ek_t &a, const ek_t &b) { return a + b; },
+                        [](const ek_t &a, const ek_t &b) { return b + a; }, "add_commutativity"))
         ++passed;
 
     // (a + b) - b == a  (round-trip in Z/2^128Z)
     ++total;
-    if (sweep_binary_ek(
-            [](const ek_t &a, const ek_t &b) { return (a + b) - b; },
-            [](const ek_t &a, const ek_t &)  { return a; },
-            "add_sub_roundtrip"))
+    if (sweep_binary_ek([](const ek_t &a, const ek_t &b) { return (a + b) - b; },
+                        [](const ek_t &a, const ek_t &) { return a; }, "add_sub_roundtrip"))
         ++passed;
 
     std::cout << "\n";
@@ -157,18 +175,14 @@ int main()
 
     // a + ek(0) == a
     ++total;
-    if (sweep_unary_ek(
-            [](const ek_t &a) { return a + ek_t{0LL}; },
-            [](const ek_t &a) { return a; },
-            "add_zero_identity"))
+    if (sweep_unary_ek([](const ek_t &a) { return a + ek_t{0LL}; }, [](const ek_t &a) { return a; },
+                       "add_zero_identity"))
         ++passed;
 
     // a + (-a) == ek(0)
     ++total;
-    if (sweep_unary_ek(
-            [](const ek_t &a) { return a + (-a); },
-            [](const ek_t &)  { return ek_t{0LL}; },
-            "add_neg_inverse"))
+    if (sweep_unary_ek([](const ek_t &a) { return a + (-a); }, [](const ek_t &) { return ek_t{0LL}; },
+                       "add_neg_inverse"))
         ++passed;
 
     std::cout << "\n";
@@ -181,10 +195,8 @@ int main()
 
     // (a - b) + b == a
     ++total;
-    if (sweep_binary_ek(
-            [](const ek_t &a, const ek_t &b) { return (a - b) + b; },
-            [](const ek_t &a, const ek_t &)  { return a; },
-            "sub_add_roundtrip"))
+    if (sweep_binary_ek([](const ek_t &a, const ek_t &b) { return (a - b) + b; },
+                        [](const ek_t &a, const ek_t &) { return a; }, "sub_add_roundtrip"))
         ++passed;
 
     std::cout << "\n";
@@ -197,18 +209,14 @@ int main()
 
     // a - ek(0) == a
     ++total;
-    if (sweep_unary_ek(
-            [](const ek_t &a) { return a - ek_t{0LL}; },
-            [](const ek_t &a) { return a; },
-            "sub_zero_identity"))
+    if (sweep_unary_ek([](const ek_t &a) { return a - ek_t{0LL}; }, [](const ek_t &a) { return a; },
+                       "sub_zero_identity"))
         ++passed;
 
     // a - a == ek(0)
     ++total;
-    if (sweep_unary_ek(
-            [](const ek_t &a) { return a - a; },
-            [](const ek_t &)  { return ek_t{0LL}; },
-            "sub_self_zero"))
+    if (sweep_unary_ek([](const ek_t &a) { return a - a; }, [](const ek_t &) { return ek_t{0LL}; },
+                       "sub_self_zero"))
         ++passed;
 
     std::cout << "\n";
@@ -222,17 +230,24 @@ int main()
     // pre-increment equivalent to +1
     ++total;
     if (sweep_unary_ek(
-            [](ek_t a) { ++a; return a; },
-            [](const ek_t &a) { return a + ek_t{1LL}; },
-            "pre_inc_eq_add1"))
+            [](ek_t a)
+            {
+                ++a;
+                return a;
+            },
+            [](const ek_t &a) { return a + ek_t{1LL}; }, "pre_inc_eq_add1"))
         ++passed;
 
     // round-trip: ++a then --a restores original (incl. wrap-around at MAX)
     ++total;
     if (sweep_unary_ek(
-            [](ek_t a) { ++a; --a; return a; },
-            [](const ek_t &a) { return a; },
-            "inc_dec_roundtrip"))
+            [](ek_t a)
+            {
+                ++a;
+                --a;
+                return a;
+            },
+            [](const ek_t &a) { return a; }, "inc_dec_roundtrip"))
         ++passed;
 
     std::cout << "\n";
@@ -246,17 +261,24 @@ int main()
     // pre-decrement equivalent to -1
     ++total;
     if (sweep_unary_ek(
-            [](ek_t a) { --a; return a; },
-            [](const ek_t &a) { return a - ek_t{1LL}; },
-            "pre_dec_eq_sub1"))
+            [](ek_t a)
+            {
+                --a;
+                return a;
+            },
+            [](const ek_t &a) { return a - ek_t{1LL}; }, "pre_dec_eq_sub1"))
         ++passed;
 
     // round-trip: --a then ++a restores original (incl. wrap-around at MIN)
     ++total;
     if (sweep_unary_ek(
-            [](ek_t a) { --a; ++a; return a; },
-            [](const ek_t &a) { return a; },
-            "dec_inc_roundtrip"))
+            [](ek_t a)
+            {
+                --a;
+                ++a;
+                return a;
+            },
+            [](const ek_t &a) { return a; }, "dec_inc_roundtrip"))
         ++passed;
 
     std::cout << "\n";

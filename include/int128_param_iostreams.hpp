@@ -209,7 +209,8 @@ namespace nstd
                         ptr += 2;
                         index += 2;
                         // FIX: Avanzar el puntero solo si realmente hay dígitos después del prefijo
-                        if (!((*ptr >= '0' && *ptr <= '9') || (*ptr >= 'a' && *ptr <= 'f') || (*ptr >= 'A' && *ptr <= 'F')))
+                        if (!((*ptr >= '0' && *ptr <= '9') || (*ptr >= 'a' && *ptr <= 'f') ||
+                              (*ptr >= 'A' && *ptr <= 'F')))
                         {
                             result.error = parse_error::no_digits;
                             result.error_index = index;
@@ -304,7 +305,8 @@ namespace nstd
             {
                 constexpr uint64_t bias_high = (1ULL << 62);
                 constexpr uint64_t bias_low = 0;
-                int128_param_t<signedness::signed_type, representation_form::twos_complement> bias_tc(bias_high, bias_low);
+                int128_param_t<signedness::signed_type, representation_form::twos_complement> bias_tc(
+                    bias_high, bias_low);
                 auto final_val = temp_val + bias_tc;
                 result.value.set_high(final_val.high());
                 result.value.set_low(final_val.low());
@@ -417,13 +419,8 @@ namespace nstd
          * @return Formatted string
          */
         template <signedness S, representation_form F>
-        std::string format(const int128_param_t<S, F> &value,
-                           int base = 10,
-                           int width = 0,
-                           char fill = ' ',
-                           bool show_base = false,
-                           bool show_pos = false,
-                           bool uppercase = false,
+        std::string format(const int128_param_t<S, F> &value, int base = 10, int width = 0, char fill = ' ',
+                           bool show_base = false, bool show_pos = false, bool uppercase = false,
                            bool left_align = false)
         {
             std::ostringstream oss;
@@ -462,9 +459,7 @@ namespace nstd
          * @brief Format as hexadecimal
          */
         template <signedness S, representation_form F>
-        std::string hex(const int128_param_t<S, F> &value,
-                        bool show_base = true,
-                        bool uppercase = true)
+        std::string hex(const int128_param_t<S, F> &value, bool show_base = true, bool uppercase = true)
         {
             return format(value, 16, 0, ' ', show_base, false, uppercase, false);
         }
@@ -473,8 +468,7 @@ namespace nstd
          * @brief Format as octal
          */
         template <signedness S, representation_form F>
-        std::string oct(const int128_param_t<S, F> &value,
-                        bool show_base = true)
+        std::string oct(const int128_param_t<S, F> &value, bool show_base = true)
         {
             return format(value, 8, 0, ' ', show_base, false, false, false);
         }
@@ -483,8 +477,7 @@ namespace nstd
          * @brief Format as decimal
          */
         template <signedness S, representation_form F>
-        std::string dec(const int128_param_t<S, F> &value,
-                        bool show_pos = false)
+        std::string dec(const int128_param_t<S, F> &value, bool show_pos = false)
         {
             return format(value, 10, 0, ' ', false, show_pos, false, false);
         }
@@ -493,8 +486,7 @@ namespace nstd
          * @brief Format as binary (custom base 2)
          */
         template <signedness S, representation_form F>
-        std::string bin(const int128_param_t<S, F> &value,
-                        bool show_base = true)
+        std::string bin(const int128_param_t<S, F> &value, bool show_base = true)
         {
             std::string result = value.to_string(2);
             if (show_base && result[0] != '-')

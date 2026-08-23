@@ -250,8 +250,7 @@ namespace intrinsics
      * @param result_low   Pointer to store low 64 bits of result
      * @param result_high  Pointer to store high 64 bits of result
      */
-    inline constexpr void add128(uint64_t a_low, uint64_t a_high,
-                                 uint64_t b_low, uint64_t b_high,
+    inline constexpr void add128(uint64_t a_low, uint64_t a_high, uint64_t b_low, uint64_t b_high,
                                  uint64_t *result_low, uint64_t *result_high) noexcept
     {
         if (INTRINSICS_IS_CONSTANT_EVALUATED())
@@ -296,8 +295,7 @@ namespace intrinsics
      * @param result_low   Pointer to store low 64 bits of result
      * @param result_high  Pointer to store high 64 bits of result
      */
-    inline constexpr void sub128(uint64_t a_low, uint64_t a_high,
-                                 uint64_t b_low, uint64_t b_high,
+    inline constexpr void sub128(uint64_t a_low, uint64_t a_high, uint64_t b_low, uint64_t b_high,
                                  uint64_t *result_low, uint64_t *result_high) noexcept
     {
         if (INTRINSICS_IS_CONSTANT_EVALUATED())
@@ -715,9 +713,8 @@ namespace intrinsics
      *
      * @note Parte de los pasos D4, D5 y D6 del Algoritmo D de Knuth
      */
-    inline constexpr uint64_t knuth_multiply_subtract_correct(uint64_t q_hat, uint64_t u_ext,
-                                                              uint64_t u_hi, uint64_t u_lo,
-                                                              uint64_t v_hi, uint64_t v_lo,
+    inline constexpr uint64_t knuth_multiply_subtract_correct(uint64_t q_hat, uint64_t u_ext, uint64_t u_hi,
+                                                              uint64_t u_lo, uint64_t v_hi, uint64_t v_lo,
                                                               uint64_t *remainder_hi,
                                                               uint64_t *remainder_lo) noexcept
     {
@@ -740,8 +737,7 @@ namespace intrinsics
         borrow = (result_hi > old_u_hi || (borrow && result_hi == old_u_hi)) ? 1 : 0;
 
         // Restar en la parte más significativa
-        const int64_t final_balance =
-            static_cast<int64_t>(u_ext) - static_cast<int64_t>(p_ext + borrow);
+        const int64_t final_balance = static_cast<int64_t>(u_ext) - static_cast<int64_t>(p_ext + borrow);
 
         // D5. Test de Resto (Corrección de signo)
         // D6. Add Back si es necesario
@@ -780,9 +776,8 @@ namespace intrinsics
      * @note Implementa pasos D3-D8 del Algoritmo D de Knuth
      * @note Solo disponible con __uint128_t en plataformas no-Windows
      */
-    inline constexpr uint64_t knuth_division_step(uint64_t u_ext, uint64_t u_hi, uint64_t u_lo,
-                                                  uint64_t v_hi, uint64_t v_lo, int shift,
-                                                  uint64_t *remainder_hi,
+    inline constexpr uint64_t knuth_division_step(uint64_t u_ext, uint64_t u_hi, uint64_t u_lo, uint64_t v_hi,
+                                                  uint64_t v_lo, int shift, uint64_t *remainder_hi,
                                                   uint64_t *remainder_lo) noexcept
     {
 #if INTRINSICS_HAS_INT128
@@ -791,8 +786,8 @@ namespace intrinsics
 
         // D4-D6. Multiplicar, Restar y Corregir
         uint64_t result_hi, result_lo;
-        const uint64_t corrected_q = knuth_multiply_subtract_correct(q_hat, u_ext, u_hi, u_lo, v_hi,
-                                                                     v_lo, &result_hi, &result_lo);
+        const uint64_t corrected_q =
+            knuth_multiply_subtract_correct(q_hat, u_ext, u_hi, u_lo, v_hi, v_lo, &result_hi, &result_lo);
 
         // D8. Desnormalizar Resto
         if (shift == 0)

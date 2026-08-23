@@ -142,16 +142,9 @@ int main()
     std::cout << "--- Section 2: Commutativity Sweep ---" << std::endl;
 
     {
-        const bool ok{sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            {
-                return widening_mul(a, b);
-            },
-            [](const uint128_t &a, const uint128_t &b)
-            {
-                return widening_mul(b, a);
-            },
-            "widening_mul_commutative")};
+        const bool ok{sweep_binary([](const uint128_t &a, const uint128_t &b) { return widening_mul(a, b); },
+                                   [](const uint128_t &a, const uint128_t &b) { return widening_mul(b, a); },
+                                   "widening_mul_commutative")};
         ++total;
         if (ok)
         {
@@ -166,16 +159,10 @@ int main()
     std::cout << "--- Section 3: Low128 == operator* Sweep ---" << std::endl;
 
     {
-        const bool ok{sweep_binary(
-            [](const uint128_t &a, const uint128_t &b) -> uint128_t
-            {
-                return widening_mul(a, b).low128();
-            },
-            [](const uint128_t &a, const uint128_t &b) -> uint128_t
-            {
-                return a * b;
-            },
-            "widening_mul_low128_matches_operator")};
+        const bool ok{sweep_binary([](const uint128_t &a, const uint128_t &b) -> uint128_t
+                                   { return widening_mul(a, b).low128(); },
+                                   [](const uint128_t &a, const uint128_t &b) -> uint128_t { return a * b; },
+                                   "widening_mul_low128_matches_operator")};
         ++total;
         if (ok)
         {
@@ -190,16 +177,10 @@ int main()
     std::cout << "--- Section 4: widening_mul Low128 Redundant Check ---" << std::endl;
 
     {
-        const bool ok{sweep_binary(
-            [](const uint128_t &a, const uint128_t &b) -> uint128_t
-            {
-                return widening_mul(a, b).low128();
-            },
-            [](const uint128_t &a, const uint128_t &b) -> uint128_t
-            {
-                return mullo(a, b);
-            },
-            "widening_mul_lo_vs_mullo")};
+        const bool ok{sweep_binary([](const uint128_t &a, const uint128_t &b) -> uint128_t
+                                   { return widening_mul(a, b).low128(); },
+                                   [](const uint128_t &a, const uint128_t &b) -> uint128_t
+                                   { return mullo(a, b); }, "widening_mul_lo_vs_mullo")};
         ++total;
         if (ok)
         {
@@ -214,16 +195,9 @@ int main()
     std::cout << "--- Section 5: mulhi Boundary Values ---" << std::endl;
 
     {
-        const bool ok{sweep_unary(
-            [](const uint128_t &a) -> uint128_t
-            {
-                return mulhi(a, uint128_t{0, 0});
-            },
-            [](const uint128_t &) -> uint128_t
-            {
-                return uint128_t{0, 0};
-            },
-            "mulhi_zero")};
+        const bool ok{sweep_unary([](const uint128_t &a) -> uint128_t { return mulhi(a, uint128_t{0, 0}); },
+                                  [](const uint128_t &) -> uint128_t { return uint128_t{0, 0}; },
+                                  "mulhi_zero")};
         ++total;
         if (ok)
         {
@@ -232,16 +206,9 @@ int main()
     }
 
     {
-        const bool ok{sweep_unary(
-            [](const uint128_t &a) -> uint128_t
-            {
-                return mulhi(a, uint128_t{0, 1});
-            },
-            [](const uint128_t &) -> uint128_t
-            {
-                return uint128_t{0, 0};
-            },
-            "mulhi_one")};
+        const bool ok{sweep_unary([](const uint128_t &a) -> uint128_t { return mulhi(a, uint128_t{0, 1}); },
+                                  [](const uint128_t &) -> uint128_t { return uint128_t{0, 0}; },
+                                  "mulhi_one")};
         ++total;
         if (ok)
         {

@@ -39,8 +39,7 @@ int main()
         }
         else
         {
-            std::cout << "[FAIL] " << label << ": expected=" << expected
-                      << " got=" << got << std::endl;
+            std::cout << "[FAIL] " << label << ": expected=" << expected << " got=" << got << std::endl;
         }
     };
 
@@ -58,14 +57,13 @@ int main()
     // Large 128-bit values
     check(uint128_t{1ull, 0ull}, "18446744073709551616", "2^64");
     check(uint128_t{10ull, 0ull}, "184467440737095516160", "10*2^64");
-    check(uint128_t{0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull},
-          "340282366920938463463374607431768211455", "MAX128");
+    check(uint128_t{0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull}, "340282366920938463463374607431768211455",
+          "MAX128");
 
     // =========================================================================
     // Section 2: Signed values (twos_complement)
     // =========================================================================
-    std::cout << std::endl
-              << "--- Section 2: Signed Values (TC) ---" << std::endl;
+    std::cout << std::endl << "--- Section 2: Signed Values (TC) ---" << std::endl;
 
     {
         ++total;
@@ -113,8 +111,7 @@ int main()
     // =========================================================================
     // Section 3: Non-decimal bases still work (generic path)
     // =========================================================================
-    std::cout << std::endl
-              << "--- Section 3: Non-Decimal Bases ---" << std::endl;
+    std::cout << std::endl << "--- Section 3: Non-Decimal Bases ---" << std::endl;
 
     {
         ++total;
@@ -162,8 +159,7 @@ int main()
     // =========================================================================
     // Section 4: Sweep - to_string round-trip consistency
     // =========================================================================
-    std::cout << std::endl
-              << "--- Section 4: Sweep Round-Trip ---" << std::endl;
+    std::cout << std::endl << "--- Section 4: Sweep Round-Trip ---" << std::endl;
 
     {
         // Verify to_string(10) produces correct digits by reconstructing
@@ -194,8 +190,7 @@ int main()
     // =========================================================================
     // Section 5: Powers of 10
     // =========================================================================
-    std::cout << std::endl
-              << "--- Section 5: Powers of 10 ---" << std::endl;
+    std::cout << std::endl << "--- Section 5: Powers of 10 ---" << std::endl;
 
     {
         ++total;
@@ -212,8 +207,7 @@ int main()
             }
             if (s != expected)
             {
-                std::cout << "[FAIL] 10^" << exp << ": expected=" << expected
-                          << " got=" << s << std::endl;
+                std::cout << "[FAIL] 10^" << exp << ": expected=" << expected << " got=" << s << std::endl;
                 all_ok = false;
             }
             if (exp < 38)

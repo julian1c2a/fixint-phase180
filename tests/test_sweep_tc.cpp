@@ -28,15 +28,9 @@ using tc_t = nstd::int128_tc_t;
 
 static constexpr uint64_t TC_SEED_Y{SWEEP_FIXED_SEED + 0xABCDEF0123456789ULL};
 
-static tc_t tc_first_region(uint64_t i) noexcept
-{
-    return tc_t{static_cast<int64_t>(i)};
-}
+static tc_t tc_first_region(uint64_t i) noexcept { return tc_t{static_cast<int64_t>(i)}; }
 
-static tc_t tc_last_region(uint64_t i) noexcept
-{
-    return tc_t{-static_cast<int64_t>(SWEEP_REGION_SIZE - i)};
-}
+static tc_t tc_last_region(uint64_t i) noexcept { return tc_t{-static_cast<int64_t>(SWEEP_REGION_SIZE - i)}; }
 
 static tc_t tc_random_region(uint64_t i, uint64_t seed = SWEEP_FIXED_SEED) noexcept
 {
@@ -59,17 +53,38 @@ static bool sweep_unary_tc(F &&func, Oracle &&oracle, const char *name)
     for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)
     {
         const tc_t x{tc_first_region(i)};
-        if (func(x) != oracle(x)) { ++fail; } else { ++pass; }
+        if (func(x) != oracle(x))
+        {
+            ++fail;
+        }
+        else
+        {
+            ++pass;
+        }
     }
     for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)
     {
         const tc_t x{tc_last_region(i)};
-        if (func(x) != oracle(x)) { ++fail; } else { ++pass; }
+        if (func(x) != oracle(x))
+        {
+            ++fail;
+        }
+        else
+        {
+            ++pass;
+        }
     }
     for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)
     {
         const tc_t x{tc_random_region(i)};
-        if (func(x) != oracle(x)) { ++fail; } else { ++pass; }
+        if (func(x) != oracle(x))
+        {
+            ++fail;
+        }
+        else
+        {
+            ++pass;
+        }
     }
 
     const SweepResult result{name, pass, fail, pass + fail};
@@ -90,18 +105,25 @@ static bool sweep_binary_tc(F &&func, Oracle &&oracle, const char *name)
         {
             const tc_t a{gen_a(i)};
             const tc_t b{gen_b(i)};
-            if (func(a, b) != oracle(a, b)) { ++fail; } else { ++pass; }
+            if (func(a, b) != oracle(a, b))
+            {
+                ++fail;
+            }
+            else
+            {
+                ++pass;
+            }
         }
     };
 
     run(tc_first_region, tc_first_region);
     run(tc_first_region, tc_last_region);
-    run(tc_last_region,  tc_first_region);
-    run(tc_last_region,  tc_last_region);
-    run([](uint64_t i) { return tc_random_region(i);          },
+    run(tc_last_region, tc_first_region);
+    run(tc_last_region, tc_last_region);
+    run([](uint64_t i) { return tc_random_region(i); },
         [](uint64_t i) { return tc_random_region(i, TC_SEED_Y); });
     run([](uint64_t i) { return tc_random_region(i, TC_SEED_Y); },
-        [](uint64_t i) { return tc_random_region(i);          });
+        [](uint64_t i) { return tc_random_region(i); });
 
     const SweepResult result{name, pass, fail, pass + fail};
     print_sweep_result(result);
@@ -116,8 +138,8 @@ int main()
 {
     std::cout << "====================================================================\n";
     std::cout << "Sweep TC Tests (3-region systematic coverage, signed TC arithmetic)\n";
-    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS
-              << " = " << SWEEP_REGION_SIZE << " values per region\n";
+    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS << " = " << SWEEP_REGION_SIZE
+              << " values per region\n";
     std::cout << "====================================================================\n\n";
 
     int passed{0};
@@ -130,17 +152,13 @@ int main()
     print_sweep_separator();
 
     ++total;
-    if (sweep_binary_tc(
-            [](const tc_t &a, const tc_t &b) { return a + b; },
-            [](const tc_t &a, const tc_t &b) { return b + a; },
-            "add_commutativity"))
+    if (sweep_binary_tc([](const tc_t &a, const tc_t &b) { return a + b; },
+                        [](const tc_t &a, const tc_t &b) { return b + a; }, "add_commutativity"))
         ++passed;
 
     ++total;
-    if (sweep_binary_tc(
-            [](const tc_t &a, const tc_t &b) { return (a + b) - b; },
-            [](const tc_t &a, const tc_t &)   { return a; },
-            "add_sub_roundtrip"))
+    if (sweep_binary_tc([](const tc_t &a, const tc_t &b) { return (a + b) - b; },
+                        [](const tc_t &a, const tc_t &) { return a; }, "add_sub_roundtrip"))
         ++passed;
 
     // ========================================================================
@@ -150,18 +168,14 @@ int main()
     print_sweep_separator();
 
     ++total;
-    if (sweep_binary_tc(
-            [](const tc_t &a, const tc_t &b) { return (a - b) + b; },
-            [](const tc_t &a, const tc_t &)   { return a; },
-            "sub_add_roundtrip"))
+    if (sweep_binary_tc([](const tc_t &a, const tc_t &b) { return (a - b) + b; },
+                        [](const tc_t &a, const tc_t &) { return a; }, "sub_add_roundtrip"))
         ++passed;
 
     // (a - b) + (b - a) == 0  (antisymmetry — holds for TC via modular wrap)
     ++total;
-    if (sweep_binary_tc(
-            [](const tc_t &a, const tc_t &b) { return (a - b) + (b - a); },
-            [](const tc_t &, const tc_t &)   { return tc_t{0LL}; },
-            "sub_antisymmetry"))
+    if (sweep_binary_tc([](const tc_t &a, const tc_t &b) { return (a - b) + (b - a); },
+                        [](const tc_t &, const tc_t &) { return tc_t{0LL}; }, "sub_antisymmetry"))
         ++passed;
 
     // ========================================================================
@@ -172,10 +186,8 @@ int main()
 
     // a + (-a) == 0
     ++total;
-    if (sweep_unary_tc(
-            [](const tc_t &a) { return a + (-a); },
-            [](const tc_t &)   { return tc_t{0LL}; },
-            "add_neg_inverse"))
+    if (sweep_unary_tc([](const tc_t &a) { return a + (-a); }, [](const tc_t &) { return tc_t{0LL}; },
+                       "add_neg_inverse"))
         ++passed;
 
     // ========================================================================
@@ -185,26 +197,20 @@ int main()
     print_sweep_separator();
 
     ++total;
-    if (sweep_binary_tc(
-            [](const tc_t &a, const tc_t &b) { return a * b; },
-            [](const tc_t &a, const tc_t &b) { return b * a; },
-            "mul_commutativity"))
+    if (sweep_binary_tc([](const tc_t &a, const tc_t &b) { return a * b; },
+                        [](const tc_t &a, const tc_t &b) { return b * a; }, "mul_commutativity"))
         ++passed;
 
     // a * 1 == a
     ++total;
-    if (sweep_unary_tc(
-            [](const tc_t &a) { return a * tc_t{1LL}; },
-            [](const tc_t &a) { return a; },
-            "mul_one_identity"))
+    if (sweep_unary_tc([](const tc_t &a) { return a * tc_t{1LL}; }, [](const tc_t &a) { return a; },
+                       "mul_one_identity"))
         ++passed;
 
     // a * 0 == 0
     ++total;
-    if (sweep_unary_tc(
-            [](const tc_t &a) { return a * tc_t{0LL}; },
-            [](const tc_t &)   { return tc_t{0LL}; },
-            "mul_zero"))
+    if (sweep_unary_tc([](const tc_t &a) { return a * tc_t{0LL}; }, [](const tc_t &) { return tc_t{0LL}; },
+                       "mul_zero"))
         ++passed;
 
     // ========================================================================
@@ -216,9 +222,14 @@ int main()
     // (++a then --a) == original
     ++total;
     if (sweep_unary_tc(
-            [](const tc_t &a) { tc_t v{a}; ++v; --v; return v; },
-            [](const tc_t &a) { return a; },
-            "inc_dec_roundtrip"))
+            [](const tc_t &a)
+            {
+                tc_t v{a};
+                ++v;
+                --v;
+                return v;
+            },
+            [](const tc_t &a) { return a; }, "inc_dec_roundtrip"))
         ++passed;
 
     // ========================================================================

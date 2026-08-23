@@ -248,12 +248,8 @@ void test_sweep_unary_identity()
     std::cout << "  Testing sweep_unary (identity)...\n";
 
     // Identity function: f(x) = x, oracle(x) = x => should pass 100%
-    const bool ok{sweep_unary(
-        [](const uint128_t &x) -> uint128_t
-        { return x; },
-        [](const uint128_t &x) -> uint128_t
-        { return x; },
-        "identity")};
+    const bool ok{sweep_unary([](const uint128_t &x) -> uint128_t { return x; },
+                              [](const uint128_t &x) -> uint128_t { return x; }, "identity")};
 
     if (ok)
     {
@@ -271,12 +267,8 @@ void test_sweep_unary_complement()
     std::cout << "  Testing sweep_unary (bitwise complement)...\n";
 
     // ~(~x) == x
-    const bool ok{sweep_unary(
-        [](const uint128_t &x) -> uint128_t
-        { return ~(~x); },
-        [](const uint128_t &x) -> uint128_t
-        { return x; },
-        "double complement")};
+    const bool ok{sweep_unary([](const uint128_t &x) -> uint128_t { return ~(~x); },
+                              [](const uint128_t &x) -> uint128_t { return x; }, "double complement")};
 
     if (ok)
     {
@@ -298,12 +290,9 @@ void test_sweep_binary_add_commutative()
     std::cout << "  Testing sweep_binary (addition commutativity)...\n";
 
     // a + b == b + a (commutativity)
-    const bool ok{sweep_binary(
-        [](const uint128_t &x, const uint128_t &y) -> uint128_t
-        { return x + y; },
-        [](const uint128_t &x, const uint128_t &y) -> uint128_t
-        { return y + x; },
-        "add commutative")};
+    const bool ok{sweep_binary([](const uint128_t &x, const uint128_t &y) -> uint128_t { return x + y; },
+                               [](const uint128_t &x, const uint128_t &y) -> uint128_t { return y + x; },
+                               "add commutative")};
 
     if (ok)
     {
@@ -322,12 +311,9 @@ void test_sweep_binary_xor_self()
 
     // x ^ x == 0 (self-xor)
     // Use same generator for both x and y so they are identical
-    const bool ok{sweep_binary(
-        [](const uint128_t &x, const uint128_t &) -> uint128_t
-        { return x ^ x; },
-        [](const uint128_t &, const uint128_t &) -> uint128_t
-        { return uint128_t{0ULL}; },
-        "xor self == 0")};
+    const bool ok{sweep_binary([](const uint128_t &x, const uint128_t &) -> uint128_t { return x ^ x; },
+                               [](const uint128_t &, const uint128_t &) -> uint128_t
+                               { return uint128_t{0ULL}; }, "xor self == 0")};
 
     if (ok)
     {

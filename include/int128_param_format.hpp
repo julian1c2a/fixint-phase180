@@ -133,8 +133,7 @@ struct std::formatter<nstd::int128_param_t<S, F>>
         }
 
         // [type]
-        if (it != end && (*it == 'd' || *it == 'x' || *it == 'X' ||
-                          *it == 'b' || *it == 'o'))
+        if (it != end && (*it == 'd' || *it == 'x' || *it == 'X' || *it == 'b' || *it == 'o'))
         {
             type_char = *it;
             ++it;
@@ -154,19 +153,19 @@ struct std::formatter<nstd::int128_param_t<S, F>>
         int base{10};
         switch (type_char)
         {
-        case 'x':
-        case 'X':
-            base = 16;
-            break;
-        case 'b':
-            base = 2;
-            break;
-        case 'o':
-            base = 8;
-            break;
-        default:
-            base = 10;
-            break;
+            case 'x':
+            case 'X':
+                base = 16;
+                break;
+            case 'b':
+                base = 2;
+                break;
+            case 'o':
+                base = 8;
+                break;
+            default:
+                base = 10;
+                break;
         }
 
         std::string raw{value.to_string(base)};
@@ -215,23 +214,23 @@ struct std::formatter<nstd::int128_param_t<S, F>>
         {
             switch (type_char)
             {
-            case 'x':
-                prefix += "0x";
-                break;
-            case 'X':
-                prefix += "0X";
-                break;
-            case 'b':
-                prefix += "0b";
-                break;
-            case 'o':
-                if (digits.empty() || digits[0] != '0')
-                {
-                    prefix += "0";
-                }
-                break;
-            default:
-                break;
+                case 'x':
+                    prefix += "0x";
+                    break;
+                case 'X':
+                    prefix += "0X";
+                    break;
+                case 'b':
+                    prefix += "0b";
+                    break;
+                case 'o':
+                    if (digits.empty() || digits[0] != '0')
+                    {
+                        prefix += "0";
+                    }
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -263,8 +262,7 @@ struct std::formatter<nstd::int128_param_t<S, F>>
         }
         else
         {
-            const int left_pad{(eff_align == '>') ? pad_count : (eff_align == '^') ? (pad_count / 2)
-                                                                                   : 0};
+            const int left_pad{(eff_align == '>') ? pad_count : (eff_align == '^') ? (pad_count / 2) : 0};
             const int right_pad{pad_count - left_pad};
 
             for (int i{0}; i < left_pad; ++i)

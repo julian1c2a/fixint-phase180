@@ -44,72 +44,107 @@
 namespace nstd
 {
 
-// =============================================================================
-// Primary nstd:: trait templates — define ONCE per TU (shared with int128_param)
-// =============================================================================
-//
-// If int128_param_traits_specializations.hpp was included first (header guard
-// INT128_PARAM_TRAITS_SPECIALIZATIONS_HPP set), its primaries are already in
-// scope and we skip ours. Otherwise we define them here. Either way the
-// fixed_int_t specializations below see a valid primary template.
+    // =============================================================================
+    // Primary nstd:: trait templates — define ONCE per TU (shared with int128_param)
+    // =============================================================================
+    //
+    // If int128_param_traits_specializations.hpp was included first (header guard
+    // INT128_PARAM_TRAITS_SPECIALIZATIONS_HPP set), its primaries are already in
+    // scope and we skip ours. Otherwise we define them here. Either way the
+    // fixed_int_t specializations below see a valid primary template.
 
-#if !FIXED_INT_USING_LIBCPP && !defined(INT128_PARAM_TRAITS_SPECIALIZATIONS_HPP) && !defined(NSTD_TRAITS_PRIMARY_DEFINED)
+#if !FIXED_INT_USING_LIBCPP && !defined(INT128_PARAM_TRAITS_SPECIALIZATIONS_HPP) && \
+    !defined(NSTD_TRAITS_PRIMARY_DEFINED)
 #define NSTD_TRAITS_PRIMARY_DEFINED 1
 
-    template <typename T> struct is_integral    : std::is_integral<T>    {};
-    template <typename T> struct is_arithmetic  : std::is_arithmetic<T>  {};
-    template <typename T> struct is_signed      : std::is_signed<T>      {};
-    template <typename T> struct is_unsigned    : std::is_unsigned<T>    {};
+    template <typename T>
+    struct is_integral : std::is_integral<T>
+    {
+    };
+    template <typename T>
+    struct is_arithmetic : std::is_arithmetic<T>
+    {
+    };
+    template <typename T>
+    struct is_signed : std::is_signed<T>
+    {
+    };
+    template <typename T>
+    struct is_unsigned : std::is_unsigned<T>
+    {
+    };
 
-    template <typename T> inline constexpr bool is_integral_v   = is_integral<T>::value;
-    template <typename T> inline constexpr bool is_arithmetic_v = is_arithmetic<T>::value;
-    template <typename T> inline constexpr bool is_signed_v     = is_signed<T>::value;
-    template <typename T> inline constexpr bool is_unsigned_v   = is_unsigned<T>::value;
+    template <typename T>
+    inline constexpr bool is_integral_v = is_integral<T>::value;
+    template <typename T>
+    inline constexpr bool is_arithmetic_v = is_arithmetic<T>::value;
+    template <typename T>
+    inline constexpr bool is_signed_v = is_signed<T>::value;
+    template <typename T>
+    inline constexpr bool is_unsigned_v = is_unsigned<T>::value;
 
 #endif // !FIXED_INT_USING_LIBCPP && !INT128_PARAM_TRAITS_SPECIALIZATIONS_HPP && !NSTD_TRAITS_PRIMARY_DEFINED
 
-// =============================================================================
-// Specializations for fixed_int_t<N, Sign, Form>
-// =============================================================================
+    // =============================================================================
+    // Specializations for fixed_int_t<N, Sign, Form>
+    // =============================================================================
 
 #if !FIXED_INT_USING_LIBCPP
 
     template <std::size_t N, signedness S, representation_form F>
-    struct is_integral<fixed_int_t<N, S, F>> : std::true_type {};
+    struct is_integral<fixed_int_t<N, S, F>> : std::true_type
+    {
+    };
 
     template <std::size_t N, signedness S, representation_form F>
-    struct is_arithmetic<fixed_int_t<N, S, F>> : std::true_type {};
+    struct is_arithmetic<fixed_int_t<N, S, F>> : std::true_type
+    {
+    };
 
     template <std::size_t N, representation_form F>
-    struct is_signed<fixed_int_t<N, signedness::signed_type, F>> : std::true_type {};
+    struct is_signed<fixed_int_t<N, signedness::signed_type, F>> : std::true_type
+    {
+    };
 
     template <std::size_t N, representation_form F>
-    struct is_signed<fixed_int_t<N, signedness::unsigned_type, F>> : std::false_type {};
+    struct is_signed<fixed_int_t<N, signedness::unsigned_type, F>> : std::false_type
+    {
+    };
 
     template <std::size_t N, representation_form F>
-    struct is_unsigned<fixed_int_t<N, signedness::unsigned_type, F>> : std::true_type {};
+    struct is_unsigned<fixed_int_t<N, signedness::unsigned_type, F>> : std::true_type
+    {
+    };
 
     template <std::size_t N, representation_form F>
-    struct is_unsigned<fixed_int_t<N, signedness::signed_type, F>> : std::false_type {};
+    struct is_unsigned<fixed_int_t<N, signedness::signed_type, F>> : std::false_type
+    {
+    };
 
 #endif // !FIXED_INT_USING_LIBCPP
 
-// =============================================================================
-// make_signed / make_unsigned — always-available specializations
-// =============================================================================
-//
-// If int128_param_traits_specializations.hpp already defined the primary
-// nstd::make_signed / make_unsigned templates, we just add our specializations.
-// Otherwise we define the primaries here too.
+    // =============================================================================
+    // make_signed / make_unsigned — always-available specializations
+    // =============================================================================
+    //
+    // If int128_param_traits_specializations.hpp already defined the primary
+    // nstd::make_signed / make_unsigned templates, we just add our specializations.
+    // Otherwise we define the primaries here too.
 
 #if !defined(INT128_PARAM_TRAITS_SPECIALIZATIONS_HPP) && !defined(NSTD_MAKE_SIGNED_PRIMARY_DEFINED)
 #define NSTD_MAKE_SIGNED_PRIMARY_DEFINED 1
 
     template <typename T>
-    struct make_signed { using type = std::make_signed_t<T>; };
+    struct make_signed
+    {
+        using type = std::make_signed_t<T>;
+    };
 
     template <typename T>
-    struct make_unsigned { using type = std::make_unsigned_t<T>; };
+    struct make_unsigned
+    {
+        using type = std::make_unsigned_t<T>;
+    };
 
     template <typename T>
     using make_signed_t = typename make_signed<T>::type;

@@ -103,10 +103,7 @@ namespace nstd
      * @param b Second 128-bit operand
      * @return Lower 128 bits of the 256-bit product
      */
-    inline uint128_t mullo(const uint128_t &a, const uint128_t &b) noexcept
-    {
-        return a * b;
-    }
+    inline uint128_t mullo(const uint128_t &a, const uint128_t &b) noexcept { return a * b; }
 
 } // namespace nstd
 

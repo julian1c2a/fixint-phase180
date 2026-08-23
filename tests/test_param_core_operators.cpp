@@ -766,8 +766,7 @@ static void test_setters_and_type_traits()
     // Default constructor
     {
         const uint128_t x{};
-        TEST("default_ctor_is_zero",
-             x.is_zero() && x.high() == 0 && x.low() == 0);
+        TEST("default_ctor_is_zero", x.is_zero() && x.high() == 0 && x.low() == 0);
     }
     // set_high()
     {
@@ -783,17 +782,17 @@ static void test_setters_and_type_traits()
     }
     // Type traits: sign
     TEST("uint128_sign_unsigned", uint128_t::sign == signedness::unsigned_type);
-    TEST("int128_sign_signed",    int128_tc_t::sign == signedness::signed_type);
+    TEST("int128_sign_signed", int128_tc_t::sign == signedness::signed_type);
     // Type traits: form
-    TEST("uint128_form_binnat",           uint128_t::form   == representation_form::binnat);
-    TEST("int128_form_twos_complement",   int128_tc_t::form == representation_form::twos_complement);
-    TEST("int128_ek_form_excess_k",       int128_ek_t::form == representation_form::excess_k);
+    TEST("uint128_form_binnat", uint128_t::form == representation_form::binnat);
+    TEST("int128_form_twos_complement", int128_tc_t::form == representation_form::twos_complement);
+    TEST("int128_ek_form_excess_k", int128_ek_t::form == representation_form::excess_k);
     // Type traits: is_signed
     TEST("uint128_not_is_signed", !uint128_t::is_signed);
-    TEST("int128_is_signed",       int128_tc_t::is_signed);
-    TEST("int128_ek_is_signed",    int128_ek_t::is_signed);
+    TEST("int128_is_signed", int128_tc_t::is_signed);
+    TEST("int128_ek_is_signed", int128_ek_t::is_signed);
     // is_excess_k trait
-    TEST("int128_ek_is_excess_k",  int128_ek_t::is_excess_k);
+    TEST("int128_ek_is_excess_k", int128_ek_t::is_excess_k);
 }
 
 // ============================================================================
@@ -830,14 +829,13 @@ static void test_extended_shift_bitwise()
     {
         const int128_tc_t sx{-1};
         const int128_tc_t r = sx >> 128;
-        TEST("tc_shr_128_zero_or_neg1",
-             r == int128_tc_t{0} || r == int128_tc_t{-1});
+        TEST("tc_shr_128_zero_or_neg1", r == int128_tc_t{0} || r == int128_tc_t{-1});
     }
     // Shift by short and int types
     {
         const int128_tc_t x{8};
         TEST("shift_by_short", (x >> static_cast<short>(1)) == int128_tc_t{4});
-        TEST("shift_by_int",   (x << static_cast<int>(1))   == int128_tc_t{16});
+        TEST("shift_by_int", (x << static_cast<int>(1)) == int128_tc_t{16});
     }
 }
 

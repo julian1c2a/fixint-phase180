@@ -270,7 +270,8 @@ namespace nstd
     // =============================================================================
 
     // TC <-> MS (128 bits)
-    inline constexpr void ms128_to_twos_complement(uint64_t ms_high, uint64_t ms_low, uint64_t &tc_high, uint64_t &tc_low) noexcept
+    inline constexpr void ms128_to_twos_complement(uint64_t ms_high, uint64_t ms_low, uint64_t &tc_high,
+                                                   uint64_t &tc_low) noexcept
     {
         // MS: sign bit is MSB of high
         const bool is_negative = (ms_high & (1ULL << 63)) != 0;
@@ -291,7 +292,8 @@ namespace nstd
         }
     }
 
-    inline constexpr void twos_complement128_to_ms(uint64_t tc_high, uint64_t tc_low, uint64_t &ms_high, uint64_t &ms_low) noexcept
+    inline constexpr void twos_complement128_to_ms(uint64_t tc_high, uint64_t tc_low, uint64_t &ms_high,
+                                                   uint64_t &ms_low) noexcept
     {
         const bool is_negative = (tc_high & (1ULL << 63)) != 0;
         if (!is_negative)
@@ -311,7 +313,8 @@ namespace nstd
     }
 
     // TC <-> EK (128 bits)
-    inline constexpr void twos_complement128_to_excess_k(uint64_t tc_high, uint64_t tc_low, uint64_t &ek_high, uint64_t &ek_low) noexcept
+    inline constexpr void twos_complement128_to_excess_k(uint64_t tc_high, uint64_t tc_low, uint64_t &ek_high,
+                                                         uint64_t &ek_low) noexcept
     {
         // EK: stored = value + bias
         constexpr uint64_t bias_high = (1ULL << 62);
@@ -321,7 +324,8 @@ namespace nstd
         ek_high = tc_high + bias_high + (ek_low < tc_low ? 1 : 0);
     }
 
-    inline constexpr void excess_k128_to_twos_complement(uint64_t ek_high, uint64_t ek_low, uint64_t &tc_high, uint64_t &tc_low) noexcept
+    inline constexpr void excess_k128_to_twos_complement(uint64_t ek_high, uint64_t ek_low, uint64_t &tc_high,
+                                                         uint64_t &tc_low) noexcept
     {
         constexpr uint64_t bias_high = (1ULL << 62);
         constexpr uint64_t bias_low = 0;
@@ -331,14 +335,16 @@ namespace nstd
     }
 
     // MS <-> EK (128 bits)
-    inline constexpr void ms128_to_excess_k(uint64_t ms_high, uint64_t ms_low, uint64_t &ek_high, uint64_t &ek_low) noexcept
+    inline constexpr void ms128_to_excess_k(uint64_t ms_high, uint64_t ms_low, uint64_t &ek_high,
+                                            uint64_t &ek_low) noexcept
     {
         uint64_t tc_high, tc_low;
         ms128_to_twos_complement(ms_high, ms_low, tc_high, tc_low);
         twos_complement128_to_excess_k(tc_high, tc_low, ek_high, ek_low);
     }
 
-    inline constexpr void excess_k128_to_ms(uint64_t ek_high, uint64_t ek_low, uint64_t &ms_high, uint64_t &ms_low) noexcept
+    inline constexpr void excess_k128_to_ms(uint64_t ek_high, uint64_t ek_low, uint64_t &ms_high,
+                                            uint64_t &ms_low) noexcept
     {
         uint64_t tc_high, tc_low;
         excess_k128_to_twos_complement(ek_high, ek_low, tc_high, tc_low);

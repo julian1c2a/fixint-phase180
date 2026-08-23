@@ -297,8 +297,7 @@ namespace nstd
      * @see pow
      */
     template <signedness S, representation_form F>
-    constexpr int128_param_t<S, F> power(const int128_param_t<S, F> &base,
-                                         unsigned int exponent) noexcept
+    constexpr int128_param_t<S, F> power(const int128_param_t<S, F> &base, unsigned int exponent) noexcept
     {
         return pow(base, exponent);
     }

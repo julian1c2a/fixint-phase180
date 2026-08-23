@@ -22,8 +22,8 @@ int main()
 {
     std::cout << "====================================================================\n";
     std::cout << "Sweep Shift Tests (3-region systematic coverage)\n";
-    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS
-              << " = " << SWEEP_REGION_SIZE << " values per region\n";
+    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS << " = " << SWEEP_REGION_SIZE
+              << " values per region\n";
     std::cout << "====================================================================\n\n";
 
     int passed{0};
@@ -37,24 +37,16 @@ int main()
 
     // x << 0 == x
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a << 0; },
-            [](const uint128_t &a)
-            { return a; },
-            "shl_zero_identity"))
+    if (sweep_unary([](const uint128_t &a) { return a << 0; }, [](const uint128_t &a) { return a; },
+                    "shl_zero_identity"))
     {
         ++passed;
     }
 
     // x >> 0 == x
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a >> 0; },
-            [](const uint128_t &a)
-            { return a; },
-            "shr_zero_identity"))
+    if (sweep_unary([](const uint128_t &a) { return a >> 0; }, [](const uint128_t &a) { return a; },
+                    "shr_zero_identity"))
     {
         ++passed;
     }
@@ -69,36 +61,24 @@ int main()
 
     // x << 1 == x + x (multiply by 2, wrapping)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a << 1; },
-            [](const uint128_t &a)
-            { return a + a; },
-            "shl1_eq_add_self"))
+    if (sweep_unary([](const uint128_t &a) { return a << 1; }, [](const uint128_t &a) { return a + a; },
+                    "shl1_eq_add_self"))
     {
         ++passed;
     }
 
     // x << 1 == x * 2
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a << 1; },
-            [](const uint128_t &a)
-            { return a * uint128_t{2ULL}; },
-            "shl1_eq_mul2"))
+    if (sweep_unary([](const uint128_t &a) { return a << 1; },
+                    [](const uint128_t &a) { return a * uint128_t{2ULL}; }, "shl1_eq_mul2"))
     {
         ++passed;
     }
 
     // x << 2 == x * 4
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a << 2; },
-            [](const uint128_t &a)
-            { return a * uint128_t{4ULL}; },
-            "shl2_eq_mul4"))
+    if (sweep_unary([](const uint128_t &a) { return a << 2; },
+                    [](const uint128_t &a) { return a * uint128_t{4ULL}; }, "shl2_eq_mul4"))
     {
         ++passed;
     }
@@ -114,36 +94,24 @@ int main()
     // (x >> n) << n == x & (~uint128_t{0} << n) — zeros bottom n bits
     // Test for n = 1
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return (a >> 1) << 1; },
-            [](const uint128_t &a)
-            { return a & (uint128_t::max() << 1); },
-            "shr1_shl1_clears_bit0"))
+    if (sweep_unary([](const uint128_t &a) { return (a >> 1) << 1; },
+                    [](const uint128_t &a) { return a & (uint128_t::max() << 1); }, "shr1_shl1_clears_bit0"))
     {
         ++passed;
     }
 
     // Test for n = 8
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return (a >> 8) << 8; },
-            [](const uint128_t &a)
-            { return a & (uint128_t::max() << 8); },
-            "shr8_shl8_clears_low8"))
+    if (sweep_unary([](const uint128_t &a) { return (a >> 8) << 8; },
+                    [](const uint128_t &a) { return a & (uint128_t::max() << 8); }, "shr8_shl8_clears_low8"))
     {
         ++passed;
     }
 
     // Test for n = 64 (cross-limb boundary)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return (a >> 64) << 64; },
-            [](const uint128_t &a)
-            { return a & (uint128_t::max() << 64); },
-            "shr64_shl64_clears_low_limb"))
+    if (sweep_unary([](const uint128_t &a) { return (a >> 64) << 64; }, [](const uint128_t &a)
+                    { return a & (uint128_t::max() << 64); }, "shr64_shl64_clears_low_limb"))
     {
         ++passed;
     }
@@ -151,24 +119,16 @@ int main()
     // (x << n) >> n == x & (~uint128_t{0} >> n) — zeros top n bits
     // Test for n = 1
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return (a << 1) >> 1; },
-            [](const uint128_t &a)
-            { return a & (uint128_t::max() >> 1); },
-            "shl1_shr1_clears_msb"))
+    if (sweep_unary([](const uint128_t &a) { return (a << 1) >> 1; },
+                    [](const uint128_t &a) { return a & (uint128_t::max() >> 1); }, "shl1_shr1_clears_msb"))
     {
         ++passed;
     }
 
     // Test for n = 64
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return (a << 64) >> 64; },
-            [](const uint128_t &a)
-            { return a & (uint128_t::max() >> 64); },
-            "shl64_shr64_clears_high_limb"))
+    if (sweep_unary([](const uint128_t &a) { return (a << 64) >> 64; }, [](const uint128_t &a)
+                    { return a & (uint128_t::max() >> 64); }, "shl64_shr64_clears_high_limb"))
     {
         ++passed;
     }
@@ -183,12 +143,8 @@ int main()
 
     // x >> 127 extracts MSB (0 or 1)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a) -> int
-            { return static_cast<int>((a >> 127).low()); },
-            [](const uint128_t &a) -> int
-            { return (a.high() >> 63) & 1; },
-            "shr127_extracts_msb"))
+    if (sweep_unary([](const uint128_t &a) -> int { return static_cast<int>((a >> 127).low()); },
+                    [](const uint128_t &a) -> int { return (a.high() >> 63) & 1; }, "shr127_extracts_msb"))
     {
         ++passed;
     }
@@ -204,36 +160,24 @@ int main()
     // (x << a) << b == x << (a + b) when a + b < 128
     // Test: (x << 3) << 5 == x << 8
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return (a << 3) << 5; },
-            [](const uint128_t &a)
-            { return a << 8; },
-            "shl_compose_3_5_eq_8"))
+    if (sweep_unary([](const uint128_t &a) { return (a << 3) << 5; },
+                    [](const uint128_t &a) { return a << 8; }, "shl_compose_3_5_eq_8"))
     {
         ++passed;
     }
 
     // (x >> 3) >> 5 == x >> 8
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return (a >> 3) >> 5; },
-            [](const uint128_t &a)
-            { return a >> 8; },
-            "shr_compose_3_5_eq_8"))
+    if (sweep_unary([](const uint128_t &a) { return (a >> 3) >> 5; },
+                    [](const uint128_t &a) { return a >> 8; }, "shr_compose_3_5_eq_8"))
     {
         ++passed;
     }
 
     // (x << 32) << 32 == x << 64
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return (a << 32) << 32; },
-            [](const uint128_t &a)
-            { return a << 64; },
-            "shl_compose_32_32_eq_64"))
+    if (sweep_unary([](const uint128_t &a) { return (a << 32) << 32; },
+                    [](const uint128_t &a) { return a << 64; }, "shl_compose_32_32_eq_64"))
     {
         ++passed;
     }
@@ -248,24 +192,18 @@ int main()
 
     // (a | b) << n == (a << n) | (b << n)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return (a | b) << 7; },
-            [](const uint128_t &a, const uint128_t &b)
-            { return (a << 7) | (b << 7); },
-            "shl7_distributes_over_or"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return (a | b) << 7; },
+                     [](const uint128_t &a, const uint128_t &b) { return (a << 7) | (b << 7); },
+                     "shl7_distributes_over_or"))
     {
         ++passed;
     }
 
     // (a | b) >> n == (a >> n) | (b >> n) (for unsigned/logical shift)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return (a | b) >> 7; },
-            [](const uint128_t &a, const uint128_t &b)
-            { return (a >> 7) | (b >> 7); },
-            "shr7_distributes_over_or"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return (a | b) >> 7; },
+                     [](const uint128_t &a, const uint128_t &b) { return (a >> 7) | (b >> 7); },
+                     "shr7_distributes_over_or"))
     {
         ++passed;
     }

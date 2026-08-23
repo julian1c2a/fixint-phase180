@@ -102,9 +102,12 @@ void test_divmod_128_by_128()
     std::cerr << "  Dividend:         data[0]=" << dividend.low() << " data[1]=" << dividend.high() << "\n";
     std::cerr << "  Divisor:          data[0]=" << divisor.low() << " data[1]=" << divisor.high() << "\n";
     std::cerr << "  Quotient:         data[0]=" << quotient.low() << " data[1]=" << quotient.high() << "\n";
-    std::cerr << "  Expected Quot:    data[0]=" << expected_quotient.low() << " data[1]=" << expected_quotient.high() << "\n";
-    std::cerr << "  Quotient bits:    low_bits=" << (quotient.low() & 0xFF) << " high_bits=" << (quotient.high() & 0xFF) << "\n";
-    std::cerr << "  Expected bits:    low_bits=" << (expected_quotient.low() & 0xFF) << " high_bits=" << (expected_quotient.high() & 0xFF) << "\n";
+    std::cerr << "  Expected Quot:    data[0]=" << expected_quotient.low()
+              << " data[1]=" << expected_quotient.high() << "\n";
+    std::cerr << "  Quotient bits:    low_bits=" << (quotient.low() & 0xFF)
+              << " high_bits=" << (quotient.high() & 0xFF) << "\n";
+    std::cerr << "  Expected bits:    low_bits=" << (expected_quotient.low() & 0xFF)
+              << " high_bits=" << (expected_quotient.high() & 0xFF) << "\n";
     std::cerr << std::dec;
 
     if (quotient != expected_quotient || remainder != expected_remainder)

@@ -34,8 +34,8 @@ int main()
 {
     std::cout << "====================================================================\n";
     std::cout << "Sweep Binnat Tests (unsigned algebraic properties)\n";
-    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS
-              << " = " << SWEEP_REGION_SIZE << " values per region\n";
+    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS << " = " << SWEEP_REGION_SIZE
+              << " values per region\n";
     std::cout << "====================================================================\n\n";
 
     int passed{0};
@@ -49,24 +49,18 @@ int main()
 
     // (a + b) + C == a + (b + C)  — associativity (mod 2^128)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return (a + b) + C_TERNARY; },
-            [](const uint128_t &a, const uint128_t &b)
-            { return a + (b + C_TERNARY); },
-            "add_associativity"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return (a + b) + C_TERNARY; },
+                     [](const uint128_t &a, const uint128_t &b) { return a + (b + C_TERNARY); },
+                     "add_associativity"))
     {
         ++passed;
     }
 
     // a - b == a + (~b + 1)  — subtraction via unsigned complement (mod 2^128)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return a - b; },
-            [](const uint128_t &a, const uint128_t &b)
-            { return a + (~b + uint128_t{1ULL}); },
-            "sub_via_complement"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return a - b; },
+                     [](const uint128_t &a, const uint128_t &b) { return a + (~b + uint128_t{1ULL}); },
+                     "sub_via_complement"))
     {
         ++passed;
     }
@@ -81,24 +75,18 @@ int main()
 
     // (a * b) * C == a * (b * C)  — mul associativity (mod 2^128)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return (a * b) * C_TERNARY; },
-            [](const uint128_t &a, const uint128_t &b)
-            { return a * (b * C_TERNARY); },
-            "mul_associativity"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return (a * b) * C_TERNARY; },
+                     [](const uint128_t &a, const uint128_t &b) { return a * (b * C_TERNARY); },
+                     "mul_associativity"))
     {
         ++passed;
     }
 
     // a * (b + C) == a*b + a*C  — distributivity (mod 2^128)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return a * (b + C_TERNARY); },
-            [](const uint128_t &a, const uint128_t &b)
-            { return a * b + a * C_TERNARY; },
-            "mul_distributive_add"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return a * (b + C_TERNARY); },
+                     [](const uint128_t &a, const uint128_t &b) { return a * b + a * C_TERNARY; },
+                     "mul_distributive_add"))
     {
         ++passed;
     }
@@ -113,36 +101,24 @@ int main()
 
     // a + ~a == MAX  — complement sum is all-ones
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a + ~a; },
-            [](const uint128_t &)
-            { return uint128_t::max(); },
-            "complement_sum_is_max"))
+    if (sweep_unary([](const uint128_t &a) { return a + ~a; },
+                    [](const uint128_t &) { return uint128_t::max(); }, "complement_sum_is_max"))
     {
         ++passed;
     }
 
     // ~a == MAX - a  — complement equals MAX minus value
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return ~a; },
-            [](const uint128_t &a)
-            { return uint128_t::max() - a; },
-            "complement_is_max_minus"))
+    if (sweep_unary([](const uint128_t &a) { return ~a; },
+                    [](const uint128_t &a) { return uint128_t::max() - a; }, "complement_is_max_minus"))
     {
         ++passed;
     }
 
     // a + (~a + 1) == 0  — unsigned negation wraps to zero (mod 2^128)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a + (~a + uint128_t{1ULL}); },
-            [](const uint128_t &)
-            { return uint128_t{0ULL}; },
-            "negate_via_complement"))
+    if (sweep_unary([](const uint128_t &a) { return a + (~a + uint128_t{1ULL}); },
+                    [](const uint128_t &) { return uint128_t{0ULL}; }, "negate_via_complement"))
     {
         ++passed;
     }
@@ -157,24 +133,16 @@ int main()
 
     // (a | b) >= a  — OR is >= both operands (unsigned)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b) -> int
-            { return ((a | b) >= a) ? 1 : 0; },
-            [](const uint128_t &, const uint128_t &) -> int
-            { return 1; },
-            "or_geq_left_operand"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) -> int { return ((a | b) >= a) ? 1 : 0; },
+                     [](const uint128_t &, const uint128_t &) -> int { return 1; }, "or_geq_left_operand"))
     {
         ++passed;
     }
 
     // (a & b) <= a  — AND is <= both operands (unsigned)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b) -> int
-            { return ((a & b) <= a) ? 1 : 0; },
-            [](const uint128_t &, const uint128_t &) -> int
-            { return 1; },
-            "and_leq_left_operand"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) -> int { return ((a & b) <= a) ? 1 : 0; },
+                     [](const uint128_t &, const uint128_t &) -> int { return 1; }, "and_leq_left_operand"))
     {
         ++passed;
     }
@@ -191,12 +159,9 @@ int main()
     // Proof: for each bit position i, a[i]+b[i] = (a[i]^b[i]) + 2*(a[i]&b[i]);
     // summing over all positions gives the full identity modulo 2^128.
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return a + b; },
-            [](const uint128_t &a, const uint128_t &b)
-            { return (a ^ b) + ((a & b) << 1); },
-            "add_via_xor_carry"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return a + b; },
+                     [](const uint128_t &a, const uint128_t &b) { return (a ^ b) + ((a & b) << 1); },
+                     "add_via_xor_carry"))
     {
         ++passed;
     }
@@ -204,12 +169,9 @@ int main()
     // a | b == (a ^ b) | (a & b)  — OR via XOR and AND
     // Proof per bit: 0|0=0, 0^0|0&0=0; 0|1=1, 0^1|0&1=1; 1|1=1, 1^1|1&1=0|1=1.
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return a | b; },
-            [](const uint128_t &a, const uint128_t &b)
-            { return (a ^ b) | (a & b); },
-            "or_via_xor_and"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return a | b; },
+                     [](const uint128_t &a, const uint128_t &b) { return (a ^ b) | (a & b); },
+                     "or_via_xor_and"))
     {
         ++passed;
     }

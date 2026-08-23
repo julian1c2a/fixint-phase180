@@ -36,8 +36,7 @@ int main()
         std::vector<uint128_t> vec(5);
         const uint128_t value{0, 42};
 
-        nstd::fill<signedness::unsigned_type, representation_form::binnat>(
-            vec.begin(), vec.end(), value);
+        nstd::fill<signedness::unsigned_type, representation_form::binnat>(vec.begin(), vec.end(), value);
 
         bool all_equal{true};
         for (const auto &elem : vec)
@@ -72,8 +71,7 @@ int main()
         std::vector<uint128_t> vec(10);
         const uint128_t value{0, 99};
 
-        nstd::fill_n<signedness::unsigned_type, representation_form::binnat>(
-            vec.begin(), 5, value);
+        nstd::fill_n<signedness::unsigned_type, representation_form::binnat>(vec.begin(), 5, value);
 
         bool first_five_filled{true};
         bool rest_zero{true};
@@ -114,21 +112,13 @@ int main()
     {
         std::cout << "[Test 3] reverse():\n";
 
-        std::vector<uint128_t> vec{
-            uint128_t{0, 1},
-            uint128_t{0, 2},
-            uint128_t{0, 3},
-            uint128_t{0, 4},
-            uint128_t{0, 5}};
+        std::vector<uint128_t> vec{uint128_t{0, 1}, uint128_t{0, 2}, uint128_t{0, 3}, uint128_t{0, 4},
+                                   uint128_t{0, 5}};
 
-        nstd::reverse<signedness::unsigned_type, representation_form::binnat>(
-            vec.begin(), vec.end());
+        nstd::reverse<signedness::unsigned_type, representation_form::binnat>(vec.begin(), vec.end());
 
-        if ((vec[0] == uint128_t{0, 5}) &&
-            (vec[1] == uint128_t{0, 4}) &&
-            (vec[2] == uint128_t{0, 3}) &&
-            (vec[3] == uint128_t{0, 2}) &&
-            (vec[4] == uint128_t{0, 1}))
+        if ((vec[0] == uint128_t{0, 5}) && (vec[1] == uint128_t{0, 4}) && (vec[2] == uint128_t{0, 3}) &&
+            (vec[3] == uint128_t{0, 2}) && (vec[4] == uint128_t{0, 1}))
         {
             std::cout << "  [OK] reverse\n";
             TEST_PASS();
@@ -148,11 +138,7 @@ int main()
     {
         std::cout << "[Test 4] find():\n";
 
-        std::vector<uint128_t> vec{
-            uint128_t{0, 10},
-            uint128_t{0, 20},
-            uint128_t{0, 30},
-            uint128_t{0, 40}};
+        std::vector<uint128_t> vec{uint128_t{0, 10}, uint128_t{0, 20}, uint128_t{0, 30}, uint128_t{0, 40}};
 
         const auto it_found{nstd::find<signedness::unsigned_type, representation_form::binnat>(
             vec.begin(), vec.end(), uint128_t{0, 30})};
@@ -160,8 +146,7 @@ int main()
         const auto it_not_found{nstd::find<signedness::unsigned_type, representation_form::binnat>(
             vec.begin(), vec.end(), uint128_t{0, 99})};
 
-        if ((it_found != vec.end()) && (*it_found == uint128_t{0, 30}) &&
-            (it_not_found == vec.end()))
+        if ((it_found != vec.end()) && (*it_found == uint128_t{0, 30}) && (it_not_found == vec.end()))
         {
             std::cout << "  [OK] find\n";
             TEST_PASS();
@@ -181,12 +166,8 @@ int main()
     {
         std::cout << "[Test 5] count():\n";
 
-        std::vector<uint128_t> vec{
-            uint128_t{0, 5},
-            uint128_t{0, 10},
-            uint128_t{0, 5},
-            uint128_t{0, 20},
-            uint128_t{0, 5}};
+        std::vector<uint128_t> vec{uint128_t{0, 5}, uint128_t{0, 10}, uint128_t{0, 5}, uint128_t{0, 20},
+                                   uint128_t{0, 5}};
 
         const auto count_5{nstd::count<signedness::unsigned_type, representation_form::binnat>(
             vec.begin(), vec.end(), uint128_t{0, 5})};
@@ -214,16 +195,10 @@ int main()
     {
         std::cout << "[Test 6] all_of / any_of / none_of:\n";
 
-        std::vector<uint128_t> vec{
-            uint128_t{0, 2},
-            uint128_t{0, 4},
-            uint128_t{0, 6},
-            uint128_t{0, 8}};
+        std::vector<uint128_t> vec{uint128_t{0, 2}, uint128_t{0, 4}, uint128_t{0, 6}, uint128_t{0, 8}};
 
-        auto is_even = [](const uint128_t &x)
-        { return (x.low() & 1) == 0; };
-        auto is_large = [](const uint128_t &x)
-        { return x.low() > 100; };
+        auto is_even = [](const uint128_t &x) { return (x.low() & 1) == 0; };
+        auto is_large = [](const uint128_t &x) { return x.low() > 100; };
 
         const bool all_even{nstd::all_of<signedness::unsigned_type, representation_form::binnat>(
             vec.begin(), vec.end(), is_even)};
@@ -254,11 +229,7 @@ int main()
     {
         std::cout << "[Test 7] min_element / max_element:\n";
 
-        std::vector<uint128_t> vec{
-            uint128_t{0, 50},
-            uint128_t{0, 10},
-            uint128_t{0, 100},
-            uint128_t{0, 30}};
+        std::vector<uint128_t> vec{uint128_t{0, 50}, uint128_t{0, 10}, uint128_t{0, 100}, uint128_t{0, 30}};
 
         const auto min_it{nstd::min_element<signedness::unsigned_type, representation_form::binnat>(
             vec.begin(), vec.end())};
@@ -266,8 +237,8 @@ int main()
         const auto max_it{nstd::max_element<signedness::unsigned_type, representation_form::binnat>(
             vec.begin(), vec.end())};
 
-        if ((min_it != vec.end()) && (*min_it == uint128_t{0, 10}) &&
-            (max_it != vec.end()) && (*max_it == uint128_t{0, 100}))
+        if ((min_it != vec.end()) && (*min_it == uint128_t{0, 10}) && (max_it != vec.end()) &&
+            (*max_it == uint128_t{0, 100}))
         {
             std::cout << "  [OK] min_element_max_element\n";
             TEST_PASS();
@@ -287,12 +258,8 @@ int main()
     {
         std::cout << "[Test 8] accumulate():\n";
 
-        std::vector<uint128_t> vec{
-            uint128_t{0, 1},
-            uint128_t{0, 2},
-            uint128_t{0, 3},
-            uint128_t{0, 4},
-            uint128_t{0, 5}};
+        std::vector<uint128_t> vec{uint128_t{0, 1}, uint128_t{0, 2}, uint128_t{0, 3}, uint128_t{0, 4},
+                                   uint128_t{0, 5}};
 
         const auto sum{nstd::accumulate<signedness::unsigned_type, representation_form::binnat>(
             vec.begin(), vec.end(), uint128_t{0, 0})};
@@ -319,11 +286,7 @@ int main()
     {
         std::cout << "[Test 9] Signed type operations:\n";
 
-        std::vector<int128_tc_t> vec{
-            int128_tc_t{-5},
-            int128_tc_t{10},
-            int128_tc_t{-3},
-            int128_tc_t{7}};
+        std::vector<int128_tc_t> vec{int128_tc_t{-5}, int128_tc_t{10}, int128_tc_t{-3}, int128_tc_t{7}};
 
         const auto min_it{nstd::min_element<signedness::signed_type, representation_form::twos_complement>(
             vec.begin(), vec.end())};
@@ -331,8 +294,8 @@ int main()
         const auto max_it{nstd::max_element<signedness::signed_type, representation_form::twos_complement>(
             vec.begin(), vec.end())};
 
-        if ((min_it != vec.end()) && (*min_it == int128_tc_t{-5}) &&
-            (max_it != vec.end()) && (*max_it == int128_tc_t{10}))
+        if ((min_it != vec.end()) && (*min_it == int128_tc_t{-5}) && (max_it != vec.end()) &&
+            (*max_it == int128_tc_t{10}))
         {
             std::cout << "  [OK] signed_operations\n";
             TEST_PASS();

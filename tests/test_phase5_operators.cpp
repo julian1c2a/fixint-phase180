@@ -21,21 +21,20 @@ using namespace nstd;
 
 int test_count = 0, pass_count = 0;
 
-#define TEST_CASE(name, func)                                      \
-    do                                                             \
-    {                                                              \
-        test_count++;                                              \
-        try                                                        \
-        {                                                          \
-            func();                                                \
-            pass_count++;                                          \
-            std::cout << "  [OK] " << name << std::endl;           \
-        }                                                          \
-        catch (const std::exception &e)                            \
-        {                                                          \
-            std::cout << "  [ERROR] " << name << " - " << e.what() \
-                      << std::endl;                                \
-        }                                                          \
+#define TEST_CASE(name, func)                                                    \
+    do                                                                           \
+    {                                                                            \
+        test_count++;                                                            \
+        try                                                                      \
+        {                                                                        \
+            func();                                                              \
+            pass_count++;                                                        \
+            std::cout << "  [OK] " << name << std::endl;                         \
+        }                                                                        \
+        catch (const std::exception &e)                                          \
+        {                                                                        \
+            std::cout << "  [ERROR] " << name << " - " << e.what() << std::endl; \
+        }                                                                        \
     } while (false)
 
 #define ASSERT_EQ(a, b) assert((a) == (b))
@@ -545,8 +544,7 @@ void test_double_negate_identity_ek()
 int main()
 {
     std::cout << std::string(70, '=') << std::endl;
-    std::cout << "PHASE 5 TESTS: Increment, Decrement, Unary, incr(), decr()"
-              << std::endl;
+    std::cout << "PHASE 5 TESTS: Increment, Decrement, Unary, incr(), decr()" << std::endl;
     std::cout << std::string(70, '=') << std::endl;
 
     std::cout << "\n[1-5] Pre-increment (++x) - TC & unsigned:" << std::endl;
@@ -626,10 +624,8 @@ int main()
     TEST_CASE("double_negate_identity_ms", test_double_negate_identity_ms);
     TEST_CASE("double_negate_identity_ek", test_double_negate_identity_ek);
 
-    std::cout << "\n"
-              << std::string(70, '=') << std::endl;
-    std::cout << "RESULTS: " << pass_count << "/" << test_count << " PASSED"
-              << std::endl;
+    std::cout << "\n" << std::string(70, '=') << std::endl;
+    std::cout << "RESULTS: " << pass_count << "/" << test_count << " PASSED" << std::endl;
     std::cout << std::string(70, '=') << std::endl;
 
     return (pass_count == test_count) ? 0 : 1;

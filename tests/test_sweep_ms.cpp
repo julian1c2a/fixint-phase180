@@ -37,15 +37,9 @@ using tc_t = nstd::int128_tc_t;
 
 static constexpr uint64_t MS_SEED_Y{SWEEP_FIXED_SEED + 0x0FEDCBA987654321ULL};
 
-static ms_t ms_first_region(uint64_t i) noexcept
-{
-    return ms_t{static_cast<int64_t>(i)};
-}
+static ms_t ms_first_region(uint64_t i) noexcept { return ms_t{static_cast<int64_t>(i)}; }
 
-static ms_t ms_last_region(uint64_t i) noexcept
-{
-    return ms_t{-static_cast<int64_t>(SWEEP_REGION_SIZE - i)};
-}
+static ms_t ms_last_region(uint64_t i) noexcept { return ms_t{-static_cast<int64_t>(SWEEP_REGION_SIZE - i)}; }
 
 static ms_t ms_random_region(uint64_t i, uint64_t seed = SWEEP_FIXED_SEED) noexcept
 {
@@ -70,17 +64,38 @@ static bool sweep_unary_ms(F &&func, Oracle &&oracle, const char *name)
     for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)
     {
         const ms_t x{ms_first_region(i)};
-        if (func(x) != oracle(x)) { ++fail; } else { ++pass; }
+        if (func(x) != oracle(x))
+        {
+            ++fail;
+        }
+        else
+        {
+            ++pass;
+        }
     }
     for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)
     {
         const ms_t x{ms_last_region(i)};
-        if (func(x) != oracle(x)) { ++fail; } else { ++pass; }
+        if (func(x) != oracle(x))
+        {
+            ++fail;
+        }
+        else
+        {
+            ++pass;
+        }
     }
     for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)
     {
         const ms_t x{ms_random_region(i)};
-        if (func(x) != oracle(x)) { ++fail; } else { ++pass; }
+        if (func(x) != oracle(x))
+        {
+            ++fail;
+        }
+        else
+        {
+            ++pass;
+        }
     }
 
     print_sweep_result({name, pass, fail, pass + fail});
@@ -95,7 +110,14 @@ static bool sweep_binary_ms(F &&func, Oracle &&oracle, const char *name)
 
     const auto check = [&](const ms_t &a, const ms_t &b)
     {
-        if (func(a, b) != oracle(a, b)) { ++fail; } else { ++pass; }
+        if (func(a, b) != oracle(a, b))
+        {
+            ++fail;
+        }
+        else
+        {
+            ++pass;
+        }
     };
 
     for (uint64_t i{0}; i < SWEEP_REGION_SIZE; ++i)
@@ -123,12 +145,12 @@ int main()
 {
     std::cout << "====================================================================\n";
     std::cout << "Sweep MS Tests (3-region signed coverage: +, -, *, /, ++, --)\n";
-    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS
-              << " = " << SWEEP_REGION_SIZE << " values per region\n";
-    std::cout << "  Binary: 6 combos x " << SWEEP_REGION_SIZE << " = "
-              << 6 * SWEEP_REGION_SIZE << " verifications/test\n";
-    std::cout << "  Unary:  3 regions x " << SWEEP_REGION_SIZE << " = "
-              << 3 * SWEEP_REGION_SIZE << " verifications/test\n";
+    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS << " = " << SWEEP_REGION_SIZE
+              << " values per region\n";
+    std::cout << "  Binary: 6 combos x " << SWEEP_REGION_SIZE << " = " << 6 * SWEEP_REGION_SIZE
+              << " verifications/test\n";
+    std::cout << "  Unary:  3 regions x " << SWEEP_REGION_SIZE << " = " << 3 * SWEEP_REGION_SIZE
+              << " verifications/test\n";
     std::cout << "====================================================================\n\n";
 
     int passed{0};
@@ -142,18 +164,14 @@ int main()
 
     // a + b == b + a
     ++total;
-    if (sweep_binary_ms(
-            [](const ms_t &a, const ms_t &b) { return a + b; },
-            [](const ms_t &a, const ms_t &b) { return b + a; },
-            "add_commutativity"))
+    if (sweep_binary_ms([](const ms_t &a, const ms_t &b) { return a + b; },
+                        [](const ms_t &a, const ms_t &b) { return b + a; }, "add_commutativity"))
         ++passed;
 
     // (a - b) + (b - a) == +0   (antisymmetry: both sides have equal magnitude, opposite sign)
     ++total;
-    if (sweep_binary_ms(
-            [](const ms_t &a, const ms_t &b) { return (a - b) + (b - a); },
-            [](const ms_t &, const ms_t &)   { return ms_t{0LL}; },
-            "sub_antisymmetry"))
+    if (sweep_binary_ms([](const ms_t &a, const ms_t &b) { return (a - b) + (b - a); },
+                        [](const ms_t &, const ms_t &) { return ms_t{0LL}; }, "sub_antisymmetry"))
         ++passed;
 
     std::cout << "\n";
@@ -166,18 +184,14 @@ int main()
 
     // a + ms(0) == a
     ++total;
-    if (sweep_unary_ms(
-            [](const ms_t &a) { return a + ms_t{0LL}; },
-            [](const ms_t &a) { return a; },
-            "add_zero_identity"))
+    if (sweep_unary_ms([](const ms_t &a) { return a + ms_t{0LL}; }, [](const ms_t &a) { return a; },
+                       "add_zero_identity"))
         ++passed;
 
     // a + (-a) == +0   (MS zero from opposite-sign cancel is always positive)
     ++total;
-    if (sweep_unary_ms(
-            [](const ms_t &a) { return a + (-a); },
-            [](const ms_t &)  { return ms_t{0LL}; },
-            "add_neg_inverse"))
+    if (sweep_unary_ms([](const ms_t &a) { return a + (-a); }, [](const ms_t &) { return ms_t{0LL}; },
+                       "add_neg_inverse"))
         ++passed;
 
     std::cout << "\n";
@@ -190,10 +204,8 @@ int main()
 
     // a - b == a + (-b)   (subtraction is addition of negation, holds for all MS values)
     ++total;
-    if (sweep_binary_ms(
-            [](const ms_t &a, const ms_t &b) { return a - b; },
-            [](const ms_t &a, const ms_t &b) { return a + (-b); },
-            "sub_eq_add_neg"))
+    if (sweep_binary_ms([](const ms_t &a, const ms_t &b) { return a - b; },
+                        [](const ms_t &a, const ms_t &b) { return a + (-b); }, "sub_eq_add_neg"))
         ++passed;
 
     std::cout << "\n";
@@ -206,18 +218,14 @@ int main()
 
     // a - ms(0) == a
     ++total;
-    if (sweep_unary_ms(
-            [](const ms_t &a) { return a - ms_t{0LL}; },
-            [](const ms_t &a) { return a; },
-            "sub_zero_identity"))
+    if (sweep_unary_ms([](const ms_t &a) { return a - ms_t{0LL}; }, [](const ms_t &a) { return a; },
+                       "sub_zero_identity"))
         ++passed;
 
     // a - a == +0   (same value subtracted is always positive zero in MS)
     ++total;
-    if (sweep_unary_ms(
-            [](const ms_t &a) { return a - a; },
-            [](const ms_t &)  { return ms_t{0LL}; },
-            "sub_self_zero"))
+    if (sweep_unary_ms([](const ms_t &a) { return a - a; }, [](const ms_t &) { return ms_t{0LL}; },
+                       "sub_self_zero"))
         ++passed;
 
     std::cout << "\n";
@@ -231,17 +239,24 @@ int main()
     // pre-increment equivalent to +1
     ++total;
     if (sweep_unary_ms(
-            [](ms_t a) { ++a; return a; },
-            [](const ms_t &a) { return a + ms_t{1LL}; },
-            "pre_inc_eq_add1"))
+            [](ms_t a)
+            {
+                ++a;
+                return a;
+            },
+            [](const ms_t &a) { return a + ms_t{1LL}; }, "pre_inc_eq_add1"))
         ++passed;
 
     // round-trip: ++a then --a restores original (incl. wrap at MAX)
     ++total;
     if (sweep_unary_ms(
-            [](ms_t a) { ++a; --a; return a; },
-            [](const ms_t &a) { return a; },
-            "inc_dec_roundtrip"))
+            [](ms_t a)
+            {
+                ++a;
+                --a;
+                return a;
+            },
+            [](const ms_t &a) { return a; }, "inc_dec_roundtrip"))
         ++passed;
 
     std::cout << "\n";
@@ -255,17 +270,24 @@ int main()
     // pre-decrement equivalent to -1
     ++total;
     if (sweep_unary_ms(
-            [](ms_t a) { --a; return a; },
-            [](const ms_t &a) { return a - ms_t{1LL}; },
-            "pre_dec_eq_sub1"))
+            [](ms_t a)
+            {
+                --a;
+                return a;
+            },
+            [](const ms_t &a) { return a - ms_t{1LL}; }, "pre_dec_eq_sub1"))
         ++passed;
 
     // round-trip: --a then ++a restores original (incl. wrap at MIN)
     ++total;
     if (sweep_unary_ms(
-            [](ms_t a) { --a; ++a; return a; },
-            [](const ms_t &a) { return a; },
-            "dec_inc_roundtrip"))
+            [](ms_t a)
+            {
+                --a;
+                ++a;
+                return a;
+            },
+            [](const ms_t &a) { return a; }, "dec_inc_roundtrip"))
         ++passed;
 
     std::cout << "\n";
@@ -278,10 +300,8 @@ int main()
 
     // a * b == b * a
     ++total;
-    if (sweep_binary_ms(
-            [](const ms_t &a, const ms_t &b) { return a * b; },
-            [](const ms_t &a, const ms_t &b) { return b * a; },
-            "mul_commutativity"))
+    if (sweep_binary_ms([](const ms_t &a, const ms_t &b) { return a * b; },
+                        [](const ms_t &a, const ms_t &b) { return b * a; }, "mul_commutativity"))
         ++passed;
 
     std::cout << "\n";
@@ -320,10 +340,8 @@ int main()
 
     // a * ms(1) == a
     ++total;
-    if (sweep_unary_ms(
-            [](const ms_t &a) { return a * ms_t{1LL}; },
-            [](const ms_t &a) { return a; },
-            "mul_one_identity"))
+    if (sweep_unary_ms([](const ms_t &a) { return a * ms_t{1LL}; }, [](const ms_t &a) { return a; },
+                       "mul_one_identity"))
         ++passed;
 
     std::cout << "\n";
@@ -340,12 +358,14 @@ int main()
     if (sweep_binary_ms(
             [](const ms_t &a, const ms_t &b) -> ms_t
             {
-                if (b.is_zero()) { return a; }   // skip: oracle also returns a
+                if (b.is_zero())
+                {
+                    return a;
+                } // skip: oracle also returns a
                 const auto [q, r] = a.divmod(b);
                 return q * b + r;
             },
-            [](const ms_t &a, const ms_t &) -> ms_t { return a; },
-            "div_identity_q_d_plus_r"))
+            [](const ms_t &a, const ms_t &) -> ms_t { return a; }, "div_identity_q_d_plus_r"))
         ++passed;
 
     std::cout << "\n";

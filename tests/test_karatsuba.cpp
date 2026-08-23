@@ -31,16 +31,10 @@ int main()
 
     // Sweep 1: karatsuba matches schoolbook for all binary pairs
     {
-        const bool ok{sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            {
-                return karatsuba_full_mul(a, b);
-            },
-            [](const uint128_t &a, const uint128_t &b)
-            {
-                return schoolbook_full_mul(a, b);
-            },
-            "karatsuba_matches_schoolbook")};
+        const bool ok{sweep_binary([](const uint128_t &a, const uint128_t &b)
+                                   { return karatsuba_full_mul(a, b); },
+                                   [](const uint128_t &a, const uint128_t &b)
+                                   { return schoolbook_full_mul(a, b); }, "karatsuba_matches_schoolbook")};
         ++total;
         if (ok)
         {
@@ -56,16 +50,10 @@ int main()
 
     // Sweep 2: commutativity
     {
-        const bool ok{sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            {
-                return karatsuba_full_mul(a, b);
-            },
-            [](const uint128_t &a, const uint128_t &b)
-            {
-                return karatsuba_full_mul(b, a);
-            },
-            "karatsuba_commutativity")};
+        const bool ok{sweep_binary([](const uint128_t &a, const uint128_t &b)
+                                   { return karatsuba_full_mul(a, b); },
+                                   [](const uint128_t &a, const uint128_t &b)
+                                   { return karatsuba_full_mul(b, a); }, "karatsuba_commutativity")};
         ++total;
         if (ok)
         {
@@ -75,16 +63,10 @@ int main()
 
     // Sweep 3: low 128 bits match truncated multiplication (a * b)
     {
-        const bool ok{sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            {
-                return karatsuba_full_mul(a, b).low128();
-            },
-            [](const uint128_t &a, const uint128_t &b)
-            {
-                return a * b;
-            },
-            "full_mul_low128_matches_truncated")};
+        const bool ok{sweep_binary([](const uint128_t &a, const uint128_t &b)
+                                   { return karatsuba_full_mul(a, b).low128(); },
+                                   [](const uint128_t &a, const uint128_t &b) { return a * b; },
+                                   "full_mul_low128_matches_truncated")};
         ++total;
         if (ok)
         {
@@ -101,14 +83,8 @@ int main()
     // Sweep 4: multiply by zero
     {
         const auto zero{uint128_t{0}};
-        const bool ok{sweep_unary(
-            [&](const uint128_t &a)
-            {
-                return karatsuba_full_mul(a, zero).is_zero();
-            },
-            [](const uint128_t &)
-            { return true; },
-            "karatsuba_mul_by_zero")};
+        const bool ok{sweep_unary([&](const uint128_t &a) { return karatsuba_full_mul(a, zero).is_zero(); },
+                                  [](const uint128_t &) { return true; }, "karatsuba_mul_by_zero")};
         ++total;
         if (ok)
         {
@@ -126,9 +102,7 @@ int main()
                 const auto r{karatsuba_full_mul(a, one)};
                 return r.low128() == a && r.high128() == zero128;
             },
-            [](const uint128_t &)
-            { return true; },
-            "karatsuba_mul_by_one")};
+            [](const uint128_t &) { return true; }, "karatsuba_mul_by_one")};
         ++total;
         if (ok)
         {
@@ -139,14 +113,8 @@ int main()
     // Sweep 6: schoolbook multiply by zero (verify reference too)
     {
         const auto zero{uint128_t{0}};
-        const bool ok{sweep_unary(
-            [&](const uint128_t &a)
-            {
-                return schoolbook_full_mul(a, zero).is_zero();
-            },
-            [](const uint128_t &)
-            { return true; },
-            "schoolbook_mul_by_zero")};
+        const bool ok{sweep_unary([&](const uint128_t &a) { return schoolbook_full_mul(a, zero).is_zero(); },
+                                  [](const uint128_t &) { return true; }, "schoolbook_mul_by_zero")};
         ++total;
         if (ok)
         {
@@ -164,9 +132,7 @@ int main()
                 const auto r{schoolbook_full_mul(a, one)};
                 return r.low128() == a && r.high128() == zero128;
             },
-            [](const uint128_t &)
-            { return true; },
-            "schoolbook_mul_by_one")};
+            [](const uint128_t &) { return true; }, "schoolbook_mul_by_one")};
         ++total;
         if (ok)
         {
@@ -189,7 +155,8 @@ int main()
         const auto k{karatsuba_full_mul(max128, max128)};
         const auto s{schoolbook_full_mul(max128, max128)};
 
-        const bool ok{k == s && k.limbs[0] == 1 && k.limbs[1] == 0 && k.limbs[2] == 0xFFFFFFFFFFFFFFFEull && k.limbs[3] == 0xFFFFFFFFFFFFFFFFull};
+        const bool ok{k == s && k.limbs[0] == 1 && k.limbs[1] == 0 && k.limbs[2] == 0xFFFFFFFFFFFFFFFEull &&
+                      k.limbs[3] == 0xFFFFFFFFFFFFFFFFull};
 
         std::cout << (ok ? "[OK]" : "[FAIL]") << " MAX128 * MAX128" << std::endl;
         ++total;
@@ -221,7 +188,8 @@ int main()
         const auto pow127{uint128_t{uint64_t{1} << 63, 0}};
         const auto k{karatsuba_full_mul(pow127, pow127)};
 
-        const bool ok{k.limbs[0] == 0 && k.limbs[1] == 0 && k.limbs[2] == 0 && k.limbs[3] == (uint64_t{1} << 62)};
+        const bool ok{k.limbs[0] == 0 && k.limbs[1] == 0 && k.limbs[2] == 0 &&
+                      k.limbs[3] == (uint64_t{1} << 62)};
 
         std::cout << (ok ? "[OK]" : "[FAIL]") << " 2^127 * 2^127 = 2^254" << std::endl;
         ++total;
@@ -254,7 +222,8 @@ int main()
         const auto max64_128{uint128_t{MAX64}};
         const auto k{karatsuba_full_mul(max64_128, max64_128)};
 
-        const bool ok{k.limbs[0] == 1 && k.limbs[1] == 0xFFFFFFFFFFFFFFFEull && k.limbs[2] == 0 && k.limbs[3] == 0};
+        const bool ok{k.limbs[0] == 1 && k.limbs[1] == 0xFFFFFFFFFFFFFFFEull && k.limbs[2] == 0 &&
+                      k.limbs[3] == 0};
 
         std::cout << (ok ? "[OK]" : "[FAIL]") << " MAX64 * MAX64" << std::endl;
         ++total;

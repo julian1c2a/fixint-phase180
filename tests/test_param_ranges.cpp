@@ -44,7 +44,8 @@ void test_arithmetic_sequence()
     // Test 1.1: Basic arithmetic sequence (unsigned)
     {
         std::vector<uint128_t> vec(5);
-        nstd::int128_ranges::generate_arithmetic_sequence<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
+        nstd::int128_ranges::generate_arithmetic_sequence<nstd::signedness::unsigned_type,
+                                                          nstd::representation_form::binnat>(
             vec.begin(), vec.end(), uint128_t{10}, uint128_t{5});
 
         ASSERT(vec[0] == uint128_t{10});
@@ -57,7 +58,8 @@ void test_arithmetic_sequence()
     // Test 1.2: Arithmetic sequence with signed TC
     {
         std::vector<int128_tc_t> vec(4);
-        nstd::int128_ranges::generate_arithmetic_sequence<nstd::signedness::signed_type, nstd::representation_form::twos_complement>(
+        nstd::int128_ranges::generate_arithmetic_sequence<nstd::signedness::signed_type,
+                                                          nstd::representation_form::twos_complement>(
             vec.begin(), vec.end(), int128_tc_t{-10}, int128_tc_t{3});
 
         ASSERT(vec[0] == int128_tc_t{-10});
@@ -113,7 +115,8 @@ void test_geometric_sequence()
     // Test 3.1: Basic geometric sequence (unsigned)
     {
         std::vector<uint128_t> vec(5);
-        nstd::int128_ranges::generate_geometric_sequence<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
+        nstd::int128_ranges::generate_geometric_sequence<nstd::signedness::unsigned_type,
+                                                         nstd::representation_form::binnat>(
             vec.begin(), vec.end(), uint128_t{2}, uint128_t{3});
 
         ASSERT(vec[0] == uint128_t{2});
@@ -126,7 +129,8 @@ void test_geometric_sequence()
     // Test 3.2: Geometric with ratio 2 (TC)
     {
         std::vector<int128_tc_t> vec(4);
-        nstd::int128_ranges::generate_geometric_sequence<nstd::signedness::signed_type, nstd::representation_form::twos_complement>(
+        nstd::int128_ranges::generate_geometric_sequence<nstd::signedness::signed_type,
+                                                         nstd::representation_form::twos_complement>(
             vec.begin(), vec.end(), int128_tc_t{3}, int128_tc_t{2});
 
         ASSERT(vec[0] == int128_tc_t{3});
@@ -148,8 +152,9 @@ void test_powers_of_2()
     // Test 4.1: Powers of 2 starting from 2^0
     {
         std::vector<uint128_t> vec(5);
-        nstd::int128_ranges::generate_powers_of_2<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
-            vec.begin(), vec.end(), 0);
+        nstd::int128_ranges::generate_powers_of_2<nstd::signedness::unsigned_type,
+                                                  nstd::representation_form::binnat>(vec.begin(), vec.end(),
+                                                                                     0);
 
         ASSERT(vec[0] == uint128_t{1});
         ASSERT(vec[1] == uint128_t{2});
@@ -161,8 +166,9 @@ void test_powers_of_2()
     // Test 4.2: Powers of 2 starting from 2^3
     {
         std::vector<uint128_t> vec(4);
-        nstd::int128_ranges::generate_powers_of_2<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
-            vec.begin(), vec.end(), 3);
+        nstd::int128_ranges::generate_powers_of_2<nstd::signedness::unsigned_type,
+                                                  nstd::representation_form::binnat>(vec.begin(), vec.end(),
+                                                                                     3);
 
         ASSERT(vec[0] == uint128_t{8});
         ASSERT(vec[1] == uint128_t{16});
@@ -184,8 +190,9 @@ void test_range_stats()
     {
         std::vector<uint128_t> vec{uint128_t{5}, uint128_t{10}, uint128_t{3}, uint128_t{8}, uint128_t{2}};
 
-        auto stats = nstd::int128_ranges::calculate_stats<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
-            vec.begin(), vec.end());
+        auto stats =
+            nstd::int128_ranges::calculate_stats<nstd::signedness::unsigned_type,
+                                                 nstd::representation_form::binnat>(vec.begin(), vec.end());
 
         ASSERT(stats.valid == true);
         ASSERT(stats.count == 5);
@@ -200,7 +207,8 @@ void test_range_stats()
     {
         std::vector<int128_tc_t> vec{int128_tc_t{-5}, int128_tc_t{10}, int128_tc_t{-3}, int128_tc_t{7}};
 
-        auto stats = nstd::int128_ranges::calculate_stats<nstd::signedness::signed_type, nstd::representation_form::twos_complement>(
+        auto stats = nstd::int128_ranges::calculate_stats<nstd::signedness::signed_type,
+                                                          nstd::representation_form::twos_complement>(
             vec.begin(), vec.end());
 
         ASSERT(stats.valid == true);
@@ -216,8 +224,9 @@ void test_range_stats()
     {
         std::vector<uint128_t> vec;
 
-        auto stats = nstd::int128_ranges::calculate_stats<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
-            vec.begin(), vec.end());
+        auto stats =
+            nstd::int128_ranges::calculate_stats<nstd::signedness::unsigned_type,
+                                                 nstd::representation_form::binnat>(vec.begin(), vec.end());
 
         ASSERT(stats.valid == false);
         ASSERT(stats.count == 0);
@@ -237,8 +246,10 @@ void test_find_first_if()
     {
         std::vector<uint128_t> vec{uint128_t{1}, uint128_t{3}, uint128_t{6}, uint128_t{8}};
 
-        auto result = nstd::int128_ranges::find_first_if<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
-            vec.begin(), vec.end(), [](const uint128_t &x)
+        auto result = nstd::int128_ranges::find_first_if<nstd::signedness::unsigned_type,
+                                                         nstd::representation_form::binnat>(
+            vec.begin(), vec.end(),
+            [](const uint128_t &x)
             {
                 return (x.low() & 1) == 0; // even
             });
@@ -251,8 +262,10 @@ void test_find_first_if()
     {
         std::vector<uint128_t> vec{uint128_t{1}, uint128_t{3}, uint128_t{5}};
 
-        auto result = nstd::int128_ranges::find_first_if<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
-            vec.begin(), vec.end(), [](const uint128_t &x)
+        auto result = nstd::int128_ranges::find_first_if<nstd::signedness::unsigned_type,
+                                                         nstd::representation_form::binnat>(
+            vec.begin(), vec.end(),
+            [](const uint128_t &x)
             {
                 return (x.low() & 1) == 0; // even
             });
@@ -272,24 +285,28 @@ void test_count_if()
 
     // Test 7.1: Count even numbers
     {
-        std::vector<uint128_t> vec{uint128_t{1}, uint128_t{2}, uint128_t{3}, uint128_t{4}, uint128_t{5}, uint128_t{6}};
+        std::vector<uint128_t> vec{uint128_t{1}, uint128_t{2}, uint128_t{3},
+                                   uint128_t{4}, uint128_t{5}, uint128_t{6}};
 
-        auto count = nstd::int128_ranges::count_if<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
-            vec.begin(), vec.end(), [](const uint128_t &x)
-            {
-                return (x.low() & 1) == 0; // even
-            });
+        auto count =
+            nstd::int128_ranges::count_if<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
+                vec.begin(), vec.end(),
+                [](const uint128_t &x)
+                {
+                    return (x.low() & 1) == 0; // even
+                });
 
         ASSERT(count == 3); // 2, 4, 6
     }
 
     // Test 7.2: Count negative numbers (TC)
     {
-        std::vector<int128_tc_t> vec{int128_tc_t{-5}, int128_tc_t{2}, int128_tc_t{-3}, int128_tc_t{7}, int128_tc_t{-1}};
+        std::vector<int128_tc_t> vec{int128_tc_t{-5}, int128_tc_t{2}, int128_tc_t{-3}, int128_tc_t{7},
+                                     int128_tc_t{-1}};
 
-        auto count = nstd::int128_ranges::count_if<nstd::signedness::signed_type, nstd::representation_form::twos_complement>(
-            vec.begin(), vec.end(), [](const int128_tc_t &x)
-            { return x.is_negative(); });
+        auto count = nstd::int128_ranges::count_if<nstd::signedness::signed_type,
+                                                   nstd::representation_form::twos_complement>(
+            vec.begin(), vec.end(), [](const int128_tc_t &x) { return x.is_negative(); });
 
         ASSERT(count == 3); // -5, -3, -1
     }
@@ -310,9 +327,7 @@ void test_transform()
         std::vector<uint128_t> output(3);
 
         nstd::int128_ranges::transform<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
-            input.begin(), input.end(), output.begin(),
-            [](const uint128_t &x)
-            { return x * uint128_t{2}; });
+            input.begin(), input.end(), output.begin(), [](const uint128_t &x) { return x * uint128_t{2}; });
 
         ASSERT(output[0] == uint128_t{2});
         ASSERT(output[1] == uint128_t{4});
@@ -324,10 +339,9 @@ void test_transform()
         std::vector<int128_tc_t> input{int128_tc_t{5}, int128_tc_t{-3}, int128_tc_t{7}};
         std::vector<int128_tc_t> output(3);
 
-        nstd::int128_ranges::transform<nstd::signedness::signed_type, nstd::representation_form::twos_complement>(
-            input.begin(), input.end(), output.begin(),
-            [](const int128_tc_t &x)
-            { return -x; });
+        nstd::int128_ranges::transform<nstd::signedness::signed_type,
+                                       nstd::representation_form::twos_complement>(
+            input.begin(), input.end(), output.begin(), [](const int128_tc_t &x) { return -x; });
 
         ASSERT(output[0] == int128_tc_t{-5});
         ASSERT(output[1] == int128_tc_t{3});
@@ -346,13 +360,14 @@ void test_copy_if()
 
     // Test 9.1: Filter even numbers
     {
-        std::vector<uint128_t> input{uint128_t{1}, uint128_t{2}, uint128_t{3}, uint128_t{4}, uint128_t{5}, uint128_t{6}};
+        std::vector<uint128_t> input{uint128_t{1}, uint128_t{2}, uint128_t{3},
+                                     uint128_t{4}, uint128_t{5}, uint128_t{6}};
         std::vector<uint128_t> output(6); // oversize
 
-        auto end = nstd::int128_ranges::copy_if<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
-            input.begin(), input.end(), output.begin(),
-            [](const uint128_t &x)
-            { return (x.low() & 1) == 0; });
+        auto end =
+            nstd::int128_ranges::copy_if<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
+                input.begin(), input.end(), output.begin(),
+                [](const uint128_t &x) { return (x.low() & 1) == 0; });
 
         std::size_t result_size = std::distance(output.begin(), end);
         ASSERT(result_size == 3);
@@ -366,10 +381,10 @@ void test_copy_if()
         std::vector<int128_tc_t> input{int128_tc_t{-5}, int128_tc_t{2}, int128_tc_t{-3}, int128_tc_t{7}};
         std::vector<int128_tc_t> output(4);
 
-        auto end = nstd::int128_ranges::copy_if<nstd::signedness::signed_type, nstd::representation_form::twos_complement>(
+        auto end = nstd::int128_ranges::copy_if<nstd::signedness::signed_type,
+                                                nstd::representation_form::twos_complement>(
             input.begin(), input.end(), output.begin(),
-            [](const int128_tc_t &x)
-            { return !x.is_negative() && !x.is_zero(); });
+            [](const int128_tc_t &x) { return !x.is_negative() && !x.is_zero(); });
 
         std::size_t result_size = std::distance(output.begin(), end);
         ASSERT(result_size == 2);
@@ -391,10 +406,10 @@ void test_reduce()
     {
         std::vector<uint128_t> vec{uint128_t{10}, uint128_t{20}, uint128_t{30}};
 
-        auto result = nstd::int128_ranges::reduce<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
-            vec.begin(), vec.end(), uint128_t{0},
-            [](const uint128_t &a, const uint128_t &b)
-            { return a + b; });
+        auto result =
+            nstd::int128_ranges::reduce<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
+                vec.begin(), vec.end(), uint128_t{0},
+                [](const uint128_t &a, const uint128_t &b) { return a + b; });
 
         ASSERT(result == uint128_t{60});
     }
@@ -403,10 +418,10 @@ void test_reduce()
     {
         std::vector<int128_tc_t> vec{int128_tc_t{-5}, int128_tc_t{12}, int128_tc_t{7}, int128_tc_t{-3}};
 
-        auto result = nstd::int128_ranges::reduce<nstd::signedness::signed_type, nstd::representation_form::twos_complement>(
+        auto result = nstd::int128_ranges::reduce<nstd::signedness::signed_type,
+                                                  nstd::representation_form::twos_complement>(
             vec.begin(), vec.end(), vec[0],
-            [](const int128_tc_t &a, const int128_tc_t &b)
-            { return (a > b) ? a : b; });
+            [](const int128_tc_t &a, const int128_tc_t &b) { return (a > b) ? a : b; });
 
         ASSERT(result == int128_tc_t{12});
     }
@@ -425,8 +440,9 @@ void test_sum()
     {
         std::vector<uint128_t> vec{uint128_t{5}, uint128_t{10}, uint128_t{15}};
 
-        auto result = nstd::int128_ranges::sum<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
-            vec.begin(), vec.end());
+        auto result =
+            nstd::int128_ranges::sum<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
+                vec.begin(), vec.end());
 
         ASSERT(result == uint128_t{30});
     }
@@ -435,8 +451,9 @@ void test_sum()
     {
         std::vector<int128_tc_t> vec{int128_tc_t{-10}, int128_tc_t{25}, int128_tc_t{-5}, int128_tc_t{15}};
 
-        auto result = nstd::int128_ranges::sum<nstd::signedness::signed_type, nstd::representation_form::twos_complement>(
-            vec.begin(), vec.end());
+        auto result =
+            nstd::int128_ranges::sum<nstd::signedness::signed_type,
+                                     nstd::representation_form::twos_complement>(vec.begin(), vec.end());
 
         ASSERT(result == int128_tc_t{25}); // -10 + 25 - 5 + 15 = 25
     }
@@ -455,8 +472,9 @@ void test_product()
     {
         std::vector<uint128_t> vec{uint128_t{2}, uint128_t{3}, uint128_t{4}};
 
-        auto result = nstd::int128_ranges::product<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
-            vec.begin(), vec.end());
+        auto result =
+            nstd::int128_ranges::product<nstd::signedness::unsigned_type, nstd::representation_form::binnat>(
+                vec.begin(), vec.end());
 
         ASSERT(result == uint128_t{24}); // 2 * 3 * 4 = 24
     }
@@ -465,8 +483,9 @@ void test_product()
     {
         std::vector<int128_tc_t> vec{int128_tc_t{2}, int128_tc_t{3}, int128_tc_t{5}};
 
-        auto result = nstd::int128_ranges::product<nstd::signedness::signed_type, nstd::representation_form::twos_complement>(
-            vec.begin(), vec.end());
+        auto result =
+            nstd::int128_ranges::product<nstd::signedness::signed_type,
+                                         nstd::representation_form::twos_complement>(vec.begin(), vec.end());
 
         ASSERT(result == int128_tc_t{30}); // 2 * 3 * 5 = 30
     }
@@ -484,8 +503,9 @@ void test_ms_representation()
     // Test 13.1: Powers of 2 with signed TC
     {
         std::vector<int128_tc_t> vec(4);
-        nstd::int128_ranges::generate_powers_of_2<nstd::signedness::signed_type, nstd::representation_form::twos_complement>(
-            vec.begin(), vec.end(), 2);
+        nstd::int128_ranges::generate_powers_of_2<nstd::signedness::signed_type,
+                                                  nstd::representation_form::twos_complement>(vec.begin(),
+                                                                                              vec.end(), 2);
 
         ASSERT(vec[0] == int128_tc_t{4});
         ASSERT(vec[1] == int128_tc_t{8});
@@ -497,7 +517,8 @@ void test_ms_representation()
     {
         std::vector<int128_tc_t> vec{int128_tc_t{-10}, int128_tc_t{5}, int128_tc_t{-3}};
 
-        auto stats = nstd::int128_ranges::calculate_stats<nstd::signedness::signed_type, nstd::representation_form::twos_complement>(
+        auto stats = nstd::int128_ranges::calculate_stats<nstd::signedness::signed_type,
+                                                          nstd::representation_form::twos_complement>(
             vec.begin(), vec.end());
 
         ASSERT(stats.valid == true);

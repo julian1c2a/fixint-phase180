@@ -99,19 +99,14 @@ namespace nstd
          * @brief Checks if parse was successful
          * @return true if error == parse_error::success, false otherwise
          */
-        constexpr bool success() const noexcept
-        {
-            return error == parse_error::success;
-        }
+        constexpr bool success() const noexcept { return error == parse_error::success; }
 
         /**
          * @brief Default constructor
          * Initializes with error=success, value=0, error_index=npos
          */
         constexpr parse_result() noexcept
-            : error(parse_error::success),
-              value(T{}),
-              error_index(std::string::npos)
+            : error(parse_error::success), value(T{}), error_index(std::string::npos)
         {
         }
 
@@ -119,9 +114,7 @@ namespace nstd
          * @brief Custom constructor
          */
         constexpr parse_result(parse_error err, T val, std::size_t idx) noexcept
-            : error(err),
-              value(val),
-              error_index(idx)
+            : error(err), value(val), error_index(idx)
         {
         }
     };
@@ -160,7 +153,9 @@ namespace nstd
      * @invariant All operations are noexcept unless otherwise noted
      */
     template <signedness Sign = signedness::unsigned_type,
-              representation_form Form = (Sign == signedness::unsigned_type ? representation_form::binnat : representation_form::twos_complement)>
+              representation_form Form =
+                  (Sign == signedness::unsigned_type ? representation_form::binnat
+                                                     : representation_form::twos_complement)>
     class int128_param_t
     {
         // ===================== LIMB/Utility Constants =====================
@@ -175,9 +170,8 @@ namespace nstd
         static constexpr int BITS{128};
         static constexpr int BYTES{16};
         // Enforce valid combinations: unsigned solo binnat, signed solo TC/MS/EK
-        static_assert(
-            (Sign == signedness::unsigned_type) == (Form == representation_form::binnat),
-            "Combinación inválida: unsigned solo permite binnat; signed solo permite TC, MS o EK");
+        static_assert((Sign == signedness::unsigned_type) == (Form == representation_form::binnat),
+                      "Combinación inválida: unsigned solo permite binnat; signed solo permite TC, MS o EK");
 
         /**
          * @brief Return maximum representable value
@@ -254,17 +248,16 @@ namespace nstd
         /// @internal
         /// @brief Two-digit lookup table: "00", "01", ..., "99" concatenated.
         /// Used by write_u64_digits and write_19_padded_digits for 2x fewer divisions.
-        static constexpr char DIGIT_PAIRS_[201] =
-            "00010203040506070809"
-            "10111213141516171819"
-            "20212223242526272829"
-            "30313233343536373839"
-            "40414243444546474849"
-            "50515253545556575859"
-            "60616263646566676869"
-            "70717273747576777879"
-            "80818283848586878889"
-            "90919293949596979899";
+        static constexpr char DIGIT_PAIRS_[201] = "00010203040506070809"
+                                                  "10111213141516171819"
+                                                  "20212223242526272829"
+                                                  "30313233343536373839"
+                                                  "40414243444546474849"
+                                                  "50515253545556575859"
+                                                  "60616263646566676869"
+                                                  "70717273747576777879"
+                                                  "80818283848586878889"
+                                                  "90919293949596979899";
 
         /// @internal
         /// @brief Write a uint64_t as decimal digits (variable length, no zero-padding).
@@ -340,8 +333,10 @@ namespace nstd
             //   implementation-defined (C++20: modular, same bit pattern)
             // signed→unsigned: well-defined modular reduction (same bits)
             // =================================================================
-            if constexpr ((src_form == representation_form::binnat && dst_form == representation_form::twos_complement) ||
-                          (src_form == representation_form::twos_complement && dst_form == representation_form::binnat))
+            if constexpr ((src_form == representation_form::binnat &&
+                           dst_form == representation_form::twos_complement) ||
+                          (src_form == representation_form::twos_complement &&
+                           dst_form == representation_form::binnat))
             {
                 data[0] = src_low;
                 data[1] = src_high;
@@ -349,42 +344,48 @@ namespace nstd
             // =================================================================
             // Case 2: TC → MS
             // =================================================================
-            else if constexpr (src_form == representation_form::twos_complement && dst_form == representation_form::magnitude_sign)
+            else if constexpr (src_form == representation_form::twos_complement &&
+                               dst_form == representation_form::magnitude_sign)
             {
                 twos_complement128_to_ms(src_high, src_low, data[1], data[0]);
             }
             // =================================================================
             // Case 3: MS → TC
             // =================================================================
-            else if constexpr (src_form == representation_form::magnitude_sign && dst_form == representation_form::twos_complement)
+            else if constexpr (src_form == representation_form::magnitude_sign &&
+                               dst_form == representation_form::twos_complement)
             {
                 ms128_to_twos_complement(src_high, src_low, data[1], data[0]);
             }
             // =================================================================
             // Case 4: TC → EK
             // =================================================================
-            else if constexpr (src_form == representation_form::twos_complement && dst_form == representation_form::excess_k)
+            else if constexpr (src_form == representation_form::twos_complement &&
+                               dst_form == representation_form::excess_k)
             {
                 twos_complement128_to_excess_k(src_high, src_low, data[1], data[0]);
             }
             // =================================================================
             // Case 5: EK → TC
             // =================================================================
-            else if constexpr (src_form == representation_form::excess_k && dst_form == representation_form::twos_complement)
+            else if constexpr (src_form == representation_form::excess_k &&
+                               dst_form == representation_form::twos_complement)
             {
                 excess_k128_to_twos_complement(src_high, src_low, data[1], data[0]);
             }
             // =================================================================
             // Case 6: MS → EK (via TC pivot)
             // =================================================================
-            else if constexpr (src_form == representation_form::magnitude_sign && dst_form == representation_form::excess_k)
+            else if constexpr (src_form == representation_form::magnitude_sign &&
+                               dst_form == representation_form::excess_k)
             {
                 ms128_to_excess_k(src_high, src_low, data[1], data[0]);
             }
             // =================================================================
             // Case 7: EK → MS (via TC pivot)
             // =================================================================
-            else if constexpr (src_form == representation_form::excess_k && dst_form == representation_form::magnitude_sign)
+            else if constexpr (src_form == representation_form::excess_k &&
+                               dst_form == representation_form::magnitude_sign)
             {
                 excess_k128_to_ms(src_high, src_low, data[1], data[0]);
             }
@@ -394,7 +395,8 @@ namespace nstd
             else if constexpr (src_form == representation_form::binnat)
             {
                 // binnat → TC (copy bits) → target
-                convert_from<signedness::signed_type, representation_form::twos_complement>(src_high, src_low);
+                convert_from<signedness::signed_type, representation_form::twos_complement>(src_high,
+                                                                                            src_low);
             }
             else if constexpr (dst_form == representation_form::binnat)
             {
@@ -464,8 +466,7 @@ namespace nstd
         /// @note explicit — use static_cast<target_t>(source) to invoke
         template <signedness S2, representation_form F2,
                   typename = std::enable_if_t<(S2 != Sign) || (F2 != Form)>>
-        explicit constexpr int128_param_t(const int128_param_t<S2, F2> &other) noexcept
-            : data{0, 0}
+        explicit constexpr int128_param_t(const int128_param_t<S2, F2> &other) noexcept : data{0, 0}
         {
             convert_from<S2, F2>(other.high(), other.low());
         }
@@ -479,8 +480,7 @@ namespace nstd
         /// @tparam F2 Source representation form
         template <signedness S2, representation_form F2,
                   typename = std::enable_if_t<(S2 != Sign) || (F2 != Form)>>
-        explicit constexpr int128_param_t(int128_param_t<S2, F2> &&other) noexcept
-            : data{0, 0}
+        explicit constexpr int128_param_t(int128_param_t<S2, F2> &&other) noexcept : data{0, 0}
         {
             convert_from<S2, F2>(other.high(), other.low());
         }
@@ -507,15 +507,17 @@ namespace nstd
         /// @see data for storage layout: data[0] = low, data[1] = high
         template <typename T1, typename T2>
         explicit constexpr int128_param_t(T1 high, T2 low) noexcept
-            : data{static_cast<std::uint64_t>(low), static_cast<std::uint64_t>(high)} {}
+            : data{static_cast<std::uint64_t>(low), static_cast<std::uint64_t>(high)}
+        {
+        }
 
         /// @brief Constructor from single integral value (zero-extends or sign-extends)
         ///
         /// EK construction dispatches to ek_store_bias() at runtime to work around
         /// a GCC 15.2.0 -O2 bug that incorrectly eliminated the bias addition.
         /// TC, MS, and binnat paths compile fully optimized.
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         explicit constexpr int128_param_t(T value) noexcept : data{0, 0}
         {
             // ========================================================================
@@ -528,7 +530,8 @@ namespace nstd
                 if constexpr (std::is_signed_v<T>)
                 {
                     const std::uint64_t value_low{static_cast<std::uint64_t>(value)};
-                    const std::uint64_t value_high{(value < 0) ? std::numeric_limits<std::uint64_t>::max() : std::uint64_t{0}};
+                    const std::uint64_t value_high{(value < 0) ? std::numeric_limits<std::uint64_t>::max()
+                                                               : std::uint64_t{0}};
 
                     if (std::is_constant_evaluated())
                     {
@@ -681,10 +684,7 @@ namespace nstd
          * @return Reference to this object
          * @note Truncates fractional part, handles NaN/overflow
          */
-        int128_param_t &operator=(float value) noexcept
-        {
-            return *this = int128_param_t{value};
-        }
+        int128_param_t &operator=(float value) noexcept { return *this = int128_param_t{value}; }
 
         /**
          * @brief Assignment from double (delegates to constructor)
@@ -692,10 +692,7 @@ namespace nstd
          * @return Reference to this object
          * @note Truncates fractional part, handles NaN/overflow
          */
-        int128_param_t &operator=(double value) noexcept
-        {
-            return *this = int128_param_t{value};
-        }
+        int128_param_t &operator=(double value) noexcept { return *this = int128_param_t{value}; }
 
         /**
          * @brief Assignment from long double (delegates to constructor)
@@ -703,10 +700,7 @@ namespace nstd
          * @return Reference to this object
          * @note Truncates fractional part, handles NaN/overflow
          */
-        int128_param_t &operator=(long double value) noexcept
-        {
-            return *this = int128_param_t{value};
-        }
+        int128_param_t &operator=(long double value) noexcept { return *this = int128_param_t{value}; }
 
         // ========================================================================
         // Accessors
@@ -720,11 +714,17 @@ namespace nstd
 
         /// @brief Set high 64 bits
         template <typename T>
-        constexpr void set_high(T value) noexcept { data[1] = static_cast<std::uint64_t>(value); }
+        constexpr void set_high(T value) noexcept
+        {
+            data[1] = static_cast<std::uint64_t>(value);
+        }
 
         /// @brief Set low 64 bits
         template <typename T>
-        constexpr void set_low(T value) noexcept { data[0] = static_cast<std::uint64_t>(value); }
+        constexpr void set_low(T value) noexcept
+        {
+            data[0] = static_cast<std::uint64_t>(value);
+        }
 
         // ========================================================================
         // Representation-Specific Methods
@@ -1120,10 +1120,11 @@ namespace nstd
             {
                 // Power-of-2 base: extract groups of bits via shift+mask
                 // bits_per_digit: base=2->1, 4->2, 8->3, 16->4, 32->5
-                const int bits_per_digit{(base == 2) ? 1 : (base == 4) ? 2
-                                                       : (base == 8)   ? 3
-                                                       : (base == 16)  ? 4
-                                                                       : 5};
+                const int bits_per_digit{(base == 2)    ? 1
+                                         : (base == 4)  ? 2
+                                         : (base == 8)  ? 3
+                                         : (base == 16) ? 4
+                                                        : 5};
                 const std::uint64_t mask{static_cast<std::uint64_t>(base - 1)};
 
                 // Extract digits via continuous 128-bit right shift
@@ -1296,13 +1297,26 @@ namespace nstd
                 // Fast path: accumulate up to 19 digits in uint64_t per chunk,
                 // then do one 128-bit multiply+add per chunk flush.
                 // This reduces 128-bit multiplications from N (digits) to at most 3.
-                constexpr std::uint64_t pow10[20] = {
-                    1ull, 10ull, 100ull, 1000ull, 10000ull, 100000ull,
-                    1000000ull, 10000000ull, 100000000ull, 1000000000ull,
-                    10000000000ull, 100000000000ull, 1000000000000ull,
-                    10000000000000ull, 100000000000000ull, 1000000000000000ull,
-                    10000000000000000ull, 100000000000000000ull,
-                    1000000000000000000ull, 10000000000000000000ull};
+                constexpr std::uint64_t pow10[20] = {1ull,
+                                                     10ull,
+                                                     100ull,
+                                                     1000ull,
+                                                     10000ull,
+                                                     100000ull,
+                                                     1000000ull,
+                                                     10000000ull,
+                                                     100000000ull,
+                                                     1000000000ull,
+                                                     10000000000ull,
+                                                     100000000000ull,
+                                                     1000000000000ull,
+                                                     10000000000000ull,
+                                                     100000000000000ull,
+                                                     1000000000000000ull,
+                                                     10000000000000000ull,
+                                                     100000000000000000ull,
+                                                     1000000000000000000ull,
+                                                     10000000000000000000ull};
 
                 std::uint64_t chunk{0};
                 int chunk_digits{0};
@@ -1371,10 +1385,11 @@ namespace nstd
                 // Non-decimal path for bases 2-36 (except 10)
                 // Detect power-of-2 bases for shift optimization
                 const bool is_pow2_base{(base & (base - 1)) == 0 && base >= 2};
-                const int bits_per_digit{is_pow2_base ? ((base == 2) ? 1 : (base == 4) ? 2
-                                                                       : (base == 8)   ? 3
-                                                                       : (base == 16)  ? 4
-                                                                                       : 5)
+                const int bits_per_digit{is_pow2_base ? ((base == 2)    ? 1
+                                                         : (base == 4)  ? 2
+                                                         : (base == 8)  ? 3
+                                                         : (base == 16) ? 4
+                                                                        : 5)
                                                       : 0};
 
                 while (*ptr != '\0')
@@ -1560,22 +1575,22 @@ namespace nstd
                 // Provide informative error message
                 switch (safe_result.error)
                 {
-                case parse_error::null_pointer:
-                    throw std::invalid_argument("Null pointer");
-                case parse_error::empty_string:
-                    throw std::invalid_argument("Empty string");
-                case parse_error::invalid_character:
-                    throw std::invalid_argument("Invalid character");
-                case parse_error::digit_out_of_range:
-                    throw std::invalid_argument("Digit out of range");
-                case parse_error::no_digits:
-                    throw std::invalid_argument("No digits found");
-                case parse_error::overflow:
-                    throw std::out_of_range("Number too large");
-                case parse_error::separator_at_boundaries:
-                    throw std::invalid_argument("Separator at invalid position");
-                default:
-                    throw std::invalid_argument("Parse error");
+                    case parse_error::null_pointer:
+                        throw std::invalid_argument("Null pointer");
+                    case parse_error::empty_string:
+                        throw std::invalid_argument("Empty string");
+                    case parse_error::invalid_character:
+                        throw std::invalid_argument("Invalid character");
+                    case parse_error::digit_out_of_range:
+                        throw std::invalid_argument("Digit out of range");
+                    case parse_error::no_digits:
+                        throw std::invalid_argument("No digits found");
+                    case parse_error::overflow:
+                        throw std::out_of_range("Number too large");
+                    case parse_error::separator_at_boundaries:
+                        throw std::invalid_argument("Separator at invalid position");
+                    default:
+                        throw std::invalid_argument("Parse error");
                 }
             }
             return safe_result.value;
@@ -1711,10 +1726,7 @@ namespace nstd
         }
 
         /// @brief Inequality operator (representation-agnostic)
-        constexpr bool operator!=(const int128_param_t &other) const noexcept
-        {
-            return !(*this == other);
-        }
+        constexpr bool operator!=(const int128_param_t &other) const noexcept { return !(*this == other); }
 
         /**
          * @brief Less-than operator (representation-aware)
@@ -1778,10 +1790,7 @@ namespace nstd
         /**
          * @brief Greater-than operator (representation-aware)
          */
-        constexpr bool operator>(const int128_param_t &other) const noexcept
-        {
-            return other < *this;
-        }
+        constexpr bool operator>(const int128_param_t &other) const noexcept { return other < *this; }
 
         /**
          * @brief Less-than-or-equal operator (representation-aware)
@@ -1807,10 +1816,7 @@ namespace nstd
          * @brief Unary plus operator
          * @return Copy of this value
          */
-        constexpr int128_param_t operator+() const noexcept
-        {
-            return *this;
-        }
+        constexpr int128_param_t operator+() const noexcept { return *this; }
 
         /**
          * @brief Unary negation operator (representation-aware)
@@ -1897,10 +1903,7 @@ namespace nstd
         ///
         /// @return true if value is non-zero, false if zero
         /// @note Representation-aware: uses is_zero() which handles EK/MS/TC/binnat
-        [[nodiscard]] explicit constexpr operator bool() const noexcept
-        {
-            return !is_zero();
-        }
+        [[nodiscard]] explicit constexpr operator bool() const noexcept { return !is_zero(); }
 
         /// @brief Explicit conversion to built-in integral type
         ///
@@ -1919,8 +1922,8 @@ namespace nstd
         ///   const auto lo = static_cast<uint64_t>(big);  // 0x00000000DEADBEEF
         ///   const auto lo32 = static_cast<uint32_t>(big); // 0xDEADBEEF
         /// @endcode
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         [[nodiscard]] explicit constexpr operator T() const noexcept
         {
             if constexpr (is_magnitude_sign && is_signed)
@@ -1931,9 +1934,8 @@ namespace nstd
                 if constexpr (std::is_signed_v<T>)
                 {
                     const auto unsigned_val{static_cast<std::make_unsigned_t<T>>(mag_low)};
-                    return negative
-                               ? static_cast<T>(-static_cast<std::make_unsigned_t<T>>(unsigned_val))
-                               : static_cast<T>(unsigned_val);
+                    return negative ? static_cast<T>(-static_cast<std::make_unsigned_t<T>>(unsigned_val))
+                                    : static_cast<T>(unsigned_val);
                 }
                 else
                 {
@@ -1997,12 +1999,12 @@ namespace nstd
                 if (is_negative())
                 {
                     const int128_param_t abs_val{-(*this)};
-                    const int128_param_t<signedness::unsigned_type, representation_form::binnat> unsigned_val{abs_val.high(), abs_val.low()};
+                    const int128_param_t<signedness::unsigned_type, representation_form::binnat> unsigned_val{
+                        abs_val.high(), abs_val.low()};
                     return -static_cast<double>(unsigned_val);
                 }
             }
-            return static_cast<double>(data[1]) * 18446744073709551616.0 +
-                   static_cast<double>(data[0]);
+            return static_cast<double>(data[1]) * 18446744073709551616.0 + static_cast<double>(data[0]);
         }
 
         /**
@@ -2030,7 +2032,8 @@ namespace nstd
                 if (is_negative())
                 {
                     const int128_param_t abs_val{-(*this)};
-                    const int128_param_t<signedness::unsigned_type, representation_form::binnat> unsigned_val{abs_val.high(), abs_val.low()};
+                    const int128_param_t<signedness::unsigned_type, representation_form::binnat> unsigned_val{
+                        abs_val.high(), abs_val.low()};
                     return -static_cast<long double>(unsigned_val);
                 }
             }
@@ -2071,8 +2074,9 @@ namespace nstd
          * @details Converts to double and uses double constructor.
          * Supports TC, MS, and EK representations.
          */
-        explicit constexpr int128_param_t(float value) noexcept
-            : int128_param_t(static_cast<double>(value)) {}
+        explicit constexpr int128_param_t(float value) noexcept : int128_param_t(static_cast<double>(value))
+        {
+        }
 
         /**
          * @brief Constructor from double (explicit)
@@ -2086,8 +2090,7 @@ namespace nstd
          *
          * @note Requires std::isfinite(), std::isnan() checks at runtime
          */
-        explicit constexpr int128_param_t(double value) noexcept
-            : data{0, 0}
+        explicit constexpr int128_param_t(double value) noexcept : data{0, 0}
         {
             // Handle special values
             if (value != value) // NaN check
@@ -2180,8 +2183,7 @@ namespace nstd
          *
          * @details Same behavior as double constructor but with better precision
          */
-        explicit constexpr int128_param_t(long double value) noexcept
-            : data{0, 0}
+        explicit constexpr int128_param_t(long double value) noexcept : data{0, 0}
         {
             // Handle special values
             if (value != value) // NaN
@@ -2367,8 +2369,7 @@ namespace nstd
          * uint128_tc_t x{bytes};  // Deserializes from byte array
          * @endcode
          */
-        explicit constexpr int128_param_t(const std::array<std::byte, 16> &bytes) noexcept
-            : data{0, 0}
+        explicit constexpr int128_param_t(const std::array<std::byte, 16> &bytes) noexcept : data{0, 0}
         {
             for (int i{0}; i < 8; ++i)
             {
@@ -2400,8 +2401,7 @@ namespace nstd
          * uint128_tc_t x{bits};
          * @endcode
          */
-        explicit constexpr int128_param_t(const std::bitset<128> &bits) noexcept
-            : data{0, 0}
+        explicit constexpr int128_param_t(const std::bitset<128> &bits) noexcept : data{0, 0}
         {
             for (int i{0}; i < 64; ++i)
             {
@@ -2663,7 +2663,8 @@ namespace nstd
                     if (!std::is_constant_evaluated())
                     {
                         std::uint64_t result_low, result_high;
-                        unsigned char carry = intrinsics::addcarry_u64(0, lhs_mag_low, rhs_mag_low, &result_low);
+                        unsigned char carry =
+                            intrinsics::addcarry_u64(0, lhs_mag_low, rhs_mag_low, &result_low);
                         intrinsics::addcarry_u64(carry, lhs_mag_high, rhs_mag_high, &result_high);
 
                         data[0] = result_low;
@@ -2705,13 +2706,15 @@ namespace nstd
                     {
                         if (lhs_greater)
                         {
-                            unsigned char borrow = intrinsics::subborrow_u64(0, lhs_mag_low, rhs_mag_low, &new_low);
+                            unsigned char borrow =
+                                intrinsics::subborrow_u64(0, lhs_mag_low, rhs_mag_low, &new_low);
                             intrinsics::subborrow_u64(borrow, lhs_mag_high, rhs_mag_high, &new_high);
                             result_neg = lhs_neg;
                         }
                         else
                         {
-                            unsigned char borrow = intrinsics::subborrow_u64(0, rhs_mag_low, lhs_mag_low, &new_low);
+                            unsigned char borrow =
+                                intrinsics::subborrow_u64(0, rhs_mag_low, lhs_mag_low, &new_low);
                             intrinsics::subborrow_u64(borrow, rhs_mag_high, lhs_mag_high, &new_high);
                             result_neg = rhs_neg;
                         }
@@ -3090,24 +3093,24 @@ namespace nstd
         // ========================================================================
 
         /// @brief Addition assignment from built-in integral type
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr int128_param_t &operator+=(T rhs) noexcept
         {
             return *this += int128_param_t{rhs};
         }
 
         /// @brief Subtraction assignment from built-in integral type
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr int128_param_t &operator-=(T rhs) noexcept
         {
             return *this -= int128_param_t{rhs};
         }
 
         /// @brief Multiplication assignment from built-in integral type
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr int128_param_t &operator*=(T rhs) noexcept
             requires(!is_excess_k)
         {
@@ -3115,8 +3118,8 @@ namespace nstd
         }
 
         /// @brief Division assignment from built-in integral type
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr int128_param_t &operator/=(T rhs) noexcept
             requires(!is_excess_k)
         {
@@ -3124,8 +3127,8 @@ namespace nstd
         }
 
         /// @brief Modulo assignment from built-in integral type
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr int128_param_t &operator%=(T rhs) noexcept
             requires(!is_excess_k)
         {
@@ -4152,8 +4155,7 @@ namespace nstd
                 else
                 {
                     constexpr auto entry{divmod_detail::compute_magic_128(D)};
-                    const auto [q_hi, q_lo]{divmod_detail::gm_div_limbs(
-                        data[1], data[0], entry)};
+                    const auto [q_hi, q_lo]{divmod_detail::gm_div_limbs(data[1], data[0], entry)};
                     return int128_param_t{q_hi, q_lo};
                 }
             }
@@ -4171,8 +4173,8 @@ namespace nstd
                 else
                 {
                     constexpr auto entry{divmod_detail::compute_magic_128(D)};
-                    const auto [q_hi, q_lo]{divmod_detail::gm_div_limbs(
-                        abs_val.data[1], abs_val.data[0], entry)};
+                    const auto [q_hi,
+                                q_lo]{divmod_detail::gm_div_limbs(abs_val.data[1], abs_val.data[0], entry)};
                     const int128_param_t q{q_hi, q_lo};
                     return neg ? -q : q;
                 }
@@ -4208,15 +4210,13 @@ namespace nstd
          */
         template <std::uint64_t D>
             requires(D > 0)
-        [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t>
-        divmod_const() const noexcept
+        [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t> divmod_const() const noexcept
             requires(is_excess_k)
         = delete;
 
         template <std::uint64_t D>
             requires(D > 0)
-        [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t>
-        divmod_const() const noexcept
+        [[nodiscard]] constexpr std::pair<int128_param_t, int128_param_t> divmod_const() const noexcept
             requires(!is_excess_k)
         {
             const int128_param_t q{this->template div<D>()};
@@ -4304,8 +4304,7 @@ namespace nstd
 
             // [0.c] Fast path: divisor > dividend (unsigned comparison)
             const bool divisor_greater =
-                (divisor.data[1] > data[1]) ||
-                (divisor.data[1] == data[1] && divisor.data[0] > data[0]);
+                (divisor.data[1] > data[1]) || (divisor.data[1] == data[1] && divisor.data[0] > data[0]);
             if (divisor_greater)
             {
                 return {int128_param_t{0}, *this};
@@ -4375,28 +4374,28 @@ namespace nstd
                 // [1.2-1.12] Common specific divisors (not powers of 2)
                 switch (d)
                 {
-                case 3:
-                case 5:
-                case 6:
-                case 7:
-                case 9:
-                case 10:
-                case 11:
-                case 12:
-                case 13:
-                case 14:
-                case 15:
-                    // For these cases, if dividend fits in 64 bits, use native division
-                    if (data[1] == 0)
-                    {
-                        const uint64_t q = data[0] / d;
-                        const uint64_t r = data[0] % d;
-                        return {int128_param_t{0, q}, int128_param_t{0, r}};
-                    }
-                    break;
+                    case 3:
+                    case 5:
+                    case 6:
+                    case 7:
+                    case 9:
+                    case 10:
+                    case 11:
+                    case 12:
+                    case 13:
+                    case 14:
+                    case 15:
+                        // For these cases, if dividend fits in 64 bits, use native division
+                        if (data[1] == 0)
+                        {
+                            const uint64_t q = data[0] / d;
+                            const uint64_t r = data[0] % d;
+                            return {int128_param_t{0, q}, int128_param_t{0, r}};
+                        }
+                        break;
 
-                default:
-                    break;
+                    default:
+                        break;
                 }
             }
 
@@ -4438,8 +4437,7 @@ namespace nstd
                     }
                 }
 
-                return {int128_param_t{quotient_high, quotient_low},
-                        int128_param_t{0, remainder}};
+                return {int128_param_t{quotient_high, quotient_low}, int128_param_t{0, remainder}};
             }
 
             // ========================================================================
@@ -4549,8 +4547,7 @@ namespace nstd
 
             // [0.c] Fast path: divisor > dividend (unsigned comparison)
             const bool divisor_greater =
-                (divisor.data[1] > data[1]) ||
-                (divisor.data[1] == data[1] && divisor.data[0] > data[0]);
+                (divisor.data[1] > data[1]) || (divisor.data[1] == data[1] && divisor.data[0] > data[0]);
             if (divisor_greater)
             {
                 return {int128_param_t{0}, *this};
@@ -4712,76 +4709,76 @@ namespace nstd
          * Constrained to std::is_integral_v<T> to avoid ambiguity with other types.
          * For EK: *, /, % are deleted (no meaningful semantics).
          */
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator+(const int128_param_t &lhs, T rhs) noexcept
         {
             return lhs + int128_param_t{rhs};
         }
 
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator+(T lhs, const int128_param_t &rhs) noexcept
         {
             return int128_param_t{lhs} + rhs;
         }
 
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator-(const int128_param_t &lhs, T rhs) noexcept
         {
             return lhs - int128_param_t{rhs};
         }
 
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator-(T lhs, const int128_param_t &rhs) noexcept
         {
             return int128_param_t{lhs} - rhs;
         }
 
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator*(const int128_param_t &lhs, T rhs) noexcept
             requires(!is_excess_k)
         {
             return lhs * int128_param_t{rhs};
         }
 
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator*(T lhs, const int128_param_t &rhs) noexcept
             requires(!is_excess_k)
         {
             return int128_param_t{lhs} * rhs;
         }
 
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator/(const int128_param_t &lhs, T rhs) noexcept
             requires(!is_excess_k)
         {
             return lhs / int128_param_t{rhs};
         }
 
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator/(T lhs, const int128_param_t &rhs) noexcept
             requires(!is_excess_k)
         {
             return int128_param_t{lhs} / rhs;
         }
 
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator%(const int128_param_t &lhs, T rhs) noexcept
             requires(!is_excess_k)
         {
             return lhs % int128_param_t{rhs};
         }
 
-        template <typename T,
-                  typename = std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>>
+        template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
+                                                          !std::is_same_v<std::remove_cv_t<T>, bool>>>
         friend constexpr int128_param_t operator%(T lhs, const int128_param_t &rhs) noexcept
             requires(!is_excess_k)
         {
@@ -4911,10 +4908,7 @@ namespace nstd
         /**
          * @brief Friend swap function (ADL-findable)
          */
-        friend constexpr void swap(int128_param_t &a, int128_param_t &b) noexcept
-        {
-            a.swap(b);
-        }
+        friend constexpr void swap(int128_param_t &a, int128_param_t &b) noexcept { a.swap(b); }
     };
 
     // =============================================================================

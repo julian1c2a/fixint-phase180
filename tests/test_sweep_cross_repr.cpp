@@ -59,10 +59,9 @@ static ek_t ek_rand(uint64_t i) noexcept
 // Generic type-parameterised unary sweep over 3 regions
 // =============================================================================
 
-template <typename T, typename GenFirst, typename GenLast, typename GenRand,
-          typename Func, typename Oracle>
-static bool sweep_unary_repr(GenFirst &&gf, GenLast &&gl, GenRand &&gr,
-                             Func &&func, Oracle &&oracle, const char *name)
+template <typename T, typename GenFirst, typename GenLast, typename GenRand, typename Func, typename Oracle>
+static bool sweep_unary_repr(GenFirst &&gf, GenLast &&gl, GenRand &&gr, Func &&func, Oracle &&oracle,
+                             const char *name)
 {
     uint64_t pass{0};
     uint64_t fail{0};
@@ -112,8 +111,8 @@ int main()
 {
     std::cout << "====================================================================\n";
     std::cout << "Sweep Cross-Representation Round-Trip Tests\n";
-    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS
-              << " = " << SWEEP_REGION_SIZE << " values per region\n";
+    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS << " = " << SWEEP_REGION_SIZE
+              << " values per region\n";
     std::cout << "====================================================================\n\n";
 
     int passed{0};
@@ -128,12 +127,8 @@ int main()
     // TC -> MS -> TC
     ++total;
     if (sweep_unary_repr<tc_t>(
-            tc_first, tc_last, tc_rand,
-            [](const tc_t &x)
-            { return static_cast<tc_t>(static_cast<ms_t>(x)); },
-            [](const tc_t &x)
-            { return x; },
-            "tc_ms_tc_roundtrip"))
+            tc_first, tc_last, tc_rand, [](const tc_t &x) { return static_cast<tc_t>(static_cast<ms_t>(x)); },
+            [](const tc_t &x) { return x; }, "tc_ms_tc_roundtrip"))
     {
         ++passed;
     }
@@ -141,12 +136,8 @@ int main()
     // MS -> TC -> MS
     ++total;
     if (sweep_unary_repr<ms_t>(
-            ms_first, ms_last, ms_rand,
-            [](const ms_t &x)
-            { return static_cast<ms_t>(static_cast<tc_t>(x)); },
-            [](const ms_t &x)
-            { return x; },
-            "ms_tc_ms_roundtrip"))
+            ms_first, ms_last, ms_rand, [](const ms_t &x) { return static_cast<ms_t>(static_cast<tc_t>(x)); },
+            [](const ms_t &x) { return x; }, "ms_tc_ms_roundtrip"))
     {
         ++passed;
     }
@@ -162,12 +153,8 @@ int main()
     // TC -> EK -> TC
     ++total;
     if (sweep_unary_repr<tc_t>(
-            tc_first, tc_last, tc_rand,
-            [](const tc_t &x)
-            { return static_cast<tc_t>(static_cast<ek_t>(x)); },
-            [](const tc_t &x)
-            { return x; },
-            "tc_ek_tc_roundtrip"))
+            tc_first, tc_last, tc_rand, [](const tc_t &x) { return static_cast<tc_t>(static_cast<ek_t>(x)); },
+            [](const tc_t &x) { return x; }, "tc_ek_tc_roundtrip"))
     {
         ++passed;
     }
@@ -175,12 +162,8 @@ int main()
     // EK -> TC -> EK
     ++total;
     if (sweep_unary_repr<ek_t>(
-            ek_first, ek_last, ek_rand,
-            [](const ek_t &x)
-            { return static_cast<ek_t>(static_cast<tc_t>(x)); },
-            [](const ek_t &x)
-            { return x; },
-            "ek_tc_ek_roundtrip"))
+            ek_first, ek_last, ek_rand, [](const ek_t &x) { return static_cast<ek_t>(static_cast<tc_t>(x)); },
+            [](const ek_t &x) { return x; }, "ek_tc_ek_roundtrip"))
     {
         ++passed;
     }
@@ -196,12 +179,8 @@ int main()
     // MS -> EK -> MS
     ++total;
     if (sweep_unary_repr<ms_t>(
-            ms_first, ms_last, ms_rand,
-            [](const ms_t &x)
-            { return static_cast<ms_t>(static_cast<ek_t>(x)); },
-            [](const ms_t &x)
-            { return x; },
-            "ms_ek_ms_roundtrip"))
+            ms_first, ms_last, ms_rand, [](const ms_t &x) { return static_cast<ms_t>(static_cast<ek_t>(x)); },
+            [](const ms_t &x) { return x; }, "ms_ek_ms_roundtrip"))
     {
         ++passed;
     }
@@ -209,12 +188,8 @@ int main()
     // EK -> MS -> EK
     ++total;
     if (sweep_unary_repr<ek_t>(
-            ek_first, ek_last, ek_rand,
-            [](const ek_t &x)
-            { return static_cast<ek_t>(static_cast<ms_t>(x)); },
-            [](const ek_t &x)
-            { return x; },
-            "ek_ms_ek_roundtrip"))
+            ek_first, ek_last, ek_rand, [](const ek_t &x) { return static_cast<ek_t>(static_cast<ms_t>(x)); },
+            [](const ek_t &x) { return x; }, "ek_ms_ek_roundtrip"))
     {
         ++passed;
     }

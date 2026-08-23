@@ -71,8 +71,7 @@ namespace std
      * This specialization handles the trivial case.
      */
     template <nstd::signedness Sign, nstd::representation_form Form>
-    struct common_type<nstd::int128_param_t<Sign, Form>,
-                       nstd::int128_param_t<Sign, Form>>
+    struct common_type<nstd::int128_param_t<Sign, Form>, nstd::int128_param_t<Sign, Form>>
     {
         using type = nstd::int128_param_t<Sign, Form>;
     };
@@ -92,21 +91,18 @@ namespace std
      * - Standard signed representation in C/C++
      * - Direct hardware instruction mapping
      */
-    template <nstd::signedness Sign1, nstd::representation_form Form1,
-              nstd::signedness Sign2, nstd::representation_form Form2>
-    struct common_type<nstd::int128_param_t<Sign1, Form1>,
-                       nstd::int128_param_t<Sign2, Form2>>
+    template <nstd::signedness Sign1, nstd::representation_form Form1, nstd::signedness Sign2,
+              nstd::representation_form Form2>
+    struct common_type<nstd::int128_param_t<Sign1, Form1>, nstd::int128_param_t<Sign2, Form2>>
     {
         // Determine signedness using standard C++ promotion rules
         static constexpr nstd::signedness result_sign =
-            (Sign1 == nstd::signedness::signed_type ||
-             Sign2 == nstd::signedness::signed_type)
+            (Sign1 == nstd::signedness::signed_type || Sign2 == nstd::signedness::signed_type)
                 ? nstd::signedness::signed_type
                 : nstd::signedness::unsigned_type;
 
         // Always use Two's Complement for mixed-form operations
-        using type = nstd::int128_param_t<result_sign,
-                                          nstd::representation_form::twos_complement>;
+        using type = nstd::int128_param_t<result_sign, nstd::representation_form::twos_complement>;
     };
 
     /**
@@ -115,39 +111,31 @@ namespace std
      * @details Handles const/volatile int128 by stripping cv-qualifiers
      * and forwarding to the base int128+int128 specialization.
      */
-    template <nstd::signedness Sign1, nstd::representation_form Form1,
-              nstd::signedness Sign2, nstd::representation_form Form2>
-    struct common_type<const nstd::int128_param_t<Sign1, Form1>,
-                       nstd::int128_param_t<Sign2, Form2>>
-        : common_type<nstd::int128_param_t<Sign1, Form1>,
-                      nstd::int128_param_t<Sign2, Form2>>
+    template <nstd::signedness Sign1, nstd::representation_form Form1, nstd::signedness Sign2,
+              nstd::representation_form Form2>
+    struct common_type<const nstd::int128_param_t<Sign1, Form1>, nstd::int128_param_t<Sign2, Form2>>
+        : common_type<nstd::int128_param_t<Sign1, Form1>, nstd::int128_param_t<Sign2, Form2>>
     {
     };
 
-    template <nstd::signedness Sign1, nstd::representation_form Form1,
-              nstd::signedness Sign2, nstd::representation_form Form2>
-    struct common_type<volatile nstd::int128_param_t<Sign1, Form1>,
-                       nstd::int128_param_t<Sign2, Form2>>
-        : common_type<nstd::int128_param_t<Sign1, Form1>,
-                      nstd::int128_param_t<Sign2, Form2>>
+    template <nstd::signedness Sign1, nstd::representation_form Form1, nstd::signedness Sign2,
+              nstd::representation_form Form2>
+    struct common_type<volatile nstd::int128_param_t<Sign1, Form1>, nstd::int128_param_t<Sign2, Form2>>
+        : common_type<nstd::int128_param_t<Sign1, Form1>, nstd::int128_param_t<Sign2, Form2>>
     {
     };
 
-    template <nstd::signedness Sign1, nstd::representation_form Form1,
-              nstd::signedness Sign2, nstd::representation_form Form2>
-    struct common_type<nstd::int128_param_t<Sign1, Form1>,
-                       const nstd::int128_param_t<Sign2, Form2>>
-        : common_type<nstd::int128_param_t<Sign1, Form1>,
-                      nstd::int128_param_t<Sign2, Form2>>
+    template <nstd::signedness Sign1, nstd::representation_form Form1, nstd::signedness Sign2,
+              nstd::representation_form Form2>
+    struct common_type<nstd::int128_param_t<Sign1, Form1>, const nstd::int128_param_t<Sign2, Form2>>
+        : common_type<nstd::int128_param_t<Sign1, Form1>, nstd::int128_param_t<Sign2, Form2>>
     {
     };
 
-    template <nstd::signedness Sign1, nstd::representation_form Form1,
-              nstd::signedness Sign2, nstd::representation_form Form2>
-    struct common_type<nstd::int128_param_t<Sign1, Form1>,
-                       volatile nstd::int128_param_t<Sign2, Form2>>
-        : common_type<nstd::int128_param_t<Sign1, Form1>,
-                      nstd::int128_param_t<Sign2, Form2>>
+    template <nstd::signedness Sign1, nstd::representation_form Form1, nstd::signedness Sign2,
+              nstd::representation_form Form2>
+    struct common_type<nstd::int128_param_t<Sign1, Form1>, volatile nstd::int128_param_t<Sign2, Form2>>
+        : common_type<nstd::int128_param_t<Sign1, Form1>, nstd::int128_param_t<Sign2, Form2>>
     {
     };
 
@@ -166,8 +154,7 @@ namespace std
     struct common_type<nstd::int128_param_t<Sign, Form>, T>
     {
         using T_bare = std::remove_cv_t<T>;
-        static_assert(std::is_integral_v<T_bare>,
-                      "common_type with non-integral type not supported");
+        static_assert(std::is_integral_v<T_bare>, "common_type with non-integral type not supported");
 
         // Determine signedness using standard C++ promotion rules
         static constexpr nstd::signedness result_sign =
@@ -187,8 +174,7 @@ namespace std
      * cv-qualifiers are automatically handled by forwarding.
      */
     template <typename T, nstd::signedness Sign, nstd::representation_form Form>
-    struct common_type<T, nstd::int128_param_t<Sign, Form>>
-        : common_type<nstd::int128_param_t<Sign, Form>, T>
+    struct common_type<T, nstd::int128_param_t<Sign, Form>> : common_type<nstd::int128_param_t<Sign, Form>, T>
     {
     };
 

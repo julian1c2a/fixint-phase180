@@ -243,10 +243,7 @@ int main()
         std::cout << "[Test 5] Template functions with concepts:\n";
 
         // Function using int128_type concept
-        auto test_int128_type = []<nstd::int128_type T>(T value)
-        {
-            return value.is_zero();
-        };
+        auto test_int128_type = []<nstd::int128_type T>(T value) { return value.is_zero(); };
 
         const bool result1{test_int128_type(uint128_t{0})};
         const bool result2{test_int128_type(int128_tc_t{0})};
@@ -263,10 +260,7 @@ int main()
         }
 
         // Function using uint128_type concept
-        auto test_uint128 = []<nstd::uint128_type T>(T value)
-        {
-            return value == T{42};
-        };
+        auto test_uint128 = []<nstd::uint128_type T>(T value) { return value == T{42}; };
 
         const bool result3{test_uint128(uint128_t{42})};
 

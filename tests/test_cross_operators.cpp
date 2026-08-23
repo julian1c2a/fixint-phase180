@@ -19,7 +19,7 @@
 //   same-sign cross-N: result is always the wider type
 
 #include "fixed_width_int_t.hpp"
-#include "fixed_int_limits.hpp"   // needed for std::numeric_limits<fixed_int_t<...>>
+#include "fixed_int_limits.hpp" // needed for std::numeric_limits<fixed_int_t<...>>
 
 #include <compare>
 #include <cstdint>
@@ -37,19 +37,19 @@ using nstd::uint_fixed_t;
 static int g_passed{0};
 static int g_failed{0};
 
-#define TEST(name, cond)                               \
-    do                                                 \
-    {                                                  \
-        if (cond)                                      \
-        {                                              \
+#define TEST(name, cond)                              \
+    do                                                \
+    {                                                 \
+        if (cond)                                     \
+        {                                             \
             std::cout << "[OK]   " << (name) << "\n"; \
-            ++g_passed;                                \
-        }                                              \
-        else                                           \
-        {                                              \
+            ++g_passed;                               \
+        }                                             \
+        else                                          \
+        {                                             \
             std::cout << "[FAIL] " << (name) << "\n"; \
-            ++g_failed;                                \
-        }                                              \
+            ++g_failed;                               \
+        }                                             \
     } while (false)
 
 // =============================================================================
@@ -62,89 +62,105 @@ static void test_cross_n_uint_compound()
 {
     std::cout << "\n--- Section 1: uint cross-N compound assignments ---\n";
 
-    using u1 = uint_fixed_t<1>;  // 64-bit
-    using u2 = uint_fixed_t<2>;  // 128-bit
+    using u1 = uint_fixed_t<1>; // 64-bit
+    using u2 = uint_fixed_t<2>; // 128-bit
 
     // --- += ---
     {
-        u1 a{10}; a += u2{3};
+        u1 a{10};
+        a += u2{3};
         TEST("u1{10} += u2{3}  == u1{13}", a == u1{std::uint64_t{13}});
     }
     {
-        u2 a{10}; a += u1{3};
+        u2 a{10};
+        a += u1{3};
         TEST("u2{10} += u1{3}  == u2{13}", a == u2{std::uint64_t{13}});
     }
     // wrap-around (result truncated to N=1)
     {
-        u1 a{std::uint64_t{UINT64_MAX}}; a += u2{std::uint64_t{1}};
+        u1 a{std::uint64_t{UINT64_MAX}};
+        a += u2{std::uint64_t{1}};
         TEST("u1{max} += u2{1} == u1{0}  (wrap)", a == u1{std::uint64_t{0}});
     }
 
     // --- -= ---
     {
-        u1 a{10}; a -= u2{3};
+        u1 a{10};
+        a -= u2{3};
         TEST("u1{10} -= u2{3}  == u1{7}", a == u1{std::uint64_t{7}});
     }
     {
-        u2 a{10}; a -= u1{3};
+        u2 a{10};
+        a -= u1{3};
         TEST("u2{10} -= u1{3}  == u2{7}", a == u2{std::uint64_t{7}});
     }
     // borrow wraps in N=1
     {
-        u1 a{0}; a -= u2{std::uint64_t{1}};
+        u1 a{0};
+        a -= u2{std::uint64_t{1}};
         TEST("u1{0}  -= u2{1}  == u1{max} (wrap)", a == u1{std::uint64_t{UINT64_MAX}});
     }
 
     // --- *= ---
     {
-        u1 a{7}; a *= u2{6};
+        u1 a{7};
+        a *= u2{6};
         TEST("u1{7}  *= u2{6}  == u1{42}", a == u1{std::uint64_t{42}});
     }
     {
-        u2 a{7}; a *= u1{6};
+        u2 a{7};
+        a *= u1{6};
         TEST("u2{7}  *= u1{6}  == u2{42}", a == u2{std::uint64_t{42}});
     }
 
     // --- /= ---
     {
-        u1 a{42}; a /= u2{std::uint64_t{6}};
+        u1 a{42};
+        a /= u2{std::uint64_t{6}};
         TEST("u1{42} /= u2{6}  == u1{7}", a == u1{std::uint64_t{7}});
     }
     {
-        u2 a{42}; a /= u1{std::uint64_t{6}};
+        u2 a{42};
+        a /= u1{std::uint64_t{6}};
         TEST("u2{42} /= u1{6}  == u2{7}", a == u2{std::uint64_t{7}});
     }
 
     // --- %= ---
     {
-        u1 a{10}; a %= u2{std::uint64_t{3}};
+        u1 a{10};
+        a %= u2{std::uint64_t{3}};
         TEST("u1{10} %= u2{3}  == u1{1}", a == u1{std::uint64_t{1}});
     }
     {
-        u2 a{10}; a %= u1{std::uint64_t{3}};
+        u2 a{10};
+        a %= u1{std::uint64_t{3}};
         TEST("u2{10} %= u1{3}  == u2{1}", a == u2{std::uint64_t{1}});
     }
 
     // --- &= ---
     {
-        u1 a{0xFF}; a &= u2{std::uint64_t{0x0F}};
+        u1 a{0xFF};
+        a &= u2{std::uint64_t{0x0F}};
         TEST("u1{0xFF} &= u2{0x0F} == u1{0x0F}", a == u1{std::uint64_t{0x0F}});
     }
     {
-        u2 a{0xFF}; a &= u1{std::uint64_t{0x0F}};
+        u2 a{0xFF};
+        a &= u1{std::uint64_t{0x0F}};
         TEST("u2{0xFF} &= u1{0x0F} == u2{0x0F}", a == u2{std::uint64_t{0x0F}});
     }
 
     // --- |= ---
     {
-        u1 a{0xF0}; a |= u2{std::uint64_t{0x0F}};
+        u1 a{0xF0};
+        a |= u2{std::uint64_t{0x0F}};
         TEST("u1{0xF0} |= u2{0x0F} == u1{0xFF}", a == u1{std::uint64_t{0xFF}});
     }
 
     // --- ^= ---
     {
-        u1 a{0xFF}; a ^= u2{std::uint64_t{0xFF}};
-        TEST("u1{0xFF} ^= u2{0xFF} == u1{0}",   a == u1{std::uint64_t{0}});
+        u1 a{0xFF};
+        a ^= u2{std::uint64_t{0xFF}};
+        TEST("u1{0xFF} ^= u2{0xFF} == u1{0}", a == u1{std::uint64_t{0}});
     }
 }
 
@@ -161,59 +177,71 @@ static void test_cross_n_int_compound()
 
     // --- += ---
     {
-        i1 a{10}; a += i2{3};
-        TEST("i1{10}  += i2{3}  == i1{13}",  a == i1{13});
+        i1 a{10};
+        a += i2{3};
+        TEST("i1{10}  += i2{3}  == i1{13}", a == i1{13});
     }
     {
-        i2 a{10}; a += i1{3};
-        TEST("i2{10}  += i1{3}  == i2{13}",  a == i2{13});
+        i2 a{10};
+        a += i1{3};
+        TEST("i2{10}  += i1{3}  == i2{13}", a == i2{13});
     }
     {
-        i1 a{-5}; a += i2{3};
+        i1 a{-5};
+        a += i2{3};
         TEST("i1{-5}  += i2{3}  == i1{-2}", a == i1{-2});
     }
     {
-        i2 a{-5}; a += i1{3};
+        i2 a{-5};
+        a += i1{3};
         TEST("i2{-5}  += i1{3}  == i2{-2}", a == i2{-2});
     }
 
     // --- -= ---
     {
-        i1 a{10}; a -= i2{3};
-        TEST("i1{10}  -= i2{3}  == i1{7}",  a == i1{7});
+        i1 a{10};
+        a -= i2{3};
+        TEST("i1{10}  -= i2{3}  == i1{7}", a == i1{7});
     }
     {
-        i1 a{3}; a -= i2{10};
+        i1 a{3};
+        a -= i2{10};
         TEST("i1{3}   -= i2{10} == i1{-7}", a == i1{-7});
     }
 
     // --- *= ---
     {
-        i1 a{-3}; a *= i2{4};
+        i1 a{-3};
+        a *= i2{4};
         TEST("i1{-3}  *= i2{4}  == i1{-12}", a == i1{-12});
     }
     {
-        i2 a{-3}; a *= i1{4};
+        i2 a{-3};
+        a *= i1{4};
         TEST("i2{-3}  *= i1{4}  == i2{-12}", a == i2{-12});
     }
 
     // --- /= ---
     {
-        i1 a{-12}; a /= i2{4};
+        i1 a{-12};
+        a /= i2{4};
         TEST("i1{-12} /= i2{4}  == i1{-3}", a == i1{-3});
     }
     {
-        i2 a{-12}; a /= i1{4};
+        i2 a{-12};
+        a /= i1{4};
         TEST("i2{-12} /= i1{4}  == i2{-3}", a == i2{-3});
     }
 
     // --- %= ---
     {
-        i1 a{10}; a %= i2{3};
-        TEST("i1{10}  %= i2{3}  == i1{1}",  a == i1{1});
+        i1 a{10};
+        a %= i2{3};
+        TEST("i1{10}  %= i2{3}  == i1{1}", a == i1{1});
     }
     {
-        i1 a{-10}; a %= i2{3};
+        i1 a{-10};
+        a %= i2{3};
         TEST("i1{-10} %= i2{3}  == i1{-1}", a == i1{-1});
     }
 }
@@ -236,11 +264,13 @@ static void test_mixed_uint_lhs()
 
     // N >= M: uint wins, int zero-extends (positive int -> same bit pattern)
     {
-        u2 a{10}; a += i1{3};
+        u2 a{10};
+        a += i1{3};
         TEST("u2{10}  += i1{3}  == u2{13}  (uint wins)", a == u2{std::uint64_t{13}});
     }
     {
-        u2 a{10}; a -= i1{3};
+        u2 a{10};
+        a -= i1{3};
         TEST("u2{10}  -= i1{3}  == u2{7}   (uint wins)", a == u2{std::uint64_t{7}});
     }
     // Negative RHS sign-extends to uint, then addition is mod 2^128
@@ -252,25 +282,30 @@ static void test_mixed_uint_lhs()
     // = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFD, which as uint_fixed_t<2> is 2^128-3.
     // 5 + (2^128-3) = 2^128+2, mod 2^128 = 2.
     {
-        u2 a{5}; a += i1{-3};
+        u2 a{5};
+        a += i1{-3};
         TEST("u2{5}  += i1{-3} wraps to u2{2} (two's-complement)", a == u2{std::uint64_t{2}});
     }
     {
-        u1 a{5}; a += i1{-3};
+        u1 a{5};
+        a += i1{-3};
         TEST("u1{5}  += i1{-3} == u1{2}  (same sign, uint wins)", a == u1{std::uint64_t{2}});
     }
 
     // N < M: int wins -> compute as int_fixed_t<M>, then store as uint_fixed_t<N>
     {
-        u1 a{10}; a += i2{3};
+        u1 a{10};
+        a += i2{3};
         TEST("u1{10}  += i2{3}  == u1{13}  (int wins, truncate to u1)", a == u1{std::uint64_t{13}});
     }
     {
-        u1 a{10}; a -= i2{3};
+        u1 a{10};
+        a -= i2{3};
         TEST("u1{10}  -= i2{3}  == u1{7}   (int wins, truncate to u1)", a == u1{std::uint64_t{7}});
     }
     {
-        u1 a{7}; a *= i2{6};
+        u1 a{7};
+        a *= i2{6};
         TEST("u1{7}   *= i2{6}  == u1{42}  (int wins, truncate to u1)", a == u1{std::uint64_t{42}});
     }
 }
@@ -291,45 +326,55 @@ static void test_mixed_int_lhs()
 
     // N > M: int wins
     {
-        i2 a{10}; a += u1{3};
+        i2 a{10};
+        a += u1{3};
         TEST("i2{10}  += u1{3}  == i2{13}  (int wins)", a == i2{13});
     }
     {
-        i2 a{-5}; a += u1{3};
+        i2 a{-5};
+        a += u1{3};
         TEST("i2{-5}  += u1{3}  == i2{-2}  (int wins)", a == i2{-2});
     }
     {
-        i2 a{10}; a -= u1{3};
+        i2 a{10};
+        a -= u1{3};
         TEST("i2{10}  -= u1{3}  == i2{7}   (int wins)", a == i2{7});
     }
     {
-        i2 a{-3}; a *= u1{4};
+        i2 a{-3};
+        a *= u1{4};
         TEST("i2{-3}  *= u1{4}  == i2{-12} (int wins)", a == i2{-12});
     }
     {
-        i2 a{-12}; a /= u1{4};
+        i2 a{-12};
+        a /= u1{4};
         TEST("i2{-12} /= u1{4}  == i2{-3}  (int wins)", a == i2{-3});
     }
     {
-        i2 a{10}; a %= u1{3};
+        i2 a{10};
+        a %= u1{3};
         TEST("i2{10}  %= u1{3}  == i2{1}   (int wins)", a == i2{1});
     }
 
     // N <= M: uint wins -> compute as uint, result stored as int_fixed_t<N>
     {
-        i1 a{10}; a += u2{3};
+        i1 a{10};
+        a += u2{3};
         TEST("i1{10}  += u2{3}  == i1{13}  (uint wins, truncate to i1)", a == i1{13});
     }
     {
-        i1 a{10}; a -= u2{3};
+        i1 a{10};
+        a -= u2{3};
         TEST("i1{10}  -= u2{3}  == i1{7}   (uint wins, truncate to i1)", a == i1{7});
     }
     {
-        i1 a{7}; a *= u2{6};
+        i1 a{7};
+        a *= u2{6};
         TEST("i1{7}   *= u2{6}  == i1{42}  (uint wins, truncate to i1)", a == i1{42});
     }
     {
-        i1 a{10}; a %= u2{std::uint64_t{3}};
+        i1 a{10};
+        a %= u2{std::uint64_t{3}};
         TEST("i1{10}  %= u2{3}  == i1{1}   (uint wins, truncate to i1)", a == i1{1});
     }
 }
@@ -424,25 +469,25 @@ static void test_mixed_free_ops()
         TEST("i2{0xF0}|u1{0x0F}==i2{0xFF}", r == i2{0xFF});
     }
     {
-        auto r = i2{0xFF} ^ u1{std::uint64_t{0xFF}};
+        auto r = i2{0xFF} ^ u1 { std::uint64_t{0xFF} };
         static_assert(std::is_same_v<decltype(r), i2>, "i2^u1 -> i2");
-        TEST("i2{0xFF}^u1{0xFF}==i2{0}",   r == i2{0});
+        TEST("i2{0xFF}^u1{0xFF}==i2{0}", r == i2{0});
     }
 
     // --- Comparisons: N > M -> int wins ---
-    TEST("i2{10} == u1{10}",  i2{10} == u1{std::uint64_t{10}});
-    TEST("u1{10} == i2{10}",  u1{std::uint64_t{10}} == i2{10});
-    TEST("i2{10} != u1{3}",   i2{10} != u1{std::uint64_t{3}});
-    TEST("i2{3}  <  u1{10}",  i2{3}  <  u1{std::uint64_t{10}});
-    TEST("u1{10} >  i2{3}",   u1{std::uint64_t{10}} >  i2{3});
-    TEST("i2{10} <= u1{10}",  i2{10} <= u1{std::uint64_t{10}});
-    TEST("i2{10} >= u1{10}",  i2{10} >= u1{std::uint64_t{10}});
+    TEST("i2{10} == u1{10}", i2{10} == u1{std::uint64_t{10}});
+    TEST("u1{10} == i2{10}", u1{std::uint64_t{10}} == i2{10});
+    TEST("i2{10} != u1{3}", i2{10} != u1{std::uint64_t{3}});
+    TEST("i2{3}  <  u1{10}", i2{3} < u1{std::uint64_t{10}});
+    TEST("u1{10} >  i2{3}", u1{std::uint64_t{10}} > i2{3});
+    TEST("i2{10} <= u1{10}", i2{10} <= u1{std::uint64_t{10}});
+    TEST("i2{10} >= u1{10}", i2{10} >= u1{std::uint64_t{10}});
 
     // --- Comparisons: N <= M -> uint wins ---
-    TEST("i1{10} == u2{10}",  i1{10} == u2{std::uint64_t{10}});
-    TEST("u2{10} == i1{10}",  u2{std::uint64_t{10}} == i1{10});
-    TEST("i1{3}  <  u2{10}",  i1{3}  <  u2{std::uint64_t{10}});
-    TEST("u2{10} >  i1{3}",   u2{std::uint64_t{10}} >  i1{3});
+    TEST("i1{10} == u2{10}", i1{10} == u2{std::uint64_t{10}});
+    TEST("u2{10} == i1{10}", u2{std::uint64_t{10}} == i1{10});
+    TEST("i1{3}  <  u2{10}", i1{3} < u2{std::uint64_t{10}});
+    TEST("u2{10} >  i1{3}", u2{std::uint64_t{10}} > i1{3});
 }
 
 // =============================================================================
@@ -506,7 +551,7 @@ static void test_cross_n_uint_free()
         TEST("u1{0xF0}|u2{0x0F} == u2{0xFF}", r == u2{std::uint64_t{0xFF}});
     }
     {
-        auto r = u1{std::uint64_t{0xFF}} ^ u2{std::uint64_t{0xFF}};
+        auto r = u1{std::uint64_t{0xFF}} ^ u2 { std::uint64_t{0xFF} };
         static_assert(std::is_same_v<decltype(r), u2>, "u1^u2 -> u2");
         TEST("u1{0xFF}^u2{0xFF} == u2{0}", r == u2{std::uint64_t{0}});
     }
@@ -514,11 +559,11 @@ static void test_cross_n_uint_free()
     // --- Comparisons ---
     TEST("u1{10} == u2{10}", u1{std::uint64_t{10}} == u2{std::uint64_t{10}});
     TEST("u2{10} == u1{10}", u2{std::uint64_t{10}} == u1{std::uint64_t{10}});
-    TEST("u1{3}  <  u2{10}", u1{std::uint64_t{3}}  <  u2{std::uint64_t{10}});
-    TEST("u2{10} >  u1{3}",  u2{std::uint64_t{10}} >  u1{std::uint64_t{3}});
+    TEST("u1{3}  <  u2{10}", u1{std::uint64_t{3}} < u2{std::uint64_t{10}});
+    TEST("u2{10} >  u1{3}", u2{std::uint64_t{10}} > u1{std::uint64_t{3}});
     TEST("u1{10} <= u2{10}", u1{std::uint64_t{10}} <= u2{std::uint64_t{10}});
     TEST("u1{10} >= u2{10}", u1{std::uint64_t{10}} >= u2{std::uint64_t{10}});
-    TEST("u1{10} != u2{3}",  u1{std::uint64_t{10}} != u2{std::uint64_t{3}});
+    TEST("u1{10} != u2{3}", u1{std::uint64_t{10}} != u2{std::uint64_t{3}});
 }
 
 // =============================================================================
@@ -587,7 +632,7 @@ static void test_cross_n_int_free()
         TEST("i1{0xF0}|i2{0x0F} == i2{0xFF}", r == i2{0xFF});
     }
     {
-        auto r = i1{0xFF} ^ i2{0xFF};
+        auto r = i1{0xFF} ^ i2 { 0xFF };
         static_assert(std::is_same_v<decltype(r), i2>, "i1^i2 -> i2");
         TEST("i1{0xFF}^i2{0xFF} == i2{0}", r == i2{0});
     }
@@ -595,11 +640,11 @@ static void test_cross_n_int_free()
     // --- Comparisons ---
     TEST("i1{10} == i2{10}", i1{10} == i2{10});
     TEST("i2{10} == i1{10}", i2{10} == i1{10});
-    TEST("i1{-1} <  i2{0}",  i1{-1} <  i2{0});
-    TEST("i2{0}  >  i1{-1}", i2{0}  >  i1{-1});
+    TEST("i1{-1} <  i2{0}", i1{-1} < i2{0});
+    TEST("i2{0}  >  i1{-1}", i2{0} > i1{-1});
     TEST("i1{10} <= i2{10}", i1{10} <= i2{10});
     TEST("i1{10} >= i2{10}", i1{10} >= i2{10});
-    TEST("i1{10} != i2{3}",  i1{10} != i2{3});
+    TEST("i1{10} != i2{3}", i1{10} != i2{3});
 }
 
 // =============================================================================
@@ -614,10 +659,10 @@ static void test_unary_plus()
     using u4 = uint_fixed_t<4>;
     using i4 = int_fixed_t<4>;
 
-    TEST("+u2{42}==u2{42}",            +u2{42} == u2{42});
-    TEST("+i2{-5}==i2{-5}",            +i2{-5} == i2{-5});
-    TEST("+u4{0}==u4{0}",              +u4{0}  == u4{0});
-    TEST("+i4{-1}==i4{-1}",            +i4{-1} == i4{-1});
+    TEST("+u2{42}==u2{42}", +u2{42} == u2{42});
+    TEST("+i2{-5}==i2{-5}", +i2{-5} == i2{-5});
+    TEST("+u4{0}==u4{0}", +u4{0} == u4{0});
+    TEST("+i4{-1}==i4{-1}", +i4{-1} == i4{-1});
     // Type-preserving: +x is the same type as x.
     static_assert(std::is_same_v<decltype(+u2{0}), u2>);
     static_assert(std::is_same_v<decltype(+i2{0}), i2>);
@@ -644,21 +689,21 @@ static void test_shift_cross_sign()
     using i2 = int_fixed_t<2>;
 
     // ---- u2 << / >> with various count types ----
-    TEST("u2{1}<<u1{4}==u2{16}",       (u2{1} << u1{4})  == u2{16});
-    TEST("u2{1}<<i1{4}==u2{16}",       (u2{1} << i1{4})  == u2{16});
-    TEST("u2{1}<<u2{4}==u2{16}",       (u2{1} << u2{4})  == u2{16});
-    TEST("u2{1}<<i2{4}==u2{16}",       (u2{1} << i2{4})  == u2{16});
-    TEST("u2{256}>>u1{4}==u2{16}",     (u2{256} >> u1{4}) == u2{16});
-    TEST("u2{256}>>i1{4}==u2{16}",     (u2{256} >> i1{4}) == u2{16});
-    TEST("u2{256}>>u2{4}==u2{16}",     (u2{256} >> u2{4}) == u2{16});
-    TEST("u2{256}>>i2{4}==u2{16}",     (u2{256} >> i2{4}) == u2{16});
+    TEST("u2{1}<<u1{4}==u2{16}", (u2{1} << u1{4}) == u2{16});
+    TEST("u2{1}<<i1{4}==u2{16}", (u2{1} << i1{4}) == u2{16});
+    TEST("u2{1}<<u2{4}==u2{16}", (u2{1} << u2{4}) == u2{16});
+    TEST("u2{1}<<i2{4}==u2{16}", (u2{1} << i2{4}) == u2{16});
+    TEST("u2{256}>>u1{4}==u2{16}", (u2{256} >> u1{4}) == u2{16});
+    TEST("u2{256}>>i1{4}==u2{16}", (u2{256} >> i1{4}) == u2{16});
+    TEST("u2{256}>>u2{4}==u2{16}", (u2{256} >> u2{4}) == u2{16});
+    TEST("u2{256}>>i2{4}==u2{16}", (u2{256} >> i2{4}) == u2{16});
 
     // ---- i2 << / >> with various count types ----
-    TEST("i2{1}<<u1{4}==i2{16}",       (i2{1} << u1{4})  == i2{16});
-    TEST("i2{1}<<i1{4}==i2{16}",       (i2{1} << i1{4})  == i2{16});
-    TEST("i2{-1}>>u1{1}==i2{-1}",      (i2{-1} >> u1{1}) == i2{-1}); // arithmetic shift preserves sign
-    TEST("i2{-256}>>i1{4}==i2{-16}",   (i2{-256} >> i1{4}) == i2{-16});
-    TEST("i2{-1}>>u2{63}==i2{-1}",     (i2{-1} >> u2{63}) == i2{-1});
+    TEST("i2{1}<<u1{4}==i2{16}", (i2{1} << u1{4}) == i2{16});
+    TEST("i2{1}<<i1{4}==i2{16}", (i2{1} << i1{4}) == i2{16});
+    TEST("i2{-1}>>u1{1}==i2{-1}", (i2{-1} >> u1{1}) == i2{-1}); // arithmetic shift preserves sign
+    TEST("i2{-256}>>i1{4}==i2{-16}", (i2{-256} >> i1{4}) == i2{-16});
+    TEST("i2{-1}>>u2{63}==i2{-1}", (i2{-1} >> u2{63}) == i2{-1});
 
     // ---- compound assignment cross-sign count ----
     {
@@ -690,20 +735,20 @@ static void test_shift_cross_sign()
 
     // ---- Edge cases ----
     // Shift by 0 is identity for both signed and unsigned LHS.
-    TEST("u2{42}<<u1{0}==u2{42}",      (u2{42} << u1{0})  == u2{42});
-    TEST("i2{-7}>>i1{0}==i2{-7}",      (i2{-7} >> i1{0})  == i2{-7});
+    TEST("u2{42}<<u1{0}==u2{42}", (u2{42} << u1{0}) == u2{42});
+    TEST("i2{-7}>>i1{0}==i2{-7}", (i2{-7} >> i1{0}) == i2{-7});
 
     // Shift by >= 64*N: zero for unsigned, sign-fill for signed arithmetic >>.
-    TEST("u2{1}<<u2{128}==u2{0}",      (u2{1} << u2{128}) == u2{0});
-    TEST("u2{1}<<u1{255}==u2{0}",      (u2{1} << u1{255}) == u2{0});
+    TEST("u2{1}<<u2{128}==u2{0}", (u2{1} << u2{128}) == u2{0});
+    TEST("u2{1}<<u1{255}==u2{0}", (u2{1} << u1{255}) == u2{0});
 
     // Negative signed count: wraps to huge unsigned -> shift >= 64*N -> zero.
     // Mirrors built-in `int x = 1; x << -1;` (UB), but at least we don't crash.
-    TEST("u2{1}<<i1{-1}==u2{0}",       (u2{1} << i1{-1})  == u2{0});
+    TEST("u2{1}<<i1{-1}==u2{0}", (u2{1} << i1{-1}) == u2{0});
 
     // constexpr: all shift overloads are constexpr.
-    static_assert((u2{1} << u1{3})  == u2{8});
-    static_assert((u2{8} >> u1{3})  == u2{1});
+    static_assert((u2{1} << u1{3}) == u2{8});
+    static_assert((u2{8} >> u1{3}) == u2{1});
     static_assert((i2{-1} >> u1{0}) == i2{-1});
 }
 
@@ -726,41 +771,41 @@ static void test_three_way()
     using ord = std::strong_ordering;
 
     // ---- Same-type: member <=> ----
-    TEST("u2{1} <=> u2{2} == less",       (u2{1}  <=> u2{2})  == ord::less);
-    TEST("u2{2} <=> u2{1} == greater",    (u2{2}  <=> u2{1})  == ord::greater);
-    TEST("u2{5} <=> u2{5} == equal",      (u2{5}  <=> u2{5})  == ord::equal);
-    TEST("i2{-1} <=> i2{0} == less",      (i2{-1} <=> i2{0})  == ord::less);
-    TEST("i2{0} <=> i2{-1} == greater",   (i2{0}  <=> i2{-1}) == ord::greater);
+    TEST("u2{1} <=> u2{2} == less", (u2{1} <=> u2{2}) == ord::less);
+    TEST("u2{2} <=> u2{1} == greater", (u2{2} <=> u2{1}) == ord::greater);
+    TEST("u2{5} <=> u2{5} == equal", (u2{5} <=> u2{5}) == ord::equal);
+    TEST("i2{-1} <=> i2{0} == less", (i2{-1} <=> i2{0}) == ord::less);
+    TEST("i2{0} <=> i2{-1} == greater", (i2{0} <=> i2{-1}) == ord::greater);
 
     // ---- Same-sign cross-N: free <=> ----
-    TEST("u2{1} <=> u4{2} == less",       (u2{1}  <=> u4{2})  == ord::less);
-    TEST("u4{5} <=> u2{5} == equal",      (u4{5}  <=> u2{5})  == ord::equal);
-    TEST("i2{-1} <=> i4{1} == less",      (i2{-1} <=> i4{1})  == ord::less);
-    TEST("i4{-1} <=> i2{-1} == equal",    (i4{-1} <=> i2{-1}) == ord::equal);
+    TEST("u2{1} <=> u4{2} == less", (u2{1} <=> u4{2}) == ord::less);
+    TEST("u4{5} <=> u2{5} == equal", (u4{5} <=> u2{5}) == ord::equal);
+    TEST("i2{-1} <=> i4{1} == less", (i2{-1} <=> i4{1}) == ord::less);
+    TEST("i4{-1} <=> i2{-1} == equal", (i4{-1} <=> i2{-1}) == ord::equal);
 
     // ---- Cross-sign same-N: free <=> uses mixed_iu_t<N,N> = uint (unsigned wins) ----
-    TEST("u2{5} <=> i2{5} == equal",      (u2{5} <=> i2{5})   == ord::equal);
-    TEST("u2{5} <=> i2{-1} == less",      // i2{-1} promotes to u2{2^128-1} -> u2{5} < that
-                                          (u2{5} <=> i2{-1})  == ord::less);
-    TEST("i2{-1} <=> u2{5} == greater",   (i2{-1} <=> u2{5})  == ord::greater);
+    TEST("u2{5} <=> i2{5} == equal", (u2{5} <=> i2{5}) == ord::equal);
+    TEST("u2{5} <=> i2{-1} == less", // i2{-1} promotes to u2{2^128-1} -> u2{5} < that
+         (u2{5} <=> i2{-1}) == ord::less);
+    TEST("i2{-1} <=> u2{5} == greater", (i2{-1} <=> u2{5}) == ord::greater);
 
     // ---- Cross-sign cross-N where signed wins (N(signed) > N(unsigned)) ----
-    TEST("i4{-1} <=> u2{5} == less",      // mixed_iu_t<4,2> = i4; i4{-1} < i4{5}
-                                          (i4{-1} <=> u2{5})  == ord::less);
-    TEST("u2{5} <=> i4{-1} == greater",   (u2{5}  <=> i4{-1}) == ord::greater);
+    TEST("i4{-1} <=> u2{5} == less", // mixed_iu_t<4,2> = i4; i4{-1} < i4{5}
+         (i4{-1} <=> u2{5}) == ord::less);
+    TEST("u2{5} <=> i4{-1} == greater", (u2{5} <=> i4{-1}) == ord::greater);
     TEST("i4{100} <=> u2{50} == greater", (i4{100} <=> u2{50}) == ord::greater);
 
     // ---- Cross-sign cross-N where unsigned wins (N(unsigned) >= N(signed)) ----
-    TEST("i2{5} <=> u4{5} == equal",      (i2{5} <=> u4{5})   == ord::equal);
-    TEST("i1{-1} <=> u4{0} == greater",   // i1{-1} promotes to u4{2^256-1}
-                                          (i1{-1} <=> u4{0})  == ord::greater);
+    TEST("i2{5} <=> u4{5} == equal", (i2{5} <=> u4{5}) == ord::equal);
+    TEST("i1{-1} <=> u4{0} == greater", // i1{-1} promotes to u4{2^256-1}
+         (i1{-1} <=> u4{0}) == ord::greater);
 
     // ---- Return type is std::strong_ordering ----
-    static_assert(std::is_same_v<decltype(u2{0} <=> u2{0}),     ord>);
-    static_assert(std::is_same_v<decltype(i2{0} <=> i2{0}),     ord>);
-    static_assert(std::is_same_v<decltype(u2{0} <=> u4{0}),     ord>);
-    static_assert(std::is_same_v<decltype(i2{0} <=> u4{0}),     ord>);
-    static_assert(std::is_same_v<decltype(u4{0} <=> i2{0}),     ord>);
+    static_assert(std::is_same_v<decltype(u2{0} <=> u2{0}), ord>);
+    static_assert(std::is_same_v<decltype(i2{0} <=> i2{0}), ord>);
+    static_assert(std::is_same_v<decltype(u2{0} <=> u4{0}), ord>);
+    static_assert(std::is_same_v<decltype(i2{0} <=> u4{0}), ord>);
+    static_assert(std::is_same_v<decltype(u4{0} <=> i2{0}), ord>);
 
     // ---- constexpr: <=> works at compile time ----
     static_assert((u2{1} <=> u2{2}) == ord::less);
@@ -768,16 +813,16 @@ static void test_three_way()
     static_assert((u2{5} <=> i2{5}) == ord::equal);
 
     // ---- Coexistence: manual operators still work the same ----
-    TEST("u2{1} < u2{2} still works",     u2{1}  <  u2{2});
-    TEST("u2{1} <= u2{1} still works",    u2{1}  <= u2{1});
-    TEST("u2{5} > u2{4} still works",     u2{5}  >  u2{4});
-    TEST("u2{5} >= u2{5} still works",    u2{5}  >= u2{5});
-    TEST("u2{5} == u2{5} still works",    u2{5}  == u2{5});
-    TEST("u2{5} != u2{4} still works",    u2{5}  != u2{4});
+    TEST("u2{1} < u2{2} still works", u2{1} < u2{2});
+    TEST("u2{1} <= u2{1} still works", u2{1} <= u2{1});
+    TEST("u2{5} > u2{4} still works", u2{5} > u2{4});
+    TEST("u2{5} >= u2{5} still works", u2{5} >= u2{5});
+    TEST("u2{5} == u2{5} still works", u2{5} == u2{5});
+    TEST("u2{5} != u2{4} still works", u2{5} != u2{4});
 
     // ---- Cross-sign manual operators still work (no regression) ----
-    TEST("u2{5} < i4{10} (manual) ",      u2{5}  < i4{10});
-    TEST("i4{-1} == u2{...} via manual",  i4{-1} != u2{0});
+    TEST("u2{5} < i4{10} (manual) ", u2{5} < i4{10});
+    TEST("i4{-1} == u2{...} via manual", i4{-1} != u2{0});
 }
 
 // =============================================================================
@@ -808,9 +853,12 @@ static void test_edge_cases_cross_sign()
 
     // ----- A. Sign extension across cross-sign cross-N promotion -----
     // i1{-1} stored as data[0] = 2^64-1. Promoted to u2 (sign-extends): u2 = 2^128-1.
-    TEST("static_cast<u2>(i1{-1}) == u2::max()", static_cast<u2>(i1{-1}) == u2{std::numeric_limits<u2>::max()});
-    TEST("static_cast<u4>(i1{-1}) == u4::max()", static_cast<u4>(i1{-1}) == u4{std::numeric_limits<u4>::max()});
-    TEST("static_cast<u4>(i2{-1}) == u4::max()", static_cast<u4>(i2{-1}) == u4{std::numeric_limits<u4>::max()});
+    TEST("static_cast<u2>(i1{-1}) == u2::max()",
+         static_cast<u2>(i1{-1}) == u2{std::numeric_limits<u2>::max()});
+    TEST("static_cast<u4>(i1{-1}) == u4::max()",
+         static_cast<u4>(i1{-1}) == u4{std::numeric_limits<u4>::max()});
+    TEST("static_cast<u4>(i2{-1}) == u4::max()",
+         static_cast<u4>(i2{-1}) == u4{std::numeric_limits<u4>::max()});
     // i1{-2} promotes to u4 as ...FFFE (all ones except low bit)
     TEST("static_cast<u4>(i1{-2}) == u4::max()-1",
          static_cast<u4>(i1{-2}) == std::numeric_limits<u4>::max() - u4{1});
@@ -818,17 +866,14 @@ static void test_edge_cases_cross_sign()
     TEST("static_cast<u4>(i1{5}) == u4{5}", static_cast<u4>(i1{5}) == u4{5});
 
     // ----- B. Wraparound at type boundaries -----
-    TEST("u2::max() + 1 == u2{0} (modular)",
-         std::numeric_limits<u2>::max() + u2{1} == u2{0});
-    TEST("u2{0} - 1 == u2::max()",
-         u2{0} - u2{1} == std::numeric_limits<u2>::max());
+    TEST("u2::max() + 1 == u2{0} (modular)", std::numeric_limits<u2>::max() + u2{1} == u2{0});
+    TEST("u2{0} - 1 == u2::max()", u2{0} - u2{1} == std::numeric_limits<u2>::max());
     TEST("i2::max() + 1 == i2::min() (TC wrap)",
          std::numeric_limits<i2>::max() + i2{1} == std::numeric_limits<i2>::min());
     TEST("i2::min() - 1 == i2::max() (TC wrap)",
          std::numeric_limits<i2>::min() - i2{1} == std::numeric_limits<i2>::max());
     // -INT_MIN wraps back to INT_MIN in 2's complement (classic).
-    TEST("-i2::min() == i2::min()",
-         -std::numeric_limits<i2>::min() == std::numeric_limits<i2>::min());
+    TEST("-i2::min() == i2::min()", -std::numeric_limits<i2>::min() == std::numeric_limits<i2>::min());
     // INT_MIN * -1 — same wraparound.
     TEST("i2::min() * i2{-1} == i2::min()",
          std::numeric_limits<i2>::min() * i2{-1} == std::numeric_limits<i2>::min());
@@ -837,19 +882,15 @@ static void test_edge_cases_cross_sign()
     // i2::max() + u2{1}: mixed_iu_t<2,2> = u2. i2::max() = 2^127-1; +1 = 2^127.
     {
         const u2 expected = u2{1} << u1{127};
-        TEST("i2::max() + u2{1} == 2^127",
-             std::numeric_limits<i2>::max() + u2{1} == expected);
+        TEST("i2::max() + u2{1} == 2^127", std::numeric_limits<i2>::max() + u2{1} == expected);
     }
     // i2{-1} + u2::max(): i2{-1} -> u2{2^128-1}; +u2{2^128-1} wraps to u2{2^128-2}.
     TEST("i2{-1} + u2::max() == u2::max()-1",
-         i2{-1} + std::numeric_limits<u2>::max()
-             == std::numeric_limits<u2>::max() - u2{1});
+         i2{-1} + std::numeric_limits<u2>::max() == std::numeric_limits<u2>::max() - u2{1});
     // u2::max() - i2{-1}: i2{-1} -> u2::max; max - max = 0.
-    TEST("u2::max() - i2{-1} == u2{0}",
-         std::numeric_limits<u2>::max() - i2{-1} == u2{0});
+    TEST("u2::max() - i2{-1} == u2{0}", std::numeric_limits<u2>::max() - i2{-1} == u2{0});
     // u2{0} + i2{-1}: -> u2::max
-    TEST("u2{0} + i2{-1} == u2::max()",
-         u2{0} + i2{-1} == std::numeric_limits<u2>::max());
+    TEST("u2{0} + i2{-1} == u2::max()", u2{0} + i2{-1} == std::numeric_limits<u2>::max());
     // Cross-N where signed wins: i4 + u2 -> i4.
     TEST("i4::min() + u2{1} == i4::min()+1",
          std::numeric_limits<i4>::min() + u2{1} == std::numeric_limits<i4>::min() + i4{1});
@@ -858,26 +899,18 @@ static void test_edge_cases_cross_sign()
 
     // ----- D. Cross-sign comparison at extremes — the "negative-vs-unsigned" gotcha -----
     // (int)INT_MIN < (unsigned)0  is FALSE in C++. Same here for mixed_iu_t<N,N>=u.
-    TEST("i2::min() > u2{0} (gotcha)",
-         std::numeric_limits<i2>::min() > u2{0});
-    TEST("i2::min() == u2{1<<127}",
-         std::numeric_limits<i2>::min() == (u2{1} << u1{127}));
+    TEST("i2::min() > u2{0} (gotcha)", std::numeric_limits<i2>::min() > u2{0});
+    TEST("i2::min() == u2{1<<127}", std::numeric_limits<i2>::min() == (u2{1} << u1{127}));
     // i4::min() vs u2: i4 wins (mixed_iu_t<4,2>=i4). u2::max() < i4::max() (positive),
     // and i4::min() is far below 0. So i4::min() < u2::max().
-    TEST("i4::min() < u2::max()",
-         std::numeric_limits<i4>::min() < std::numeric_limits<u2>::max());
-    TEST("i4::max() > u2::max()",
-         std::numeric_limits<i4>::max() > std::numeric_limits<u2>::max());
+    TEST("i4::min() < u2::max()", std::numeric_limits<i4>::min() < std::numeric_limits<u2>::max());
+    TEST("i4::max() > u2::max()", std::numeric_limits<i4>::max() > std::numeric_limits<u2>::max());
     // Sign-extended -1 equals all-ones uint of higher rank.
-    TEST("i1{-1} == u4::max() (sign ext)",
-         i1{-1} == std::numeric_limits<u4>::max());
-    TEST("i2{-1} == u4::max() (sign ext)",
-         i2{-1} == std::numeric_limits<u4>::max());
+    TEST("i1{-1} == u4::max() (sign ext)", i1{-1} == std::numeric_limits<u4>::max());
+    TEST("i2{-1} == u4::max() (sign ext)", i2{-1} == std::numeric_limits<u4>::max());
     // Manual operators still consistent at boundary.
-    TEST("i2::max() < u2::max() (manual)",
-         std::numeric_limits<i2>::max() < std::numeric_limits<u2>::max());
-    TEST("i2{-1} != u2{0} (manual)",
-         i2{-1} != u2{0});
+    TEST("i2::max() < u2::max() (manual)", std::numeric_limits<i2>::max() < std::numeric_limits<u2>::max());
+    TEST("i2{-1} != u2{0} (manual)", i2{-1} != u2{0});
 
     // ----- E. Cross-sign division/modulo with extremes -----
     // i2::min() / i2{-1}: classic TC overflow. Our impl wraps to i2::min().
@@ -886,8 +919,7 @@ static void test_edge_cases_cross_sign()
     // u2::max() / u2{2} == 2^127 - 1 (truncating)
     TEST("u2::max() / u2{2} == (1<<127) - 1",
          std::numeric_limits<u2>::max() / u2{2} == (u2{1} << u1{127}) - u2{1});
-    TEST("u2::max() % u2{2} == u2{1}",
-         std::numeric_limits<u2>::max() % u2{2} == u2{1});
+    TEST("u2::max() % u2{2} == u2{1}", std::numeric_limits<u2>::max() % u2{2} == u2{1});
     // i2{-10} / u2{3}: mixed_iu_t<2,2>=u2. i2{-10}->u2{huge}; huge / 3 = some big value.
     // Just check it's not zero and the type is u2.
     {
@@ -902,8 +934,7 @@ static void test_edge_cases_cross_sign()
     TEST("u2::max() <=> u2::min() == greater",
          (std::numeric_limits<u2>::max() <=> std::numeric_limits<u2>::min()) == ord::greater);
     // Cross-sign at extreme: i2::min() vs u2{0} via <=> -> greater (gotcha holds here too).
-    TEST("i2::min() <=> u2{0} == greater",
-         (std::numeric_limits<i2>::min() <=> u2{0}) == ord::greater);
+    TEST("i2::min() <=> u2{0} == greater", (std::numeric_limits<i2>::min() <=> u2{0}) == ord::greater);
     // i4::min() vs u4::min(): mixed_iu_t<4,4>=u4. i4::min->u4{2^255}. > u4{0}.
     TEST("i4::min() <=> u4::min() == greater",
          (std::numeric_limits<i4>::min() <=> std::numeric_limits<u4>::min()) == ord::greater);
@@ -922,8 +953,7 @@ static void test_edge_cases_cross_sign()
     TEST("u2::max() >> u2{1} == (1<<127)-1",
          (std::numeric_limits<u2>::max() >> u2{1}) == (u2{1} << u1{127}) - u2{1});
     // Out-of-range shift via signed negative count: maps to huge unsigned -> 0
-    TEST("u2{42} << i2{-1} == u2{0}",
-         (u2{42} << i2{-1}) == u2{0});
+    TEST("u2{42} << i2{-1} == u2{0}", (u2{42} << i2{-1}) == u2{0});
 }
 
 // =============================================================================

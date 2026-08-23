@@ -19,7 +19,8 @@
 // @version    1.0.0
 // =============================================================================
 
-#pragma once
+#ifndef INT128_ALGORITHMS_KARATSUBA_HPP
+#define INT128_ALGORITHMS_KARATSUBA_HPP
 
 #include "int128_parameterized.hpp"
 
@@ -50,16 +51,10 @@ namespace nstd
             constexpr bool operator!=(const uint256_result &other) const noexcept = default;
 
             /// Lower 128 bits as uint128_t
-            inline uint128_t low128() const noexcept
-            {
-                return uint128_t{limbs[1], limbs[0]};
-            }
+            inline uint128_t low128() const noexcept { return uint128_t{limbs[1], limbs[0]}; }
 
             /// Upper 128 bits as uint128_t
-            inline uint128_t high128() const noexcept
-            {
-                return uint128_t{limbs[3], limbs[2]};
-            }
+            inline uint128_t high128() const noexcept { return uint128_t{limbs[3], limbs[2]}; }
 
             /// Check if zero
             constexpr bool is_zero() const noexcept
@@ -173,10 +168,12 @@ namespace nstd
 
             // Step 3: 65-bit sums with carry
             const uint64_t s_a{a_L + a_H};
-            const unsigned char c_a{(s_a < a_L) ? static_cast<unsigned char>(1) : static_cast<unsigned char>(0)};
+            const unsigned char c_a{(s_a < a_L) ? static_cast<unsigned char>(1)
+                                                : static_cast<unsigned char>(0)};
 
             const uint64_t s_b{b_L + b_H};
-            const unsigned char c_b{(s_b < b_L) ? static_cast<unsigned char>(1) : static_cast<unsigned char>(0)};
+            const unsigned char c_b{(s_b < b_L) ? static_cast<unsigned char>(1)
+                                                : static_cast<unsigned char>(0)};
 
             // Step 4: core product s_core = s_a * s_b (128-bit part)
             uint64_t sc_H{0};
@@ -240,3 +237,5 @@ namespace nstd
 
     } // namespace algorithms
 } // namespace nstd
+
+#endif // INT128_ALGORITHMS_KARATSUBA_HPP

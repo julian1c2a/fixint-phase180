@@ -144,8 +144,7 @@ namespace nstd
      * @note For EK: ⚠️ Convert to TC first for semantic correctness
      */
     template <signedness S, representation_form F>
-    constexpr int128_param_t<S, F> gcd(const int128_param_t<S, F> &a,
-                                       const int128_param_t<S, F> &b) noexcept
+    constexpr int128_param_t<S, F> gcd(const int128_param_t<S, F> &a, const int128_param_t<S, F> &b) noexcept
     {
         // Work with absolute values
         auto u = abs(a);
@@ -238,8 +237,7 @@ namespace nstd
      * @note For EK: ⚠️ Convert to TC first for semantic correctness
      */
     template <signedness S, representation_form F>
-    constexpr int128_param_t<S, F> lcm(const int128_param_t<S, F> &a,
-                                       const int128_param_t<S, F> &b) noexcept
+    constexpr int128_param_t<S, F> lcm(const int128_param_t<S, F> &a, const int128_param_t<S, F> &b) noexcept
     {
         // Work with absolute values
         const auto abs_a = abs(a);
@@ -329,8 +327,7 @@ namespace nstd
      * @pre exponent >= 0
      */
     template <signedness S, representation_form F>
-    constexpr int128_param_t<S, F> pow(const int128_param_t<S, F> &base,
-                                       unsigned int exponent) noexcept
+    constexpr int128_param_t<S, F> pow(const int128_param_t<S, F> &base, unsigned int exponent) noexcept
     {
         if (exponent == 0)
         {

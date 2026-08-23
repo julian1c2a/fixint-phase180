@@ -19,8 +19,8 @@ int main()
 {
     std::cout << "====================================================================\n";
     std::cout << "Sweep Bitwise Tests (3-region systematic coverage)\n";
-    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS
-              << " = " << SWEEP_REGION_SIZE << " values per region\n";
+    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS << " = " << SWEEP_REGION_SIZE
+              << " values per region\n";
     std::cout << "====================================================================\n\n";
 
     int passed{0};
@@ -34,36 +34,24 @@ int main()
 
     // a & b == b & a
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return a & b; },
-            [](const uint128_t &a, const uint128_t &b)
-            { return b & a; },
-            "and_commutativity"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return a & b; },
+                     [](const uint128_t &a, const uint128_t &b) { return b & a; }, "and_commutativity"))
     {
         ++passed;
     }
 
     // a | b == b | a
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return a | b; },
-            [](const uint128_t &a, const uint128_t &b)
-            { return b | a; },
-            "or_commutativity"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return a | b; },
+                     [](const uint128_t &a, const uint128_t &b) { return b | a; }, "or_commutativity"))
     {
         ++passed;
     }
 
     // a ^ b == b ^ a
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return a ^ b; },
-            [](const uint128_t &a, const uint128_t &b)
-            { return b ^ a; },
-            "xor_commutativity"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return a ^ b; },
+                     [](const uint128_t &a, const uint128_t &b) { return b ^ a; }, "xor_commutativity"))
     {
         ++passed;
     }
@@ -78,84 +66,56 @@ int main()
 
     // ~~a == a (complement involution)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return ~(~a); },
-            [](const uint128_t &a)
-            { return a; },
-            "not_involution"))
+    if (sweep_unary([](const uint128_t &a) { return ~(~a); }, [](const uint128_t &a) { return a; },
+                    "not_involution"))
     {
         ++passed;
     }
 
     // a ^ a == 0
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a ^ a; },
-            [](const uint128_t &)
-            { return uint128_t{0ULL}; },
-            "xor_self_zero"))
+    if (sweep_unary([](const uint128_t &a) { return a ^ a; },
+                    [](const uint128_t &) { return uint128_t{0ULL}; }, "xor_self_zero"))
     {
         ++passed;
     }
 
     // a & a == a (idempotent)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a & a; },
-            [](const uint128_t &a)
-            { return a; },
-            "and_self_idempotent"))
+    if (sweep_unary([](const uint128_t &a) { return a & a; }, [](const uint128_t &a) { return a; },
+                    "and_self_idempotent"))
     {
         ++passed;
     }
 
     // a | a == a (idempotent)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a | a; },
-            [](const uint128_t &a)
-            { return a; },
-            "or_self_idempotent"))
+    if (sweep_unary([](const uint128_t &a) { return a | a; }, [](const uint128_t &a) { return a; },
+                    "or_self_idempotent"))
     {
         ++passed;
     }
 
     // a & MAX == a
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a & uint128_t::max(); },
-            [](const uint128_t &a)
-            { return a; },
-            "and_max_identity"))
+    if (sweep_unary([](const uint128_t &a) { return a & uint128_t::max(); },
+                    [](const uint128_t &a) { return a; }, "and_max_identity"))
     {
         ++passed;
     }
 
     // a | 0 == a
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a | uint128_t{0ULL}; },
-            [](const uint128_t &a)
-            { return a; },
-            "or_zero_identity"))
+    if (sweep_unary([](const uint128_t &a) { return a | uint128_t{0ULL}; },
+                    [](const uint128_t &a) { return a; }, "or_zero_identity"))
     {
         ++passed;
     }
 
     // a ^ 0 == a
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a)
-            { return a ^ uint128_t{0ULL}; },
-            [](const uint128_t &a)
-            { return a; },
-            "xor_zero_identity"))
+    if (sweep_unary([](const uint128_t &a) { return a ^ uint128_t{0ULL}; },
+                    [](const uint128_t &a) { return a; }, "xor_zero_identity"))
     {
         ++passed;
     }
@@ -170,24 +130,16 @@ int main()
 
     // ~(a & b) == (~a) | (~b)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return ~(a & b); },
-            [](const uint128_t &a, const uint128_t &b)
-            { return (~a) | (~b); },
-            "de_morgan_and"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return ~(a & b); },
+                     [](const uint128_t &a, const uint128_t &b) { return (~a) | (~b); }, "de_morgan_and"))
     {
         ++passed;
     }
 
     // ~(a | b) == (~a) & (~b)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return ~(a | b); },
-            [](const uint128_t &a, const uint128_t &b)
-            { return (~a) & (~b); },
-            "de_morgan_or"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return ~(a | b); },
+                     [](const uint128_t &a, const uint128_t &b) { return (~a) & (~b); }, "de_morgan_or"))
     {
         ++passed;
     }
@@ -202,24 +154,22 @@ int main()
 
     // a ^ b ^ b == a (XOR cancel)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return a ^ b ^ b; },
-            [](const uint128_t &a, const uint128_t &b)
-            { (void)b; return a; },
-            "xor_cancel"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return a ^ b ^ b; },
+                     [](const uint128_t &a, const uint128_t &b)
+                     {
+                         (void)b;
+                         return a;
+                     },
+                     "xor_cancel"))
     {
         ++passed;
     }
 
     // a ^ b == (a | b) & ~(a & b) (XOR definition)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b)
-            { return a ^ b; },
-            [](const uint128_t &a, const uint128_t &b)
-            { return (a | b) & ~(a & b); },
-            "xor_definition"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) { return a ^ b; },
+                     [](const uint128_t &a, const uint128_t &b) { return (a | b) & ~(a & b); },
+                     "xor_definition"))
     {
         ++passed;
     }
@@ -234,28 +184,18 @@ int main()
 
     // popcount(a) + popcount(~a) == 128
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a) -> int
-            { return a.count_ones() + (~a).count_ones(); },
-            [](const uint128_t &) -> int
-            { return 128; },
-            "popcount_complement_sum"))
+    if (sweep_unary([](const uint128_t &a) -> int { return a.count_ones() + (~a).count_ones(); },
+                    [](const uint128_t &) -> int { return 128; }, "popcount_complement_sum"))
     {
         ++passed;
     }
 
     // popcount(a & b) + popcount(a | b) == popcount(a) + popcount(b)
     ++total;
-    if (sweep_binary(
-            [](const uint128_t &a, const uint128_t &b) -> int
-            {
-                return (a & b).count_ones() + (a | b).count_ones();
-            },
-            [](const uint128_t &a, const uint128_t &b) -> int
-            {
-                return a.count_ones() + b.count_ones();
-            },
-            "popcount_and_or_sum"))
+    if (sweep_binary([](const uint128_t &a, const uint128_t &b) -> int
+                     { return (a & b).count_ones() + (a | b).count_ones(); },
+                     [](const uint128_t &a, const uint128_t &b) -> int
+                     { return a.count_ones() + b.count_ones(); }, "popcount_and_or_sum"))
     {
         ++passed;
     }

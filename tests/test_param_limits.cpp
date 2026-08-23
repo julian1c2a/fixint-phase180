@@ -36,9 +36,9 @@ int main()
     {
         using Limits = std::numeric_limits<uint128_t>;
 
-        if (Limits::is_specialized && !Limits::is_signed && Limits::is_integer &&
-            Limits::is_exact && Limits::is_bounded && Limits::is_modulo &&
-            Limits::digits == 128 && Limits::digits10 == 38 && Limits::radix == 2)
+        if (Limits::is_specialized && !Limits::is_signed && Limits::is_integer && Limits::is_exact &&
+            Limits::is_bounded && Limits::is_modulo && Limits::digits == 128 && Limits::digits10 == 38 &&
+            Limits::radix == 2)
         {
             std::cout << "  [OK] binnat_traits\n";
             TEST_PASS();
@@ -74,8 +74,7 @@ int main()
     {
         using Limits = std::numeric_limits<uint128_t>;
 
-        if ((Limits::epsilon() == uint128_t{0, 0}) &&
-            (Limits::infinity() == uint128_t{0, 0}) &&
+        if ((Limits::epsilon() == uint128_t{0, 0}) && (Limits::infinity() == uint128_t{0, 0}) &&
             (Limits::quiet_NaN() == uint128_t{0, 0}))
         {
             std::cout << "  [OK] binnat_special_values\n";
@@ -99,9 +98,8 @@ int main()
     {
         using Limits = std::numeric_limits<int128_tc_t>;
 
-        if (Limits::is_specialized && Limits::is_signed && Limits::is_integer &&
-            Limits::is_exact && Limits::is_bounded && !Limits::is_modulo &&
-            Limits::digits == 127 && Limits::digits10 == 38)
+        if (Limits::is_specialized && Limits::is_signed && Limits::is_integer && Limits::is_exact &&
+            Limits::is_bounded && !Limits::is_modulo && Limits::digits == 127 && Limits::digits10 == 38)
         {
             std::cout << "  [OK] tc_traits\n";
             TEST_PASS();
@@ -121,8 +119,7 @@ int main()
         const auto max_val{Limits::max()};
 
         // TC: min = -2^127 = 0x8000...0000, max = 2^127-1 = 0x7FFF...FFFF
-        if ((min_val == int128_tc_t{1ULL << 63, 0}) &&
-            (max_val == int128_tc_t{(1ULL << 63) - 1, ~0ULL}) &&
+        if ((min_val == int128_tc_t{1ULL << 63, 0}) && (max_val == int128_tc_t{(1ULL << 63) - 1, ~0ULL}) &&
             (Limits::lowest() == min_val))
         {
             std::cout << "  [OK] tc_min_max\n";
@@ -139,8 +136,7 @@ int main()
     {
         using Limits = std::numeric_limits<int128_tc_t>;
 
-        if ((Limits::epsilon() == int128_tc_t{0, 0}) &&
-            (Limits::infinity() == int128_tc_t{0, 0}) &&
+        if ((Limits::epsilon() == int128_tc_t{0, 0}) && (Limits::infinity() == int128_tc_t{0, 0}) &&
             (Limits::quiet_NaN() == int128_tc_t{0, 0}))
         {
             std::cout << "  [OK] tc_special_values\n";
@@ -164,9 +160,8 @@ int main()
     {
         using Limits = std::numeric_limits<int128_ms_t>;
 
-        if (Limits::is_specialized && Limits::is_signed && Limits::is_integer &&
-            Limits::is_exact && Limits::is_bounded && !Limits::is_modulo &&
-            Limits::digits == 127 && Limits::digits10 == 38)
+        if (Limits::is_specialized && Limits::is_signed && Limits::is_integer && Limits::is_exact &&
+            Limits::is_bounded && !Limits::is_modulo && Limits::digits == 127 && Limits::digits10 == 38)
         {
             std::cout << "  [OK] ms_traits\n";
             TEST_PASS();
@@ -190,8 +185,7 @@ int main()
         const int128_ms_t expected_min{(1ULL << 63) | ((1ULL << 63) - 1), ~0ULL};
         const int128_ms_t expected_max{(1ULL << 63) - 1, ~0ULL};
 
-        if ((min_val == expected_min) && (max_val == expected_max) &&
-            (Limits::lowest() == min_val))
+        if ((min_val == expected_min) && (max_val == expected_max) && (Limits::lowest() == min_val))
         {
             std::cout << "  [OK] ms_min_max\n";
             TEST_PASS();
@@ -207,8 +201,7 @@ int main()
     {
         using Limits = std::numeric_limits<int128_ms_t>;
 
-        if ((Limits::epsilon() == int128_ms_t{0, 0}) &&
-            (Limits::infinity() == int128_ms_t{0, 0}) &&
+        if ((Limits::epsilon() == int128_ms_t{0, 0}) && (Limits::infinity() == int128_ms_t{0, 0}) &&
             (Limits::quiet_NaN() == int128_ms_t{0, 0}))
         {
             std::cout << "  [OK] ms_special_values\n";
@@ -232,9 +225,8 @@ int main()
     {
         using Limits = std::numeric_limits<int128_ek_t>;
 
-        if (Limits::is_specialized && Limits::is_signed && Limits::is_integer &&
-            Limits::is_exact && Limits::is_bounded && !Limits::is_modulo &&
-            Limits::digits == 126 && Limits::digits10 == 37)
+        if (Limits::is_specialized && Limits::is_signed && Limits::is_integer && Limits::is_exact &&
+            Limits::is_bounded && !Limits::is_modulo && Limits::digits == 126 && Limits::digits10 == 37)
         {
             std::cout << "  [OK] ek_traits\n";
             TEST_PASS();
@@ -254,8 +246,7 @@ int main()
         const auto max_val{Limits::max()};
 
         // EK: min = -2^126 (stored as 0), max = 2^126-1 (stored as 2^127-1)
-        if ((min_val == int128_ek_t{0, 0}) &&
-            (max_val == int128_ek_t{(1ULL << 63) - 1, ~0ULL}) &&
+        if ((min_val == int128_ek_t{0, 0}) && (max_val == int128_ek_t{(1ULL << 63) - 1, ~0ULL}) &&
             (Limits::lowest() == min_val))
         {
             std::cout << "  [OK] ek_min_max\n";
@@ -272,8 +263,7 @@ int main()
     {
         using Limits = std::numeric_limits<int128_ek_t>;
 
-        if ((Limits::epsilon() == int128_ek_t{0, 0}) &&
-            (Limits::infinity() == int128_ek_t{0, 0}) &&
+        if ((Limits::epsilon() == int128_ek_t{0, 0}) && (Limits::infinity() == int128_ek_t{0, 0}) &&
             (Limits::quiet_NaN() == int128_ek_t{0, 0}))
         {
             std::cout << "  [OK] ek_special_values\n";
@@ -394,9 +384,12 @@ int main()
     // Test 6.4: lowest() == min() for all integer types
     {
         const bool bn_ok{std::numeric_limits<uint128_t>::lowest() == std::numeric_limits<uint128_t>::min()};
-        const bool tc_ok{std::numeric_limits<int128_tc_t>::lowest() == std::numeric_limits<int128_tc_t>::min()};
-        const bool ms_ok{std::numeric_limits<int128_ms_t>::lowest() == std::numeric_limits<int128_ms_t>::min()};
-        const bool ek_ok{std::numeric_limits<int128_ek_t>::lowest() == std::numeric_limits<int128_ek_t>::min()};
+        const bool tc_ok{std::numeric_limits<int128_tc_t>::lowest() ==
+                         std::numeric_limits<int128_tc_t>::min()};
+        const bool ms_ok{std::numeric_limits<int128_ms_t>::lowest() ==
+                         std::numeric_limits<int128_ms_t>::min()};
+        const bool ek_ok{std::numeric_limits<int128_ek_t>::lowest() ==
+                         std::numeric_limits<int128_ek_t>::min()};
         if (bn_ok && tc_ok && ms_ok && ek_ok)
         {
             std::cout << "  [OK] lowest_equals_min_all_types\n";
@@ -451,10 +444,8 @@ int main()
 
     // Test 7.2: all types have same radix (2)
     {
-        if (std::numeric_limits<uint128_t>::radix == 2 &&
-            std::numeric_limits<int128_tc_t>::radix == 2 &&
-            std::numeric_limits<int128_ms_t>::radix == 2 &&
-            std::numeric_limits<int128_ek_t>::radix == 2)
+        if (std::numeric_limits<uint128_t>::radix == 2 && std::numeric_limits<int128_tc_t>::radix == 2 &&
+            std::numeric_limits<int128_ms_t>::radix == 2 && std::numeric_limits<int128_ek_t>::radix == 2)
         {
             std::cout << "  [OK] all_radix_2\n";
             TEST_PASS();
@@ -507,19 +498,18 @@ int main()
 
     // Test 8.1: no infinity/NaN for any type
     {
-        const bool ok{
-            !std::numeric_limits<uint128_t>::has_infinity &&
-            !std::numeric_limits<uint128_t>::has_quiet_NaN &&
-            !std::numeric_limits<uint128_t>::has_signaling_NaN &&
-            !std::numeric_limits<int128_tc_t>::has_infinity &&
-            !std::numeric_limits<int128_tc_t>::has_quiet_NaN &&
-            !std::numeric_limits<int128_tc_t>::has_signaling_NaN &&
-            !std::numeric_limits<int128_ms_t>::has_infinity &&
-            !std::numeric_limits<int128_ms_t>::has_quiet_NaN &&
-            !std::numeric_limits<int128_ms_t>::has_signaling_NaN &&
-            !std::numeric_limits<int128_ek_t>::has_infinity &&
-            !std::numeric_limits<int128_ek_t>::has_quiet_NaN &&
-            !std::numeric_limits<int128_ek_t>::has_signaling_NaN};
+        const bool ok{!std::numeric_limits<uint128_t>::has_infinity &&
+                      !std::numeric_limits<uint128_t>::has_quiet_NaN &&
+                      !std::numeric_limits<uint128_t>::has_signaling_NaN &&
+                      !std::numeric_limits<int128_tc_t>::has_infinity &&
+                      !std::numeric_limits<int128_tc_t>::has_quiet_NaN &&
+                      !std::numeric_limits<int128_tc_t>::has_signaling_NaN &&
+                      !std::numeric_limits<int128_ms_t>::has_infinity &&
+                      !std::numeric_limits<int128_ms_t>::has_quiet_NaN &&
+                      !std::numeric_limits<int128_ms_t>::has_signaling_NaN &&
+                      !std::numeric_limits<int128_ek_t>::has_infinity &&
+                      !std::numeric_limits<int128_ek_t>::has_quiet_NaN &&
+                      !std::numeric_limits<int128_ek_t>::has_signaling_NaN};
         if (ok)
         {
             std::cout << "  [OK] no_infinity_nan_all_types\n";
@@ -534,11 +524,10 @@ int main()
 
     // Test 8.2: no denorm for any type
     {
-        const bool ok{
-            std::numeric_limits<uint128_t>::has_denorm == std::denorm_absent &&
-            std::numeric_limits<int128_tc_t>::has_denorm == std::denorm_absent &&
-            std::numeric_limits<int128_ms_t>::has_denorm == std::denorm_absent &&
-            std::numeric_limits<int128_ek_t>::has_denorm == std::denorm_absent};
+        const bool ok{std::numeric_limits<uint128_t>::has_denorm == std::denorm_absent &&
+                      std::numeric_limits<int128_tc_t>::has_denorm == std::denorm_absent &&
+                      std::numeric_limits<int128_ms_t>::has_denorm == std::denorm_absent &&
+                      std::numeric_limits<int128_ek_t>::has_denorm == std::denorm_absent};
         if (ok)
         {
             std::cout << "  [OK] denorm_absent_all_types\n";
@@ -554,10 +543,8 @@ int main()
     // Test 8.3: not IEC559 for any type
     {
         const bool ok{
-            !std::numeric_limits<uint128_t>::is_iec559 &&
-            !std::numeric_limits<int128_tc_t>::is_iec559 &&
-            !std::numeric_limits<int128_ms_t>::is_iec559 &&
-            !std::numeric_limits<int128_ek_t>::is_iec559};
+            !std::numeric_limits<uint128_t>::is_iec559 && !std::numeric_limits<int128_tc_t>::is_iec559 &&
+            !std::numeric_limits<int128_ms_t>::is_iec559 && !std::numeric_limits<int128_ek_t>::is_iec559};
         if (ok)
         {
             std::cout << "  [OK] not_iec559_all_types\n";
@@ -650,17 +637,16 @@ int main()
 
     // Test 10.1: all exponent values zero
     {
-        const bool ok{
-            std::numeric_limits<uint128_t>::min_exponent == 0 &&
-            std::numeric_limits<uint128_t>::max_exponent == 0 &&
-            std::numeric_limits<uint128_t>::min_exponent10 == 0 &&
-            std::numeric_limits<uint128_t>::max_exponent10 == 0 &&
-            std::numeric_limits<int128_tc_t>::min_exponent == 0 &&
-            std::numeric_limits<int128_tc_t>::max_exponent == 0 &&
-            std::numeric_limits<int128_ms_t>::min_exponent == 0 &&
-            std::numeric_limits<int128_ms_t>::max_exponent == 0 &&
-            std::numeric_limits<int128_ek_t>::min_exponent == 0 &&
-            std::numeric_limits<int128_ek_t>::max_exponent == 0};
+        const bool ok{std::numeric_limits<uint128_t>::min_exponent == 0 &&
+                      std::numeric_limits<uint128_t>::max_exponent == 0 &&
+                      std::numeric_limits<uint128_t>::min_exponent10 == 0 &&
+                      std::numeric_limits<uint128_t>::max_exponent10 == 0 &&
+                      std::numeric_limits<int128_tc_t>::min_exponent == 0 &&
+                      std::numeric_limits<int128_tc_t>::max_exponent == 0 &&
+                      std::numeric_limits<int128_ms_t>::min_exponent == 0 &&
+                      std::numeric_limits<int128_ms_t>::max_exponent == 0 &&
+                      std::numeric_limits<int128_ek_t>::min_exponent == 0 &&
+                      std::numeric_limits<int128_ek_t>::max_exponent == 0};
         if (ok)
         {
             std::cout << "  [OK] all_exponents_zero\n";
@@ -675,11 +661,10 @@ int main()
 
     // Test 10.2: max_digits10 == 0 for all integer types
     {
-        const bool ok{
-            std::numeric_limits<uint128_t>::max_digits10 == 0 &&
-            std::numeric_limits<int128_tc_t>::max_digits10 == 0 &&
-            std::numeric_limits<int128_ms_t>::max_digits10 == 0 &&
-            std::numeric_limits<int128_ek_t>::max_digits10 == 0};
+        const bool ok{std::numeric_limits<uint128_t>::max_digits10 == 0 &&
+                      std::numeric_limits<int128_tc_t>::max_digits10 == 0 &&
+                      std::numeric_limits<int128_ms_t>::max_digits10 == 0 &&
+                      std::numeric_limits<int128_ek_t>::max_digits10 == 0};
         if (ok)
         {
             std::cout << "  [OK] max_digits10_zero\n";

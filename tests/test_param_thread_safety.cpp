@@ -271,8 +271,8 @@ int main()
 
         // atomic_compare_exchange_strong
         int128_tc_t expected{0, 200};
-        const bool cas_success{nstd::atomic_compare_exchange_strong(
-            &atomic_val, &expected, int128_tc_t{0, 300})};
+        const bool cas_success{
+            nstd::atomic_compare_exchange_strong(&atomic_val, &expected, int128_tc_t{0, 300})};
         TEST("free_cas", cas_success && atomic_val.load().low() == 300);
 
         // atomic_fetch_add
@@ -298,11 +298,14 @@ int main()
 
         for (int i = 0; i < num_threads; ++i)
         {
-            threads.emplace_back([&counter]()
-                                 {
-                for (int j = 0; j < increments_per_thread; ++j) {
-                    ++counter;
-                } });
+            threads.emplace_back(
+                [&counter]()
+                {
+                    for (int j = 0; j < increments_per_thread; ++j)
+                    {
+                        ++counter;
+                    }
+                });
         }
 
         for (auto &t : threads)
@@ -332,15 +335,19 @@ int main()
 
         for (int i = 0; i < num_threads; ++i)
         {
-            threads.emplace_back([&counter]()
-                                 {
-                for (int j = 0; j < increments_per_thread; ++j) {
-                    int128_tc_t expected = counter.load();
-                    int128_tc_t desired;
-                    do {
-                        desired = expected + int128_tc_t{0, 1};
-                    } while (!counter.compare_exchange_weak(expected, desired));
-                } });
+            threads.emplace_back(
+                [&counter]()
+                {
+                    for (int j = 0; j < increments_per_thread; ++j)
+                    {
+                        int128_tc_t expected = counter.load();
+                        int128_tc_t desired;
+                        do
+                        {
+                            desired = expected + int128_tc_t{0, 1};
+                        } while (!counter.compare_exchange_weak(expected, desired));
+                    }
+                });
         }
 
         for (auto &t : threads)

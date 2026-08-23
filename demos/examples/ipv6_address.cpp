@@ -115,10 +115,8 @@ int main()
     std::cout << std::endl;
 
     // Address comparison
-    std::cout << "loopback > unspecified: "
-              << (loopback > unspecified ? "true" : "false") << std::endl;
-    std::cout << "loopback == loopback:   "
-              << (loopback == loopback ? "true" : "false") << std::endl;
+    std::cout << "loopback > unspecified: " << (loopback > unspecified ? "true" : "false") << std::endl;
+    std::cout << "loopback == loopback:   " << (loopback == loopback ? "true" : "false") << std::endl;
     std::cout << std::endl;
 
     std::cout << "[OK] IPv6 example complete." << std::endl;

@@ -57,9 +57,9 @@ static inline std::uint64_t rdtsc()
 #include <chrono>
 static inline std::uint64_t rdtsc()
 {
-    return static_cast<std::uint64_t>(
-        std::chrono::duration_cast<std::chrono::nanoseconds>(
-            std::chrono::steady_clock::now().time_since_epoch()).count());
+    return static_cast<std::uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                          std::chrono::steady_clock::now().time_since_epoch())
+                                          .count());
 }
 #endif
 
@@ -91,10 +91,7 @@ public:
 
     void reset() { start_ = rdtsc(); }
 
-    std::uint64_t elapsed_cycles() const
-    {
-        return rdtsc() - start_;
-    }
+    std::uint64_t elapsed_cycles() const { return rdtsc() - start_; }
 };
 
 // ============================================================================
@@ -110,8 +107,7 @@ static void doNotOptimize(T &val)
 #if defined(_MSC_VER) || defined(__INTEL_LLVM_COMPILER)
     // MSVC/Intel-Windows: read+write one byte through volatile pointer.
     // Forces the compiler to actually compute val (can't be eliminated).
-    *reinterpret_cast<char volatile *>(&val) =
-        *reinterpret_cast<char volatile *>(&val);
+    *reinterpret_cast<char volatile *>(&val) = *reinterpret_cast<char volatile *>(&val);
 #elif defined(__clang__)
     // Clang: "+r,m" works well -- Clang chooses memory operands for structs,
     // which avoids register shuffling.
@@ -163,14 +159,11 @@ static void print_header(const char *operation)
 static void print_result(const BenchResult &r, double baseline_cyc)
 {
     const double ratio{(baseline_cyc > 0.0) ? r.cycles_per_op / baseline_cyc : 0.0};
-    std::cout << "| " << std::left << std::setw(29) << r.name << " | "
-              << std::right << std::fixed << std::setprecision(2) << std::setw(12) << r.cycles_per_op << " | "
-              << std::fixed << std::setprecision(2) << std::setw(6) << ratio << "x   |\n";
+    std::cout << "| " << std::left << std::setw(29) << r.name << " | " << std::right << std::fixed
+              << std::setprecision(2) << std::setw(12) << r.cycles_per_op << " | " << std::fixed
+              << std::setprecision(2) << std::setw(6) << ratio << "x   |\n";
 }
 
-static void print_footer()
-{
-    print_separator();
-}
+static void print_footer() { print_separator(); }
 
 #endif // BENCH_COMMON_HPP

@@ -48,8 +48,7 @@ class SplitMix64
     std::uint64_t state_;
 
 public:
-    explicit constexpr SplitMix64(std::uint64_t seed) noexcept
-        : state_{seed} {}
+    explicit constexpr SplitMix64(std::uint64_t seed) noexcept : state_{seed} {}
 
     constexpr std::uint64_t next() noexcept
     {
@@ -85,8 +84,7 @@ struct TestRegion
     }
 
     // Region 3: Random intermediate values (deterministic PRNG)
-    static nstd::uint128_t random_region(std::uint64_t index,
-                                         std::uint64_t seed = SWEEP_FIXED_SEED) noexcept
+    static nstd::uint128_t random_region(std::uint64_t index, std::uint64_t seed = SWEEP_FIXED_SEED) noexcept
     {
         // Each index produces a unique 128-bit value via 2 PRNG calls
         SplitMix64 rng{seed + index * 2};
@@ -134,19 +132,18 @@ struct BinaryEdgeCase
 };
 
 static const std::array<BinaryEdgeCase, 12> BINARY_EDGE_CASES{{
-    {nstd::uint128_t{0ULL}, nstd::uint128_t{0ULL}},                  // (0, 0)
-    {nstd::uint128_t{0ULL}, nstd::uint128_t::max()},                 // (0, MAX)
-    {nstd::uint128_t::max(), nstd::uint128_t::max()},                // (MAX, MAX)
-    {nstd::uint128_t{1ULL}, nstd::uint128_t::max()},                 // (1, MAX)
-    {nstd::uint128_t::max(), nstd::uint128_t{1ULL}},                 // (MAX, 1)
-    {nstd::uint128_t{0xFFFFFFFFFFFFFFFFULL}, nstd::uint128_t{1ULL}}, // (2^64-1, 1)
-    {nstd::uint128_t{1ULL, 0ULL}, nstd::uint128_t{1ULL, 0ULL}},      // (2^64, 2^64)
-    {nstd::uint128_t{1ULL}, nstd::uint128_t{1ULL}},                  // (1, 1)
-    {nstd::uint128_t{0xFFFFFFFFFFFFFFFFULL},
-     nstd::uint128_t{0xFFFFFFFFFFFFFFFFULL}},                              // (2^64-1, 2^64-1)
-    {nstd::uint128_t{0x8000000000000000ULL, 0ULL}, nstd::uint128_t{1ULL}}, // (2^127, 1)
-    {nstd::uint128_t{42ULL}, nstd::uint128_t{0ULL}},                       // (42, 0) - neutral/absorbing
-    {nstd::uint128_t{0ULL}, nstd::uint128_t{42ULL}},                       // (0, 42) - neutral/absorbing
+    {nstd::uint128_t{0ULL}, nstd::uint128_t{0ULL}},                                   // (0, 0)
+    {nstd::uint128_t{0ULL}, nstd::uint128_t::max()},                                  // (0, MAX)
+    {nstd::uint128_t::max(), nstd::uint128_t::max()},                                 // (MAX, MAX)
+    {nstd::uint128_t{1ULL}, nstd::uint128_t::max()},                                  // (1, MAX)
+    {nstd::uint128_t::max(), nstd::uint128_t{1ULL}},                                  // (MAX, 1)
+    {nstd::uint128_t{0xFFFFFFFFFFFFFFFFULL}, nstd::uint128_t{1ULL}},                  // (2^64-1, 1)
+    {nstd::uint128_t{1ULL, 0ULL}, nstd::uint128_t{1ULL, 0ULL}},                       // (2^64, 2^64)
+    {nstd::uint128_t{1ULL}, nstd::uint128_t{1ULL}},                                   // (1, 1)
+    {nstd::uint128_t{0xFFFFFFFFFFFFFFFFULL}, nstd::uint128_t{0xFFFFFFFFFFFFFFFFULL}}, // (2^64-1, 2^64-1)
+    {nstd::uint128_t{0x8000000000000000ULL, 0ULL}, nstd::uint128_t{1ULL}},            // (2^127, 1)
+    {nstd::uint128_t{42ULL}, nstd::uint128_t{0ULL}}, // (42, 0) - neutral/absorbing
+    {nstd::uint128_t{0ULL}, nstd::uint128_t{42ULL}}, // (0, 42) - neutral/absorbing
 }};
 
 // ============================================================================
@@ -164,17 +161,11 @@ struct SweepResult
 static void print_sweep_result(const SweepResult &r)
 {
     const char *status{(r.fail == 0) ? "[OK]" : "[FAIL]"};
-    std::cout << "  " << std::left << std::setw(30) << r.name
-              << " " << status
-              << "  pass=" << r.pass
-              << "  fail=" << r.fail
-              << "  total=" << r.total << "\n";
+    std::cout << "  " << std::left << std::setw(30) << r.name << " " << status << "  pass=" << r.pass
+              << "  fail=" << r.fail << "  total=" << r.total << "\n";
 }
 
-static void print_sweep_separator()
-{
-    std::cout << "  " << std::string(70, '-') << "\n";
-}
+static void print_sweep_separator() { std::cout << "  " << std::string(70, '-') << "\n"; }
 
 // ============================================================================
 // sweep_unary: Test a unary function f(x) across all 3 regions + edge cases
@@ -288,16 +279,11 @@ bool sweep_binary(G &&func, Oracle &&oracle, const char *name)
     // Use a different seed offset for y-generation so x != y in random regions
     constexpr std::uint64_t SEED_Y_OFFSET{0x0123456789ABCDEFULL};
 
-    const auto rand_x = [](std::uint64_t i)
-    { return TestRegion::random_region(i); };
+    const auto rand_x = [](std::uint64_t i) { return TestRegion::random_region(i); };
     const auto rand_y = [](std::uint64_t i)
-    {
-        return TestRegion::random_region(i, SWEEP_FIXED_SEED + 0x0123456789ABCDEFULL);
-    };
-    const auto first = [](std::uint64_t i)
-    { return TestRegion::first_region(i); };
-    const auto last = [](std::uint64_t i)
-    { return TestRegion::last_region(i); };
+    { return TestRegion::random_region(i, SWEEP_FIXED_SEED + 0x0123456789ABCDEFULL); };
+    const auto first = [](std::uint64_t i) { return TestRegion::first_region(i); };
+    const auto last = [](std::uint64_t i) { return TestRegion::last_region(i); };
 
     // 6 region combinations
     sweep_pair(first, first, N);   // (first, first)

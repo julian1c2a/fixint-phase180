@@ -354,8 +354,10 @@ int main()
         assert(ms_pos_read == ms_pos_orig);
         assert(ms_neg_read == ms_neg_orig);
 
-        std::cout << "  OK: MS round-trip positive: 98765 -> " << oss_pos.str() << " -> " << ms_pos_read << "\n";
-        std::cout << "  OK: MS round-trip negative: -98765 -> " << oss_neg.str() << " -> " << ms_neg_read << "\n";
+        std::cout << "  OK: MS round-trip positive: 98765 -> " << oss_pos.str() << " -> " << ms_pos_read
+                  << "\n";
+        std::cout << "  OK: MS round-trip negative: -98765 -> " << oss_neg.str() << " -> " << ms_neg_read
+                  << "\n";
     }
 
     // ========================================================================
@@ -391,8 +393,10 @@ int main()
         assert(ek_neg_read == ek_neg_orig);
 
         std::cout << "  OK: EK round-trip zero: 0 -> " << oss_zero.str() << " -> " << ek_zero_read << "\n";
-        std::cout << "  OK: EK round-trip positive: 12345 -> " << oss_pos.str() << " -> " << ek_pos_read << "\n";
-        std::cout << "  OK: EK round-trip negative: -54321 -> " << oss_neg.str() << " -> " << ek_neg_read << "\n";
+        std::cout << "  OK: EK round-trip positive: 12345 -> " << oss_pos.str() << " -> " << ek_pos_read
+                  << "\n";
+        std::cout << "  OK: EK round-trip negative: -54321 -> " << oss_neg.str() << " -> " << ek_neg_read
+                  << "\n";
     }
 
     std::cout << "\nOK: All stream I/O tests passed!\n";

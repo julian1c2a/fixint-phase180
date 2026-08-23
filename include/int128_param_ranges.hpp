@@ -180,10 +180,7 @@ namespace nstd
             }
 
             /// @brief Calcula el rango (max - min)
-            constexpr int128_param_t<Sign, Form> range() const noexcept
-            {
-                return max_val - min_val;
-            }
+            constexpr int128_param_t<Sign, Form> range() const noexcept { return max_val - min_val; }
         };
 
         /**
@@ -248,7 +245,8 @@ namespace nstd
          * @return std::optional con el valor encontrado, o std::nullopt si no existe
          */
         template <signedness Sign, representation_form Form, typename InputIt, typename Pred>
-        constexpr std::optional<int128_param_t<Sign, Form>> find_first_if(InputIt first, InputIt last, Pred pred)
+        constexpr std::optional<int128_param_t<Sign, Form>> find_first_if(InputIt first, InputIt last,
+                                                                          Pred pred)
         {
             while (first != last)
             {
@@ -306,7 +304,8 @@ namespace nstd
          * @param op Operación unaria a aplicar
          * @return Iterador al final del rango de salida
          */
-        template <signedness Sign, representation_form Form, typename InputIt, typename OutputIt, typename UnaryOp>
+        template <signedness Sign, representation_form Form, typename InputIt, typename OutputIt,
+                  typename UnaryOp>
         constexpr OutputIt transform(InputIt first, InputIt last, OutputIt d_first, UnaryOp op)
         {
             while (first != last)
@@ -330,7 +329,8 @@ namespace nstd
          * @param pred Predicado que determina qué elementos copiar
          * @return Iterador al final del rango de salida
          */
-        template <signedness Sign, representation_form Form, typename InputIt, typename OutputIt, typename Pred>
+        template <signedness Sign, representation_form Form, typename InputIt, typename OutputIt,
+                  typename Pred>
         constexpr OutputIt copy_if(InputIt first, InputIt last, OutputIt d_first, Pred pred)
         {
             while (first != last)
@@ -362,7 +362,8 @@ namespace nstd
          * @return Resultado de la reducción
          */
         template <signedness Sign, representation_form Form, typename InputIt, typename BinaryOp>
-        constexpr int128_param_t<Sign, Form> reduce(InputIt first, InputIt last, int128_param_t<Sign, Form> init, BinaryOp op)
+        constexpr int128_param_t<Sign, Form> reduce(InputIt first, InputIt last,
+                                                    int128_param_t<Sign, Form> init, BinaryOp op)
         {
             while (first != last)
             {
@@ -385,10 +386,8 @@ namespace nstd
         constexpr int128_param_t<Sign, Form> sum(InputIt first, InputIt last)
         {
             return reduce<Sign, Form>(first, last, int128_param_t<Sign, Form>{0},
-                                      [](const int128_param_t<Sign, Form> &a, const int128_param_t<Sign, Form> &b)
-                                      {
-                                          return a + b;
-                                      });
+                                      [](const int128_param_t<Sign, Form> &a,
+                                         const int128_param_t<Sign, Form> &b) { return a + b; });
         }
 
         /**
@@ -405,10 +404,8 @@ namespace nstd
         constexpr int128_param_t<Sign, Form> product(InputIt first, InputIt last)
         {
             return reduce<Sign, Form>(first, last, int128_param_t<Sign, Form>{1},
-                                      [](const int128_param_t<Sign, Form> &a, const int128_param_t<Sign, Form> &b)
-                                      {
-                                          return a * b;
-                                      });
+                                      [](const int128_param_t<Sign, Form> &a,
+                                         const int128_param_t<Sign, Form> &b) { return a * b; });
         }
 
     } // namespace int128_ranges

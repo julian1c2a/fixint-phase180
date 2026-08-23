@@ -65,21 +65,16 @@ namespace nstd
     /// @brief Built-in integral OR fixed_int_t. Excludes `bool` to mirror typical
     ///        arithmetic use; users who want bool must add it explicitly.
     template <typename T>
-    concept integral
-        = (std::integral<T> && !std::is_same_v<std::remove_cv_t<T>, bool>)
-       || fixed_int_type<T>;
+    concept integral = (std::integral<T> && !std::is_same_v<std::remove_cv_t<T>, bool>) || fixed_int_type<T>;
 
     /// @brief Signed built-in integral OR signed fixed_int_t.
     template <typename T>
-    concept signed_integral
-        = std::signed_integral<T>
-       || signed_fixed_int_type<T>;
+    concept signed_integral = std::signed_integral<T> || signed_fixed_int_type<T>;
 
     /// @brief Unsigned built-in integral OR unsigned fixed_int_t. Excludes `bool`.
     template <typename T>
-    concept unsigned_integral
-        = (std::unsigned_integral<T> && !std::is_same_v<std::remove_cv_t<T>, bool>)
-       || unsigned_fixed_int_type<T>;
+    concept unsigned_integral = (std::unsigned_integral<T> && !std::is_same_v<std::remove_cv_t<T>, bool>) ||
+                                unsigned_fixed_int_type<T>;
 
 #endif // !INT128_PARAM_CONCEPTS_HPP
 

@@ -254,16 +254,20 @@ namespace nstd
     // ===============================================================================
 
     // Binary Natural (unsigned)
-    NSTD_DEFINE_INT128_TRAITS(false, nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>)
+    NSTD_DEFINE_INT128_TRAITS(
+        false, nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>)
 
     // Two's Complement (signed)
-    NSTD_DEFINE_INT128_TRAITS(true, nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>)
+    NSTD_DEFINE_INT128_TRAITS(
+        true, nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>)
 
     // Magnitude-Sign (signed)
-    NSTD_DEFINE_INT128_TRAITS(true, nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>)
+    NSTD_DEFINE_INT128_TRAITS(
+        true, nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>)
 
     // Excess-K (signed)
-    NSTD_DEFINE_INT128_TRAITS(true, nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>)
+    NSTD_DEFINE_INT128_TRAITS(
+        true, nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>)
 
 #undef NSTD_DEFINE_INT128_TRAITS
 
@@ -296,10 +300,14 @@ namespace nstd
     };
 
     // Apply to all 4 core types: binnat (unsigned), TC/MS/EK (signed)
-    NSTD_DEFINE_INT128_ASSIGNABLE(nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>)
-    NSTD_DEFINE_INT128_ASSIGNABLE(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>)
-    NSTD_DEFINE_INT128_ASSIGNABLE(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>)
-    NSTD_DEFINE_INT128_ASSIGNABLE(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>)
+    NSTD_DEFINE_INT128_ASSIGNABLE(
+        nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>)
+    NSTD_DEFINE_INT128_ASSIGNABLE(
+        nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>)
+    NSTD_DEFINE_INT128_ASSIGNABLE(
+        nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>)
+    NSTD_DEFINE_INT128_ASSIGNABLE(
+        nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>)
 
 #undef NSTD_DEFINE_INT128_ASSIGNABLE
 
@@ -369,48 +377,59 @@ namespace nstd
 
     // Binary Natural (unsigned) <-> Two's Complement (signed)
     template <>
-    struct make_signed<nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>>
+    struct make_signed<
+        nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>>
     {
-        using type = nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>;
+        using type =
+            nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>;
     };
     template <>
-    struct make_unsigned<nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>>
+    struct make_unsigned<
+        nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>>
     {
         using type = nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>;
     };
 
     // Magnitude-Sign (signed) <-> Binary Natural (unsigned)
     template <>
-    struct make_unsigned<nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>>
+    struct make_unsigned<
+        nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>>
     {
         using type = nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>;
     };
 
     // Excess-K (signed) <-> Binary Natural (unsigned)
     template <>
-    struct make_unsigned<nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>>
+    struct make_unsigned<
+        nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>>
     {
         using type = nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>;
     };
 
     // Idempotent operations (signed → signed, unsigned → unsigned)
     template <>
-    struct make_signed<nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>>
+    struct make_signed<
+        nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>>
     {
-        using type = nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>;
+        using type =
+            nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>;
     };
     template <>
-    struct make_signed<nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>>
+    struct make_signed<
+        nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>>
     {
-        using type = nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>;
+        using type =
+            nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>;
     };
     template <>
-    struct make_signed<nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>>
+    struct make_signed<
+        nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>>
     {
         using type = nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>;
     };
     template <>
-    struct make_unsigned<nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>>
+    struct make_unsigned<
+        nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>>
     {
         using type = nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>;
     };
@@ -440,10 +459,14 @@ namespace nstd
         }                                                             \
     };
 
-    NSTD_DEFINE_INT128_HASH(nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>)
-    NSTD_DEFINE_INT128_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>)
-    NSTD_DEFINE_INT128_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>)
-    NSTD_DEFINE_INT128_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>)
+    NSTD_DEFINE_INT128_HASH(
+        nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>)
+    NSTD_DEFINE_INT128_HASH(
+        nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>)
+    NSTD_DEFINE_INT128_HASH(
+        nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>)
+    NSTD_DEFINE_INT128_HASH(
+        nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>)
 
 #undef NSTD_DEFINE_INT128_HASH
 
@@ -465,8 +488,10 @@ namespace nstd
     };
 
 NSTD_DEFINE_STD_HASH(nstd::int128_param_t<nstd::signedness::unsigned_type, nstd::representation_form::binnat>)
-NSTD_DEFINE_STD_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>)
-NSTD_DEFINE_STD_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>)
+NSTD_DEFINE_STD_HASH(
+    nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>)
+NSTD_DEFINE_STD_HASH(
+    nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::magnitude_sign>)
 NSTD_DEFINE_STD_HASH(nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::excess_k>)
 
 #undef NSTD_DEFINE_STD_HASH

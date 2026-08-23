@@ -122,8 +122,7 @@ namespace nstd
         /**
          * @brief Construct from high and low parts
          */
-        constexpr atomic_int128_param_t(std::uint64_t high, std::uint64_t low) noexcept
-            : value_{high, low} {}
+        constexpr atomic_int128_param_t(std::uint64_t high, std::uint64_t low) noexcept : value_{high, low} {}
 
         // Disable copy/move (atomics are not copyable)
         atomic_int128_param_t(const atomic_int128_param_t &) = delete;
@@ -152,8 +151,7 @@ namespace nstd
          * @param val New value to store
          * @param order Memory order (default: seq_cst)
          */
-        void store(const value_type &val,
-                   std::memory_order order = std::memory_order_seq_cst) noexcept
+        void store(const value_type &val, std::memory_order order = std::memory_order_seq_cst) noexcept
         {
             (void)order; // Memory order parameter for API compatibility
             std::lock_guard<std::mutex> lock{mtx_};
@@ -193,10 +191,8 @@ namespace nstd
          * @param order Memory order (default: seq_cst)
          * @return True if exchange succeeded
          */
-        bool compare_exchange_strong(
-            value_type &expected,
-            const value_type &desired,
-            std::memory_order order = std::memory_order_seq_cst) noexcept
+        bool compare_exchange_strong(value_type &expected, const value_type &desired,
+                                     std::memory_order order = std::memory_order_seq_cst) noexcept
         {
             (void)order; // Memory order parameter for API compatibility
             std::lock_guard<std::mutex> lock{mtx_};
@@ -223,10 +219,8 @@ namespace nstd
          * @param order Memory order (default: seq_cst)
          * @return True if exchange succeeded (or spuriously failed)
          */
-        bool compare_exchange_weak(
-            value_type &expected,
-            const value_type &desired,
-            std::memory_order order = std::memory_order_seq_cst) noexcept
+        bool compare_exchange_weak(value_type &expected, const value_type &desired,
+                                   std::memory_order order = std::memory_order_seq_cst) noexcept
         {
             // For mutex-based implementation, weak == strong
             return compare_exchange_strong(expected, desired, order);
@@ -435,10 +429,7 @@ namespace nstd
          * @brief Check if always lock-free
          * @return False (mutex-based implementation)
          */
-        static constexpr bool is_always_lock_free() noexcept
-        {
-            return false;
-        }
+        static constexpr bool is_always_lock_free() noexcept { return false; }
     };
 
     // =============================================================================
@@ -446,20 +437,18 @@ namespace nstd
     // =============================================================================
 
     /// @brief Atomic unsigned 128-bit integer (binnat)
-    using atomic_uint128_t = atomic_int128_param_t<signedness::unsigned_type,
-                                                   representation_form::binnat>;
+    using atomic_uint128_t = atomic_int128_param_t<signedness::unsigned_type, representation_form::binnat>;
 
     /// @brief Atomic signed 128-bit integer (Two's Complement)
-    using atomic_int128_tc_t = atomic_int128_param_t<signedness::signed_type,
-                                                     representation_form::twos_complement>;
+    using atomic_int128_tc_t =
+        atomic_int128_param_t<signedness::signed_type, representation_form::twos_complement>;
 
     /// @brief Atomic signed 128-bit integer (Magnitude-Sign)
-    using atomic_int128_ms_t = atomic_int128_param_t<signedness::signed_type,
-                                                     representation_form::magnitude_sign>;
+    using atomic_int128_ms_t =
+        atomic_int128_param_t<signedness::signed_type, representation_form::magnitude_sign>;
 
     /// @brief Atomic signed 128-bit integer (Excess-K)
-    using atomic_int128_ek_t = atomic_int128_param_t<signedness::signed_type,
-                                                     representation_form::excess_k>;
+    using atomic_int128_ek_t = atomic_int128_param_t<signedness::signed_type, representation_form::excess_k>;
 
     /// @brief Default atomic 128-bit integer (TC for compatibility)
     using atomic_int128_t = atomic_int128_tc_t;
@@ -472,8 +461,7 @@ namespace nstd
      * @brief Atomically load value (free function API)
      */
     template <signedness Sign, representation_form Form>
-    inline int128_param_t<Sign, Form> atomic_load(
-        const atomic_int128_param_t<Sign, Form> *obj) noexcept
+    inline int128_param_t<Sign, Form> atomic_load(const atomic_int128_param_t<Sign, Form> *obj) noexcept
     {
         return obj->load();
     }
@@ -482,9 +470,8 @@ namespace nstd
      * @brief Atomically store value (free function API)
      */
     template <signedness Sign, representation_form Form>
-    inline void atomic_store(
-        atomic_int128_param_t<Sign, Form> *obj,
-        const int128_param_t<Sign, Form> &val) noexcept
+    inline void atomic_store(atomic_int128_param_t<Sign, Form> *obj,
+                             const int128_param_t<Sign, Form> &val) noexcept
     {
         obj->store(val);
     }
@@ -493,9 +480,8 @@ namespace nstd
      * @brief Atomically exchange value (free function API)
      */
     template <signedness Sign, representation_form Form>
-    inline int128_param_t<Sign, Form> atomic_exchange(
-        atomic_int128_param_t<Sign, Form> *obj,
-        const int128_param_t<Sign, Form> &val) noexcept
+    inline int128_param_t<Sign, Form> atomic_exchange(atomic_int128_param_t<Sign, Form> *obj,
+                                                      const int128_param_t<Sign, Form> &val) noexcept
     {
         return obj->exchange(val);
     }
@@ -504,10 +490,9 @@ namespace nstd
      * @brief Atomically compare-and-swap (free function API)
      */
     template <signedness Sign, representation_form Form>
-    inline bool atomic_compare_exchange_strong(
-        atomic_int128_param_t<Sign, Form> *obj,
-        int128_param_t<Sign, Form> *expected,
-        const int128_param_t<Sign, Form> &desired) noexcept
+    inline bool atomic_compare_exchange_strong(atomic_int128_param_t<Sign, Form> *obj,
+                                               int128_param_t<Sign, Form> *expected,
+                                               const int128_param_t<Sign, Form> &desired) noexcept
     {
         return obj->compare_exchange_strong(*expected, desired);
     }
@@ -516,9 +501,8 @@ namespace nstd
      * @brief Atomically fetch-and-add (free function API)
      */
     template <signedness Sign, representation_form Form>
-    inline int128_param_t<Sign, Form> atomic_fetch_add(
-        atomic_int128_param_t<Sign, Form> *obj,
-        const int128_param_t<Sign, Form> &val) noexcept
+    inline int128_param_t<Sign, Form> atomic_fetch_add(atomic_int128_param_t<Sign, Form> *obj,
+                                                       const int128_param_t<Sign, Form> &val) noexcept
     {
         return obj->fetch_add(val);
     }
@@ -527,9 +511,8 @@ namespace nstd
      * @brief Atomically fetch-and-sub (free function API)
      */
     template <signedness Sign, representation_form Form>
-    inline int128_param_t<Sign, Form> atomic_fetch_sub(
-        atomic_int128_param_t<Sign, Form> *obj,
-        const int128_param_t<Sign, Form> &val) noexcept
+    inline int128_param_t<Sign, Form> atomic_fetch_sub(atomic_int128_param_t<Sign, Form> *obj,
+                                                       const int128_param_t<Sign, Form> &val) noexcept
     {
         return obj->fetch_sub(val);
     }
@@ -538,9 +521,8 @@ namespace nstd
      * @brief Atomically fetch-and-AND (free function API)
      */
     template <signedness Sign, representation_form Form>
-    inline int128_param_t<Sign, Form> atomic_fetch_and(
-        atomic_int128_param_t<Sign, Form> *obj,
-        const int128_param_t<Sign, Form> &val) noexcept
+    inline int128_param_t<Sign, Form> atomic_fetch_and(atomic_int128_param_t<Sign, Form> *obj,
+                                                       const int128_param_t<Sign, Form> &val) noexcept
     {
         return obj->fetch_and(val);
     }
@@ -549,9 +531,8 @@ namespace nstd
      * @brief Atomically fetch-and-OR (free function API)
      */
     template <signedness Sign, representation_form Form>
-    inline int128_param_t<Sign, Form> atomic_fetch_or(
-        atomic_int128_param_t<Sign, Form> *obj,
-        const int128_param_t<Sign, Form> &val) noexcept
+    inline int128_param_t<Sign, Form> atomic_fetch_or(atomic_int128_param_t<Sign, Form> *obj,
+                                                      const int128_param_t<Sign, Form> &val) noexcept
     {
         return obj->fetch_or(val);
     }
@@ -560,9 +541,8 @@ namespace nstd
      * @brief Atomically fetch-and-XOR (free function API)
      */
     template <signedness Sign, representation_form Form>
-    inline int128_param_t<Sign, Form> atomic_fetch_xor(
-        atomic_int128_param_t<Sign, Form> *obj,
-        const int128_param_t<Sign, Form> &val) noexcept
+    inline int128_param_t<Sign, Form> atomic_fetch_xor(atomic_int128_param_t<Sign, Form> *obj,
+                                                       const int128_param_t<Sign, Form> &val) noexcept
     {
         return obj->fetch_xor(val);
     }

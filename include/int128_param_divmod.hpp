@@ -19,7 +19,8 @@
 // @version    1.0.0
 // =============================================================================
 
-#pragma once
+#ifndef INT128_PARAM_DIVMOD_HPP
+#define INT128_PARAM_DIVMOD_HPP
 
 #include <cstdint>
 #include <array>
@@ -51,30 +52,15 @@ namespace nstd
             constexpr ce_uint128(uint64_t h, uint64_t l) noexcept : hi{h}, lo{l} {}
             constexpr explicit ce_uint128(uint64_t v) noexcept : hi{0}, lo{v} {}
 
-            constexpr bool operator==(const ce_uint128 &o) const noexcept
-            {
-                return hi == o.hi && lo == o.lo;
-            }
-            constexpr bool operator!=(const ce_uint128 &o) const noexcept
-            {
-                return !(*this == o);
-            }
+            constexpr bool operator==(const ce_uint128 &o) const noexcept { return hi == o.hi && lo == o.lo; }
+            constexpr bool operator!=(const ce_uint128 &o) const noexcept { return !(*this == o); }
             constexpr bool operator<(const ce_uint128 &o) const noexcept
             {
                 return hi < o.hi || (hi == o.hi && lo < o.lo);
             }
-            constexpr bool operator>=(const ce_uint128 &o) const noexcept
-            {
-                return !(*this < o);
-            }
-            constexpr bool operator>(const ce_uint128 &o) const noexcept
-            {
-                return o < *this;
-            }
-            constexpr bool operator<=(const ce_uint128 &o) const noexcept
-            {
-                return !(o < *this);
-            }
+            constexpr bool operator>=(const ce_uint128 &o) const noexcept { return !(*this < o); }
+            constexpr bool operator>(const ce_uint128 &o) const noexcept { return o < *this; }
+            constexpr bool operator<=(const ce_uint128 &o) const noexcept { return !(o < *this); }
 
             constexpr ce_uint128 operator+(const ce_uint128 &o) const noexcept
             {
@@ -290,10 +276,7 @@ namespace nstd
         }
 
         /// @brief Check if value is power of 2
-        constexpr bool is_pow2(uint64_t v) noexcept
-        {
-            return v > 0 && (v & (v - 1)) == 0;
-        }
+        constexpr bool is_pow2(uint64_t v) noexcept { return v > 0 && (v & (v - 1)) == 0; }
 
         // =====================================================================
         // GM Lookup Table [0..1023]
@@ -305,8 +288,7 @@ namespace nstd
 
         inline constexpr uint64_t GM_LOOKUP_MAX{1023};
 
-        inline constexpr std::array<gm_entry, GM_LOOKUP_MAX + 1> GM_TABLE =
-            []() constexpr
+        inline constexpr std::array<gm_entry, GM_LOOKUP_MAX + 1> GM_TABLE = []() constexpr
         {
             std::array<gm_entry, GM_LOOKUP_MAX + 1> table{};
             for (uint64_t d{3}; d <= GM_LOOKUP_MAX; ++d)
@@ -366,9 +348,8 @@ namespace nstd
 
         /// @brief Upper 128 bits of (n_hi:n_lo) * (m_hi:m_lo).
         /// Uses schoolbook 4-product decomposition with mul64_full.
-        static constexpr mulhi_result ce_mulhi_128(
-            uint64_t n_hi, uint64_t n_lo,
-            uint64_t m_hi, uint64_t m_lo) noexcept
+        static constexpr mulhi_result ce_mulhi_128(uint64_t n_hi, uint64_t n_lo, uint64_t m_hi,
+                                                   uint64_t m_lo) noexcept
         {
             // n*m = n_hi*m_hi * 2^128 + (n_hi*m_lo + n_lo*m_hi) * 2^64 + n_lo*m_lo
             // We need bits [255:128] of the 256-bit product.
@@ -428,9 +409,8 @@ namespace nstd
         // ~30-50 % performance gap vs handcoded fast_divN intrinsic versions.
         // =====================================================================
 
-        static constexpr mulhi_result rt_mulhi_128(
-            uint64_t n_hi, uint64_t n_lo,
-            uint64_t m_hi, uint64_t m_lo) noexcept
+        static constexpr mulhi_result rt_mulhi_128(uint64_t n_hi, uint64_t n_lo, uint64_t m_hi,
+                                                   uint64_t m_lo) noexcept
         {
             if (std::is_constant_evaluated())
                 return ce_mulhi_128(n_hi, n_lo, m_hi, m_lo);
@@ -444,15 +424,15 @@ namespace nstd
             const u128 p11{static_cast<u128>(n_hi) * m_hi};
 
             // Column 1 (bits 64-127): p00_hi + p01_lo + p10_lo
-            const u128 col1{static_cast<u128>(static_cast<uint64_t>(p00 >> 64))
-                          + static_cast<u128>(static_cast<uint64_t>(p01))
-                          + static_cast<u128>(static_cast<uint64_t>(p10))};
+            const u128 col1{static_cast<u128>(static_cast<uint64_t>(p00 >> 64)) +
+                            static_cast<u128>(static_cast<uint64_t>(p01)) +
+                            static_cast<u128>(static_cast<uint64_t>(p10))};
 
             // Column 2 (bits 128-191): p01_hi + p10_hi + p11_lo + carry_from_col1
-            const u128 col2{static_cast<u128>(static_cast<uint64_t>(p01 >> 64))
-                          + static_cast<u128>(static_cast<uint64_t>(p10 >> 64))
-                          + static_cast<u128>(static_cast<uint64_t>(p11))
-                          + static_cast<u128>(static_cast<uint64_t>(col1 >> 64))};
+            const u128 col2{static_cast<u128>(static_cast<uint64_t>(p01 >> 64)) +
+                            static_cast<u128>(static_cast<uint64_t>(p10 >> 64)) +
+                            static_cast<u128>(static_cast<uint64_t>(p11)) +
+                            static_cast<u128>(static_cast<uint64_t>(col1 >> 64))};
 
             return {static_cast<uint64_t>(p11 >> 64) + static_cast<uint64_t>(col2 >> 64),
                     static_cast<uint64_t>(col2)};
@@ -533,9 +513,7 @@ namespace nstd
 
         /// @brief GM division on raw 128-bit limbs using precomputed entry.
         /// Returns quotient as {hi, lo} pair.
-        static constexpr limb_pair gm_div_limbs(
-            uint64_t n_hi, uint64_t n_lo,
-            const gm_entry &entry) noexcept
+        static constexpr limb_pair gm_div_limbs(uint64_t n_hi, uint64_t n_lo, const gm_entry &entry) noexcept
         {
             // t = mulhi(n, M) — hardware MUL at runtime, constexpr fallback at compile time
             const auto [t_hi, t_lo]{rt_mulhi_128(n_hi, n_lo, entry.M_hi, entry.M_lo)};
@@ -572,8 +550,7 @@ namespace nstd
         // =====================================================================
 
         /// @brief Multiply 128-bit {hi,lo} by 64-bit scalar d. Returns low 128 bits.
-        static constexpr limb_pair mul_128_by_64(
-            uint64_t hi, uint64_t lo, uint64_t d) noexcept
+        static constexpr limb_pair mul_128_by_64(uint64_t hi, uint64_t lo, uint64_t d) noexcept
         {
             const auto [prod_lo_hi, prod_lo_lo]{mul64_full(lo, d)};
             const auto [prod_hi_hi, prod_hi_lo]{mul64_full(hi, d)};
@@ -584,9 +561,8 @@ namespace nstd
         }
 
         /// @brief Subtract two 128-bit limb pairs: a - b.
-        static constexpr limb_pair sub_128(
-            uint64_t a_hi, uint64_t a_lo,
-            uint64_t b_hi, uint64_t b_lo) noexcept
+        static constexpr limb_pair sub_128(uint64_t a_hi, uint64_t a_lo, uint64_t b_hi,
+                                           uint64_t b_lo) noexcept
         {
             const uint64_t borrow{(a_lo < b_lo) ? 1ULL : 0ULL};
             return {a_hi - b_hi - borrow, a_lo - b_lo};
@@ -594,3 +570,5 @@ namespace nstd
 
     } // namespace divmod_detail
 } // namespace nstd
+
+#endif // INT128_PARAM_DIVMOD_HPP

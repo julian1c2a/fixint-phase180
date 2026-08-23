@@ -40,8 +40,8 @@ static void check_str(const std::string &got, const std::string &expected, const
     }
     else
     {
-        std::cout << "[FAIL] " << label << ": expected=\"" << expected
-                  << "\" got=\"" << got << "\"" << std::endl;
+        std::cout << "[FAIL] " << label << ": expected=\"" << expected << "\" got=\"" << got << "\""
+                  << std::endl;
     }
 }
 
@@ -149,7 +149,8 @@ static void test_pow2_bases_boundary()
     }
 
     // 2^64 boundary (tests limb crossing)
-    check_str(two_64.to_string(2), "10000000000000000000000000000000000000000000000000000000000000000", "b2_two64");
+    check_str(two_64.to_string(2), "10000000000000000000000000000000000000000000000000000000000000000",
+              "b2_two64");
     check_str(two_64.to_string(16), "10000000000000000", "b16_two64");
     check_str(u64max.to_string(16), "FFFFFFFFFFFFFFFF", "b16_u64max");
 }
@@ -195,14 +196,16 @@ static void test_roundtrip_fromstring()
     // Decimal round-trip
     {
         const uint128_t vals[] = {
-            uint128_t{0}, uint128_t{1}, uint128_t{42}, uint128_t{255},
+            uint128_t{0},
+            uint128_t{1},
+            uint128_t{42},
+            uint128_t{255},
             uint128_t{0xFFFFFFFFFFFFFFFFull},
             uint128_t{1ull, 0ull},                                  // 2^64
             uint128_t{0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull} // MAX
         };
-        const char *labels[] = {
-            "rt_dec_0", "rt_dec_1", "rt_dec_42", "rt_dec_255",
-            "rt_dec_u64max", "rt_dec_2_64", "rt_dec_max128"};
+        const char *labels[] = {"rt_dec_0",      "rt_dec_1",    "rt_dec_42",    "rt_dec_255",
+                                "rt_dec_u64max", "rt_dec_2_64", "rt_dec_max128"};
         for (int i{0}; i < 7; ++i)
         {
             const std::string s{vals[i].to_string()};
@@ -213,14 +216,14 @@ static void test_roundtrip_fromstring()
 
     // Hex round-trip
     {
-        const uint128_t vals[] = {
-            uint128_t{0}, uint128_t{1}, uint128_t{0xFF},
-            uint128_t{0xDEADBEEF},
-            uint128_t{0xFFFFFFFFFFFFFFFFull},
-            uint128_t{0xABCDEF0123456789ull, 0xFEDCBA9876543210ull}};
-        const char *labels[] = {
-            "rt_hex_0", "rt_hex_1", "rt_hex_FF",
-            "rt_hex_DEADBEEF", "rt_hex_u64max", "rt_hex_large"};
+        const uint128_t vals[] = {uint128_t{0},
+                                  uint128_t{1},
+                                  uint128_t{0xFF},
+                                  uint128_t{0xDEADBEEF},
+                                  uint128_t{0xFFFFFFFFFFFFFFFFull},
+                                  uint128_t{0xABCDEF0123456789ull, 0xFEDCBA9876543210ull}};
+        const char *labels[] = {"rt_hex_0",        "rt_hex_1",      "rt_hex_FF",
+                                "rt_hex_DEADBEEF", "rt_hex_u64max", "rt_hex_large"};
         for (int i{0}; i < 6; ++i)
         {
             const std::string hex_str{"0x" + vals[i].to_string(16)};
@@ -231,12 +234,9 @@ static void test_roundtrip_fromstring()
 
     // Binary round-trip
     {
-        const uint128_t vals[] = {
-            uint128_t{0}, uint128_t{1}, uint128_t{0b10101010},
-            uint128_t{0xFFFF},
-            uint128_t{0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull}};
-        const char *labels[] = {
-            "rt_bin_0", "rt_bin_1", "rt_bin_AA", "rt_bin_FFFF", "rt_bin_max128"};
+        const uint128_t vals[] = {uint128_t{0}, uint128_t{1}, uint128_t{0b10101010}, uint128_t{0xFFFF},
+                                  uint128_t{0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull}};
+        const char *labels[] = {"rt_bin_0", "rt_bin_1", "rt_bin_AA", "rt_bin_FFFF", "rt_bin_max128"};
         for (int i{0}; i < 5; ++i)
         {
             const std::string bin_str{"0b" + vals[i].to_string(2)};
@@ -247,13 +247,11 @@ static void test_roundtrip_fromstring()
 
     // Octal round-trip
     {
-        const uint128_t vals[] = {
-            uint128_t{0}, uint128_t{1}, uint128_t{7}, uint128_t{8},
-            uint128_t{0777},
-            uint128_t{0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull}};
-        const char *labels[] = {
-            "rt_oct_0", "rt_oct_1", "rt_oct_7", "rt_oct_8",
-            "rt_oct_777", "rt_oct_max128"};
+        const uint128_t vals[] = {uint128_t{0},    uint128_t{1},
+                                  uint128_t{7},    uint128_t{8},
+                                  uint128_t{0777}, uint128_t{0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull}};
+        const char *labels[] = {"rt_oct_0", "rt_oct_1",   "rt_oct_7",
+                                "rt_oct_8", "rt_oct_777", "rt_oct_max128"};
         for (int i{0}; i < 6; ++i)
         {
             const std::string oct_str{"0" + vals[i].to_string(8)};
@@ -315,11 +313,10 @@ static void test_cstr_consistency()
 {
     std::cout << "\n--- to_cstr consistency ---\n";
 
-    const uint128_t vals[] = {
-        uint128_t{0}, uint128_t{1}, uint128_t{42}, uint128_t{255},
-        uint128_t{0xDEADBEEF}, uint128_t{0xFFFFFFFFFFFFFFFFull},
-        uint128_t{1ull, 0ull},
-        uint128_t{0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull}};
+    const uint128_t vals[] = {uint128_t{0},          uint128_t{1},
+                              uint128_t{42},         uint128_t{255},
+                              uint128_t{0xDEADBEEF}, uint128_t{0xFFFFFFFFFFFFFFFFull},
+                              uint128_t{1ull, 0ull}, uint128_t{0xFFFFFFFFFFFFFFFFull, 0xFFFFFFFFFFFFFFFFull}};
     const int bases[] = {2, 4, 8, 10, 16, 32};
 
     for (const auto &v : vals)
@@ -335,9 +332,8 @@ static void test_cstr_consistency()
             }
             else
             {
-                std::cout << "[FAIL] cstr_consistency val=" << v.to_string()
-                          << " base=" << b << " to_string=\"" << str
-                          << "\" to_cstr=\"" << cstr << "\"" << std::endl;
+                std::cout << "[FAIL] cstr_consistency val=" << v.to_string() << " base=" << b
+                          << " to_string=\"" << str << "\" to_cstr=\"" << cstr << "\"" << std::endl;
             }
         }
     }

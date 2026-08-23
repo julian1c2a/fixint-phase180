@@ -35,16 +35,16 @@
 #include <iostream>
 #include <string>
 
-using nstd::int_fixed_t;
-using nstd::uint_fixed_t;
 using nstd::int128_tc_t;
+using nstd::int_fixed_t;
 using nstd::uint128_t;
+using nstd::uint_fixed_t;
 using std::uint64_t;
 
-using u128n = uint_fixed_t<2>;  // new unsigned 128
-using i128n = int_fixed_t<2>;   // new signed 128 (two's complement)
-using u128o = uint128_t;         // old unsigned 128
-using i128o = int128_tc_t;       // old signed 128 (two's complement)
+using u128n = uint_fixed_t<2>; // new unsigned 128
+using i128n = int_fixed_t<2>;  // new signed 128 (two's complement)
+using u128o = uint128_t;       // old unsigned 128
+using i128o = int128_tc_t;     // old signed 128 (two's complement)
 
 // =============================================================================
 // Test framework
@@ -53,13 +53,13 @@ using i128o = int128_tc_t;       // old signed 128 (two's complement)
 static int g_passed{0};
 static int g_failed{0};
 
-#define TEST(name, cond)                               \
-    do                                                 \
-    {                                                  \
-        if (cond)                                      \
-        {                                              \
+#define TEST(name, cond)                              \
+    do                                                \
+    {                                                 \
+        if (cond)                                     \
+        {                                             \
             std::cout << "[OK]   " << (name) << "\n"; \
-            ++g_passed;                                \
+            ++g_passed;                               \
         }                                             \
         else                                          \
         {                                             \
@@ -95,36 +95,36 @@ static bool eq_i(const i128n &a, const i128o &b) { return a.data[0] == b.low() &
 // =============================================================================
 
 // Unsigned 128-bit values (raw hi:lo)
-constexpr val128 U0   {0, 0};
-constexpr val128 U1   {0, 1};
-constexpr val128 U2   {0, 2};
-constexpr val128 U42  {0, 42};
-constexpr val128 U100 {0, 100};
-constexpr val128 U7   {0, 7};
-constexpr val128 U64M {0, 0xFFFFFFFFFFFFFFFFULL};   // UINT64_MAX
-constexpr val128 U2P64{1, 0};                        // 2^64
-constexpr val128 U2P64P1{1, 1};                      // 2^64 + 1
-constexpr val128 U2P64P42{1, 42};                    // 2^64 + 42
-constexpr val128 UMAX1{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFEULL};  // UMAX-1
-constexpr val128 UMAX {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};  // UMAX
-constexpr val128 UHEX {0xDEADBEEF00000000ULL, 0x00000000CAFEBABE};     // mixed
-constexpr val128 UBIG {0x123456789ABCDEF0ULL, 0xFEDCBA9876543210ULL};  // large
+constexpr val128 U0{0, 0};
+constexpr val128 U1{0, 1};
+constexpr val128 U2{0, 2};
+constexpr val128 U42{0, 42};
+constexpr val128 U100{0, 100};
+constexpr val128 U7{0, 7};
+constexpr val128 U64M{0, 0xFFFFFFFFFFFFFFFFULL};                      // UINT64_MAX
+constexpr val128 U2P64{1, 0};                                         // 2^64
+constexpr val128 U2P64P1{1, 1};                                       // 2^64 + 1
+constexpr val128 U2P64P42{1, 42};                                     // 2^64 + 42
+constexpr val128 UMAX1{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFEULL}; // UMAX-1
+constexpr val128 UMAX{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};  // UMAX
+constexpr val128 UHEX{0xDEADBEEF00000000ULL, 0x00000000CAFEBABE};     // mixed
+constexpr val128 UBIG{0x123456789ABCDEF0ULL, 0xFEDCBA9876543210ULL};  // large
 
 // Signed 128-bit values (same raw bits, TC interpretation)
-constexpr val128 I0   {0, 0};
-constexpr val128 I1   {0, 1};
-constexpr val128 I2   {0, 2};
-constexpr val128 I7   {0, 7};
-constexpr val128 I42  {0, 42};
-constexpr val128 I100 {0, 100};
-constexpr val128 I64M {0, 0x7FFFFFFFFFFFFFFFULL};    // INT64_MAX (positive)
-constexpr val128 IMAX {0x7FFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};  // INT128_MAX
-constexpr val128 IMIN {0x8000000000000000ULL, 0};    // INT128_MIN
-constexpr val128 IM1  {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};  // -1
-constexpr val128 IM7  {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFF9ULL};  // -7
-constexpr val128 IM42 {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFD6ULL};  // -42
-constexpr val128 INEG {0xFFFFFFFFFFFFFFFFULL, 0};    // -2^64
-constexpr val128 IBIG {0x0123456789ABCDEFULL, 0xFEDCBA9876543210ULL};  // positive
+constexpr val128 I0{0, 0};
+constexpr val128 I1{0, 1};
+constexpr val128 I2{0, 2};
+constexpr val128 I7{0, 7};
+constexpr val128 I42{0, 42};
+constexpr val128 I100{0, 100};
+constexpr val128 I64M{0, 0x7FFFFFFFFFFFFFFFULL};                     // INT64_MAX (positive)
+constexpr val128 IMAX{0x7FFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}; // INT128_MAX
+constexpr val128 IMIN{0x8000000000000000ULL, 0};                     // INT128_MIN
+constexpr val128 IM1{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL};  // -1
+constexpr val128 IM7{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFF9ULL};  // -7
+constexpr val128 IM42{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFD6ULL}; // -42
+constexpr val128 INEG{0xFFFFFFFFFFFFFFFFULL, 0};                     // -2^64
+constexpr val128 IBIG{0x0123456789ABCDEFULL, 0xFEDCBA9876543210ULL}; // positive
 
 // =============================================================================
 // Section 0: Bridge validation
@@ -153,11 +153,9 @@ static void section1_unsigned_cmp()
 
     // Representative pairs: (a, b)
     const val128 pairs[][2] = {
-        {U0, U0},      {U0, U1},      {U1, U0},
-        {U42, U42},    {U42, U100},   {U100, U42},
-        {U64M, U2P64}, {U2P64, U64M}, {U2P64, U2P64P1},
-        {UMAX, UMAX},  {UMAX1, UMAX}, {UMAX, U0},
-        {UHEX, UBIG},  {UBIG, UHEX},
+        {U0, U0},      {U0, U1},      {U1, U0},      {U42, U42},       {U42, U100},
+        {U100, U42},   {U64M, U2P64}, {U2P64, U64M}, {U2P64, U2P64P1}, {UMAX, UMAX},
+        {UMAX1, UMAX}, {UMAX, U0},    {UHEX, UBIG},  {UBIG, UHEX},
     };
 
     for (const auto &p : pairs)
@@ -166,9 +164,9 @@ static void section1_unsigned_cmp()
         const auto oa = ou(p[0]), ob = ou(p[1]);
         TEST("u==", (na == nb) == (oa == ob));
         TEST("u!=", (na != nb) == (oa != ob));
-        TEST("u< ", (na <  nb) == (oa <  ob));
+        TEST("u< ", (na < nb) == (oa < ob));
         TEST("u<=", (na <= nb) == (oa <= ob));
-        TEST("u> ", (na >  nb) == (oa >  ob));
+        TEST("u> ", (na > nb) == (oa > ob));
         TEST("u>=", (na >= nb) == (oa >= ob));
     }
 }
@@ -182,12 +180,11 @@ static void section2_unsigned_arith()
     std::cout << "\n--- Section 2: Unsigned Arithmetic ---\n";
 
     const val128 add_pairs[][2] = {
-        {U0, U0}, {U0, U1}, {U1, U1}, {U42, U100},
-        {U64M, U1},          // carry into high limb
-        {U64M, U64M},        // carry + large
-        {U2P64, U42},        // add into high
-        {UMAX, U1},          // overflow wrap
-        {UMAX, UMAX},        // max+max
+        {U0, U0},     {U0, U1}, {U1, U1}, {U42, U100}, {U64M, U1}, // carry into high limb
+        {U64M, U64M},                                              // carry + large
+        {U2P64, U42},                                              // add into high
+        {UMAX, U1},                                                // overflow wrap
+        {UMAX, UMAX},                                              // max+max
         {UHEX, UBIG},
     };
     for (const auto &p : add_pairs)
@@ -197,19 +194,15 @@ static void section2_unsigned_arith()
     }
 
     const val128 mul_pairs[][2] = {
-        {U0, U42},       {U1, U42},    {U2, U100},
-        {U42, U100},     {U64M, U2},   {U64M, U64M},
-        {U2P64, U42},    {UHEX, U7},   {UBIG, U2},
-        {U2P64P1, U2P64P1},
+        {U0, U42},    {U1, U42},    {U2, U100}, {U42, U100}, {U64M, U2},
+        {U64M, U64M}, {U2P64, U42}, {UHEX, U7}, {UBIG, U2},  {U2P64P1, U2P64P1},
     };
     for (const auto &p : mul_pairs)
         TEST("u*", eq_u(nu(p[0]) * nu(p[1]), ou(p[0]) * ou(p[1])));
 
     const val128 div_pairs[][2] = {
-        {U0, U1},          {U42, U7},        {U100, U42},
-        {U64M, U2},        {U64M, U100},     {U2P64, U2},
-        {U2P64P42, U42},   {UMAX, U2P64},    {UMAX, U42},
-        {UHEX, U100},      {UBIG, U2P64P1},  {UBIG, U7},
+        {U0, U1},        {U42, U7},     {U100, U42}, {U64M, U2},   {U64M, U100},    {U2P64, U2},
+        {U2P64P42, U42}, {UMAX, U2P64}, {UMAX, U42}, {UHEX, U100}, {UBIG, U2P64P1}, {UBIG, U7},
     };
     for (const auto &p : div_pairs)
     {
@@ -232,9 +225,8 @@ static void section3_unsigned_bitwise()
     std::cout << "\n--- Section 3: Unsigned Bitwise ---\n";
 
     const val128 pairs[][2] = {
-        {U0, U0},    {U0, UMAX},   {UMAX, U0},    {UMAX, UMAX},
-        {U42, U100}, {U64M, U2P64},{U2P64, U64M}, {UHEX, UBIG},
-        {UBIG, UMAX},{U0, UBIG},
+        {U0, U0},      {U0, UMAX},    {UMAX, U0},   {UMAX, UMAX}, {U42, U100},
+        {U64M, U2P64}, {U2P64, U64M}, {UHEX, UBIG}, {UBIG, UMAX}, {U0, UBIG},
     };
 
     for (const auto &p : pairs)
@@ -314,9 +306,15 @@ static void section6_signed_ctor()
     std::cout << "\n--- Section 6: Signed Construction ---\n";
 
     // From int64_t
-    const std::int64_t ints[] = {0, 1, -1, 42, -42, 1000, -1000,
-                                  0x7FFFFFFFFFFFFFFFLL, // INT64_MAX
-                                  static_cast<std::int64_t>(0x8000000000000000ULL)}; // INT64_MIN
+    const std::int64_t ints[] = {0,
+                                 1,
+                                 -1,
+                                 42,
+                                 -42,
+                                 1000,
+                                 -1000,
+                                 0x7FFFFFFFFFFFFFFFLL,                              // INT64_MAX
+                                 static_cast<std::int64_t>(0x8000000000000000ULL)}; // INT64_MIN
     for (const auto v : ints)
     {
         const i128n n{v};
@@ -343,13 +341,8 @@ static void section7_signed_cmp()
     std::cout << "\n--- Section 7: Signed Comparison ---\n";
 
     const val128 pairs[][2] = {
-        {I0, I0},     {I0, I1},     {I1, I0},
-        {I42, I42},   {IM1, I0},    {I0, IM1},
-        {IM42, IM1},  {IM1, IM42},
-        {IMIN, IMAX}, {IMAX, IMIN},
-        {IMIN, I0},   {I0, IMIN},
-        {IMAX, I0},   {IM42, I42},
-        {INEG, IM1},  {IM1, INEG},
+        {I0, I0},     {I0, I1},     {I1, I0},   {I42, I42}, {IM1, I0},  {I0, IM1},   {IM42, IM1}, {IM1, IM42},
+        {IMIN, IMAX}, {IMAX, IMIN}, {IMIN, I0}, {I0, IMIN}, {IMAX, I0}, {IM42, I42}, {INEG, IM1}, {IM1, INEG},
     };
 
     for (const auto &p : pairs)
@@ -358,9 +351,9 @@ static void section7_signed_cmp()
         const auto oa = oi(p[0]), ob = oi(p[1]);
         TEST("i==", (na == nb) == (oa == ob));
         TEST("i!=", (na != nb) == (oa != ob));
-        TEST("i< ", (na <  nb) == (oa <  ob));
+        TEST("i< ", (na < nb) == (oa < ob));
         TEST("i<=", (na <= nb) == (oa <= ob));
-        TEST("i> ", (na >  nb) == (oa >  ob));
+        TEST("i> ", (na > nb) == (oa > ob));
         TEST("i>=", (na >= nb) == (oa >= ob));
     }
 }
@@ -374,14 +367,10 @@ static void section8_signed_arith()
     std::cout << "\n--- Section 8: Signed Arithmetic ---\n";
 
     const val128 add_pairs[][2] = {
-        {I0, I0},      {I0, I1},     {I1, IM1},
-        {I42, IM42},   {IM42, I42},
-        {I42, I42},    {IM1, IM1},
-        {IMAX, I1},    // overflow wrap
-        {IMIN, IM1},   // overflow wrap
-        {IMAX, IMAX},  {IMIN, IMIN},
-        {IBIG, IM42},  {IM42, IBIG},
-        {INEG, I42},
+        {I0, I0},     {I0, I1},     {I1, IM1},    {I42, IM42},  {IM42, I42},
+        {I42, I42},   {IM1, IM1},   {IMAX, I1}, // overflow wrap
+        {IMIN, IM1},                            // overflow wrap
+        {IMAX, IMAX}, {IMIN, IMIN}, {IBIG, IM42}, {IM42, IBIG}, {INEG, I42},
     };
     for (const auto &p : add_pairs)
     {
@@ -390,19 +379,15 @@ static void section8_signed_arith()
     }
 
     const val128 mul_pairs[][2] = {
-        {I0, I42},    {I1, I42},     {I42, IM1},
-        {IM1, I42},   {IM42, IM42},  {I42, I42},
-        {I64M, I2},   {IM42, I100},  {IBIG, I1},
-        {IBIG, IM1},  {IMIN, IM1},   // -MIN wraps back to MIN
+        {I0, I42},  {I1, I42},    {I42, IM1}, {IM1, I42},  {IM42, IM42}, {I42, I42},
+        {I64M, I2}, {IM42, I100}, {IBIG, I1}, {IBIG, IM1}, {IMIN, IM1}, // -MIN wraps back to MIN
     };
     for (const auto &p : mul_pairs)
         TEST("i*", eq_i(ni(p[0]) * ni(p[1]), oi(p[0]) * oi(p[1])));
 
     const val128 div_pairs[][2] = {
-        {I0, I1},      {I42, I7},       {IM42, I7},
-        {I42, IM7},    {IM42, IM7},
-        {IBIG, I42},   {IBIG, IM42},
-        {IMIN, IM1},   // -MIN / -1 = MIN (overflow wraps back)
+        {I0, I1},    {I42, I7},   {IM42, I7},   {I42, IM7},
+        {IM42, IM7}, {IBIG, I42}, {IBIG, IM42}, {IMIN, IM1}, // -MIN / -1 = MIN (overflow wraps back)
     };
     for (const auto &p : div_pairs)
     {

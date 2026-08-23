@@ -194,8 +194,7 @@ int main()
         const auto result{add_generic(a, b)};
 
         // Result should be int128_tc (signed, TC form)
-        TEST("generic_add_type",
-             (std::is_same_v<decltype(result), const int128_tc_t>));
+        TEST("generic_add_type", (std::is_same_v<decltype(result), const int128_tc_t>));
 
         TEST("generic_add_value", result.low() == 30);
 

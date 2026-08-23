@@ -49,8 +49,7 @@ namespace nstd
      * @complexity O(n) where n = std::distance(first, last)
      */
     template <signedness S, representation_form F, typename ForwardIt>
-    constexpr void fill(ForwardIt first, ForwardIt last,
-                        const int128_param_t<S, F> &value) noexcept
+    constexpr void fill(ForwardIt first, ForwardIt last, const int128_param_t<S, F> &value) noexcept
     {
         while (first != last)
         {
@@ -74,8 +73,7 @@ namespace nstd
      * @complexity O(n)
      */
     template <signedness S, representation_form F, typename OutputIt, typename Size>
-    constexpr OutputIt fill_n(OutputIt first, Size n,
-                              const int128_param_t<S, F> &value) noexcept
+    constexpr OutputIt fill_n(OutputIt first, Size n, const int128_param_t<S, F> &value) noexcept
     {
         for (Size i = 0; i < n; ++i)
         {
@@ -120,8 +118,7 @@ namespace nstd
      * @complexity O(n) where n = std::distance(first, last)
      */
     template <signedness S, representation_form F, typename InputIt>
-    constexpr InputIt find(InputIt first, InputIt last,
-                           const int128_param_t<S, F> &value) noexcept
+    constexpr InputIt find(InputIt first, InputIt last, const int128_param_t<S, F> &value) noexcept
     {
         while (first != last)
         {
@@ -337,8 +334,7 @@ namespace nstd
      * @note No overflow checking (wraps around)
      */
     template <signedness S, representation_form F, typename InputIt>
-    constexpr int128_param_t<S, F> accumulate(InputIt first, InputIt last,
-                                              int128_param_t<S, F> init) noexcept
+    constexpr int128_param_t<S, F> accumulate(InputIt first, InputIt last, int128_param_t<S, F> init) noexcept
     {
         while (first != last)
         {

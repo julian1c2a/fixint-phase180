@@ -22,8 +22,8 @@ int main()
 {
     std::cout << "====================================================================\n";
     std::cout << "Sweep Unary Ops Tests (3-region systematic coverage)\n";
-    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS
-              << " = " << SWEEP_REGION_SIZE << " values per region\n";
+    std::cout << "  Region size: 2^" << SWEEP_REGION_BITS << " = " << SWEEP_REGION_SIZE
+              << " values per region\n";
     std::cout << "====================================================================\n\n";
 
     int passed{0};
@@ -45,9 +45,7 @@ int main()
                 --copy;
                 return copy;
             },
-            [](const uint128_t &a) -> uint128_t
-            { return a; },
-            "inc_dec_roundtrip"))
+            [](const uint128_t &a) -> uint128_t { return a; }, "inc_dec_roundtrip"))
     {
         ++passed;
     }
@@ -62,9 +60,7 @@ int main()
                 ++copy;
                 return copy;
             },
-            [](const uint128_t &a) -> uint128_t
-            { return a; },
-            "dec_inc_roundtrip"))
+            [](const uint128_t &a) -> uint128_t { return a; }, "dec_inc_roundtrip"))
     {
         ++passed;
     }
@@ -86,9 +82,7 @@ int main()
                 ++copy;
                 return copy;
             },
-            [](const uint128_t &a) -> uint128_t
-            { return a + uint128_t{1ULL}; },
-            "preinc_eq_add_one"))
+            [](const uint128_t &a) -> uint128_t { return a + uint128_t{1ULL}; }, "preinc_eq_add_one"))
     {
         ++passed;
     }
@@ -102,9 +96,7 @@ int main()
                 --copy;
                 return copy;
             },
-            [](const uint128_t &a) -> uint128_t
-            { return a - uint128_t{1ULL}; },
-            "predec_eq_sub_one"))
+            [](const uint128_t &a) -> uint128_t { return a - uint128_t{1ULL}; }, "predec_eq_sub_one"))
     {
         ++passed;
     }
@@ -118,9 +110,7 @@ int main()
                 const auto old{copy++};
                 return old;
             },
-            [](const uint128_t &a) -> uint128_t
-            { return a; },
-            "postinc_returns_old"))
+            [](const uint128_t &a) -> uint128_t { return a; }, "postinc_returns_old"))
     {
         ++passed;
     }
@@ -134,9 +124,7 @@ int main()
                 const auto old{copy--};
                 return old;
             },
-            [](const uint128_t &a) -> uint128_t
-            { return a; },
-            "postdec_returns_old"))
+            [](const uint128_t &a) -> uint128_t { return a; }, "postdec_returns_old"))
     {
         ++passed;
     }
@@ -150,9 +138,7 @@ int main()
                 copy++;
                 return copy;
             },
-            [](const uint128_t &a) -> uint128_t
-            { return a + uint128_t{1ULL}; },
-            "postinc_increments"))
+            [](const uint128_t &a) -> uint128_t { return a + uint128_t{1ULL}; }, "postinc_increments"))
     {
         ++passed;
     }
@@ -167,12 +153,8 @@ int main()
 
     // ~(~x) == x (already in sweep_bitwise, but good cross-check)
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a) -> uint128_t
-            { return ~(~a); },
-            [](const uint128_t &a) -> uint128_t
-            { return a; },
-            "double_complement"))
+    if (sweep_unary([](const uint128_t &a) -> uint128_t { return ~(~a); },
+                    [](const uint128_t &a) -> uint128_t { return a; }, "double_complement"))
     {
         ++passed;
     }
@@ -193,8 +175,7 @@ int main()
                 const uint128_t zero{0ULL};
                 return zero - a;
             },
-            [](const uint128_t &a) -> uint128_t
-            { return ~a + uint128_t{1ULL}; },
+            [](const uint128_t &a) -> uint128_t { return ~a + uint128_t{1ULL}; },
             "neg_eq_complement_plus_one"))
     {
         ++passed;
@@ -209,9 +190,7 @@ int main()
                 const uint128_t neg{zero - a};
                 return zero - neg;
             },
-            [](const uint128_t &a) -> uint128_t
-            { return a; },
-            "double_negation"))
+            [](const uint128_t &a) -> uint128_t { return a; }, "double_negation"))
     {
         ++passed;
     }
@@ -225,9 +204,7 @@ int main()
                 const uint128_t neg{zero - a};
                 return a + neg;
             },
-            [](const uint128_t &) -> uint128_t
-            { return uint128_t{0ULL}; },
-            "additive_inverse"))
+            [](const uint128_t &) -> uint128_t { return uint128_t{0ULL}; }, "additive_inverse"))
     {
         ++passed;
     }
@@ -242,12 +219,8 @@ int main()
 
     // bool(x) == !x.is_zero()
     ++total;
-    if (sweep_unary(
-            [](const uint128_t &a) -> int
-            { return static_cast<bool>(a) ? 1 : 0; },
-            [](const uint128_t &a) -> int
-            { return a.is_zero() ? 0 : 1; },
-            "bool_eq_not_is_zero"))
+    if (sweep_unary([](const uint128_t &a) -> int { return static_cast<bool>(a) ? 1 : 0; },
+                    [](const uint128_t &a) -> int { return a.is_zero() ? 0 : 1; }, "bool_eq_not_is_zero"))
     {
         ++passed;
     }

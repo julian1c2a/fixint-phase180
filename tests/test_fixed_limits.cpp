@@ -72,7 +72,7 @@ static_assert(std::numeric_limits<u1>::digits == 64);
 static_assert(std::numeric_limits<u2>::digits == 128);
 static_assert(std::numeric_limits<u4>::digits == 256);
 static_assert(std::numeric_limits<u8>::digits == 512);
-static_assert(std::numeric_limits<i1>::digits == 63);   // excludes sign bit
+static_assert(std::numeric_limits<i1>::digits == 63); // excludes sign bit
 static_assert(std::numeric_limits<i2>::digits == 127);
 static_assert(std::numeric_limits<i4>::digits == 255);
 static_assert(std::numeric_limits<i8>::digits == 511);
@@ -164,23 +164,23 @@ int main()
     std::cout << "====================================================================\n";
 
     // Unsigned wraparound at max() + 1 == 0
-    TEST("u2 max() + 1 == 0",        std::numeric_limits<u2>::max() + u2{1} == u2{0});
-    TEST("u4 max() + 1 == 0",        std::numeric_limits<u4>::max() + u4{1} == u4{0});
-    TEST("u8 max() + 1 == 0",        std::numeric_limits<u8>::max() + u8{1} == u8{0});
+    TEST("u2 max() + 1 == 0", std::numeric_limits<u2>::max() + u2{1} == u2{0});
+    TEST("u4 max() + 1 == 0", std::numeric_limits<u4>::max() + u4{1} == u4{0});
+    TEST("u8 max() + 1 == 0", std::numeric_limits<u8>::max() + u8{1} == u8{0});
 
     // Unsigned 0 - 1 == max() (wraparound under)
-    TEST("u2 0 - 1 == max()",        u2{0} - u2{1} == std::numeric_limits<u2>::max());
+    TEST("u2 0 - 1 == max()", u2{0} - u2{1} == std::numeric_limits<u2>::max());
 
     // Signed min() - 1 == max() (wraparound; technically UB for signed but we wrap)
-    TEST("i2 max() + 1 == min()",    std::numeric_limits<i2>::max() + i2{1} == std::numeric_limits<i2>::min());
+    TEST("i2 max() + 1 == min()", std::numeric_limits<i2>::max() + i2{1} == std::numeric_limits<i2>::min());
 
     // For i1, our min/max should equal int64_t's
     TEST("i1 min() lowest bit pattern", std::numeric_limits<i1>::min() == i1{INT64_MIN});
-    TEST("i1 max() ==  INT64_MAX",   std::numeric_limits<i1>::max() == i1{INT64_MAX});
+    TEST("i1 max() ==  INT64_MAX", std::numeric_limits<i1>::max() == i1{INT64_MAX});
 
     // For u1, max() == UINT64_MAX
-    TEST("u1 max() == UINT64_MAX",   std::numeric_limits<u1>::max() == u1{UINT64_MAX});
-    TEST("u1 min() == 0",            std::numeric_limits<u1>::min() == u1{0});
+    TEST("u1 max() == UINT64_MAX", std::numeric_limits<u1>::max() == u1{UINT64_MAX});
+    TEST("u1 min() == 0", std::numeric_limits<u1>::min() == u1{0});
 
     // is_signed parity with std for the equivalent built-in
     TEST("u1 is_signed == uint64_t is_signed",
@@ -193,8 +193,8 @@ int main()
          std::numeric_limits<u1>::is_modulo == std::numeric_limits<std::uint64_t>::is_modulo);
 
     // digits parity for N=1
-    TEST("u1 digits == 64",  std::numeric_limits<u1>::digits == 64);
-    TEST("i1 digits == 63",  std::numeric_limits<i1>::digits == 63);
+    TEST("u1 digits == 64", std::numeric_limits<u1>::digits == 64);
+    TEST("i1 digits == 63", std::numeric_limits<i1>::digits == 63);
 
     // digits10 parity for N=1 against built-in 64-bit ints
     TEST("u1 digits10 == uint64_t digits10",

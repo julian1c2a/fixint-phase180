@@ -67,9 +67,7 @@ int main()
         const int128_ms_t ms_a{0, 50};
         const int128_ms_t ms_b{0, 75};
 
-        if ((min(tc_a, tc_b) == tc_a) &&
-            (max(tc_a, tc_b) == tc_b) &&
-            (min(ms_a, ms_b) == ms_a) &&
+        if ((min(tc_a, tc_b) == tc_a) && (max(tc_a, tc_b) == tc_b) && (min(ms_a, ms_b) == ms_a) &&
             (max(ms_a, ms_b) == ms_b))
         {
             std::cout << "  [OK] min_max\n";
@@ -97,8 +95,7 @@ int main()
         const uint128_t val_low{0, 50};   // Below range
         const uint128_t val_high{0, 250}; // Above range
 
-        if ((clamp(val_in, lo, hi) == val_in) &&
-            (clamp(val_low, lo, hi) == lo) &&
+        if ((clamp(val_in, lo, hi) == val_in) && (clamp(val_low, lo, hi) == lo) &&
             (clamp(val_high, lo, hi) == hi))
         {
             std::cout << "  [OK] clamp\n";
@@ -135,9 +132,7 @@ int main()
         const uint128_t b4{0, 42};
         const uint128_t expected4{0, 42}; // gcd(0, n) = n
 
-        if ((gcd(a1, b1) == expected1) &&
-            (gcd(a2, b2) == expected2) &&
-            (gcd(a3, b3) == expected3) &&
+        if ((gcd(a1, b1) == expected1) && (gcd(a2, b2) == expected2) && (gcd(a3, b3) == expected3) &&
             (gcd(a4, b4) == expected4))
         {
             std::cout << "  [OK] gcd\n";
@@ -170,9 +165,7 @@ int main()
         const uint128_t b3{0, 42};
         const uint128_t expected3{0, 0}; // lcm(0, n) = 0
 
-        if ((lcm(a1, b1) == expected1) &&
-            (lcm(a2, b2) == expected2) &&
-            (lcm(a3, b3) == expected3))
+        if ((lcm(a1, b1) == expected1) && (lcm(a2, b2) == expected2) && (lcm(a3, b3) == expected3))
         {
             std::cout << "  [OK] lcm\n";
             TEST_PASS();
@@ -204,8 +197,7 @@ int main()
         const uint128_t b3{0, 42};
         const uint128_t expected3{0, 42};
 
-        if ((midpoint(a1, b1) == expected1) &&
-            (midpoint(a2, b2) == expected2) &&
+        if ((midpoint(a1, b1) == expected1) && (midpoint(a2, b2) == expected2) &&
             (midpoint(a3, b3) == expected3))
         {
             std::cout << "  [OK] midpoint\n";
@@ -246,11 +238,8 @@ int main()
         const auto result5{pow(base5, 3)};
         const uint128_t expected5{0, 1000};
 
-        if ((result1 == expected1) &&
-            (result2 == expected2) &&
-            (result3 == expected3) &&
-            (result4 == expected4) &&
-            (result5 == expected5))
+        if ((result1 == expected1) && (result2 == expected2) && (result3 == expected3) &&
+            (result4 == expected4) && (result5 == expected5))
         {
             std::cout << "  [OK] pow\n";
             TEST_PASS();
@@ -274,8 +263,7 @@ int main()
         const auto gcd_result{gcd(big, 50)};
         const auto lcm_result{lcm(big, 4)};
 
-        if ((gcd_result == uint128_t{0, 50}) &&
-            (lcm_result == uint128_t{0, 100}))
+        if ((gcd_result == uint128_t{0, 50}) && (lcm_result == uint128_t{0, 100}))
         {
             std::cout << "  [OK] mixed_type_ops\n";
             TEST_PASS();

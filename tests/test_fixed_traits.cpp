@@ -40,7 +40,7 @@ using i8 = int_fixed_t<8>;
 
 static_assert(nstd::is_fixed_int_v<u2>);
 static_assert(nstd::is_fixed_int_v<i2>);
-static_assert(nstd::is_fixed_int_v<const u4>);  // remove_cv
+static_assert(nstd::is_fixed_int_v<const u4>); // remove_cv
 static_assert(!nstd::is_fixed_int_v<int>);
 static_assert(!nstd::is_fixed_int_v<unsigned long long>);
 static_assert(!nstd::is_fixed_int_v<void>);
@@ -48,12 +48,12 @@ static_assert(!nstd::is_fixed_int_v<void>);
 static_assert(nstd::is_signed_fixed_int_v<i2>);
 static_assert(nstd::is_signed_fixed_int_v<i8>);
 static_assert(!nstd::is_signed_fixed_int_v<u2>);
-static_assert(!nstd::is_signed_fixed_int_v<int>);          // built-in: not a fixed_int
+static_assert(!nstd::is_signed_fixed_int_v<int>); // built-in: not a fixed_int
 
 static_assert(nstd::is_unsigned_fixed_int_v<u2>);
 static_assert(nstd::is_unsigned_fixed_int_v<u8>);
 static_assert(!nstd::is_unsigned_fixed_int_v<i2>);
-static_assert(!nstd::is_unsigned_fixed_int_v<unsigned>);   // built-in: not a fixed_int
+static_assert(!nstd::is_unsigned_fixed_int_v<unsigned>); // built-in: not a fixed_int
 
 // =============================================================================
 // T4.b — nstd:: trait specializations for fixed_int_t
@@ -61,7 +61,7 @@ static_assert(!nstd::is_unsigned_fixed_int_v<unsigned>);   // built-in: not a fi
 
 static_assert(nstd::is_integral_v<u2>);
 static_assert(nstd::is_integral_v<i4>);
-static_assert(nstd::is_integral_v<int>);                   // delegates to std::
+static_assert(nstd::is_integral_v<int>); // delegates to std::
 static_assert(nstd::is_integral_v<unsigned long>);
 static_assert(!nstd::is_integral_v<float>);
 static_assert(!nstd::is_integral_v<void>);
@@ -69,7 +69,7 @@ static_assert(!nstd::is_integral_v<void>);
 static_assert(nstd::is_arithmetic_v<u2>);
 static_assert(nstd::is_arithmetic_v<i4>);
 static_assert(nstd::is_arithmetic_v<double>);
-static_assert(!nstd::is_arithmetic_v<void*>);
+static_assert(!nstd::is_arithmetic_v<void *>);
 
 static_assert(nstd::is_signed_v<i2>);
 static_assert(nstd::is_signed_v<i8>);
@@ -105,9 +105,9 @@ static_assert(std::is_same_v<nstd::make_unsigned_t<int>, unsigned>);
 // T3.a — nstd::mixed_iu_t public alias (promoted from detail::)
 // =============================================================================
 
-static_assert(std::is_same_v<nstd::mixed_iu_t<2, 2>, u2>);     // N == M -> unsigned wins
-static_assert(std::is_same_v<nstd::mixed_iu_t<2, 1>, i2>);     // N > M  -> signed wins
-static_assert(std::is_same_v<nstd::mixed_iu_t<1, 2>, u2>);     // N < M  -> unsigned wins
+static_assert(std::is_same_v<nstd::mixed_iu_t<2, 2>, u2>); // N == M -> unsigned wins
+static_assert(std::is_same_v<nstd::mixed_iu_t<2, 1>, i2>); // N > M  -> signed wins
+static_assert(std::is_same_v<nstd::mixed_iu_t<1, 2>, u2>); // N < M  -> unsigned wins
 static_assert(std::is_same_v<nstd::mixed_iu_t<4, 2>, i4>);
 static_assert(std::is_same_v<nstd::mixed_iu_t<2, 4>, u4>);
 static_assert(std::is_same_v<nstd::mixed_iu_t<8, 1>, i8>);
@@ -128,9 +128,9 @@ static_assert(std::is_same_v<std::common_type_t<i2, u2>, u2>);
 static_assert(std::is_same_v<std::common_type_t<u2, i2>, u2>);
 
 // cross-sign cross-N -> signed wins iff strictly wider
-static_assert(std::is_same_v<std::common_type_t<i4, u2>, i4>);  // N(signed)=4 > M(unsigned)=2
+static_assert(std::is_same_v<std::common_type_t<i4, u2>, i4>); // N(signed)=4 > M(unsigned)=2
 static_assert(std::is_same_v<std::common_type_t<u2, i4>, i4>);
-static_assert(std::is_same_v<std::common_type_t<i2, u4>, u4>);  // N(signed)=2 < M(unsigned)=4
+static_assert(std::is_same_v<std::common_type_t<i2, u4>, u4>); // N(signed)=2 < M(unsigned)=4
 static_assert(std::is_same_v<std::common_type_t<u4, i2>, u4>);
 static_assert(std::is_same_v<std::common_type_t<i1, u8>, u8>);
 static_assert(std::is_same_v<std::common_type_t<u8, i1>, u8>);
@@ -174,8 +174,8 @@ static_assert(nstd::integral<unsigned long>);
 static_assert(nstd::integral<u2>);
 static_assert(nstd::integral<i4>);
 static_assert(!nstd::integral<float>);
-static_assert(!nstd::integral<bool>);             // bool excluded by design
-static_assert(!nstd::integral<void*>);
+static_assert(!nstd::integral<bool>); // bool excluded by design
+static_assert(!nstd::integral<void *>);
 
 static_assert(nstd::signed_integral<int>);
 static_assert(nstd::signed_integral<long long>);
@@ -191,7 +191,7 @@ static_assert(nstd::unsigned_integral<u2>);
 static_assert(nstd::unsigned_integral<u8>);
 static_assert(!nstd::unsigned_integral<int>);
 static_assert(!nstd::unsigned_integral<i2>);
-static_assert(!nstd::unsigned_integral<bool>);    // bool excluded
+static_assert(!nstd::unsigned_integral<bool>); // bool excluded
 
 #endif // !INT128_PARAM_CONCEPTS_HPP
 
@@ -201,7 +201,10 @@ static_assert(!nstd::unsigned_integral<bool>);    // bool excluded
 
 template <typename T>
     requires nstd::integral<T>
-constexpr T add_one(T x) { return x + T{1}; }
+constexpr T add_one(T x)
+{
+    return x + T{1};
+}
 
 static int g_passed{0};
 static int g_failed{0};
@@ -228,12 +231,12 @@ int main()
     std::cout << "====================================================================\n";
 
     // Runtime sanity for nstd::integral concept with a generic function.
-    TEST("add_one(int{41}) == 42",      add_one(41) == 42);
+    TEST("add_one(int{41}) == 42", add_one(41) == 42);
     TEST("add_one(unsigned{41}) == 42", add_one(41u) == 42u);
-    TEST("add_one(u2{41}) == u2{42}",   add_one(u2{41}) == u2{42});
-    TEST("add_one(i2{-5}) == i2{-4}",   add_one(i2{-5}) == i2{-4});
-    TEST("add_one(u8{99}) == u8{100}",  add_one(u8{99}) == u8{100});
-    TEST("add_one(i4{-1}) == i4{0}",    add_one(i4{-1}) == i4{0});
+    TEST("add_one(u2{41}) == u2{42}", add_one(u2{41}) == u2{42});
+    TEST("add_one(i2{-5}) == i2{-4}", add_one(i2{-5}) == i2{-4});
+    TEST("add_one(u8{99}) == u8{100}", add_one(u8{99}) == u8{100});
+    TEST("add_one(i4{-1}) == i4{0}", add_one(i4{-1}) == i4{0});
 
     // common_type roundtrip: build the common type and verify it stores the value.
     using ct1 = std::common_type_t<i2, u2>;

@@ -51,51 +51,33 @@ struct TestCase
 
 // 9 Test cases covering different scenarios
 static constexpr std::array<TestCase, 9> test_cases{
-    TestCase{
-        "Power-of-2",
-        0x8000000000000000ULL, 0x0ULL, // 2^127
-        0x0ULL, 0x2ULL,                // 2
-        "Level 1: Power-of-2 divisor (1 shift operation)"},
-    TestCase{
-        "64-bit values",
-        0x0ULL, 100ULL, // 100
-        0x0ULL, 7ULL,   // 7
-        "Level 3: Both fit in 64 bits (native CPU division)"},
-    TestCase{
-        "128/64 hybrid",
-        0x0ULL, 0x0000000100000000ULL, // 2^32
-        0x0ULL, 0x0100ULL,             // 2^8
-        "Level 4: 128-bit / 64-bit (hybrid algorithm)"},
-    TestCase{
-        "Large 128/128",
-        0x8000000000000000ULL, 0x0ULL, // 2^127
-        0x0ULL, 0x2ULL,                // 2
-        "Level 6: Full 128/128 binary long division"},
-    TestCase{
-        "Small divisor",
-        0x0ULL, 42ULL, // 42
-        0x0ULL, 3ULL,  // 3
-        "Level 2: Small specific divisor"},
-    TestCase{
-        "Remainder test",
-        0x0ULL, 17ULL, // 17
-        0x0ULL, 5ULL,  // 5
-        "Level 3: 64-bit division with remainder"},
-    TestCase{
-        "Equal values",
-        0x0ULL, 42ULL, // 42
-        0x0ULL, 42ULL, // 42
-        "Level: Divisor == Dividend (fast path)"},
-    TestCase{
-        "Divide by one",
-        0x0ULL, 12345ULL, // 12345
-        0x0ULL, 1ULL,     // 1
-        "Level: Divisor == 1 (ultra-fast path)"},
-    TestCase{
-        "Large quotient",
-        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, // 2^128 - 1
-        0x0ULL, 2ULL,                                 // 2
-        "Level 3: Large quotient (64-bit division)"}};
+    TestCase{"Power-of-2", 0x8000000000000000ULL, 0x0ULL, // 2^127
+             0x0ULL, 0x2ULL,                              // 2
+             "Level 1: Power-of-2 divisor (1 shift operation)"},
+    TestCase{"64-bit values", 0x0ULL, 100ULL, // 100
+             0x0ULL, 7ULL,                    // 7
+             "Level 3: Both fit in 64 bits (native CPU division)"},
+    TestCase{"128/64 hybrid", 0x0ULL, 0x0000000100000000ULL, // 2^32
+             0x0ULL, 0x0100ULL,                              // 2^8
+             "Level 4: 128-bit / 64-bit (hybrid algorithm)"},
+    TestCase{"Large 128/128", 0x8000000000000000ULL, 0x0ULL, // 2^127
+             0x0ULL, 0x2ULL,                                 // 2
+             "Level 6: Full 128/128 binary long division"},
+    TestCase{"Small divisor", 0x0ULL, 42ULL, // 42
+             0x0ULL, 3ULL,                   // 3
+             "Level 2: Small specific divisor"},
+    TestCase{"Remainder test", 0x0ULL, 17ULL, // 17
+             0x0ULL, 5ULL,                    // 5
+             "Level 3: 64-bit division with remainder"},
+    TestCase{"Equal values", 0x0ULL, 42ULL, // 42
+             0x0ULL, 42ULL,                 // 42
+             "Level: Divisor == Dividend (fast path)"},
+    TestCase{"Divide by one", 0x0ULL, 12345ULL, // 12345
+             0x0ULL, 1ULL,                      // 1
+             "Level: Divisor == 1 (ultra-fast path)"},
+    TestCase{"Large quotient", 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL, // 2^128 - 1
+             0x0ULL, 2ULL,                                                   // 2
+             "Level 3: Large quotient (64-bit division)"}};
 
 // ====================================================================
 // BENCHMARK UTILITIES
@@ -116,18 +98,12 @@ struct DivmodResult
 // BENCHMARK RUNNER (RDTSC-based)
 // ====================================================================
 
-using uint128_t = nstd::int128_param_t<
-    nstd::signedness::signed_type,
-    nstd::representation_form::twos_complement>;
+using uint128_t =
+    nstd::int128_param_t<nstd::signedness::signed_type, nstd::representation_form::twos_complement>;
 
-static DivmodResult run_divmod_bench(
-    const char *algorithm_name,
-    const char *test_name,
-    uint64_t dividend_high,
-    uint64_t dividend_low,
-    uint64_t divisor_high,
-    uint64_t divisor_low,
-    bool use_big_bin)
+static DivmodResult run_divmod_bench(const char *algorithm_name, const char *test_name,
+                                     uint64_t dividend_high, uint64_t dividend_low, uint64_t divisor_high,
+                                     uint64_t divisor_low, bool use_big_bin)
 {
     uint128_t dividend{dividend_high, dividend_low};
     uint128_t divisor{divisor_high, divisor_low};
@@ -135,8 +111,7 @@ static DivmodResult run_divmod_bench(
     // Warmup
     for (std::size_t i{0}; i < DIV_WARMUP; ++i)
     {
-        auto result{use_big_bin ? dividend.big_bin_divrem(divisor)
-                                : dividend.D_knuth_divrem(divisor)};
+        auto result{use_big_bin ? dividend.big_bin_divrem(divisor) : dividend.D_knuth_divrem(divisor)};
         doNotOptimize(result);
     }
 
@@ -144,8 +119,7 @@ static DivmodResult run_divmod_bench(
     CycleTimer timer;
     for (std::size_t i{0}; i < DIV_ITERS; ++i)
     {
-        auto result{use_big_bin ? dividend.big_bin_divrem(divisor)
-                                : dividend.D_knuth_divrem(divisor)};
+        auto result{use_big_bin ? dividend.big_bin_divrem(divisor) : dividend.D_knuth_divrem(divisor)};
         doNotOptimize(result);
     }
     const double cycles{static_cast<double>(timer.elapsed_cycles())};
@@ -164,9 +138,7 @@ static void print_divmod_header()
     std::cout << "+----------------------+-----------------+--------------+--------------+-----------+\n";
 }
 
-static void print_divmod_row(
-    const DivmodResult &r,
-    double baseline_cyc)
+static void print_divmod_row(const DivmodResult &r, double baseline_cyc)
 {
     const double ratio{(baseline_cyc > 0.0) ? r.cycles_per_op / baseline_cyc : 0.0};
     const char *winner{""};
@@ -183,11 +155,10 @@ static void print_divmod_row(
         winner = "[~SAME]";
     }
 
-    std::cout << "| " << std::left << std::setw(20) << r.test_name
-              << " | " << std::setw(15) << r.algorithm_name
-              << " | " << std::right << std::fixed << std::setprecision(2) << std::setw(12) << r.cycles_per_op
-              << " | " << std::fixed << std::setprecision(2) << std::setw(12) << ratio << " | "
-              << std::left << std::setw(9) << winner << " |\n";
+    std::cout << "| " << std::left << std::setw(20) << r.test_name << " | " << std::setw(15)
+              << r.algorithm_name << " | " << std::right << std::fixed << std::setprecision(2)
+              << std::setw(12) << r.cycles_per_op << " | " << std::fixed << std::setprecision(2)
+              << std::setw(12) << ratio << " | " << std::left << std::setw(9) << winner << " |\n";
 }
 
 static void print_divmod_separator()
@@ -228,19 +199,13 @@ int main()
     for (const auto &test : test_cases)
     {
         // big_bin_divrem (baseline for ratio)
-        const auto bin_r{run_divmod_bench(
-            "big_bin_divrem", test.name,
-            test.dividend_high, test.dividend_low,
-            test.divisor_high, test.divisor_low,
-            true)};
+        const auto bin_r{run_divmod_bench("big_bin_divrem", test.name, test.dividend_high, test.dividend_low,
+                                          test.divisor_high, test.divisor_low, true)};
         binary_results.push_back(bin_r);
 
         // D_knuth_divrem
-        const auto knuth_r{run_divmod_bench(
-            "D_knuth_divrem", test.name,
-            test.dividend_high, test.dividend_low,
-            test.divisor_high, test.divisor_low,
-            false)};
+        const auto knuth_r{run_divmod_bench("D_knuth_divrem", test.name, test.dividend_high,
+                                            test.dividend_low, test.divisor_high, test.divisor_low, false)};
         knuth_results.push_back(knuth_r);
 
         // Print both rows with big_bin as baseline
@@ -275,9 +240,8 @@ int main()
     std::cout << "Average Performance Across All " << test_cases.size() << " Tests:\n"
               << "  big_bin_divrem:  " << std::fixed << std::setprecision(2) << avg_binary_cyc << " cyc/op\n"
               << "  D_knuth_divrem:  " << std::fixed << std::setprecision(2) << avg_knuth_cyc << " cyc/op\n"
-              << "  Average speedup: "
-              << (avg_speedup > 1.0 ? "Knuth D is " : "Binary is ")
-              << std::fixed << std::setprecision(2) << avg_ratio << "x faster\n\n";
+              << "  Average speedup: " << (avg_speedup > 1.0 ? "Knuth D is " : "Binary is ") << std::fixed
+              << std::setprecision(2) << avg_ratio << "x faster\n\n";
 
     // ====================================================================
     // IMPLEMENTATION STATUS

@@ -46,10 +46,7 @@ namespace nstd
         /**
          * @brief Check if operation succeeded without overflow
          */
-        constexpr explicit operator bool() const noexcept
-        {
-            return !overflow;
-        }
+        constexpr explicit operator bool() const noexcept { return !overflow; }
     };
 
     // ============================================================================
@@ -71,9 +68,8 @@ namespace nstd
      * @note Unsigned types only detect overflow on wraparound.
      */
     template <signedness Sign, representation_form Form>
-    constexpr checked_result<Sign, Form> checked_add(
-        const int128_param_t<Sign, Form> &lhs,
-        const int128_param_t<Sign, Form> &rhs) noexcept
+    constexpr checked_result<Sign, Form> checked_add(const int128_param_t<Sign, Form> &lhs,
+                                                     const int128_param_t<Sign, Form> &rhs) noexcept
     {
         const int128_param_t<Sign, Form> result{lhs + rhs};
 
@@ -136,9 +132,8 @@ namespace nstd
      * @return checked_result containing difference and overflow flag
      */
     template <signedness Sign, representation_form Form>
-    constexpr checked_result<Sign, Form> checked_sub(
-        const int128_param_t<Sign, Form> &lhs,
-        const int128_param_t<Sign, Form> &rhs) noexcept
+    constexpr checked_result<Sign, Form> checked_sub(const int128_param_t<Sign, Form> &lhs,
+                                                     const int128_param_t<Sign, Form> &rhs) noexcept
     {
         const int128_param_t<Sign, Form> result{lhs - rhs};
 
@@ -202,9 +197,8 @@ namespace nstd
      * @return checked_result containing product and overflow flag
      */
     template <signedness Sign, representation_form Form>
-    constexpr checked_result<Sign, Form> checked_mul(
-        const int128_param_t<Sign, Form> &lhs,
-        const int128_param_t<Sign, Form> &rhs) noexcept
+    constexpr checked_result<Sign, Form> checked_mul(const int128_param_t<Sign, Form> &lhs,
+                                                     const int128_param_t<Sign, Form> &rhs) noexcept
     {
         // Zero or one case: never overflows
         if (lhs.is_zero() || rhs.is_zero())
@@ -264,9 +258,8 @@ namespace nstd
      * @note Division by zero returns {0, true} (overflow flag set)
      */
     template <signedness Sign, representation_form Form>
-    constexpr checked_result<Sign, Form> checked_div(
-        const int128_param_t<Sign, Form> &lhs,
-        const int128_param_t<Sign, Form> &rhs) noexcept
+    constexpr checked_result<Sign, Form> checked_div(const int128_param_t<Sign, Form> &lhs,
+                                                     const int128_param_t<Sign, Form> &rhs) noexcept
     {
         // Division by zero
         if (rhs.is_zero())
@@ -306,9 +299,8 @@ namespace nstd
      * @return Sum, saturated to [min, max] if overflow occurs
      */
     template <signedness Sign, representation_form Form>
-    constexpr int128_param_t<Sign, Form> saturating_add(
-        const int128_param_t<Sign, Form> &lhs,
-        const int128_param_t<Sign, Form> &rhs) noexcept
+    constexpr int128_param_t<Sign, Form> saturating_add(const int128_param_t<Sign, Form> &lhs,
+                                                        const int128_param_t<Sign, Form> &rhs) noexcept
     {
         const auto result{checked_add(lhs, rhs)};
 
@@ -327,8 +319,7 @@ namespace nstd
         {
             // Signed: positive overflow → max, negative → min
             const bool both_positive{!lhs.is_negative() && !rhs.is_negative()};
-            return both_positive ? int128_param_t<Sign, Form>::max()
-                                 : int128_param_t<Sign, Form>::min();
+            return both_positive ? int128_param_t<Sign, Form>::max() : int128_param_t<Sign, Form>::min();
         }
     }
 
@@ -340,9 +331,8 @@ namespace nstd
      * @return Difference, saturated to [min, max] if overflow occurs
      */
     template <signedness Sign, representation_form Form>
-    constexpr int128_param_t<Sign, Form> saturating_sub(
-        const int128_param_t<Sign, Form> &lhs,
-        const int128_param_t<Sign, Form> &rhs) noexcept
+    constexpr int128_param_t<Sign, Form> saturating_sub(const int128_param_t<Sign, Form> &lhs,
+                                                        const int128_param_t<Sign, Form> &rhs) noexcept
     {
         const auto result{checked_sub(lhs, rhs)};
 
@@ -361,8 +351,7 @@ namespace nstd
         {
             // Signed: lhs > 0 && rhs < 0 → max, else min
             const bool pos_minus_neg{!lhs.is_negative() && rhs.is_negative()};
-            return pos_minus_neg ? int128_param_t<Sign, Form>::max()
-                                 : int128_param_t<Sign, Form>::min();
+            return pos_minus_neg ? int128_param_t<Sign, Form>::max() : int128_param_t<Sign, Form>::min();
         }
     }
 
@@ -374,9 +363,8 @@ namespace nstd
      * @return Product, saturated to [min, max] if overflow occurs
      */
     template <signedness Sign, representation_form Form>
-    constexpr int128_param_t<Sign, Form> saturating_mul(
-        const int128_param_t<Sign, Form> &lhs,
-        const int128_param_t<Sign, Form> &rhs) noexcept
+    constexpr int128_param_t<Sign, Form> saturating_mul(const int128_param_t<Sign, Form> &lhs,
+                                                        const int128_param_t<Sign, Form> &rhs) noexcept
     {
         const auto result{checked_mul(lhs, rhs)};
 
@@ -397,8 +385,7 @@ namespace nstd
             const bool rhs_neg{rhs.is_negative()};
             const bool result_positive{lhs_neg == rhs_neg};
 
-            return result_positive ? int128_param_t<Sign, Form>::max()
-                                   : int128_param_t<Sign, Form>::min();
+            return result_positive ? int128_param_t<Sign, Form>::max() : int128_param_t<Sign, Form>::min();
         }
     }
 
@@ -412,9 +399,8 @@ namespace nstd
      * @return std::optional with result, or std::nullopt if overflow
      */
     template <signedness Sign, representation_form Form>
-    constexpr std::optional<int128_param_t<Sign, Form>> try_add(
-        const int128_param_t<Sign, Form> &lhs,
-        const int128_param_t<Sign, Form> &rhs) noexcept
+    constexpr std::optional<int128_param_t<Sign, Form>>
+    try_add(const int128_param_t<Sign, Form> &lhs, const int128_param_t<Sign, Form> &rhs) noexcept
     {
         const auto result{checked_add(lhs, rhs)};
         return result.overflow ? std::nullopt : std::optional{result.value};
@@ -424,9 +410,8 @@ namespace nstd
      * @brief Try subtraction, returning std::optional
      */
     template <signedness Sign, representation_form Form>
-    constexpr std::optional<int128_param_t<Sign, Form>> try_sub(
-        const int128_param_t<Sign, Form> &lhs,
-        const int128_param_t<Sign, Form> &rhs) noexcept
+    constexpr std::optional<int128_param_t<Sign, Form>>
+    try_sub(const int128_param_t<Sign, Form> &lhs, const int128_param_t<Sign, Form> &rhs) noexcept
     {
         const auto result{checked_sub(lhs, rhs)};
         return result.overflow ? std::nullopt : std::optional{result.value};
@@ -436,9 +421,8 @@ namespace nstd
      * @brief Try multiplication, returning std::optional
      */
     template <signedness Sign, representation_form Form>
-    constexpr std::optional<int128_param_t<Sign, Form>> try_mul(
-        const int128_param_t<Sign, Form> &lhs,
-        const int128_param_t<Sign, Form> &rhs) noexcept
+    constexpr std::optional<int128_param_t<Sign, Form>>
+    try_mul(const int128_param_t<Sign, Form> &lhs, const int128_param_t<Sign, Form> &rhs) noexcept
     {
         const auto result{checked_mul(lhs, rhs)};
         return result.overflow ? std::nullopt : std::optional{result.value};
@@ -448,9 +432,8 @@ namespace nstd
      * @brief Try division, returning std::optional
      */
     template <signedness Sign, representation_form Form>
-    constexpr std::optional<int128_param_t<Sign, Form>> try_div(
-        const int128_param_t<Sign, Form> &lhs,
-        const int128_param_t<Sign, Form> &rhs) noexcept
+    constexpr std::optional<int128_param_t<Sign, Form>>
+    try_div(const int128_param_t<Sign, Form> &lhs, const int128_param_t<Sign, Form> &rhs) noexcept
     {
         const auto result{checked_div(lhs, rhs)};
         return result.overflow ? std::nullopt : std::optional{result.value};
