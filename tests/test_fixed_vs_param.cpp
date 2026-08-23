@@ -11,7 +11,7 @@
 // across all operations.
 //
 // Memory layout: both types store data[0]=LSB, data[1]=MSB.
-// Bridge: fixed.data[{0,1}] must equal param.{low(),high()}.
+// Bridge: fixed.limb({0,1}) must equal param.{low(),high()}.
 //
 // Sections:
 //   0.  Bridge validation (construction from raw limbs)
@@ -87,8 +87,8 @@ static u128o ou(val128 v) { return u128o{v.hi, v.lo}; }
 static i128o oi(val128 v) { return i128o{v.hi, v.lo}; }
 
 // Compare new vs old: same raw bits?
-static bool eq_u(const u128n &a, const u128o &b) { return a.data[0] == b.low() && a.data[1] == b.high(); }
-static bool eq_i(const i128n &a, const i128o &b) { return a.data[0] == b.low() && a.data[1] == b.high(); }
+static bool eq_u(const u128n &a, const u128o &b) { return a.limb(0) == b.low() && a.limb(1) == b.high(); }
+static bool eq_i(const i128n &a, const i128o &b) { return a.limb(0) == b.low() && a.limb(1) == b.high(); }
 
 // =============================================================================
 // Curated test values

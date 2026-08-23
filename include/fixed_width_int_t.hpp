@@ -125,13 +125,49 @@ namespace nstd
 
         static constexpr bool is_signed = (Sign == signedness::signed_type);
 
+        // Cualquier otra instanciacion de fixed_int_t es amiga: los constructores
+        // cross-tipo y los operadores cross-N/cross-signo necesitan leer los
+        // limbos del otro tipo. Antes funcionaba solo porque `data` era publico.
+        template <std::size_t, signedness, representation_form>
+        friend class fixed_int_t;
+
     public:
         static constexpr signedness sign{Sign};
         static constexpr representation_form form{Form};
 
+        // =========================================================================
+        // Acceso a los limbos
+        //
+        // T2.4 (auditoria 23 ago 2026). `data` era publico, a diferencia de
+        // `int128_param_t` en phase-1.75, que lo tenia privado con high()/low().
+        // Se recupera la encapsulacion: `data` pasa a privado (ver mas abajo) y
+        // el acceso se hace por estos accesores.
+        //
+        // Consecuencia asumida: fixed_int_t deja de ser *structural type*, asi que
+        // ya no puede usarse como parametro no-tipo de plantilla (NTTP). Decision
+        // tomada el 23 ago 2026: se deja decaer el NTTP a cambio de volver al
+        // comportamiento de phase-1.75. Sigue siendo trivialmente copiable, asi
+        // que std::bit_cast y memcpy no se ven afectados.
+        //
+        // limb(i) / set_limb(i, v): un limbo suelto, i en [0, N).
+        // limbs():                  el array completo (solo lectura).
+        // limbs_ref():              el array completo (escritura); uso interno y
+        //                           de tests que construyen patrones de bits.
+        // =========================================================================
+
+        [[nodiscard]] constexpr std::uint64_t limb(std::size_t i) const noexcept { return data[i]; }
+
+        constexpr void set_limb(std::size_t i, std::uint64_t v) noexcept { data[i] = v; }
+
+        [[nodiscard]] constexpr const std::array<std::uint64_t, N> &limbs() const noexcept { return data; }
+
+        [[nodiscard]] constexpr std::array<std::uint64_t, N> &limbs_ref() noexcept { return data; }
+
+    private:
         // data[0] = least-significant limb, data[N-1] = most-significant limb
         std::array<std::uint64_t, N> data{};
 
+    public:
         // =========================================================================
         // Construction
         // =========================================================================
@@ -3540,7 +3576,7 @@ namespace nstd
         uint_fixed_t<N> result = uint_fixed_t<N>::one();
         while (!exp.is_zero())
         {
-            if (exp.data[0] & std::uint64_t{1})
+            if (exp.limb(0) & std::uint64_t{1})
                 result *= base;
             base *= base;
             exp >>= 1;
@@ -3554,7 +3590,7 @@ namespace nstd
         int_fixed_t<N> result = int_fixed_t<N>::one();
         while (!exp.is_zero())
         {
-            if (exp.data[0] & std::uint64_t{1})
+            if (exp.limb(0) & std::uint64_t{1})
                 result *= base;
             base *= base;
             exp >>= 1;
@@ -3654,7 +3690,7 @@ namespace nstd
     {
         const uint_fixed_t<2 * N> wide = mul_wide(a, b);
         for (std::size_t i = N; i < 2 * N; ++i)
-            if (wide.data[i] != 0)
+            if (wide.limb(i) != 0)
                 return std::nullopt;
         return uint_fixed_t<N>{wide};
     }
@@ -3686,9 +3722,9 @@ namespace nstd
                                                                       const int_fixed_t<N> &b) noexcept
     {
         const int_fixed_t<2 * N> wide = mul_wide(a, b);
-        const std::uint64_t fill = wide.data[N - 1] >> 63 ? ~std::uint64_t{0} : std::uint64_t{0};
+        const std::uint64_t fill = wide.limb(N - 1) >> 63 ? ~std::uint64_t{0} : std::uint64_t{0};
         for (std::size_t i = N; i < 2 * N; ++i)
-            if (wide.data[i] != fill)
+            if (wide.limb(i) != fill)
                 return std::nullopt;
         return int_fixed_t<N>{wide};
     }

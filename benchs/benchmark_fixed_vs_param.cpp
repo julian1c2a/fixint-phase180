@@ -151,14 +151,14 @@ static double bench_new_u_div()
     for (size_t i{0}; i < WARMUP; ++i)
     {
         a /= b;
-        a.data[1] |= uint64_t{1} << 32;
+        a.set_limb(1, a.limb(1) | (uint64_t{1} << 32));
         doNotOptimize(a);
     }
     CycleTimer t;
     for (size_t i{0}; i < ITERATIONS; ++i)
     {
         a /= b;
-        a.data[1] |= uint64_t{1} << 32;
+        a.set_limb(1, a.limb(1) | (uint64_t{1} << 32));
         doNotOptimize(a);
     }
     doNotOptimize(a);
@@ -493,14 +493,14 @@ static double bench_new_i_div()
     for (size_t i{0}; i < WARMUP; ++i)
     {
         a /= b;
-        a.data[1] |= uint64_t{1} << 30;
+        a.set_limb(1, a.limb(1) | (uint64_t{1} << 30));
         doNotOptimize(a);
     }
     CycleTimer t;
     for (size_t i{0}; i < ITERATIONS; ++i)
     {
         a /= b;
-        a.data[1] |= uint64_t{1} << 30;
+        a.set_limb(1, a.limb(1) | (uint64_t{1} << 30));
         doNotOptimize(a);
     }
     doNotOptimize(a);

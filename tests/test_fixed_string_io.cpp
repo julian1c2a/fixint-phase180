@@ -11,30 +11,30 @@
 // plan de la auditoria 23 ago 2026.
 //
 // Este fichero es la BASE de T5.1 (ampliar cobertura de IO). Cobertura actual:
-//   1. to_string: cero, positivos, negativos, N=2/4/8
-//   2. from_string: cero, positivos, negativos, signo '+' y '-'
-//   3. from_string: rutas de error (cadena vacia, nullptr, caracter invalido,
-//      solo signo, signo en unsigned)
-//   4. Round-trip to_string -> from_string
-//   5. Limites: max(), min(), min()+1, max()-1
+//   1.  to_string: cero, positivos, negativos, N=2/4/8
+//   2.  from_string: cero, positivos, negativos, signo '+' y '-'
+//   3.  from_string: rutas de error (cadena vacia, nullptr, caracter invalido,
+//       solo signo, signo en unsigned, espacios)
+//   3b. from_string / try_from_string: desbordamiento (T2.1)
+//   3c. constructor desde punto flotante no finito: inf y NaN (T2.2)
+//   4.  Round-trip to_string -> from_string
+//   5.  Limites: max(), min(), min()+1, max()-1
 //
-// GAP CONOCIDO (T2.1): from_string NO detecta overflow. from_string("2^256")
-// devuelve 0 en silencio. No se testea aqui para no cementar el comportamiento;
-// el test correspondiente entra con el arreglo de T2.1.
-//
-// NOTA: este fichero evita deliberadamente el acceso directo a `.data[i]` y usa
-// el constructor desde std::array<uint64_t, N>, de cara a T2.4 (hacer `data`
-// privado, como en phase-1.75).
+// NOTA: este fichero usa los accesores limb()/set_limb()/limbs() y el
+// constructor desde std::array<uint64_t, N>. `data` es privado desde T2.4,
+// recuperando el comportamiento de phase-1.75.
 
 #include "fixed_width_int_t.hpp"
 
 #include <array>
 #include <cstdlib>
 #include <iostream>
+#include <limits>
 #include <stdexcept>
 #include <string>
 
 using nstd::int_fixed_t;
+using nstd::parse_error;
 using nstd::uint_fixed_t;
 
 // =============================================================================

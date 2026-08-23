@@ -75,14 +75,14 @@ static void test_construction(const char *tag)
     TEST("min  is  negative", mn.is_negative());
 
     // max_val MSB of data[N-1] must be 0
-    TEST("max_val MSB==0", (mx.data[N - 1] >> 63) == 0);
+    TEST("max_val MSB==0", (mx.limb(N - 1) >> 63) == 0);
     // max_val lower limbs all 0xFF (for N=1 the only limb is INT64_MAX, not ~0)
     if constexpr (N > 1)
-        TEST("max_val data[0]==~0", mx.data[0] == ~std::uint64_t{0});
+        TEST("max_val data[0]==~0", mx.limb(0) == ~std::uint64_t{0});
     // min_val: only MSB of data[N-1] set, rest 0
-    TEST("min_val data[N-1] MSB==1", (mn.data[N - 1] >> 63) == 1);
+    TEST("min_val data[N-1] MSB==1", (mn.limb(N - 1) >> 63) == 1);
     if constexpr (N > 1)
-        TEST("min_val data[0]==0", mn.data[0] == 0);
+        TEST("min_val data[0]==0", mn.limb(0) == 0);
 
     // Default constructor gives zero
     const int_fixed_t<N> def{};
@@ -90,15 +90,15 @@ static void test_construction(const char *tag)
 
     // From int64_t: positive
     const int_fixed_t<N> v42{std::int64_t{42}};
-    TEST("from_i64(42) data[0]==42", v42.data[0] == 42);
+    TEST("from_i64(42) data[0]==42", v42.limb(0) == 42);
     if constexpr (N > 1)
-        TEST("from_i64(42) data[N-1]==0", v42.data[N - 1] == 0);
+        TEST("from_i64(42) data[N-1]==0", v42.limb(N - 1) == 0);
     TEST("from_i64(42) not negative", !v42.is_negative());
 
     // From int64_t: negative
     const int_fixed_t<N> vm1{std::int64_t{-1}};
-    TEST("from_i64(-1) data[0]==~0", vm1.data[0] == ~std::uint64_t{0});
-    TEST("from_i64(-1) data[N-1]==~0", vm1.data[N - 1] == ~std::uint64_t{0});
+    TEST("from_i64(-1) data[0]==~0", vm1.limb(0) == ~std::uint64_t{0});
+    TEST("from_i64(-1) data[N-1]==~0", vm1.limb(N - 1) == ~std::uint64_t{0});
     TEST("from_i64(-1) is negative", vm1.is_negative());
 
     // From uint_fixed_t (bit reinterpret)

@@ -175,7 +175,7 @@ static void test_crosslimb(const char *tag)
     {
         // 2^64 / 2 == 2^63
         uint_fixed_t<N> pow64{};
-        pow64.data[1] = 1; // 2^64
+        pow64.set_limb(1, 1); // 2^64
         const uint_fixed_t<N> two{std::uint64_t{2}};
         uint_fixed_t<N> pow63{std::uint64_t{1} << 63};
         TEST("2^64 / 2 == 2^63", pow64 / two == pow63);
@@ -188,8 +188,8 @@ static void test_crosslimb(const char *tag)
 
         // (2^64 + 1) / 2 == 2^63, remainder 1
         uint_fixed_t<N> pow64p1{};
-        pow64p1.data[1] = 1;
-        pow64p1.data[0] = 1;
+        pow64p1.set_limb(1, 1);
+        pow64p1.set_limb(0, 1);
         const auto [q2, r2] = uint_fixed_t<N>::divmod(pow64p1, two);
         TEST("(2^64+1)/2 == 2^63", q2 == pow63);
         TEST("(2^64+1)%2 == 1", r2 == uint_fixed_t<N>::one());
@@ -197,10 +197,10 @@ static void test_crosslimb(const char *tag)
         // large / large: dividend has high limb, divisor spans two limbs
         // (2^64 + 5) / (2^32 + 1): check fundamental theorem
         uint_fixed_t<N> big_a{};
-        big_a.data[1] = 1;
-        big_a.data[0] = 5;
+        big_a.set_limb(1, 1);
+        big_a.set_limb(0, 5);
         uint_fixed_t<N> big_b{std::uint64_t{1}};
-        big_b.data[0] = (std::uint64_t{1} << 32) + 1U;
+        big_b.set_limb(0, (std::uint64_t{1} << 32) + 1U);
         const auto [q3, r3] = uint_fixed_t<N>::divmod(big_a, big_b);
         TEST("cross-limb theorem", (q3 * big_b + r3) == big_a && r3 < big_b);
     }
@@ -319,7 +319,7 @@ static void test_single_limb_divisor(const char *tag)
     {
         uint_fixed_t<N> patterned{};
         for (std::size_t i = 0; i < N; ++i)
-            patterned.data[i] = 0xDEADBEEF00000000ULL | static_cast<std::uint64_t>(i + 1);
+            patterned.set_limb(i, 0xDEADBEEF00000000ULL | static_cast<std::uint64_t>(i + 1));
 
         TEST("patterned/3", check("patterned/3", patterned, 3));
         TEST("patterned/7", check("patterned/7", patterned, 7));
@@ -388,7 +388,7 @@ static void test_knuth_d(const char *tag)
         for (std::uint64_t w : limbs)
         {
             if (i < N)
-                v.data[i++] = w;
+                v.set_limb(i++, w);
         }
         return v;
     };
@@ -396,8 +396,8 @@ static void test_knuth_d(const char *tag)
     // ── 1. Dividend just above divisor (quotient = 1) ──
     {
         uint_fixed_t<N> b{};
-        b.data[0] = 0xFEDCBA9876543210ULL;
-        b.data[1] = 0x0123456789ABCDEFULL; // 2-limb divisor
+        b.set_limb(0, 0xFEDCBA9876543210ULL);
+        b.set_limb(1, 0x0123456789ABCDEFULL); // 2-limb divisor
         uint_fixed_t<N> a = b;
         a += uint_fixed_t<N>{std::uint64_t{1}};
         const auto [q, r] = uint_fixed_t<N>::divmod(a, b);
@@ -408,10 +408,10 @@ static void test_knuth_d(const char *tag)
     if constexpr (N >= 4)
     {
         uint_fixed_t<N> a{};
-        a.data[2] = 1; // a = 2^128
+        a.set_limb(2, 1); // a = 2^128
         uint_fixed_t<N> b{};
-        b.data[0] = 1;
-        b.data[1] = 1; // b = 2^64 + 1
+        b.set_limb(0, 1);
+        b.set_limb(1, 1); // b = 2^64 + 1
         TEST("2^128 / (2^64+1)", check("2^128/(2^64+1)", a, b));
     }
 
@@ -420,9 +420,9 @@ static void test_knuth_d(const char *tag)
     {
         const auto a = uint_fixed_t<N>::max();
         uint_fixed_t<N> b{};
-        b.data[0] = 0xFFFFFFFFFFFFFFFFULL;
-        b.data[1] = 0xAAAAAAAAAAAAAAAAULL;
-        b.data[2] = 0x5555555555555555ULL;
+        b.set_limb(0, 0xFFFFFFFFFFFFFFFFULL);
+        b.set_limb(1, 0xAAAAAAAAAAAAAAAAULL);
+        b.set_limb(2, 0x5555555555555555ULL);
         TEST("maxN / 3-limb divisor", check("maxN/3limb", a, b));
     }
 
@@ -430,13 +430,13 @@ static void test_knuth_d(const char *tag)
     if constexpr (N >= 4)
     {
         uint_fixed_t<N> a{};
-        a.data[0] = 0xDEADBEEFCAFEBABEULL;
-        a.data[1] = 0x0123456789ABCDEFULL;
-        a.data[2] = 0xFEDCBA9876543210ULL;
-        a.data[3] = 0x1111111111111111ULL;
+        a.set_limb(0, 0xDEADBEEFCAFEBABEULL);
+        a.set_limb(1, 0x0123456789ABCDEFULL);
+        a.set_limb(2, 0xFEDCBA9876543210ULL);
+        a.set_limb(3, 0x1111111111111111ULL);
         uint_fixed_t<N> b{};
-        b.data[0] = 0xFFFFFFFF00000001ULL;
-        b.data[1] = 0x0000000100000000ULL;
+        b.set_limb(0, 0xFFFFFFFF00000001ULL);
+        b.set_limb(1, 0x0000000100000000ULL);
         TEST("4-limb / 2-limb patterned", check("4limb/2limb", a, b));
     }
 
@@ -444,14 +444,14 @@ static void test_knuth_d(const char *tag)
     if constexpr (N >= 4)
     {
         uint_fixed_t<N> a{};
-        a.data[0] = 0x123456789ABCDEF0ULL;
-        a.data[1] = 0xFEDCBA9876543210ULL;
-        a.data[2] = 0xAAAABBBBCCCCDDDDULL;
-        a.data[3] = 0x0000000000000007ULL;
+        a.set_limb(0, 0x123456789ABCDEF0ULL);
+        a.set_limb(1, 0xFEDCBA9876543210ULL);
+        a.set_limb(2, 0xAAAABBBBCCCCDDDDULL);
+        a.set_limb(3, 0x0000000000000007ULL);
         uint_fixed_t<N> b{};
-        b.data[0] = 0x9999999999999999ULL;
-        b.data[1] = 0x7777777777777777ULL;
-        b.data[2] = 0x0000000000000003ULL;
+        b.set_limb(0, 0x9999999999999999ULL);
+        b.set_limb(1, 0x7777777777777777ULL);
+        b.set_limb(2, 0x0000000000000003ULL);
         TEST("4-limb / 3-limb divisor", check("4limb/3limb", a, b));
     }
 
@@ -459,7 +459,7 @@ static void test_knuth_d(const char *tag)
     {
         uint_fixed_t<N> a{};
         for (std::size_t i = 0; i < N; ++i)
-            a.data[i] = 0xABCDEF0123456789ULL ^ (std::uint64_t{i + 1} * 0x1111111111111111ULL);
+            a.set_limb(i, 0xABCDEF0123456789ULL ^ (std::uint64_t{i + 1} * 0x1111111111111111ULL));
         const auto [q, r] = uint_fixed_t<N>::divmod(a, a);
         TEST("self-division == 1 r0", q == uint_fixed_t<N>::one() && r == uint_fixed_t<N>::zero());
     }
@@ -468,18 +468,18 @@ static void test_knuth_d(const char *tag)
     if constexpr (N >= 4)
     {
         uint_fixed_t<N> a{};
-        a.data[0] = 0xABCDEF0123456789ULL;
-        a.data[1] = 0x0FEDCBA987654321ULL;
-        a.data[2] = 0x1234567890ABCDEFULL;
+        a.set_limb(0, 0xABCDEF0123456789ULL);
+        a.set_limb(1, 0x0FEDCBA987654321ULL);
+        a.set_limb(2, 0x1234567890ABCDEFULL);
         uint_fixed_t<N> b{};
-        b.data[1] = 1; // b = 2^64
+        b.set_limb(1, 1); // b = 2^64
         const auto [q, r] = uint_fixed_t<N>::divmod(a, b);
-        // q should be a >> 64: data[0]=a.data[1], data[1]=a.data[2], ...
+        // q should be a >> 64: data[0]=a.limb(1), data[1]=a.limb(2), ...
         uint_fixed_t<N> expected_q{};
         for (std::size_t i = 0; i < N - 1; ++i)
-            expected_q.data[i] = a.data[i + 1];
+            expected_q.set_limb(i, a.limb(i + 1));
         TEST("a / 2^64 == a>>64", q == expected_q);
-        TEST("a % 2^64 == a[0]", r == uint_fixed_t<N>{a.data[0]});
+        TEST("a % 2^64 == a[0]", r == uint_fixed_t<N>{a.limb(0)});
     }
 
     // ── 8. max / (max/2 + 1): quotient = 1, remainder = max/2 - 1 ──
@@ -495,10 +495,10 @@ static void test_knuth_d(const char *tag)
     {
         uint_fixed_t<N> a{};
         for (std::size_t i = 0; i < N; ++i)
-            a.data[i] = 0xFEDCBA9876543210ULL - i * 0x1111111111111111ULL;
+            a.set_limb(i, 0xFEDCBA9876543210ULL - i * 0x1111111111111111ULL);
         uint_fixed_t<N> b{};
         for (std::size_t i = 0; i < 4; ++i)
-            b.data[i] = 0x123456789ABCDEF0ULL + i * 0x0101010101010101ULL;
+            b.set_limb(i, 0x123456789ABCDEF0ULL + i * 0x0101010101010101ULL);
         TEST("8-limb / 4-limb", check("8limb/4limb", a, b));
     }
 
@@ -506,12 +506,12 @@ static void test_knuth_d(const char *tag)
     if constexpr (N >= 4)
     {
         uint_fixed_t<N> b{};
-        b.data[0] = 0xFFFFFFFFFFFFFFFFULL;
-        b.data[1] = 1; // top limb = 1  ⟹  s = 63
+        b.set_limb(0, 0xFFFFFFFFFFFFFFFFULL);
+        b.set_limb(1, 1); // top limb = 1  ⟹  s = 63
         uint_fixed_t<N> a{};
-        a.data[0] = 0;
-        a.data[1] = 0xFFFFFFFFFFFFFFFFULL;
-        a.data[2] = 2; // a = 2·(2^128) + 0xFFFF...:0
+        a.set_limb(0, 0);
+        a.set_limb(1, 0xFFFFFFFFFFFFFFFFULL);
+        a.set_limb(2, 2); // a = 2·(2^128) + 0xFFFF...:0
         TEST("s=63 normalisation path", check("s63norm", a, b));
     }
 
@@ -519,8 +519,8 @@ static void test_knuth_d(const char *tag)
     if constexpr (N >= 4)
     {
         uint_fixed_t<N> b{};
-        b.data[0] = 0x1ULL;
-        b.data[1] = std::uint64_t{1} << 63; // top limb MSB set ⟹ s = 0
+        b.set_limb(0, 0x1ULL);
+        b.set_limb(1, std::uint64_t{1} << 63); // top limb MSB set ⟹ s = 0
         const auto a = uint_fixed_t<N>::max();
         TEST("s=0 normalisation path", check("s0norm", a, b));
     }

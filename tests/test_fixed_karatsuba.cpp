@@ -62,7 +62,7 @@ static uint_fixed_t<N> make(std::initializer_list<uint64_t> limbs)
     std::size_t i = 0;
     for (uint64_t x : limbs)
         if (i < N)
-            v.data[i++] = x;
+            v.set_limb(i++, x);
     return v;
 }
 
@@ -186,10 +186,10 @@ static void test_vs_n2_ref(const char *tag)
     auto ref_mul = [](u256 a, u256 b) -> u256
     {
         // Extract halves (each 2 limbs)
-        u128 a_lo = make<2>({a.data[0], a.data[1]});
-        u128 a_hi = make<2>({a.data[2], a.data[3]});
-        u128 b_lo = make<2>({b.data[0], b.data[1]});
-        u128 b_hi = make<2>({b.data[2], b.data[3]});
+        u128 a_lo = make<2>({a.limb(0), a.limb(1)});
+        u128 a_hi = make<2>({a.limb(2), a.limb(3)});
+        u128 b_lo = make<2>({b.limb(0), b.limb(1)});
+        u128 b_hi = make<2>({b.limb(2), b.limb(3)});
 
         // Full 2-limb×2-limb products using N=2 schoolbook (via __uint128_t or _umul128)
         // We need the full 4-limb product a_lo*b_lo, computed as:
@@ -203,10 +203,10 @@ static void test_vs_n2_ref(const char *tag)
         //
         // Instead, build z0 (4 limbs) using 4 separate 64×64 products
         // This is a clean schoolbook reference, independent of Karatsuba.
-        const uint64_t a0 = a_lo.data[0], a1 = a_lo.data[1];
-        const uint64_t a2 = a_hi.data[0], a3 = a_hi.data[1];
-        const uint64_t b0 = b_lo.data[0], b1 = b_lo.data[1];
-        const uint64_t b2 = b_hi.data[0], b3 = b_hi.data[1];
+        const uint64_t a0 = a_lo.limb(0), a1 = a_lo.limb(1);
+        const uint64_t a2 = a_hi.limb(0), a3 = a_hi.limb(1);
+        const uint64_t b0 = b_lo.limb(0), b1 = b_lo.limb(1);
+        const uint64_t b2 = b_hi.limb(0), b3 = b_hi.limb(1);
 
         // Full schoolbook 4×4→4 (truncated to 4 limbs)
         u256 r{};
@@ -215,19 +215,19 @@ static void test_vs_n2_ref(const char *tag)
             // Add lo at r[pos], hi at r[pos+1], with carry propagation
             if (pos >= 4)
                 return;
-            uint64_t old = r.data[pos];
-            r.data[pos] += lo;
-            uint64_t c = (r.data[pos] < old) ? 1 : 0;
+            uint64_t old = r.limb(pos);
+            r.set_limb(pos, r.limb(pos) + (lo));
+            uint64_t c = (r.limb(pos) < old) ? 1 : 0;
             if (pos + 1 < 4)
             {
-                old = r.data[pos + 1];
-                r.data[pos + 1] += hi + c;
-                c = (r.data[pos + 1] < old || (c && r.data[pos + 1] == old)) ? 1 : 0;
+                old = r.limb(pos + 1);
+                r.set_limb(pos + 1, r.limb(pos + 1) + (hi + c));
+                c = (r.limb(pos + 1) < old || (c && r.limb(pos + 1) == old)) ? 1 : 0;
                 for (std::size_t k = pos + 2; k < 4 && c; ++k)
                 {
-                    old = r.data[k];
-                    r.data[k] += c;
-                    c = (r.data[k] < old) ? 1 : 0;
+                    old = r.limb(k);
+                    r.set_limb(k, r.limb(k) + (c));
+                    c = (r.limb(k) < old) ? 1 : 0;
                 }
             }
         };
@@ -388,35 +388,35 @@ static void test_vs_n4_ref(const char *tag)
     //          + (a_lo*b_hi + a_hi*b_lo) << 256  mod 2^512
     auto ref_mul = [](u512 a, u512 b) -> u512
     {
-        u256 a_lo = make<4>({a.data[0], a.data[1], a.data[2], a.data[3]});
-        u256 a_hi = make<4>({a.data[4], a.data[5], a.data[6], a.data[7]});
-        u256 b_lo = make<4>({b.data[0], b.data[1], b.data[2], b.data[3]});
-        u256 b_hi = make<4>({b.data[4], b.data[5], b.data[6], b.data[7]});
+        u256 a_lo = make<4>({a.limb(0), a.limb(1), a.limb(2), a.limb(3)});
+        u256 a_hi = make<4>({a.limb(4), a.limb(5), a.limb(6), a.limb(7)});
+        u256 b_lo = make<4>({b.limb(0), b.limb(1), b.limb(2), b.limb(3)});
+        u256 b_hi = make<4>({b.limb(4), b.limb(5), b.limb(6), b.limb(7)});
 
         // Full product a_lo*b_lo (need 8 limbs: lower 4 from N=4 result, upper 4 from carry)
         // Since N=4 operator* gives truncated 4-limb result, we use schoolbook to get all 8 limbs
         // Schoolbook 4×4→8 reference using N=2 products:
-        const uint64_t *al = a_lo.data.data();
-        const uint64_t *bl = b_lo.data.data();
+        const uint64_t *al = a_lo.limbs().data();
+        const uint64_t *bl = b_lo.limbs().data();
 
         u512 r{};
         auto add_to = [&r](std::size_t pos, uint64_t lo, uint64_t hi)
         {
             if (pos >= 8)
                 return;
-            uint64_t old = r.data[pos];
-            r.data[pos] += lo;
-            uint64_t c = (r.data[pos] < old) ? 1 : 0;
+            uint64_t old = r.limb(pos);
+            r.set_limb(pos, r.limb(pos) + (lo));
+            uint64_t c = (r.limb(pos) < old) ? 1 : 0;
             if (pos + 1 < 8)
             {
-                old = r.data[pos + 1];
-                r.data[pos + 1] += hi + c;
-                c = (r.data[pos + 1] < old || (c && r.data[pos + 1] == old)) ? 1 : 0;
+                old = r.limb(pos + 1);
+                r.set_limb(pos + 1, r.limb(pos + 1) + (hi + c));
+                c = (r.limb(pos + 1) < old || (c && r.limb(pos + 1) == old)) ? 1 : 0;
                 for (std::size_t k = pos + 2; k < 8 && c; ++k)
                 {
-                    old = r.data[k];
-                    r.data[k] += c;
-                    c = (r.data[k] < old) ? 1 : 0;
+                    old = r.limb(k);
+                    r.set_limb(k, r.limb(k) + (c));
+                    c = (r.limb(k) < old) ? 1 : 0;
                 }
             }
         };
@@ -433,8 +433,8 @@ static void test_vs_n4_ref(const char *tag)
 #endif
 
         // Full schoolbook 8×8→8 (truncated)
-        const uint64_t *av = a.data.data();
-        const uint64_t *bv = b.data.data();
+        const uint64_t *av = a.limbs().data();
+        const uint64_t *bv = b.limbs().data();
         for (std::size_t i = 0; i < 8; ++i)
             for (std::size_t j = 0; i + j < 8; ++j)
             {

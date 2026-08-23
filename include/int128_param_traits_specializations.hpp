@@ -106,8 +106,16 @@
 #endif
 
 // ⚠️ IMPORTANT: Include type_traits HERE, before the specializations
-#include <type_traits>
+// T2.5 (auditoria 23 ago 2026): este header NO era autocontenido -- usaba
+// nstd::int128_param_t sin incluir su definicion, asi que solo compilaba si el
+// usuario habia incluido antes int128_parameterized.hpp. Es API publica (lo
+// incluyen directamente tests/test_param_traits.cpp y
+// tests/test_traits_specializations.cpp), asi que pasa a incluir lo que usa.
+// No hay ciclo: int128_parameterized.hpp no incluye este fichero.
+#include "int128_parameterized.hpp"
+
 #include <functional>
+#include <type_traits>
 
 namespace nstd
 {

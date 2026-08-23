@@ -83,12 +83,12 @@ static void test_construction(const char *tag)
     TEST("zero is_zero", z.is_zero());
     TEST("one  not zero", !o.is_zero());
     TEST("max  not zero", !m.is_zero());
-    TEST("zero data[0]==0", z.data[0] == 0);
-    TEST("one  data[0]==1", o.data[0] == 1);
-    TEST("max  data[0]==~0", m.data[0] == ~std::uint64_t{0});
-    TEST("max  data[N-1]==~0", m.data[N - 1] == ~std::uint64_t{0});
+    TEST("zero data[0]==0", z.limb(0) == 0);
+    TEST("one  data[0]==1", o.limb(0) == 1);
+    TEST("max  data[0]==~0", m.limb(0) == ~std::uint64_t{0});
+    TEST("max  data[N-1]==~0", m.limb(N - 1) == ~std::uint64_t{0});
     if constexpr (N > 1)
-        TEST("one  data[N-1]==0", o.data[N - 1] == 0);
+        TEST("one  data[N-1]==0", o.limb(N - 1) == 0);
 
     // Default constructor gives zero
     const uint_fixed_t<N> def{};
@@ -96,9 +96,9 @@ static void test_construction(const char *tag)
 
     // uint64_t constructor
     const uint_fixed_t<N> v42{std::uint64_t{42}};
-    TEST("from_u64 data[0]==42", v42.data[0] == 42);
+    TEST("from_u64 data[0]==42", v42.limb(0) == 42);
     if constexpr (N > 1)
-        TEST("from_u64 data[N-1]==0", v42.data[N - 1] == 0);
+        TEST("from_u64 data[N-1]==0", v42.limb(N - 1) == 0);
 }
 
 // =============================================================================
@@ -140,7 +140,7 @@ static void test_comparison(const char *tag)
     if constexpr (N > 1)
     {
         uint_fixed_t<N> big{};
-        big.data[N - 1] = 1; // 2^(64*(N-1)), much bigger than one
+        big.set_limb(N - 1, 1); // 2^(64*(N-1)), much bigger than one
         TEST("big > one (MSL dominates)", big > o);
         TEST("one < big (MSL dominates)", o < big);
     }
@@ -224,15 +224,15 @@ static void test_shifts(const char *tag)
     if constexpr (N >= 2)
     {
         const auto shifted = o << 64;
-        TEST("(1<<64) data[0]==0", shifted.data[0] == 0);
-        TEST("(1<<64) data[1]==1", shifted.data[1] == 1);
+        TEST("(1<<64) data[0]==0", shifted.limb(0) == 0);
+        TEST("(1<<64) data[1]==1", shifted.limb(1) == 1);
         const auto back = shifted >> 64;
         TEST("(1<<64)>>64 == one", back == o);
     }
 
     // Shift max right fills with zeros from MSB
     TEST("max >> (64N-1) == one", (m >> (64U * N - 1)) == o);
-    TEST("max << (64N-1): only MSB set", (m << (64U * N - 1)).data[N - 1] == (std::uint64_t{1} << 63));
+    TEST("max << (64N-1): only MSB set", (m << (64U * N - 1)).limb(N - 1) == (std::uint64_t{1} << 63));
 }
 
 // =============================================================================
@@ -270,7 +270,7 @@ static void test_addition(const char *tag)
         volatile bool all_zero{true};
         for (std::size_t i{0}; i < N; ++i)
         {
-            volatile std::uint64_t limb = sum.data[i];
+            volatile std::uint64_t limb = sum.limb(i);
             if (limb != 0)
                 all_zero = false;
         }
@@ -317,11 +317,11 @@ static void test_subtraction(const char *tag)
     if constexpr (N >= 2)
     {
         uint_fixed_t<N> pow64{};
-        pow64.data[1] = 1;
+        pow64.set_limb(1, 1);
         // 2^64 - 1 == max of lower 64 bits = 0xFFFF...FFFF (low), 0 (rest)
         const auto res = pow64 - o;
-        TEST("2^64 - 1: data[0]==~0", res.data[0] == ~std::uint64_t{0});
-        TEST("2^64 - 1: data[1]==0", res.data[1] == 0);
+        TEST("2^64 - 1: data[0]==~0", res.limb(0) == ~std::uint64_t{0});
+        TEST("2^64 - 1: data[1]==0", res.limb(1) == 0);
     }
 }
 
@@ -428,7 +428,7 @@ static void test_multiplication(const char *tag)
         const uint_fixed_t<N> pow63{std::uint64_t{1} << 63};
         const uint_fixed_t<N> two{std::uint64_t{2}};
         uint_fixed_t<N> pow64{};
-        pow64.data[1] = 1; // 2^64
+        pow64.set_limb(1, 1); // 2^64
         TEST("2^63 * 2 == 2^64 (cross-limb)", (pow63 * two) == pow64);
     }
 
@@ -437,7 +437,7 @@ static void test_multiplication(const char *tag)
     {
         const uint_fixed_t<N> pow32{std::uint64_t{1} << 32};
         uint_fixed_t<N> pow64{};
-        pow64.data[1] = 1;
+        pow64.set_limb(1, 1);
         TEST("(2^32)^2 == 2^64", (pow32 * pow32) == pow64);
     }
 }
@@ -496,7 +496,7 @@ static void test_utility(const char *tag)
     if constexpr (N >= 2)
     {
         uint_fixed_t<N> pow64{};
-        pow64.data[1] = 1;
+        pow64.set_limb(1, 1);
         TEST("clz(2^64)==64N-65", pow64.count_leading_zeros() == 64U * N - 65U);
         TEST("ctz(2^64)==64", pow64.count_trailing_zeros() == 64U);
         TEST("is_pow2(2^64)", pow64.is_power_of_two());
@@ -669,7 +669,7 @@ static void test_higher_arith(const char *tag)
         const U mx = U::max();
         const U2 sq = nstd::mul_wide(mx, mx);
         // (2^(64N)-1)^2 = 2^(128N) - 2^(64N+1) + 1 => low limb is always 1
-        TEST("mul_wide(max,max): low limb==1", sq.data[0] == std::uint64_t{1});
+        TEST("mul_wide(max,max): low limb==1", sq.limb(0) == std::uint64_t{1});
         TEST("mul_wide(1,1)==1", nstd::mul_wide(U{1}, U{1}) == U2{1});
         TEST("mul_wide(0,max)==0", nstd::mul_wide(U{}, mx) == U2{});
     }
