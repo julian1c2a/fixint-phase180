@@ -1,0 +1,203 @@
+# =============================================================================
+# docker-compose.yml - Orquestación de compilaciones y tests
+# =============================================================================
+# Automatiza múltiples pipelines de compilación en paralelo.
+#
+# USO:
+#
+#   # Servicios individuales
+#   docker compose up build-tests         # Compilar todos los tests
+#   docker compose up run-tests           # Ejecutar todos los tests
+#   docker compose up run-benchmarks      # Ejecutar todos los benchmarks
+#
+#   # Pipeline completo
+#   docker compose up all-pipeline        # Build + Tests + Benchmarks (secuencial)
+#
+#   # Análisis estático
+#   docker compose up static-analysis    # Análisis estático con cppcheck
+#
+#   # Ejecutar un demo específico
+#   docker compose run demo bash          # Shell interactivo
+#
+# NOTA: Requiere que docker build esté realizado primero:
+#   docker build -t fixint-build:latest -f docker/Dockerfile .
+#
+# =============================================================================
+
+version: '3.8'
+
+services:
+
+  # =========================================================================
+  # Base service (herencia)
+  # =========================================================================
+  
+  base:
+    image: fixint-build:latest
+    working_dir: /project
+    volumes:
+      # Montar el directorio completo
+      - .:/project
+      # Montar build/ en un volumen nombrado para persistencia entre servicios
+      - build-cache:/project/build
+      # Montar resultados en un directorio local
+      - ./build_results:/project/results
+    environment:
+      CMAKE_BUILD_TYPE: Release
+      MAKEFLAGS: "-j4"
+
+  # =========================================================================
+  # 1. COMPILACIÓN
+  # =========================================================================
+  
+  build-all:
+    extends: base
+    command: ["python3", "make.py", "all"]
+    container_name: fixint-build-all
+    
+  build-tests:
+    extends: base
+    command: ["python3", "make.py", "build", "uint128", "all", "tests", "all", "all"]
+    container_name: fixint-build-tests
+    
+  build-benchmarks:
+    extends: base
+    command: ["python3", "make.py", "build", "uint128", "all", "benchs", "all", "release"]
+    container_name: fixint-build-benchmarks
+    depends_on:
+      - build-tests
+
+  # =========================================================================
+  # 2. EJECUCIÓN DE TESTS
+  # =========================================================================
+  
+  run-tests:
+    extends: base
+    command: ["python3", "make.py", "test"]
+    container_name: fixint-run-tests
+    depends_on:
+      - build-tests
+    
+  run-tests-gcc:
+    extends: base
+    command: ["python3", "make.py", "check", "uint128", "all", "gcc", "all"]
+    container_name: fixint-run-tests-gcc
+    depends_on:
+      - build-tests
+
+  run-tests-clang:
+    extends: base
+    command: ["python3", "make.py", "check", "uint128", "all", "clang", "all"]
+    container_name: fixint-run-tests-clang
+    depends_on:
+      - build-tests
+
+  # =========================================================================
+  # 3. EJECUCIÓN DE BENCHMARKS
+  # =========================================================================
+  
+  run-benchmarks:
+    extends: base
+    command: ["python3", "make.py", "bench"]
+    container_name: fixint-run-benchmarks
+    depends_on:
+      - build-benchmarks
+
+  run-benchmarks-gcc:
+    extends: base
+    command: ["python3", "make.py", "run", "uint128", "all", "gcc", "release"]
+    container_name: fixint-run-benchmarks-gcc
+    depends_on:
+      - build-benchmarks
+
+  run-benchmarks-clang:
+    extends: base
+    command: ["python3", "make.py", "run", "uint128", "all", "clang", "release"]
+    container_name: fixint-run-benchmarks-clang
+    depends_on:
+      - build-benchmarks
+
+  # =========================================================================
+  # 4. ANÁLISIS ESTÁTICO
+  # =========================================================================
+  
+  static-analysis:
+    extends: base
+    command: ["python3", "make.py", "analyze", "cppcheck", "headers"]
+    container_name: fixint-static-analysis
+
+  # =========================================================================
+  # 5. PIPELINE COMPLETO
+  # =========================================================================
+  
+  all-pipeline:
+    extends: base
+    command: ["bash", "-c", "python3 make.py all && python3 make.py test && python3 make.py bench"]
+    container_name: fixint-all-pipeline
+    
+  quick-pipeline:
+    extends: base
+    command: ["bash", "-c", "python3 make.py build uint128 all tests gcc release && python3 make.py check uint128 all gcc release"]
+    container_name: fixint-quick-pipeline
+
+  # =========================================================================
+  # 6. UTILIDADES
+  # =========================================================================
+  
+  init:
+    extends: base
+    command: ["python3", "make.py", "init"]
+    container_name: fixint-init
+
+  list:
+    extends: base
+    command: ["python3", "make.py", "list"]
+    container_name: fixint-list
+
+  clean:
+    extends: base
+    command: ["python3", "make.py", "clean", "--all"]
+    container_name: fixint-clean
+
+  # =========================================================================
+  # 7. SHELL INTERACTIVO
+  # =========================================================================
+  
+  bash:
+    extends: base
+    stdin_open: true
+    tty: true
+    command: ["/bin/bash"]
+    container_name: fixint-bash
+
+  demo:
+    extends: base
+    stdin_open: true
+    tty: true
+    command: ["/bin/bash"]
+    container_name: fixint-demo
+
+# =============================================================================
+# VOLÚMENES NOMBRADOS
+# =============================================================================
+
+volumes:
+  build-cache:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: "size=4g"
+
+# =============================================================================
+# REDES
+# =============================================================================
+
+networks:
+  default:
+    name: fixint-net
+    driver: bridge
+
+# =============================================================================
+# EOF
+# =============================================================================

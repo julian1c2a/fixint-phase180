@@ -2,7 +2,7 @@
 
 ## OBJETIVO 1
 
-Proporcionar un tipo entero de 128 bits que sea similiar a los tipos enteros nativos de determinados por el lenguaje C++ y C, en términos de funcionalidad y estándar del lenguaje C++, además de conseguir rendimiento aceptables. Comparamos estos rendimienhtos con los conseguidos por los tipos enteros nativos de 64 bits y 32 bits, por los tipos __int128_t__ y __uint128_t__ de GCC y Clang, y por las bibliotecas de enteros grandes como GMP, TomMath y Boost.Multiprecision.
+Proporcionar un tipo entero de 128 bits que sea similiar a los tipos enteros nativos de determinados por el lenguaje C++ y C, en términos de funcionalidad y estándar del lenguaje C++, además de conseguir rendimiento aceptables. Comparamos estos rendimientos con los conseguidos por los tipos enteros nativos de 64 bits y 32 bits, por los tipos __int128_t__ y __uint128_t__ de GCC y Clang, y por las bibliotecas de enteros grandes como GMP, TomMath y Boost.Multiprecision.
 
 ## OBJETIVO 2
 
@@ -14,7 +14,7 @@ El usuario de la biblioteca debe sentirla como parte del lenguaje C++, sin notar
 
 ## OBJETIVO 4
 
-Inicialmente, los compiladores C++ serán gcc-13, gcc-14, gcc-15 en WSL (Ubuntu 25.04), clang-18, clang-19, clang-20 y clang-21 en WSL (Ubuntu 25.04), oneAPI de Intel (icpx) en WSL (Ubuntu 25.04), MSVC 2026 en Windows 11, y Intel C++ Compiler (icx) en Windows 11. El sistema de build debe de hacer un ciclo completo de CI/CD, incluyendo compilación de los tests, compilación de los benchmarks, ejecución de los tests y ejecución de los benchmarks, todo ello de forma automática y sin intervención del usuario.
+Inicialmente, los compiladores C++ serán gcc-13, gcc-14, gcc-15, gcc-16 en WSL (Ubuntu 25.04), clang-18, clang-19, clang-20, clang-21 y clang -22 en WSL (Ubuntu 25.04), oneAPI de Intel (icpx) en WSL (Ubuntu 25.04), MSVC 2026 en Windows 11, y Intel C++ Compiler (icx) en Windows 11. El sistema de build debe de hacer un ciclo completo de CI/CD, incluyendo compilación de los tests, compilación de los benchmarks, ejecución de los tests y ejecución de los benchmarks, todo ello de forma automática y sin intervención del usuario.
 
 ## OBJETIVO 5
 
@@ -30,7 +30,7 @@ El proyecto debe tener una estructura muy clara y organizada, con una separació
 
 ## OBJETIVO 8
 
-El sistema de construcción del proyecto recae sobre scripts python (en scripts/) que proporcionan con facilidad entornos de variables de entorno locales y temporales (mientras dura la compilación) para cada compilador y plataforma soportada. Los demás scripts deben recaer sobre estos (llamadas a estos scripts principales). El uso de mske y makefiles quedará condicionado a usar estos scripts python. A su vez, la gran estructura CMake quedará condicionada a usar el nivel de make/makefiles. Usaremos CMake/CTest. Nos falta definir el script CI/CD, que pueda ser llamado desde GitHub Actions u otros sistemas CI/CD (incluso a voluntad).
+El sistema de construcción del proyecto recae sobre scripts python (en scripts/) que proporcionan con facilidad entornos de variables de entorno locales y temporales (mientras dura la compilación) para cada compilador y plataforma soportada. Los demás scripts deben recaer sobre estos (llamadas a estos scripts principales). El uso de make y makefiles quedará condicionado a usar estos scripts python. A su vez, la gran estructura CMake quedará condicionada a usar el nivel de make/makefiles. Usaremos CMake/CTest. Nos falta definir el script CI/CD, que pueda ser llamado desde GitHub Actions u otros sistemas CI/CD (incluso a voluntad).
 
 ## OBJETIVO 9
 
@@ -76,7 +76,7 @@ Implementación de los tipos en punto flotante basados en la representación IEE
 
 ## ETAPA 7
 
-Implmentación de tipos enteros de longitud arbitraria (big integers) basados en el tipo std::string_base<uint64_t>, o alguno que nosotros implmentemos similar. Además, implementaremos solo tipos signos en Complemento a 2. Implementación de pruebas unitarias y benchmarks para verificar la corrección y el rendimiento de los tipos enteros de longitud arbitraria en comparación con las bibliotecas existentes como GMP, TomMath y Boost.Multiprecision. (Por comenzar)
+Implmentación de tipos enteros de longitud arbitraria (big integers) basados en el tipo std::string_base<uint64_t>, o alguno que nosotros implementemos similar. Además, implementaremos solo tipos signos en Complemento a 2. Implementación de pruebas unitarias y benchmarks para verificar la corrección y el rendimiento de los tipos enteros de longitud arbitraria en comparación con las bibliotecas existentes como GMP, TomMath y Boost.Multiprecision. (Por comenzar)
 
 ## ETAPA 8
 

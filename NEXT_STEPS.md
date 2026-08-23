@@ -1,10 +1,230 @@
 # 🔮 NEXT STEPS - v1.90: fixed_int_t\<N\> generalización
 
-**Status:** v1.80 ✅ | v1.81 MS-INTEROP ✅ | `fixed_int_t<N>` unificado ✅ | fast paths N=2 ✅ | single-limb fast path ✅ | **Knuth D ✅** | **Karatsuba N=4/8 ✅**
-**Last Updated:** 22 May 2026
-**Focus:** v1.90 `fixed_int_t<N>` — Fase MS-INTEROP completa. Próximo: to_string para N>2.
+**Status:** v1.80 ✅ | v1.81 MS-INTEROP ✅ | `fixed_int_t<N>` unificado ✅ | fast paths N=2 ✅ | single-limb fast path ✅ | **Knuth D ✅** | **Karatsuba N=4/8 ✅** | **Auditoría 23 ago 2026 ✅**
+**Last Updated:** 23 August 2026
+**Focus:** plan integrado post-auditoría (v1.90.1), sección siguiente. Objetivo de rama: `div`/`mod` constexpr + `fixed_int_t` sustituyendo a los tipos de 256 bits anteriores.
 
 ---
+
+## 🔍 AUDITORÍA 23 ago 2026 — Plan integrado (v1.90.1)
+
+> Auditoría completa del proyecto + comentarios del autor (18 puntos). Este bloque
+> es el **plan vigente**: sustituye a la tabla "Pendiente (prioridad)" de v1.90, cuyos
+> items 1-3 (`to_string`/`from_string` N>2, `checked_*`) están **ya implementados y
+> verificados**.
+
+### Evidencia recogida en la auditoría
+
+| Comprobación | Resultado |
+|---|---|
+| `python make.py test gcc release-O2` | **52/52 ficheros OK** (227 s) |
+| Warnings `-Wall -Wextra -Wshadow -Wconversion -Wsign-conversion` | 2 sitios cosméticos en librería |
+| **Fuzz diferencial vs enteros grandes de Python** (N=2/4/8, signed+unsigned, `+ - * / % & << >>`, `to_string`) | **17.600 ops, 0 discrepancias** |
+| Headers auto-contenidos | 27/28 |
+| `TODO`/`FIXME` en `include/` | 0 |
+
+**Conclusión:** el núcleo matemático (Knuth D, Karatsuba, string, comparaciones) es
+sólido. La deuda está en empaquetado, higiene, puertas de calidad del CI e integración STL.
+
+---
+
+### Respuestas a las preguntas abiertas del autor
+
+#### [P3] ¿Cómo se arregla la inyección de `-fconstexpr-steps=100000000`?
+
+**Diagnóstico:** `GM_TABLE` ([int128_param_divmod.hpp:308](include/int128_param_divmod.hpp#L308))
+son 1024 entradas × ~2000 pasos constexpr ≈ 2M pasos, sobre un límite Clang por defecto de 1M.
+Verificado: falla en **Clang 14 y Clang 22** por igual. Hoy lo tapa
+[build_generic.py:205](scripts/build_generic.py#L205) y el job de sanitizers.
+Cualquier consumidor externo que haga `#include` con Clang **no compila**.
+
+**Solución recomendada (de fondo):** que la tabla deje de ser `constexpr` obligatoria.
+
+1. `inline const std::array<...> GM_TABLE` inicializada en runtime → **0 pasos constexpr**,
+   y de paso baja el tiempo de compilación de todo el que incluya el header.
+2. Para el camino constexpr, `template <std::uint64_t D> inline constexpr gm_entry gm_for_v = compute_magic_128(D);`
+   — se calcula **solo el divisor que se use**, no los 1024. Coste: ~2000 pasos, tres
+   órdenes de magnitud bajo el límite.
+3. `div<D>`/`mod<D>`/`divmod_const<D>` eligen: en contexto constante → `gm_for_v<D>`;
+   en runtime → `GM_TABLE[D]`.
+
+**Red de seguridad (aplicar ya, aunque se haga lo anterior):** exponer el flag como
+propiedad del target CMake INTERFACE (`target_compile_options(... INTERFACE $<$<CXX_COMPILER_ID:Clang>:-fconstexpr-steps=...>)`)
+para que **viaje con el paquete** en vez de ser un secreto de los scripts.
+
+**Test de no-regresión:** un job de CI que compile un TU con Clang **sin** el flag.
+Mientras ese job pase, el problema no puede volver a colarse.
+
+#### [P4] Los 3 jobs de CI que no pueden fallar, ¿eran temporales sin documentar?
+
+**No hay rastro de que fueran temporales.** Nacieron así en `630ae18` (20 mar 2026,
+"feat(ci): multi-arch CI/CD"), el commit que introdujo el multi-arch. Sin `TODO`, sin
+comentario, sin issue. El mensaje de ese commit dice "49/49 tests pass GCC + Clang",
+es decir, los jobs de arquitectura eran exploratorios y la tolerancia se quedó congelada.
+
+- `cross-arm32` → `continue-on-error: true` explícito ([ci.yml:237](.github/workflows/ci.yml#L237))
+- `cross-x86-32` ([ci.yml:310](.github/workflows/ci.yml#L310)) e `intel-icx` ([ci.yml:485](.github/workflows/ci.yml#L485)) → cuentan fallos, imprimen resumen y **nunca hacen `exit 1`**
+- aarch64/riscv64 → toleran hasta 10% de tests rotos ([líneas 161, 182, 273, 292](.github/workflows/ci.yml#L182)) y mandan errores de compilación a `/dev/null`
+
+**Propuesta:** ponerlos estrictos de golpe y ver qué cae de verdad. Si algo está roto
+en una arquitectura concreta, allowlist **explícita y nominal** (`ALLOWED_FAIL="test_x test_y"`)
+con comentario del porqué — nunca una tolerancia porcentual anónima.
+
+#### [P6] ¿Seguimos trabajando en la integración STL de `fixed_int_t`?
+
+**El objetivo de esta rama es que `fixed_int_t<N>` ocupe el sitio de los tipos de 256 bits
+anteriores**, así que la integración STL no es un "nice to have": es **requisito de paridad**.
+El predecesor `int128_param_t` ya tiene `std::hash`, `std::formatter` e iostreams
+(`int128_param_format.hpp`, `int128_param_iostreams.hpp`). `fixed_int_t` **no tiene ninguno
+de los tres** — no se puede imprimir, ni meter en `unordered_map`, ni usar con `std::format`.
+El fichero suelto `include/test_fixed_string_io.cpp` (sin trackear, escrito con gtest, que
+no es dependencia del proyecto) es evidencia de que esto se empezó y quedó a medias.
+
+#### [P12b] ¿`int128_param_traits_specializations.hpp` debe ser autocontenido?
+
+**Sí**, porque **es API pública de facto**: lo incluyen directamente
+`tests/test_param_traits.cpp:10` y `tests/test_traits_specializations.cpp:13`. La regla
+estándar (headers auto-contenidos / IWYU) dice que todo header instalable debe compilar solo.
+
+Dos caminos, y hay que elegir uno explícitamente:
+- **(a) Hacerlo autocontenido** — que incluya `int128_parameterized.hpp` en su cabecera.
+  Es lo correcto si es API pública. Ojo al ciclo: si aparece, romperlo con forward declarations.
+- **(b) Declararlo header de detalle** — moverlo a `include/detail/`, documentar que no se
+  incluye directamente, y arreglar los dos tests.
+
+Recomiendo **(a)**. Argumento extra: `fixed_int_traits_specializations.hpp` ya documenta en
+sus líneas 24-101 un **conflicto por orden de inclusión** con este header. Un header que
+depende de qué se incluyó antes es una fragilidad que hay que cerrar, no documentar.
+
+#### [P13] ¿`data` debería ser público? — comprobado en versiones anteriores
+
+**Comprobado: en `int128-phase175` era `private`.** `int128_param_t` declara
+`std::uint64_t data[2]` bajo `private:` (línea 247-248) y expone `high()` / `low()`
+(líneas 701-704). Es decir: **`fixed_int_t` con `data` público es una regresión de
+encapsulación**, no una convención histórica del proyecto.
+
+Coste medido de revertirlo: **107 accesos `.data[` en `tests/`, 4 en `benchs/`, 0 en
+`demos/` y 0 en otros headers**. Además `fixed_width_int_t.hpp` **no tiene ni una
+declaración `friend`**: el constructor cross-tipo y los operadores libres funcionan
+únicamente porque `data` es público.
+
+**Trade-off a decidir:** con `data` privado el tipo deja de ser *structural type* y no
+podrá usarse como parámetro no-tipo de plantilla (NTTP). No hay ningún uso así hoy.
+Sigue siendo trivialmente copiable, así que `std::bit_cast` y `memcpy` no se ven afectados.
+
+#### [P17] Sobre los sistemas de construcción
+
+La jerarquía que describes (make.py → CMake/Presets local; WSL para Linux; Docker para otras
+arquitecturas) **es correcta y no hay que cambiarla**. Los problemas son de duplicación,
+no de arquitectura:
+
+1. **Una sola fuente de verdad para toolchains.** Hoy las rutas de compilador viven en
+   `build_generic.py`, `check_generic.py`, `CMakePresets.json`, `ci.yml`, los Dockerfiles y
+   `AI_PROMPT/ai-instructions.md`. Por eso pasa lo del clang equivocado ([T1.1]).
+   Propuesta: `toolchains.json` en la raíz, leído por make.py y generador de los presets.
+2. **`Makefile` (20 KB) vs `make.py` (39 KB):** si make.py es la capa canónica, el Makefile
+   debería quedarse en un shim de 5 líneas que delegue, o desaparecer.
+3. **45 scripts en `scripts/`** (33 bash + 12 python), la mayoría ancestros de
+   `build_generic.py` / `run_generic.py` / `check_generic.py`. Auditar y archivar.
+4. **3 Dockerfiles** (`Dockerfile`, `Dockerfile.crosstest`, `Dockerfile.riscv32`) → uno solo
+   parametrizado con `ARG COMPILER_VERSION` / `ARG TARGET_ARCH`.
+
+---
+
+### Plan de acción — orden de ejecución
+
+#### 🧹 Fase 0 — Higiene y desbloqueo (rápido, sin riesgo)
+
+| id | Tarea | Detalle | Ref |
+|----|-------|---------|-----|
+| T0.1 | Destrackear ficheros muertos, **también en remoto** | `git rm --cached .aider.chat.history.md .aider.input.history .aider.conf.yml .aider.tags.cache.v4/cache.db` + los 5 `.old`/`.bak` (`tests/test_param_{bits,cmath,limits,numeric}.cpp.old`, `include/int128_param_limits.hpp.old`, `benchs/benchmark_vs_builtin.cpp.bak`) → commit → push. **Nota:** esto los quita del árbol, no del historial; purgarlos de verdad exige `git filter-repo` y reescribir historia — no recomendado salvo petición expresa. | #10 |
+| T0.2 | Mover `include/test_fixed_string_io.cpp` | Un `.cpp` no vive en `include/`. Va a `tests/`, reescrito con el framework propio del proyecto (hoy usa gtest, que no es dependencia). Su contenido es la base de [T5.1]. | #6, #11 |
+| T0.3 | Limpieza de disco | `build/` ocupa **5,4 GB**; `vc140.pdb` (2,1 MB) y `CRASH` en la raíz. | #10 |
+| T0.4 | Erratas menores | `.dockerignore`: `DOCISION_AND_FUTURE.md` → `DECISION_`. README: "42/42" → 52/52; `test_cross_operators 106/106` → 197. Unificar `#pragma once` (3 headers) vs include guards (25). | #18 |
+
+#### 🔧 Fase 1 — Toolchain y licencia
+
+| id | Tarea | Detalle | Ref |
+|----|-------|---------|-----|
+| T1.1 | **Fijar el compilador correcto** | Verificado: en este equipo `clang++` y `g++` **a secas** resuelven a `C:\msys64\usr\bin\` (target `x86_64-pc-windows-cygnus`), **no** a `clang64`/`ucrt64`. No hay clang de Lean 4 en el PATH, pero el riesgo es real igualmente. [build_generic.py:397](scripts/build_generic.py#L397) y [check_generic.py:134](scripts/check_generic.py#L134) usan `os.environ.get("CLANG_CXX", "clang++")`. Poner por defecto en Windows `C:/msys64/clang64/bin/clang++.exe` y `C:/msys64/ucrt64/bin/g++.exe`, y que el script **imprima la ruta y el target** del compilador que va a usar. | #1 |
+| T1.2 | **LICENSE + SPDX completo** | Crear `LICENSE.txt` (BSL-1.0) — hoy **no existe**, pese a que `AI-GUIDE.md:674` lo declara obligatorio y las cabeceras lo citan. Cumplimiento medido: **17/28 headers con SPDX** (faltan `fixed_width_int_t.hpp`, los 3 `fixed_int_*` y los 5 de `intrinsics/`), **1/52 tests**, **0/9 benchs**. Aplicar la cabecera que ya manda `AI_PROMPT/ai-instructions.md` §License Header. Añadir `check_license_headers.py` + job de CI que falle si falta alguna. | #2 |
+| T1.3 | **Empaquetado CMake** | `add_library(int128 INTERFACE)` + `target_include_directories` + `install()` + `export()` + `int128Config.cmake` → consumible por `find_package` y `FetchContent`. Instalar también `LICENSE.txt`. Rellenar o borrar `conanfile.txt` (hoy 1 byte). | #2 |
+| T1.4 | `.clang-format` | **Este es el problema del formateo (#7b):** no existe `.clang-format` en el repo (sí `.clang-tidy`), así que el formateador del editor aplica su estilo por defecto. El diff sin commitear de `fixed_width_int_t.hpp` (396+/157-) es **100% reformateo, cero cambios semánticos**, e introdujo el artefacto `return R{a} ^ R { b };`. Fijar `.clang-format` con el estilo real del proyecto (Allman, 4 espacios, alineación de columnas), decidir si se revierte el diff o se commitea aislado, y añadir `--dry-run --Werror` en CI. | #7b |
+
+#### 🐛 Fase 2 — Correctitud
+
+| id | Tarea | Detalle | Ref |
+|----|-------|---------|-----|
+| T2.1 | **`from_string` sin detección de overflow** | `u256::from_string("2^256")` devuelve **`0`** en silencio. `parse_error::overflow` y `parse_result<T>` están declarados en [fixed_width_int_t.hpp:61-99](include/fixed_width_int_t.hpp#L61) y **no se usan en ningún sitio**. Cablearlos: `try_from_string` → `parse_result<fixed_int_t>`, y `from_string` lanza a partir de él. | auditoría |
+| T2.2 | **Constructor desde float con infinito** | [línea 218](include/fixed_width_int_t.hpp#L218): `std::fmod(inf, 2^64)` → NaN → `static_cast<uint64_t>(NaN)` = **UB**. Medido: `u256{inf}` da basura (~2^255). NaN sí está protegido (da 0). Fix: `if (!std::isfinite(v))` → NaN→0, `+inf`→`max()`, `-inf`→`min()` (unsigned: 0). Documentarlo y testearlo. | #5 |
+| T2.3 | **Shift con contador `fixed_int_t`** | [líneas 612-640](include/fixed_width_int_t.hpp#L612) truncan el contador a `data[0]`: `x << u256{2^64}` devuelve `x` en vez de `0`, incoherente con la sobrecarga `unsigned` (que sí da 0 para contadores ≥ 64N). Fix: si algún limbo alto ≠ 0, o el contador con signo es negativo, aplicar el mismo camino de saturación que la sobrecarga `unsigned`. | #15 |
+| T2.4 | **`data` privado** | Añadir `limb(i)`, `set_limb(i,v)`, `limbs()` + `template <...> friend class fixed_int_t;` (hoy **no hay ni un `friend`**), y migrar los 111 accesos externos. Ver [P13] para el trade-off del *structural type*. | #13 |
+| T2.5 | Header autocontenido | `int128_param_traits_specializations.hpp` según [P12b], y añadir a CI un test que compile **cada** header aislado. | #12b |
+
+#### ⚙️ Fase 3 — `constexpr` en división y módulo (objetivo de rama)
+
+| id | Tarea | Detalle | Ref |
+|----|-------|---------|-----|
+| T3.1 | **`divmod` / `operator/` / `operator%` constexpr** | Es viable y no requiere reescribir el algoritmo: el camino portable de división larga **ya existe** en el código. Lo único no-constexpr son los bloques de intrínsecos: `_udiv128`/`_umul128` (MSVC) y `__asm__("divq")` (ICX Windows). `unsigned __int128` de GCC/Clang **sí** es constexpr. Plan: envolver cada bloque de intrínseco en `if (!std::is_constant_evaluated()) { ... } else { portable }` (patrón que ya usa `intrinsics::addcarry_u64`), y marcar `constexpr` la cadena completa: `divmod`, `/`, `%`, `/=`, `%=` y sus 20+ sobrecargas libres. | #7 |
+| T3.2 | División por cero en contexto constante | El `throw std::domain_error` de [línea 916](include/fixed_width_int_t.hpp#L916) dentro de una función `constexpr` es **exactamente el comportamiento estándar deseado**: en tiempo de compilación hace que la expresión no sea constante → error de compilación, igual que `1/0` con `int`. No hay que quitarlo. | #7 |
+| T3.3 | Arrastre | `sqrt`, `lcm` y todo lo que dependa de `/` pasan a `constexpr` en cascada. Tests: `static_assert` de división en las 4 combinaciones N × signo. | #7 |
+| T3.4 | Ver también | `docs/PLAN_DIVMOD_CONSTEXPR.md` (24 KB) ya tiene análisis previo — revisar y reconciliar con este plan antes de implementar. | #7 |
+
+#### 📦 Fase 4 — Integración STL de `fixed_int_t` (paridad con los tipos que sustituye)
+
+| id | Tarea | Detalle | Ref |
+|----|-------|---------|-----|
+| T4.1 | `operator<<` / `operator>>` de iostreams | Con soporte de `std::hex`/`oct`/`dec`, `showbase`, `width`, `fill`. Espejo de `int128_param_iostreams.hpp`. | #6 |
+| T4.2 | `std::formatter<fixed_int_t<...>>` | Spec completa de `std::format` (relleno, signo, `#`, `0`, ancho, tipos `b/B/d/o/x/X`). Espejo de `int128_param_format.hpp`. | #6 |
+| T4.3 | `std::hash<fixed_int_t<...>>` | Para `unordered_map`/`unordered_set`. | #6 |
+| T4.4 | `to_string(base)` / `from_string(base)` | Bases 2/8/10/16 como mínimo; hoy solo base 10. Reutilizar `parse_result` de [T2.1]. | #6, #11 |
+
+#### 🧪 Fase 5 — Cobertura de IO
+
+| id | Tarea | Detalle | Ref |
+|----|-------|---------|-----|
+| T5.1 | **`test_fixed_string_io.cpp`** | Hoy la cobertura es ~13 llamadas a `to_string`/`from_string` en toda la suite y **cero** tests de rutas de error. Cubrir: round-trip N=1..8 × signed/unsigned × {0, 1, max, min, min+1, max-1, potencias de 2, 10^k}; rutas de error (cadena vacía, `nullptr`, carácter inválido, solo signo, **overflow**, separadores); signo `+`/`-` (hoy `from_string` de unsigned rechaza ambos, asimétrico con el de signed); espacios en blanco. | #11 |
+| T5.2 | **Fuzz diferencial permanente en la suite** | Portar el harness de esta auditoría a `tests/`: semilla fija, N=2/4/8, signed+unsigned, `+ - * / % & \| ^ << >>` + round-trip de string, contra oráculo de referencia. Ya demostró 17.600 ops sin discrepancias; convertirlo en red de regresión fija. | #11 |
+| T5.3 | Tests de iostreams/format/hash | Acompañan a [T4.1-T4.3]. | #6, #11 |
+
+#### 📚 Fase 6 — Documentación: comandos y armonización
+
+| id | Tarea | Detalle | Ref |
+|----|-------|---------|-----|
+| T6.1 | **Sección "Comandos Interactivos para la IA" en `AI-GUIDE.md`** | El `AI-GUIDE.md` de este proyecto (1704 líneas, 24 secciones) es ya una buena adaptación C++ del de Lean 4, pero **le falta justo la sección de comandos**. Traducir del `lean4-project-template/AI-GUIDE.md` (§"Comandos Interactivos", líneas 401-556) al dominio C++. | #2, #12 |
+| T6.2 | **`PROYECTA`** | Equivalente C++ de `proyecta`: para los headers tocados en la sesión, extraer la API pública (Doxygen `@brief`, firmas, plantillas) y proyectarla al `docs/API_*.md` correspondiente; verificar que no se filtra nada `private`/`detail` y que nada público queda sin proyectar. | #12 |
+| T6.3 | **`DOCUMENTA`** | Generación: ejecutar Doxygen, exigir **0 warnings**, regenerar los `docs/API_*.md` faltantes y medir cobertura de comentarios. **Dato de partida:** `fixed_width_int_t.hpp` tiene **12 comentarios Doxygen en 3259 líneas**, frente a 251 en `int128_parameterized.hpp` — la doc generada del tipo estrella está prácticamente vacía. | #12 |
+| T6.4 | **`ACTUALIZA_DOC`** | Pasada completa post-sesión: `make.py test` → CHANGELOG (entrada nueva con fecha) → NEXT_STEPS (mover lo completado) → PROJECT_STATUS (snapshot) → README (métricas) → verificar consistencia de recuentos entre ficheros. | #12 |
+| T6.5 | **Armonizador de documentación** | El "sistema que revise y armonice" (#16): script `check_docs_consistency.py` + job de CI que verifique: (1) los recuentos de tests citados en README/PROJECT_STATUS/CHANGELOG/NEXT_STEPS coinciden con la suite real — hoy conviven "42/42", "52/52", "106/106" y "197/197"; (2) todo `API_*.md` corresponde a un header existente y viceversa; (3) todo símbolo público exportado aparece documentado; (4) 0 warnings de Doxygen; (5) cabeceras SPDX presentes ([T1.2]); (6) fechas `Last Updated` coherentes. Equivalente al `repasa_y_proyecta` de Lean 4. | #16 |
+| T6.6 | Implementar los comandos como slash commands | `.claude/commands/proyecta.md`, `documenta.md`, `actualiza_doc.md` (hoy `.claude/` solo tiene `settings.json`), para que sean invocables de verdad y no solo prosa en la guía. | #12 |
+| T6.7 | Consolidar la doc de raíz | 9.300 líneas en 10 ficheros con solapamiento fuerte (CHANGELOG 4.573, AI-GUIDE 1.704, NEXT_STEPS 1.003). Definir qué fichero es fuente de verdad de qué. | #18 |
+
+#### 🏗️ Fase 7 — CI, Docker y sistemas de build
+
+| id | Tarea | Detalle | Ref |
+|----|-------|---------|-----|
+| T7.1 | **Cerrar las puertas del CI** | `exit 1` en `cross-x86-32` e `intel-icx`; quitar `continue-on-error` de `cross-arm32`; tolerancia 10% → 0 en aarch64/riscv64; dejar de mandar errores de compilación a `/dev/null`. Ver [P4]. | #4 |
+| T7.2 | **Docker al día** | `docker/Dockerfile` instala **GCC 12 / Clang 14** mientras el CI valida GCC 13-16 / Clang 18-22. Verificado en contenedor real: GCC 12 compila y pasa; **Clang 14 falla `test_param_format`** (el asunto de `GM_TABLE`, [P3]). Subir a Ubuntu 24.04 + GCC 13/14 + Clang 18/19. Además [Dockerfile:121](docker/Dockerfile#L121): `ENV MAKEFLAGS="-j$(nproc)"` **no expande el shell** — queda como literal. Unificar los 3 Dockerfiles en uno parametrizado por `ARG`. | #8 |
+| T7.3 | **`GM_TABLE` sin flag** | Implementar [P3] + job de CI que compile con Clang **sin** `-fconstexpr-steps`. | #3 |
+| T7.4 | **`CONFIGURE_DEPENDS`** | [tests/CMakeLists.txt:5](tests/CMakeLists.txt#L5): `file(GLOB TEST_SOURCES "*.cpp")` sin `CONFIGURE_DEPENDS` → añadir un test no regenera el build. Añadirlo (y lo mismo en `benchs/` y `demos/`). | #14 |
+| T7.5 | **`toolchains.json`** | Fuente única de rutas/versiones de compilador, consumida por make.py, generación de presets, Docker y CI. Es la causa raíz de [T1.1]. | #17 |
+| T7.6 | Adelgazar la capa de scripts | `Makefile` → shim sobre make.py o eliminarlo; auditar los 45 scripts de `scripts/` y archivar los superados por `build_generic.py`/`run_generic.py`/`check_generic.py`. | #17 |
+
+---
+
+### Orden recomendado
+
+1. **Fase 0** entera (una tarde, cero riesgo, deja el árbol limpio para todo lo demás).
+2. **T1.4** (`.clang-format`) **antes de tocar código**, o el próximo guardado vuelve a generar ruido.
+3. **T1.1** (compilador correcto) antes de medir o comparar nada.
+4. **Fase 2** (correctitud) — T2.1 y T2.2 son los dos únicos fallos que corrompen valores.
+5. **Fase 3** (constexpr div/mod) — es el objetivo declarado de la rama.
+6. **Fase 4 + Fase 5** juntas: cada pieza STL entra con sus tests.
+7. **Fase 6** al final de cada bloque, invocando `ACTUALIZA_DOC`.
+8. **Fase 7** en paralelo, no bloquea a nadie.
+
+---
+
 
 ## 🚧 v1.90 — fixed_int_t\<N\>: estado actual (22 May 2026)
 
@@ -20,14 +240,18 @@
 | **Knuth Algorithm D** N-limb ÷ M-limb (M ≥ 2) | 6fba207 | test_fixed_divmod Section 8 |
 | **Karatsuba `operator*`/`*=` N=4/8** | 89aa9b7 | test_fixed_karatsuba 49/49 |
 
-### Pendiente (prioridad)
+### Pendiente (prioridad) — ⚠️ SUPERADA por el plan de la auditoría 23 ago 2026
 
-| # | Item | Impacto |
-|---|------|---------|
+> Los tres items siguientes están **completados y verificados** en la auditoría del
+> 23 ago 2026. El plan vigente es la sección **🔍 AUDITORÍA 23 ago 2026** al principio
+> de este fichero.
+
+| # | Item | Estado |
+|---|------|--------|
 | ~~1~~ | ~~**Fase MS-INTEROP** — cross-sign interop completa~~ | ✅ **COMPLETADA v1.81 (22 May 2026)** |
-| 1 | **`to_string` para N>2** | Actualmente delega a lógica parameterized o no existe; necesita loop ÷10^19 |
-| 2 | **`from_string` para N>2** | Similar al anterior |
-| 3 | **Aritmética segura** (`checked_add`/`checked_sub` → `optional`) | Idea pendiente de conversación anterior |
+| ~~1~~ | ~~**`to_string` para N>2**~~ | ✅ Verificado hasta N=8 (fuzz diferencial, 0 discrepancias) |
+| ~~2~~ | ~~**`from_string` para N>2**~~ | ✅ Funciona — pero **sin detección de overflow**, ver [T2.1] |
+| ~~3~~ | ~~**Aritmética segura** (`checked_add`/`checked_sub` → `optional`)~~ | ✅ `checked_add`/`sub`/`mul` para signed y unsigned. Pendiente aparte: aritmética **no modular** completa |
 
 ---
 
