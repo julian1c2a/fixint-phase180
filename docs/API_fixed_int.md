@@ -50,11 +50,30 @@ template <typename T> inline constexpr bool is_unsigned_fixed_int_v = ...;
 
 ### Storage Layout
 
+Los limbos se guardan en orden little-endian: el indice 0 es el menos
+significativo y el N-1 el mas significativo. **El array es privado desde v1.90.1**
+(antes era publico); el acceso pasa por estos accesores:
+
 ```cpp
-std::array<std::uint64_t, N> data;   // data[0] = LSB, data[N-1] = MSB (little-endian limbs)
+[[nodiscard]] constexpr std::uint64_t limb(std::size_t i) const noexcept;
+              constexpr void          set_limb(std::size_t i, std::uint64_t v) noexcept;
+[[nodiscard]] constexpr const std::array<std::uint64_t, N>& limbs()     const noexcept;
+[[nodiscard]] constexpr       std::array<std::uint64_t, N>& limbs_ref()       noexcept;
 ```
 
-`data` is public for advanced use (custom serialization, intrinsics dispatch).
+Ninguno comprueba el rango: `i` debe estar en `[0, N)`.
+
+| Antes de v1.90.1 | Desde v1.90.1 |
+|---|---|
+| `x.data[i]` (lectura) | `x.limb(i)` |
+| `x.data[i] = v` | `x.set_limb(i, v)` |
+| `x.data` (array completo) | `x.limbs()` / `x.limbs_ref()` |
+
+**Consecuencia asumida:** `fixed_int_t` deja de ser *structural type*, asi que ya
+no puede usarse como parametro no-tipo de plantilla. Sigue siendo trivialmente
+copiable, de modo que `std::bit_cast` y `memcpy` funcionan igual. La decision
+recupera el comportamiento de `int128_param_t` en phase-1.75, que tenia sus
+limbos privados con `high()` / `low()`.
 
 ### Static Constants
 
@@ -98,6 +117,19 @@ Cross-type construction:
 - **Widening**: copies the lower `min(M, N)` limbs and fills the rest with sign-extension if source is signed-negative, else zeros.
 - **Narrowing**: copies the lower `N` limbs and discards the rest (modular truncation).
 - All cross-type constructors are `explicit` — matches built-in C++ behavior where narrowing/cross-sign conversions don't happen implicitly.
+
+Construccion desde punto flotante (no es `constexpr`):
+
+| Entrada | Resultado |
+|---|---|
+| finita en rango | truncada hacia cero |
+| finita fuera de rango | truncada modulo 2^(64N), como entre enteros built-in |
+| `NaN` | `0` |
+| `+inf` | `max()` |
+| `-inf` | `min()` con signo, `0` sin signo |
+
+Los no finitos saturaban de forma indefinida hasta v1.90.1: `std::fmod(inf, 2^64)`
+da `NaN` y el `static_cast<uint64_t>` siguiente era comportamiento indefinido.
 
 ---
 
@@ -245,6 +277,95 @@ All three trait classes strip cv-qualifiers from `T` before matching.
 
 ---
 
+## `constexpr` (v1.90.1)
+
+**Todas** las operaciones son evaluables en tiempo de compilacion, division y
+modulo incluidos. Hasta v1.90.1 `divmod`, `/`, `%`, `/=` y `%=` eran solo de
+ejecucion, porque los caminos por plataforma usaban intrinsecos (`_udiv128`,
+`_umul128`, `asm divq`) que no son constexpr.
+
+```cpp
+static_assert((uint256_fixed_t{1000000} / uint256_fixed_t{7}) == uint256_fixed_t{142857});
+static_assert((int128_fixed_t{-7} % int128_fixed_t{3}) == int128_fixed_t{-1});
+static_assert(nstd::sqrt(uint256_fixed_t{144}) == uint256_fixed_t{12});
+```
+
+La division por cero lanza `std::domain_error`. En contexto constante eso hace
+que la expresion no sea constante, es decir: **error de compilacion**, igual que
+`1/0` con un `int`. Es el comportamiento deseado, no una limitacion.
+
+Tambien son `constexpr` las funciones que dependen de la division: `sqrt`, `lcm`,
+`gcd`, `pow`, `mul_wide` y `checked_add` / `checked_sub` / `checked_mul`.
+
+---
+
+## Conversion a y desde cadena
+
+```cpp
+[[nodiscard]] std::string to_string() const;                       // base 10
+[[nodiscard]] std::string to_string(int base) const;               // base 2..36
+
+[[nodiscard]] static parse_result<fixed_int_t>
+              try_from_string(const char* s, int base = 10) noexcept;   // no lanza
+static fixed_int_t from_string(const char* s, int base = 10);           // lanza
+```
+
+### Bases
+
+`base` en `[2, 36]`, o `0` para deducirla del prefijo. Los digitos por encima de
+9 se escriben en **mayusculas**. Una base fuera de rango hace que `to_string`
+lance `std::invalid_argument` y que `try_from_string` devuelva
+`parse_error::invalid_base`.
+
+Prefijos aceptados al parsear: `0x`/`0X` (16), `0b`/`0B` (2), `0o`/`0O` (8),
+tanto con `base = 0` como cuando coinciden con la base pedida.
+
+> Un `0` suelto **no** se interpreta como octal: `from_string("077", 0)` da 77,
+> no 63. Es una desviacion deliberada de `strtoul`.
+
+### Errores
+
+`try_from_string` no lanza; devuelve `parse_result<fixed_int_t>` con el codigo y
+el indice del caracter culpable.
+
+| `parse_error` | Cuando |
+|---|---|
+| `success` | todo bien; `error_index == std::string::npos` |
+| `null_pointer` | puntero nulo |
+| `empty_string` | cadena vacia |
+| `no_digits` | solo el signo, o solo el prefijo |
+| `invalid_character` | el caracter no es alfanumerico (`$`, espacio...) |
+| `digit_out_of_range` | si lo es, pero su valor es `>= base` (`'9'` en base 8, `'x'` en base 10) |
+| `invalid_base` | `base` fuera de `[2, 36]` y distinta de 0 |
+| `overflow` | el valor no cabe en el tipo |
+
+`from_string` lanza `std::invalid_argument` para todos salvo `overflow`, que
+lanza **`std::out_of_range`** (como `std::stoull`).
+
+> Hasta v1.90.1 el desbordamiento **no se detectaba**:
+> `uint_fixed_t<4>::from_string("2^256")` devolvia `0` en silencio.
+
+Los tipos sin signo **no** aceptan signo, ni `+` ni `-`. Los que tienen signo
+aceptan ambos.
+
+---
+
+## Desplazamientos con contador `fixed_int_t`
+
+El contador se satura a `64*N` cuando no cabe en `[0, 64N)` o es negativo, que es
+el camino de «desplazamiento completo» de la sobrecarga `unsigned`: `0` para `<<`
+y relleno de signo para `>>` con signo. **No hay comportamiento indefinido**.
+
+```cpp
+uint256_fixed_t c{}; c.set_limb(1, 1);           // 2^64
+assert((uint256_fixed_t{1} << c).is_zero());     // antes de v1.90.1 devolvia 1
+```
+
+Hasta v1.90.1 el contador se truncaba a `static_cast<unsigned>(shift.limb(0))`,
+lo que perdia por dos sitios: los limbos altos y los bits por encima de 32.
+
+---
+
 ## Related Headers
 
 | Header | Provides |
@@ -252,6 +373,12 @@ All three trait classes strip cv-qualifiers from `T` before matching.
 | `fixed_int_traits_specializations.hpp` | `nstd::is_integral/is_signed/is_unsigned`, `nstd::make_signed/unsigned`, `std::common_type` |
 | `fixed_int_concepts.hpp` | `nstd::integral/signed_integral/unsigned_integral` (aglutinating built-ins + `fixed_int_t`); detection concepts |
 | `fixed_int_limits.hpp` | `std::numeric_limits<fixed_int_t<N, Sign, Form>>` for all N, Sign, Form |
+| `fixed_int_iostreams.hpp` | `operator<<` y `operator>>` respetando los manipuladores del flujo |
+| `fixed_int_format.hpp` | `std::formatter`, especificacion completa |
+| `fixed_int_hash.hpp` | `std::hash`, para `unordered_map` / `unordered_set` |
+
+Los tres ultimos son de v1.90.1; ver
+[API_fixed_int_stl.md](API_fixed_int_stl.md).
 
 See [API_fixed_int_traits.md](API_fixed_int_traits.md) for the complete reference.
 
@@ -259,5 +386,11 @@ See [API_fixed_int_traits.md](API_fixed_int_traits.md) for the complete referenc
 
 ## Version Notes
 
+- **v1.90.1 — Auditoria** — `div`/`mod` `constexpr`; `data` privado con
+  `limb()`/`set_limb()`/`limbs()`/`limbs_ref()`; `try_from_string` con deteccion
+  de desbordamiento; `to_string(base)`/`from_string(base)` en bases 2..36;
+  saturacion definida de `inf`/`NaN` en el constructor desde punto flotante;
+  contador de desplazamiento saturado; `operator<<`/`>>`, `std::formatter` y
+  `std::hash` en headers propios.
 - **v1.90** — `fixed_int_t<N, Sign, Form>` unified template, cross-sign operators (`+, -, *, /, %, &, |, ^`), cross-sign comparators (`==, !=, <, <=, >, >=`), cross-sign compounds (`+=, -=, *=, /=, %=, &=, |=, ^=`), `detail::mixed_iu_t`, Knuth Algorithm D divmod, Karatsuba multiplication for N=4/8.
 - **v1.81 — Fase MS-INTEROP**: unary `operator+()`, shifts with cross-sign count, `operator<=>` (member + cross-type free), `mixed_iu_t` promoted to public `nstd::`, detection traits, `nstd::is_integral`/`is_arithmetic`/`is_signed`/`is_unsigned`, `nstd::make_signed`/`make_unsigned`, `nstd::integral`/`signed_integral`/`unsigned_integral` concepts, `std::common_type`, `std::numeric_limits`.

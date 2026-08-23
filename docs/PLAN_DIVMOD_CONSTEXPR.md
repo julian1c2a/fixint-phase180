@@ -6,6 +6,18 @@
 
 ---
 
+> **NOTA (23 ago 2026, auditoría).** La sección 4 de este plan describe una
+> tabla lookup `GM_TABLE` con las constantes mágicas para D = 3..1023. Se
+> implementó, pero **se ha eliminado**: nadie la leía. `div<D>()` y `mod<D>()`
+> llaman directamente a `compute_magic_128(D)`, que calcula solo el divisor que
+> hace falta. La tabla costaba ~2 millones de pasos constexpr — el doble del
+> límite por defecto de Clang — y obligaba a compilar toda la biblioteca con
+> `-fconstexpr-steps=100000000`. Ver T7.3 en `NEXT_STEPS.md`.
+>
+> El resto del plan (Granlund-Montgomery, `compute_magic_128`, las rutas de
+> potencia de dos y `mul<K>`) sigue vigente y está implementado.
+
+
 ## 0. Resumen Ejecutivo
 
 | Característica | Alcance |

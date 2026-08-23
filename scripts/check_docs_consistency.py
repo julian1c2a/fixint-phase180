@@ -178,11 +178,15 @@ def check_api_docs(rep: Report):
     headers = {p.stem for p in (PROJECT_ROOT / "include").rglob("*.hpp")}
     api_docs = sorted((PROJECT_ROOT / "docs").glob("API_*.md"))
 
-    # API_xxx.md deberia corresponder a un header cuyo nombre contenga xxx.
+    # Un API_*.md documenta uno o varios headers. La regla no puede ser que el
+    # nombre del doc contenga el del header (API_fixed_int_stl.md cubre tres),
+    # asi que se considera huerfano el que no MENCIONE ningun header existente
+    # en su texto.
+    header_files = {p.name for p in (PROJECT_ROOT / "include").rglob("*.hpp")}
     huerfanos = []
     for doc in api_docs:
-        key = doc.stem[len("API_"):]
-        if not any(key in h for h in headers):
+        text = doc.read_text(encoding="utf-8", errors="replace")
+        if not any(h in text for h in header_files):
             huerfanos.append(doc.name)
 
     if huerfanos:
@@ -191,10 +195,13 @@ def check_api_docs(rep: Report):
     else:
         rep.ok(f"los {len(api_docs)} ficheros API_*.md corresponden a headers")
 
-    # Headers publicos sin su API_*.md: informativo, no bloquea.
-    documented = {d.stem[len("API_"):] for d in api_docs}
-    sin_doc = sorted(h for h in headers
-                     if not any(k in h for k in documented) and not h.startswith("fallback"))
+    # Headers publicos sin su API_*.md: informativo, no bloquea. Misma regla que
+    # arriba, en el otro sentido: un header esta documentado si algun API_*.md lo
+    # menciona por su nombre de fichero.
+    all_api_text = chr(10).join(
+        d.read_text(encoding="utf-8", errors="replace") for d in api_docs)
+    sin_doc = sorted(p.name for p in (PROJECT_ROOT / "include").rglob("*.hpp")
+                     if p.name not in all_api_text)
     if sin_doc and not rep.quiet:
         print(f"  [nota] headers sin API_*.md propio: {', '.join(sin_doc)}")
 
