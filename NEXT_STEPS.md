@@ -171,22 +171,22 @@ no de arquitectura:
 | ~~T3.3~~ ✅ | ~~Arrastre~~ (hecho: `sqrt`, `lcm` y 42 sobrecargas de `/` `%`; 30 `static_assert` nuevos) | `sqrt`, `lcm` y todo lo que dependa de `/` pasan a `constexpr` en cascada. Tests: `static_assert` de división en las 4 combinaciones N × signo. | #7 |
 | ~~T3.4~~ ✅ | ~~Ver también~~ (revisado: **no hay conflicto**, ese plan trata de divisores *constantes* (GM `div<D>`), ya implementado para `int128_param_t`) | `docs/PLAN_DIVMOD_CONSTEXPR.md` (24 KB) ya tiene análisis previo — revisar y reconciliar con este plan antes de implementar. | #7 |
 
-#### 📦 Fase 4 — Integración STL de `fixed_int_t` (paridad con los tipos que sustituye)
+#### 📦 Fase 4 — Integración STL de `fixed_int_t` ✅ COMPLETADA (23 ago 2026)
 
 | id | Tarea | Detalle | Ref |
 |----|-------|---------|-----|
-| T4.1 | `operator<<` / `operator>>` de iostreams | Con soporte de `std::hex`/`oct`/`dec`, `showbase`, `width`, `fill`. Espejo de `int128_param_iostreams.hpp`. | #6 |
-| T4.2 | `std::formatter<fixed_int_t<...>>` | Spec completa de `std::format` (relleno, signo, `#`, `0`, ancho, tipos `b/B/d/o/x/X`). Espejo de `int128_param_format.hpp`. | #6 |
-| T4.3 | `std::hash<fixed_int_t<...>>` | Para `unordered_map`/`unordered_set`. | #6 |
-| T4.4 | `to_string(base)` / `from_string(base)` | Bases 2/8/10/16 como mínimo; hoy solo base 10. Reutilizar `parse_result` de [T2.1]. | #6, #11 |
+| ~~T4.1~~ ✅ | ~~`operator<<` / `operator>>` de iostreams~~ (hecho: `include/fixed_int_iostreams.hpp`, commit `89891ef`) | Con soporte de `std::hex`/`oct`/`dec`, `showbase`, `width`, `fill`. Espejo de `int128_param_iostreams.hpp`. | #6 |
+| ~~T4.2~~ ✅ | ~~`std::formatter<fixed_int_t<...>>`~~ (hecho: `include/fixed_int_format.hpp`, spec completa) | Spec completa de `std::format` (relleno, signo, `#`, `0`, ancho, tipos `b/B/d/o/x/X`). Espejo de `int128_param_format.hpp`. | #6 |
+| ~~T4.3~~ ✅ | ~~`std::hash<fixed_int_t<...>>`~~ (hecho: `include/fixed_int_hash.hpp`, mezcla sobre todos los limbos) | Para `unordered_map`/`unordered_set`. | #6 |
+| ~~T4.4~~ ✅ | ~~`to_string(base)` / `from_string(base)`~~ (hecho: bases 2..36 + prefijos 0x/0b/0o, commit `e9f11b2`) | Bases 2/8/10/16 como mínimo; hoy solo base 10. Reutilizar `parse_result` de [T2.1]. | #6, #11 |
 
-#### 🧪 Fase 5 — Cobertura de IO
+#### 🧪 Fase 5 — Cobertura de IO ✅ COMPLETADA (23 ago 2026)
 
 | id | Tarea | Detalle | Ref |
 |----|-------|---------|-----|
-| T5.1 | **`test_fixed_string_io.cpp`** | Hoy la cobertura es ~13 llamadas a `to_string`/`from_string` en toda la suite y **cero** tests de rutas de error. Cubrir: round-trip N=1..8 × signed/unsigned × {0, 1, max, min, min+1, max-1, potencias de 2, 10^k}; rutas de error (cadena vacía, `nullptr`, carácter inválido, solo signo, **overflow**, separadores); signo `+`/`-` (hoy `from_string` de unsigned rechaza ambos, asimétrico con el de signed); espacios en blanco. | #11 |
-| T5.2 | **Fuzz diferencial permanente en la suite** | Portar el harness de esta auditoría a `tests/`: semilla fija, N=2/4/8, signed+unsigned, `+ - * / % & \| ^ << >>` + round-trip de string, contra oráculo de referencia. Ya demostró 17.600 ops sin discrepancias; convertirlo en red de regresión fija. | #11 |
-| T5.3 | Tests de iostreams/format/hash | Acompañan a [T4.1-T4.3]. | #6, #11 |
+| ~~T5.1~~ ✅ | ~~**`test_fixed_string_io.cpp`**~~ (hecho: 104 asserts; round-trips en las 35 bases en `test_fixed_stl_integration`) | Hoy la cobertura es ~13 llamadas a `to_string`/`from_string` en toda la suite y **cero** tests de rutas de error. Cubrir: round-trip N=1..8 × signed/unsigned × {0, 1, max, min, min+1, max-1, potencias de 2, 10^k}; rutas de error (cadena vacía, `nullptr`, carácter inválido, solo signo, **overflow**, separadores); signo `+`/`-` (hoy `from_string` de unsigned rechaza ambos, asimétrico con el de signed); espacios en blanco. | #11 |
+| ~~T5.2~~ ✅ | ~~**Fuzz diferencial permanente en la suite**~~ (hecho: `test_fixed_differential.cpp`, 46.800 comprobaciones, commit `db04de7`) | Portar el harness de esta auditoría a `tests/`: semilla fija, N=2/4/8, signed+unsigned, `+ - * / % & \| ^ << >>` + round-trip de string, contra oráculo de referencia. Ya demostró 17.600 ops sin discrepancias; convertirlo en red de regresión fija. | #11 |
+| ~~T5.3~~ ✅ | ~~Tests de iostreams/format/hash~~ (hecho: `test_fixed_stl_integration.cpp`, 95 asserts) | Acompañan a [T4.1-T4.3]. | #6, #11 |
 
 #### 📚 Fase 6 — Documentación: comandos y armonización
 
@@ -220,8 +220,8 @@ no de arquitectura:
 3. **T1.1** (compilador correcto) antes de medir o comparar nada.
 4. ~~**Fase 2** (correctitud)~~ ✅ completada 23 ago 2026. Los tres fallos corrompían valores en silencio; el `+` de `from_string` y el `data` privado entraron en el mismo bloque.
 5. ~~**Fase 3** (constexpr div/mod)~~ ✅ completada 23 ago 2026. Sin regresión de rendimiento (verificado con 7 rondas intercaladas, mínimo por caso).
-6. **Fase 4 + Fase 5** juntas: cada pieza STL entra con sus tests. **← SIGUIENTE**
-7. **Fase 6** al final de cada bloque, invocando `ACTUALIZA_DOC`.
+6. ~~**Fase 4 + Fase 5** juntas~~ ✅ completadas 23 ago 2026. Suite: 53 → **55 ficheros**.
+7. **Fase 6** (documentación: PROYECTA / DOCUMENTA / ACTUALIZA_DOC + armonizador). **← SIGUIENTE**
 8. **Fase 7** en paralelo, no bloquea a nadie.
 
 ---
