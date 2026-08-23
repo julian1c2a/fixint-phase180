@@ -152,15 +152,15 @@ no de arquitectura:
 | T1.3 | **Empaquetado CMake** | `add_library(int128 INTERFACE)` + `target_include_directories` + `install()` + `export()` + `int128Config.cmake` → consumible por `find_package` y `FetchContent`. Instalar también `LICENSE.txt`. Rellenar o borrar `conanfile.txt` (hoy 1 byte). | #2 |
 | ~~T1.4~~ ✅ | ~~`.clang-format`~~ (hecho: commit aislado `46b9cb8` + `.clangd`; el diff pendiente era formateo salvo el signo '+', rescatado en `06eac8f`) | **Este es el problema del formateo (#7b):** no existe `.clang-format` en el repo (sí `.clang-tidy`), así que el formateador del editor aplica su estilo por defecto. El diff sin commitear de `fixed_width_int_t.hpp` (396+/157-) era reformateo puro **salvo un cambio real de 5 líneas** (aceptar el signo `+` en `from_string` de tipos con signo), que estaba enterrado ahí dentro y se rescató en el commit `06eac8f`. El reformateo introdujo además el artefacto `return R{a} ^ R { b };`. Fijar `.clang-format` con el estilo real del proyecto (Allman, 4 espacios, alineación de columnas), decidir si se revierte el diff o se commitea aislado, y añadir `--dry-run --Werror` en CI. | #7b |
 
-#### 🐛 Fase 2 — Correctitud
+#### 🐛 Fase 2 — Correctitud ✅ COMPLETADA (23 ago 2026)
 
 | id | Tarea | Detalle | Ref |
 |----|-------|---------|-----|
-| T2.1 | **`from_string` sin detección de overflow** | `u256::from_string("2^256")` devuelve **`0`** en silencio. `parse_error::overflow` y `parse_result<T>` están declarados en [fixed_width_int_t.hpp:61-99](include/fixed_width_int_t.hpp#L61) y **no se usan en ningún sitio**. Cablearlos: `try_from_string` → `parse_result<fixed_int_t>`, y `from_string` lanza a partir de él. | auditoría |
-| T2.2 | **Constructor desde float con infinito** | [línea 218](include/fixed_width_int_t.hpp#L218): `std::fmod(inf, 2^64)` → NaN → `static_cast<uint64_t>(NaN)` = **UB**. Medido: `u256{inf}` da basura (~2^255). NaN sí está protegido (da 0). Fix: `if (!std::isfinite(v))` → NaN→0, `+inf`→`max()`, `-inf`→`min()` (unsigned: 0). Documentarlo y testearlo. | #5 |
-| T2.3 | **Shift con contador `fixed_int_t`** | [líneas 612-640](include/fixed_width_int_t.hpp#L612) truncan el contador a `data[0]`: `x << u256{2^64}` devuelve `x` en vez de `0`, incoherente con la sobrecarga `unsigned` (que sí da 0 para contadores ≥ 64N). Fix: si algún limbo alto ≠ 0, o el contador con signo es negativo, aplicar el mismo camino de saturación que la sobrecarga `unsigned`. | #15 |
-| T2.4 | **`data` privado** | Añadir `limb(i)`, `set_limb(i,v)`, `limbs()` + `template <...> friend class fixed_int_t;` (hoy **no hay ni un `friend`**), y migrar los 111 accesos externos. Ver [P13] para el trade-off del *structural type*. | #13 |
-| T2.5 | Header autocontenido | `int128_param_traits_specializations.hpp` según [P12b], y añadir a CI un test que compile **cada** header aislado. | #12b |
+| ~~T2.1~~ ✅ | ~~**`from_string` sin detección de overflow**~~ (hecho: `try_from_string` + `parse_result`, commit `a01f47a`) | `u256::from_string("2^256")` devuelve **`0`** en silencio. `parse_error::overflow` y `parse_result<T>` están declarados en [fixed_width_int_t.hpp:61-99](include/fixed_width_int_t.hpp#L61) y **no se usan en ningún sitio**. Cablearlos: `try_from_string` → `parse_result<fixed_int_t>`, y `from_string` lanza a partir de él. | auditoría |
+| ~~T2.2~~ ✅ | ~~**Constructor desde float con infinito**~~ (hecho: NaN→0, +inf→max(), −inf→min(), commit `a01f47a`) | [línea 218](include/fixed_width_int_t.hpp#L218): `std::fmod(inf, 2^64)` → NaN → `static_cast<uint64_t>(NaN)` = **UB**. Medido: `u256{inf}` da basura (~2^255). NaN sí está protegido (da 0). Fix: `if (!std::isfinite(v))` → NaN→0, `+inf`→`max()`, `-inf`→`min()` (unsigned: 0). Documentarlo y testearlo. | #5 |
+| ~~T2.3~~ ✅ | ~~**Shift con contador `fixed_int_t`**~~ (hecho: `shift_count_of` satura a 64N, commit `a01f47a`) | [líneas 612-640](include/fixed_width_int_t.hpp#L612) truncan el contador a `data[0]`: `x << u256{2^64}` devuelve `x` en vez de `0`, incoherente con la sobrecarga `unsigned` (que sí da 0 para contadores ≥ 64N). Fix: si algún limbo alto ≠ 0, o el contador con signo es negativo, aplicar el mismo camino de saturación que la sobrecarga `unsigned`. | #15 |
+| ~~T2.4~~ ✅ | ~~**`data` privado**~~ (hecho: `limb`/`set_limb`/`limbs`/`limbs_ref` + friend, 116 accesos migrados, commit `d163e5a`) | Añadir `limb(i)`, `set_limb(i,v)`, `limbs()` + `template <...> friend class fixed_int_t;` (hoy **no hay ni un `friend`**), y migrar los 111 accesos externos. Ver [P13] para el trade-off del *structural type*. | #13 |
+| ~~T2.5~~ ✅ | ~~Header autocontenido~~ (hecho: 28/28 vía `scripts/check_headers_selfcontained.py`, commit `d163e5a`) | `int128_param_traits_specializations.hpp` según [P12b], y añadir a CI un test que compile **cada** header aislado. | #12b |
 
 #### ⚙️ Fase 3 — `constexpr` en división y módulo (objetivo de rama)
 
@@ -218,8 +218,8 @@ no de arquitectura:
 1. **Fase 0** entera (una tarde, cero riesgo, deja el árbol limpio para todo lo demás).
 2. **T1.4** (`.clang-format`) **antes de tocar código**, o el próximo guardado vuelve a generar ruido.
 3. **T1.1** (compilador correcto) antes de medir o comparar nada.
-4. **Fase 2** (correctitud) — T2.1 y T2.2 son los dos únicos fallos que corrompen valores.
-5. **Fase 3** (constexpr div/mod) — es el objetivo declarado de la rama.
+4. ~~**Fase 2** (correctitud)~~ ✅ completada 23 ago 2026. Los tres fallos corrompían valores en silencio; el `+` de `from_string` y el `data` privado entraron en el mismo bloque.
+5. **Fase 3** (constexpr div/mod) — es el objetivo declarado de la rama. **← SIGUIENTE**
 6. **Fase 4 + Fase 5** juntas: cada pieza STL entra con sus tests.
 7. **Fase 6** al final de cada bloque, invocando `ACTUALIZA_DOC`.
 8. **Fase 7** en paralelo, no bloquea a nadie.
