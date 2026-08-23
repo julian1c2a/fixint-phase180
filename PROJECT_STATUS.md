@@ -1,9 +1,82 @@
-# PROJECT STATUS: v1.80 + v1.81 (MS-INTEROP) Complete + v1.90 fixed_int_t\<N\> en desarrollo
+# PROJECT STATUS: v1.90.1 — auditoría completa
 
-**Date:** 22 May 2026
-**Last Session:** Fase MS-INTEROP — interop signed/unsigned built-in-style en `fixed_int_t<N, Sign>` (branch phase-1.80)
-**Overall Progress:** v1.80 ✅ + **v1.81 MS-INTEROP ✅** + **v1.90 en desarrollo** (`fixed_int_t<N>` unificado, fast paths mul/div, Knuth D, Karatsuba)
-**Current Status:** 🚀 **197/197 test_cross_operators | 8+~70 test_fixed_traits | 16+~50 test_fixed_limits | 804/804 test_fixed_vs_param | 4 compiladores**
+**Last Updated:** 23 August 2026
+**Last Session:** Auditoría del proyecto y ejecución de las 8 fases del plan resultante (branch `phase-1.80`)
+**Overall Progress:** v1.80 ✅ + v1.81 MS-INTEROP ✅ + v1.90 `fixed_int_t<N>` ✅ + **v1.90.1 auditoría ✅**
+**Current Status:** 🚀 **suite completa 55/55** · `div`/`mod` constexpr · integración STL completa · 0 avisos de Doxygen desde `include/`
+
+---
+
+## Instantánea — 23 August 2026
+
+### Compilación
+
+| Comprobación | Resultado |
+|---|---|
+| `python make.py test gcc release-O2` | **55/55 ficheros** (162 s, GCC 16.2.0 ucrt64) |
+| `scripts/check_headers_selfcontained.py` | **31/31** headers compilan aislados |
+| Clang 22.1.8 **sin flags no estándar** | 31/31 headers + suite ✅ |
+| MSVC 19.5x (VS 18) | tests tocados ✅ |
+| `clang-format --dry-run --Werror` (árbol entero) | 0 ficheros sin formatear |
+| `scripts/check_docs_consistency.py --doxygen` | **9/9** comprobaciones |
+| Avisos de Doxygen desde `include/` | **0** (eran 48) |
+
+### Cifras de la suite
+
+| Test | Asserts |
+|---|---|
+| `test_fixed_basic` | 843 |
+| `test_fixed_signed` | 966 |
+| `test_fixed_vs_param` | 804 |
+| `test_fixed_divmod` | 218 + 30 `static_assert` de constexpr |
+| `test_cross_operators` | 206 |
+| `test_fixed_string_io` | 104 |
+| `test_fixed_stl_integration` | 95 |
+| `test_fixed_differential` | **46.800 comprobaciones** contra oráculo independiente |
+| `test_fixed_karatsuba` | 49 |
+
+### Lo que cambió en v1.90.1
+
+**Correctitud** — tres fallos que corrompían valores en silencio:
+
+| Fallo | Antes | Ahora |
+|---|---|---|
+| `from_string` sin detección de desbordamiento | `from_string("2^256")` → `0` | `parse_error::overflow` / `std::out_of_range` |
+| Constructor desde `float` con `inf` | UB (`static_cast<uint64_t>(NaN)`) | satura: NaN→0, +inf→`max()`, −inf→`min()` |
+| Contador de desplazamiento truncado | `x << u256{2^64}` → `x` | satura a 64N → `0` |
+
+**Objetivo de rama alcanzado:** `div` y `mod` son `constexpr`, sin regresión de
+rendimiento (7 rondas intercaladas, mínimo por caso).
+
+**Rendimiento:** eliminada `GM_TABLE`, que era código muerto y obligaba a
+`-fconstexpr-steps=100000000` en todo Clang. Compilar un TU que incluya
+`int128_param_divmod.hpp`: **2,4 s → 0,95 s**. Suite completa: ~230 s → ~162 s.
+
+**API nueva:** `fixed_int_iostreams.hpp`, `fixed_int_format.hpp`,
+`fixed_int_hash.hpp`, `to_string(base)` / `from_string(base)` en bases 2..36,
+`try_from_string`.
+
+**Ruptura:** `data` pasa a privado (`limb()` / `set_limb()` / `limbs()` /
+`limbs_ref()`). Se deja decaer el uso como parámetro no-tipo de plantilla,
+recuperando el comportamiento de phase-1.75.
+
+**Infraestructura:** `LICENSE.txt` (no existía), SPDX en 31/31 headers,
+`.clang-format`, `.clangd`, `toolchains.json`, tres verificadores nuevos en
+`scripts/`, comandos `/proyecta` `/documenta` `/actualiza_doc`, CI con las
+puertas cerradas y dos jobs nuevos, Docker en Ubuntu 24.04 con GCC 14 / Clang 19.
+
+### Pendiente (decisiones del autor, no trabajo técnico)
+
+- **T6.7** — consolidar los ~9.300 renglones de documentación de raíz repartidos
+  en 10 ficheros solapados.
+- **T7.6 (resto)** — mover a `scripts/archive/` los 32 scripts superados que
+  identifica `scripts/README.md`.
+- `CONTRIBUTING.md`, `SECURITY.md` y `ROADMAP.md` los lista `AI-GUIDE.md` pero no
+  existen; están marcados como pendientes en su tabla.
+- Cobertura Doxygen miembro a miembro de `fixed_width_int_t.hpp` (hoy: fichero,
+  clase y los miembros con semántica no evidente).
+
+---
 
 ## v1.81 — Fase MS-INTEROP (22 May 2026) ✅
 

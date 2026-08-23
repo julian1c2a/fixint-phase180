@@ -1,6 +1,6 @@
 # int128 Library — Parameterized Types + fixed_int_t\<N\>
 
-> **Status:** ✅ **v1.80 PUBLISHED** — ARM64/ARM32/RISC-V Docker ✅ | suite actual **55/55 ficheros** (GCC 16.2, release-O2) | ✅ **v1.81 — Fase MS-INTEROP** (interop signed/unsigned built-in-style en `fixed_int_t<N>`) | 🚧 **v1.90 IN DEVELOPMENT** — Knuth D, Karatsuba N=4/8
+> **Status:** ✅ **v1.90.1 — auditoría completa** | suite actual **55/55 ficheros** (GCC 16.2, release-O2) | `div`/`mod` **constexpr** | iostreams + `std::format` + `std::hash` | ARM64/ARM32/RISC-V Docker ✅ | ✅ **v1.81 — Fase MS-INTEROP** (interop signed/unsigned built-in-style en `fixed_int_t<N>`) | 🚧 **v1.90 IN DEVELOPMENT** — Knuth D, Karatsuba N=4/8
 > **Started:** 11 January 2026
 > **Last Updated:** 23 August 2026
 > **Objective:** Parameterized 128-bit integer types (TC/MS/EK/binnat) + generalization to N×64-bit fixed-width integers
@@ -405,6 +405,8 @@ python make.py test  # All tests
 
 | Document | Purpose |
 |----------|---------|
+| [API_fixed_int.md](docs/API_fixed_int.md) | Referencia de `fixed_int_t<N, Sign, Form>` |
+| [API_fixed_int_stl.md](docs/API_fixed_int_stl.md) | iostreams, `std::format` y `std::hash` para `fixed_int_t` |
 | [PLAN_DIVMOD_CONSTEXPR.md](docs/PLAN_DIVMOD_CONSTEXPR.md) | Granlund-Montgomery constexpr division optimization plan |
 | [OPERATOR_SEMANTICS.md](OPERATOR_SEMANTICS.md) | Semantica de operadores por representacion |
 | [API_representation.md](docs/API_representation.md) | Explicacion detallada de cada representacion |
