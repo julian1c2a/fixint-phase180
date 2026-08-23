@@ -16,7 +16,7 @@
 #   docker run --rm -v $(pwd)/build:/project/build fixint-build:latest python3 make.py test
 # =============================================================================
 
-FROM ubuntu:22.04 AS base
+FROM ubuntu:24.04 AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
@@ -38,13 +38,15 @@ RUN apt-get update && apt-get install -y \
     ninja-build \
     # Compiladores estándar
     build-essential \
-    gcc-12 \
-    g++-12 \
-    clang-14 \
-    clang++-14 \
+    gcc-13 \
+    g++-13 \
+    gcc-14 \
+    g++-14 \
+    clang-18 \
+    clang-19 \
     # Herramientas de análisis
     cppcheck \
-    clang-tools-14 \
+    clang-tools-19 \
     # Herramientas de debugging
     gdb \
     && rm -rf /var/lib/apt/lists/*
@@ -57,7 +59,7 @@ FROM base AS compilers
 # Instalar Intel OneAPI (GCC, Clang, Intel Compiler)
 RUN apt-get update && apt-get install -y \
     # Dependencias para Intel oneapi-compiler-dpcpp-cpp
-    libstdc++-12-dev \
+    libstdc++-14-dev \
     # Instalador de Intel
     wget \
     ca-certificates \
@@ -72,13 +74,20 @@ RUN apt-get update && apt-get install -y \
 #     rm -rf /var/lib/apt/lists/*
 
 # Crear symlinks de los compiladores
-RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100 && \
-    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100 && \
-    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-14 100 && \
-    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-14 100
+# T7.2 (auditoria 23 ago 2026): la imagen traia GCC 12 y Clang 14 mientras el
+# CI validaba GCC 13-16 y Clang 18-22. Comprobado en contenedor real: GCC 12
+# compilaba y pasaba la suite, pero Clang 14 fallaba al compilar
+# test_param_format. Ahora la imagen usa GCC 14 y Clang 19, dentro del rango
+# que el CI valida de verdad.
+RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-14 100 && \
+    update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-14 100 && \
+    update-alternatives --install /usr/bin/clang clang /usr/bin/clang-19 100 && \
+    update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-19 100
 
 # Instalar herramientas Python adicionales
-RUN pip3 install --no-cache-dir \
+# Ubuntu 24.04 aplica PEP 668 (entorno gestionado): pip necesita permiso
+# explicito para instalar en el Python del sistema, aunque sea un contenedor.
+RUN pip3 install --no-cache-dir --break-system-packages \
     colorama \
     setuptools \
     wheel
@@ -118,7 +127,9 @@ WORKDIR /project
 
 # Variables de entorno para compilación
 ENV CMAKE_BUILD_TYPE=Release
-ENV MAKEFLAGS="-j$(nproc)"
+# OJO: `ENV` no ejecuta un shell, asi que `ENV MAKEFLAGS="-j$(nproc)"` dejaba
+# el literal `-j$(nproc)` en la variable y make lo rechazaba. El paralelismo se
+# fija en tiempo de ejecucion desde el entrypoint (T7.2).
 ENV CFLAGS="-O2"
 ENV CXXFLAGS="-O2"
 

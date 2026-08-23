@@ -20,6 +20,12 @@ log_header() { echo -e "${BLUE}$@${NC}"; }
 
 cd /project
 
+# T7.2: el Dockerfile intentaba fijar MAKEFLAGS con `ENV MAKEFLAGS="-j$(nproc)"`,
+# pero `ENV` no ejecuta un shell y la variable acababa con el literal
+# `-j$(nproc)`, que make rechaza. Aqui si hay shell, asi que se calcula de
+# verdad.
+export MAKEFLAGS="-j$(nproc)"
+
 log_header "================================================================="
 log_header "  int128/uint128 - Automated Build & Test System (Docker)"
 log_header "================================================================="
