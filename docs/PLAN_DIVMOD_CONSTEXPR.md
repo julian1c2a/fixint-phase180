@@ -619,7 +619,7 @@ static_assert(!is_excess_k, "divmod<D>() no está definido para Excess-K");
 
 ## 11. Dependencias y Orden de Trabajo
 
-```
+```text
 detail::bignum::uint256_ce (consteval only)     [FASE A]
          |
          v
@@ -629,7 +629,7 @@ compute_magic_128(d) consteval                  [FASE A]
 GM_TABLE[3..1023] consteval array               [FASE B]
          |
          v
-.div<D>(), .mod<D>(), .divmod<D>() miembros     [FASE C]
+.div/.mod/.divmod con D constante              [FASE C]
          |
          v
 .mul<K>() miembro                               [FASE D]
@@ -650,8 +650,8 @@ to_string() integration + benchmarks            [FASE F]
 | `include/int128_param_divmod.hpp` | **CREAR** | Header principal: bignum consteval, compute_magic, GM_TABLE, member functions |
 | `include/int128_parameterized.hpp` | Modificar | `#include` + friend declarations para .div<D>() etc |
 | `include/algorithms/div_by_const.hpp` | Refactor | Reescribir usando GM_TABLE (eliminar hardcoded) |
-| `tests/test_sweep_divmod_const.cpp` | **CREAR** | Sweep tests para div/mod/divmod<D>, D=3..1023 |
-| `tests/test_sweep_mul_const.cpp` | **CREAR** | Sweep tests para mul<K>, K=2..1023 |
+| `tests/test_sweep_divmod_const.cpp` | **CREAR** | Sweep tests para `div/mod/divmod<D>`, D=3..1023 |
+| `tests/test_sweep_mul_const.cpp` | **CREAR** | Sweep tests para `mul<K>`, K=2..1023 |
 | `benchs/benchmark_divmod_const.cpp` | **CREAR** | Benchmarks RDTSC: miembro vs operator/ vs hardcoded |
 | `docs/API_divmod_const.md` | **CREAR** | Referencia API cppreference-style |
 
