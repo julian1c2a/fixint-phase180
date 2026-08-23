@@ -1,0 +1,50 @@
+{
+  "_comment": [
+    "Fuente unica de verdad de que compilador usa el proyecto (T7.5).",
+    "",
+    "Antes, las rutas vivian repartidas en seis sitios: build_generic.py,",
+    "check_generic.py, CMakePresets.json, .github/workflows/ci.yml, los",
+    "Dockerfiles y AI_PROMPT/ai-instructions.md. Por eso la auditoria del 23 ago",
+    "2026 encontro que `make.py test` usaba el g++ de C:/msys64/usr/bin (toolchain",
+    "MSYS, target x86_64-pc-windows-cygnus) en vez del de ucrt64.",
+    "",
+    "Lo lee scripts/toolchains.py, que aplica esta prioridad:",
+    "  1. variable de entorno (GCC_CXX / CLANG_CXX / INTEL_CXX / MSVC_CXX)",
+    "     -- es lo que inyecta el CI, que trae sus propios g++-14, clang++-19...",
+    "  2. este fichero",
+    "  3. el default por plataforma de toolchains.py",
+    "  4. el nombre pelado (g++, clang++)",
+    "",
+    "Diagnostico:  python scripts/toolchains.py"
+  ],
+
+  "compilers": {
+    "gcc": "C:/msys64/ucrt64/bin/g++.exe",
+    "clang": "C:/msys64/clang64/bin/clang++.exe",
+    "intel": "icx",
+    "msvc": "cl.exe"
+  },
+
+  "notas": {
+    "gcc": "MSYS2 UCRT64. NO usar C:/msys64/usr/bin/g++: es el toolchain MSYS y sus binarios dependen de msys-2.0.dll.",
+    "clang": "MSYS2 CLANG64, target x86_64-w64-windows-gnu. Mismo aviso que con gcc.",
+    "intel": "Intel oneAPI; necesita setvars.bat antes.",
+    "msvc": "Necesita vcvars64.bat. OJO: Visual Studio 2026 se instala bajo el directorio '18', no '2022'."
+  },
+
+  "versiones_validadas": {
+    "windows": {
+      "gcc": "16.2.0 (ucrt64)",
+      "clang": "22.1.8 (clang64)",
+      "msvc": "19.5x (VS 18 Community)"
+    },
+    "ci_linux": {
+      "gcc": "13, 14, 15, 16 (16 experimental)",
+      "clang": "18, 19, 20, 21, 22 (22 experimental)"
+    },
+    "docker": {
+      "gcc": "14",
+      "clang": "19"
+    }
+  }
+}
