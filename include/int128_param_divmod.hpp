@@ -279,28 +279,28 @@ namespace nstd
         constexpr bool is_pow2(uint64_t v) noexcept { return v > 0 && (v & (v - 1)) == 0; }
 
         // =====================================================================
-        // GM Lookup Table [0..1023]
+        // GM Lookup Table [0..1023] — ELIMINADA (T7.3, auditoria 23 ago 2026)
         //
-        // Indices 0, 1: unused (d=0 invalid, d=1 trivial)
-        // Powers of 2: zeroed (handled by shift path)
-        // All others: GM constants from compute_magic_128
+        // Aqui vivia `GM_TABLE`, un array constexpr de 1024 `gm_entry`
+        // inicializado llamando a compute_magic_128 unas 1020 veces. Cada
+        // llamada cuesta ~2000 pasos constexpr, asi que la tabla sola gastaba
+        // unos 2 millones: el DOBLE del limite por defecto de Clang. Resultado:
+        // la biblioteca NO compilaba con ningun Clang (comprobado del 14 al 22)
+        // sin pasar -fconstexpr-steps=100000000. El flag lo inyectaban
+        // scripts/build_generic.py y el job de sanitizers del CI, asi que el
+        // problema solo aparecia al incluir el header desde fuera del proyecto.
+        //
+        // Y la tabla NO SE USABA. `div<D>()` y `mod<D>()` llaman directamente a
+        // `compute_magic_128(D)` (ver int128_parameterized.hpp), que calcula
+        // solo el divisor que hace falta: ~2000 pasos en lugar de 2 millones.
+        // La tabla era codigo muerto cuyo unico efecto era imponer un flag no
+        // estandar a todos los que compilasen la biblioteca.
+        //
+        // Si algun dia hace falta una tabla, la forma de hacerlo sin volver al
+        // problema es `inline const` (inicializacion en ejecucion, 0 pasos
+        // constexpr) mas una variable-plantilla `gm_for_v<D>` para el camino
+        // constexpr.
         // =====================================================================
-
-        inline constexpr uint64_t GM_LOOKUP_MAX{1023};
-
-        inline constexpr std::array<gm_entry, GM_LOOKUP_MAX + 1> GM_TABLE = []() constexpr
-        {
-            std::array<gm_entry, GM_LOOKUP_MAX + 1> table{};
-            for (uint64_t d{3}; d <= GM_LOOKUP_MAX; ++d)
-            {
-                if (is_pow2(d))
-                {
-                    continue; // Powers of 2 use shift path
-                }
-                table[d] = compute_magic_128(d);
-            }
-            return table;
-        }();
 
         // =====================================================================
         // Constexpr-friendly 64x64 -> 128 multiplication (pure C++, no intrinsics)

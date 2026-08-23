@@ -4118,8 +4118,10 @@ namespace nstd
         // Division/Modulo by Compile-Time Constant (Granlund-Montgomery)
         //
         // Uses constexpr magic-number computation from Hacker's Delight 10-9.
-        // For D <= 1023, constants come from the precomputed GM_TABLE.
-        // For D > 1023, constants are computed on-the-fly at compile time.
+        // Las constantes se calculan en tiempo de compilacion para el divisor
+        // concreto que se use, con compute_magic_128(D). Hubo una tabla
+        // precalculada para D <= 1023, pero no se usaba y obligaba a compilar
+        // con -fconstexpr-steps elevado; ver la nota en int128_param_divmod.hpp.
         // ========================================================================
 
         /**

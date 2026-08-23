@@ -13,11 +13,6 @@ CompileFlags:
   Add:
     - -std=c++20
     - -I./include
-    # GM_TABLE (int128_param_divmod.hpp) supera el límite por defecto de pasos
-    # constexpr de Clang. Ver T3/T7.3: la solución de fondo es que la tabla
-    # deje de ser constexpr obligatoria; mientras tanto, el editor necesita
-    # el flag para no marcar un error falso.
-    - -fconstexpr-steps=100000000
   Compiler: clang++
 
 Diagnostics:

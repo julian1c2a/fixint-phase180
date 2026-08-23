@@ -71,11 +71,10 @@ def main():
     print("  " + toolchains.describe(args.compiler, compiler_cmd))
     print()
 
-    extra_flags = []
-    if args.compiler == "clang":
-        # GM_TABLE supera el limite por defecto de pasos constexpr de Clang.
-        # Ver T7.3: la solucion de fondo es que la tabla deje de ser constexpr.
-        extra_flags.append("-fconstexpr-steps=100000000")
+    # T7.3: ya no hace falta -fconstexpr-steps con Clang; GM_TABLE era codigo
+    # muerto y se ha eliminado. Se compila con los flags por defecto a proposito,
+    # para que este script detecte cualquier regresion.
+    extra_flags: list = []
 
     failed = []
     with tempfile.TemporaryDirectory() as tmpdir:

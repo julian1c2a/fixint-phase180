@@ -204,11 +204,13 @@ def compile_with_compiler(
         else:
             # GCC/Clang/Intel-Linux flags
             common_flags = ["-std=c++20", "-Wall", "-Wextra", "-pedantic", "-I./include"]
-            # Clang/Intel: raise constexpr evaluation step limit for GM_TABLE
-            # (GM_TABLE initialization calls compute_magic_128 ~1020 times, each
-            # requiring ~2000 constexpr steps; default 1M limit is not enough)
-            if compiler_name in ("clang", "intel"):
-                common_flags.append("-fconstexpr-steps=100000000")
+            # T7.3 (auditoria 23 ago 2026): aqui se inyectaba
+            # -fconstexpr-steps=100000000 para Clang e Intel, porque la
+            # inicializacion de GM_TABLE gastaba ~2 millones de pasos constexpr,
+            # el doble del limite por defecto de Clang. La tabla resulto ser
+            # codigo muerto (nadie la leia) y se ha eliminado, asi que la
+            # biblioteca vuelve a compilar con los flags por defecto. El job
+            # `clang-no-flags` del CI vigila que no vuelva a hacer falta.
             
             if needs_pthread and compiler_name in ["gcc", "clang", "intel"]:
                 common_flags.append("-pthread")
