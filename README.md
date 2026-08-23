@@ -1,6 +1,6 @@
 # int128 Library — Parameterized Types + fixed_int_t\<N\>
 
-> **Status:** ✅ **v1.80 PUBLISHED** — 42/42 tests, ARM64/ARM32/RISC-V Docker ✅ | ✅ **v1.81 — Fase MS-INTEROP** (interop signed/unsigned built-in-style en `fixed_int_t<N>`) | 🚧 **v1.90 IN DEVELOPMENT** — Knuth D, Karatsuba N=4/8
+> **Status:** ✅ **v1.80 PUBLISHED** — ARM64/ARM32/RISC-V Docker ✅ | suite actual **52/52 ficheros** (GCC 15.3, release-O2) | ✅ **v1.81 — Fase MS-INTEROP** (interop signed/unsigned built-in-style en `fixed_int_t<N>`) | 🚧 **v1.90 IN DEVELOPMENT** — Knuth D, Karatsuba N=4/8
 > **Started:** 11 January 2026
 > **Last Updated:** 22 May 2026
 > **Objective:** Parameterized 128-bit integer types (TC/MS/EK/binnat) + generalization to N×64-bit fixed-width integers
@@ -50,7 +50,7 @@ Detalles completos: [docs/API_fixed_int.md](docs/API_fixed_int.md), [docs/API_fi
 - **Single-limb divisor fast path O(N):** When divisor fits in 1 limb, replaces O(64N²) long division with N hardware DIV instructions (cascading rem < d invariant).
 - **Knuth Algorithm D — N-limb ÷ M-limb (M ≥ 2):** Full TAOCP Vol.2 §4.3.1 implementation. D1 normalize (`clz64`), D3 trial quotient 128÷64 (platform-guarded), D3 refine (128-bit mul-compare), D4 mul-subtract, D5 add-back, D8 unnormalize. All 4 Windows compilers.
 - **Karatsuba `operator*`/`*=` for N=4/8 (runtime):** `kmul_full<M>` private static template (T(1)=1, T(2)=3, T(4)=9 umul128 calls). N=4: 9 vs 10 schoolbook muls; N=8: 19+8 muls vs 36. `!std::is_constant_evaluated()` guard; constexpr falls through to schoolbook. N=8 middle terms recurse automatically via `uint_fixed_t<4>::operator*`.
-- **Tests:** `test_fixed_divmod` **218/218** | `test_fixed_vs_param` **804/804** | `test_cross_operators` **106/106** | `test_fixed_karatsuba` **49/49**
+- **Tests:** `test_fixed_divmod` **218/218** | `test_fixed_vs_param` **804/804** | `test_cross_operators` **197/197** | `test_fixed_karatsuba` **49/49**
 
 | Division path | Condition | Cost |
 |--------------|-----------|------|
@@ -69,7 +69,7 @@ Detalles completos: [docs/API_fixed_int.md](docs/API_fixed_int.md), [docs/API_fi
 
 **v1.80 — ARM/RISC-V Docker + v1.77 test suite (May 2026):**
 
-- **Docker cross-compilation:** `arm64` 42/42 ✅, `arm32` 42/42 ✅, `riscv64` 42/42 ✅ (QEMU). `python make.py docker arm64|arm32|riscv64`
+- **Docker cross-compilation:** `arm64` 42/42 ✅, `arm32` 42/42 ✅, `riscv64` 42/42 ✅ (QEMU, medido en v1.80 cuando la suite tenía 42 ficheros). `python make.py docker arm64|arm32|riscv64`
 - **CI/CD:** GitHub Actions — GCC/Clang/MSVC/Intel, ARM64 native, ARM32/RISC-V QEMU, sanitizers, cppcheck, clang-tidy
 - **v1.77:** 29 standalone test files → unified `test_param_*` + `test_sweep_*` framework
 

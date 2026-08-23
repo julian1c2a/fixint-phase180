@@ -1,0 +1,66 @@
+# =============================================================================
+# .dockerignore - Excluye archivos innecesarios del contexto Docker
+# =============================================================================
+# Reduce el tamaño del contexto de construcción y acelera las builds
+
+# Directorios de build (se crean en la imagen)
+build/
+build_*/
+cmake-build-debug/
+cmake-build-release/
+.build/
+
+# VCS
+.git/
+.gitattributes
+.github/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.clang-format
+
+# Documentación (EXCEPTO lo que necesitamos copiar)
+documentation/
+DECISION_AND_FUTURE.md
+OPERATOR_SEMANTICS.md
+PROJECT_STATUS.md
+QUICK_REFERENCE.md
+NEXT_STEPS.md
+THOUGHTS.md
+AI-GUIDE.md
+EXECUTIVE_SUMMARY.md
+
+# Temporales
+*.log
+*.tmp
+*.temp
+.aider*
+CRASH
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Legacy/Reference (no compilar)
+int128-phase175/
+legacy-code/
+
+# Test results (se generan dentro del contenedor)
+test_results/
+coverage/
+*.xml
+
+# Otros
+.env
+*.pdb
+ms_debug*.txt
+
+# =============================================================================
+# EOF
+# =============================================================================
