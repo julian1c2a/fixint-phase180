@@ -16,10 +16,10 @@
 | **CI Workflow** | [`AI_PROMPT/workflow/ci.yml`](AI_PROMPT/workflow/ci.yml) | Build + test multi-compilador (push/PR) |
 | **Benchmarks Workflow** | [`AI_PROMPT/workflow/benchmarks.yml`](AI_PROMPT/workflow/benchmarks.yml) | Suite completa de benchmarks (semanal) |
 | **Release Workflow** | [`AI_PROMPT/workflow/release.yml`](AI_PROMPT/workflow/release.yml) | Empaquetado de release (tag v*.*.*) |
-| **ROADMAP.md** | `ROADMAP.md` — ⬜ pendiente de crear; hoy su papel lo cumple [`NEXT_STEPS.md`](NEXT_STEPS.md) | Línea de tiempo: fases pasadas, presente y futuras |
+| **ROADMAP.md** | [`ROADMAP.md`](ROADMAP.md) | Las 9 etapas del proyecto y su estado; decisiones abiertas y deuda anotada |
 | **docs/archive/SESSION_STATE.md** | [`docs/archive/SESSION_STATE.md`](docs/archive/SESSION_STATE.md) | Contexto volátil: estado actual para onboarding rápido |
-| **CONTRIBUTING.md** | `CONTRIBUTING.md` — ⬜ pendiente de crear | Guía de contribución para colaboradores externos |
-| **SECURITY.md** | `SECURITY.md` — ⬜ pendiente de crear | Política de seguridad y reporte de vulnerabilidades |
+| **CONTRIBUTING.md** | [`CONTRIBUTING.md`](CONTRIBUTING.md) | Guía de contribución: entorno, los 4 verificadores, estilo, commits |
+| **SECURITY.md** | [`SECURITY.md`](SECURITY.md) | Política de seguridad; alcance y el aviso de que NO hay tiempo constante |
 
 ---
 

@@ -1093,3 +1093,9 @@ python make.py test all all
 4. **Legacy scripts**: Prefer `build_generic.bash` over 128 individual legacy scripts in `scripts/individualized/`
 5. **`to_cstr()` buffer rotation**: Allows 4 concurrent calls without stomping (e.g., `printf("%s %s", a.to_cstr(), b.to_cstr())`)
 
+<!-- mermaid-ai-skills:start -->
+## Mermaid Diagrams
+
+When the user asks to create, edit, or visualize a diagram, follow the
+instructions in `.github/instructions/mermaid.instructions.md`.
+<!-- mermaid-ai-skills:end -->

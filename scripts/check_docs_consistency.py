@@ -123,7 +123,12 @@ def check_links(rep: Report):
 
     md_files = [PROJECT_ROOT / d for d in LIVE_DOCS]
     md_files += sorted((PROJECT_ROOT / "docs").glob("*.md"))
-    md_files.append(PROJECT_ROOT / "AI-GUIDE.md")
+    md_files += sorted((PROJECT_ROOT / "docs" / "decisions").glob("*.md"))
+    # Los documentos de comunidad tambien: sus enlaces se rompen igual que los
+    # demas, y son los primeros que lee alguien de fuera.
+    for extra in ("AI-GUIDE.md", "CONTRIBUTING.md", "SECURITY.md", "ROADMAP.md",
+                  "OPERATOR_SEMANTICS.md"):
+        md_files.append(PROJECT_ROOT / extra)
 
     broken = []
     total = 0
