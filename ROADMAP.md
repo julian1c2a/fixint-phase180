@@ -44,34 +44,37 @@ estar disponibles en `fixed_int_t` para cualquier N, no solo en 128 bits.
 
 ---
 
-## Antes de la etapa 5: dos decisiones abiertas
+## Antes de la etapa 5: dos decisiones tomadas, ninguna empezada
 
 Ninguna de las dos es trabajo de mantenimiento; las dos condicionan lo que venga
-después, así que conviene cerrarlas antes de empezar el punto fijo.
+después, así que van antes del punto fijo. **El orden entre ellas está fijado por
+ADR-007: primero la política de desbordamiento, después la unificación.**
 
-### Unificación de tipos — decidida, sin empezar
+### 1.º — Política de desbordamiento
+
+[ADR-007](docs/decisions/ADR-007-politica-de-desbordamiento-como-parametro.md):
+la política de desbordamiento pasa a ser **parámetro de plantilla**,
+`fixed_int_t<N, Sign, Form, Policy>`. Con ella el usuario escribe `a + b` de
+siempre y es el tipo quien decide qué pasa al desbordar, sin tener que reescribir
+el código llamante — que es lo que hoy hace que las `checked_*` casi no se usen.
+
+**Va primero por una razón concreta:** introducir la política después de replicar
+los diez headers de ADR-006 significaría portar esa API dos veces.
+
+Queda por decidir el diseño: qué políticas, cuál es la de por defecto, cómo
+informa `checked`, dónde va en la lista de parámetros, qué pasa al mezclar
+políticas, y cómo interactúa con las representaciones MS y EK. Las seis
+preguntas están enumeradas en el ADR.
+
+Es un cambio mayor: marca la **2.0**.
+
+### 2.º — Unificación de tipos
 
 [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md): toda la
 funcionalidad de `int128_param_t` se replica en `fixed_int_t` y el tipo viejo se
 retira. Diez headers por portar, y el de más peso son las representaciones MS y
 EK, que tocan el núcleo del tipo. Es además lo que desbloquea la etapa 3 para
 cualquier N y, con ella, la etapa 6.
-
-### Política de desbordamiento — sin decidir
-
-Hoy la aritmética es estrictamente modular, con `checked_add` / `checked_sub` /
-`checked_mul` como funciones sueltas. Las opciones sobre la mesa:
-
-| Opción | Alcance |
-|---|---|
-| Completar las *checked* (`checked_div`, `checked_neg`, `checked_shl`, versiones con signo) | una tarde |
-| Añadir las saturantes (`saturating_add` y compañía) | una tarde |
-| Un envoltorio `safe_int<T>` con semántica no modular | una fase |
-| La política como parámetro de plantilla: `fixed_int_t<N, Sign, Form, Policy>` | versión mayor |
-
-**Interacción importante:** si se va a la política como parámetro de plantilla,
-hay que introducirla **antes** de replicar los diez headers de ADR-006. Si no, se
-porta la API dos veces.
 
 ---
 

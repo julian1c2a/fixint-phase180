@@ -1,4 +1,4 @@
-## [1.90.1] - 2026-08-23 — Auditoría completa
+## [1.90.1] - 2026-08-24 — Auditoría completa
 
 Auditoría del proyecto y ejecución de las 8 fases del plan resultante
 (ver la sección «AUDITORÍA 23 ago 2026» de NEXT_STEPS.md).
@@ -54,6 +54,49 @@ Auditoría del proyecto y ejecución de las 8 fases del plan resultante
 ### Rendimiento
 
 - Suite completa: ~230 s → ~179 s.
+- Compilar un TU que incluya `int128_param_divmod.hpp`: 2,4 s → 0,95 s.
+
+### 24 de agosto — puesta en verde del CI
+
+El CI llevaba en rojo desde antes de la auditoría (runs 8-11 sobre `ade863e` ya
+fallaban). Cerrar las puertas de los jobs que no podían fallar no rompió nada:
+destapó lo que había. Cinco causas, y solo una era un defecto del código.
+
+- **`fix`**: corrupción por aliasing en `x *= x` con MSVC. La ruta rápida N=2 de
+  `operator*=` escribía `data[0]` antes de leer `o.data[0]`, así que se corrompía
+  cuando el operando era el propio objeto — justo lo que hace el bucle de
+  cuadrados de `pow`. `pow(-2, 3)` daba un valor equivocado. `test_fixed_signed`
+  bajo MSVC: 951/3 → **954/954**.
+- **`fix`**: `subprocess.run(text=True)` sin `encoding` reventaba con
+  `UnicodeDecodeError` al leer la salida de `cl.exe`, que emite en la página de
+  códigos local. Los scripts daban los tests por fallidos sin llegar a mirarlos.
+- **`fix`**: la ruta de `vcvarsall.bat` estaba cableada a la instalación del
+  autor. En el runner no existía, se avisaba por `[WARN]` y se seguía **sin
+  entorno de MSVC**. Ahora se localiza con `vswhere` y aborta si no aparece.
+- **`fix`**: `toolchains.json` aplicaba rutas de Windows en Linux. Separado por
+  plataforma, y toda ruta absoluta que no exista cae al nombre pelado.
+- **`ci`**: el job de sanitizers mataba cada test a los 120 s; `test_sweep_string`
+  necesita 6 min 17 s y pasa. Subido a 900 s, y el test diferencial se reduce ×10
+  cuando detecta sanitizers.
+- **`ci`**: clang-format fijado a la **21**. No es estable entre versiones
+  mayores: la 19 rompe `a ^ T{0}`, la 22 rompe `std::bitset<64 * N>`. De paso
+  queda explicado el artefacto `R{a} ^ R { b }` que apareció al empezar la
+  auditoría.
+- **`ci`**: el armonizador tolera ahora la versión de doxygen. Sobre el mismo
+  árbol, doxygen 1.9.8 da 21 avisos y el 1.18 da 4, ninguno desde `include/`.
+
+**Resultado: run 35, los 24 jobs en verde**, y con las puertas cerradas de
+verdad — `cross-x86-32`, `intel-icx` y `cross-arm32` pasan **habiendo podido
+fallar**.
+
+### 24 de agosto — documentación
+
+- `docs/decisions/` con **ADR-006**: `int128_param_t` se replica en
+  `fixed_int_t` hasta retirarlo, con el inventario de paridad medido.
+- `CONTRIBUTING.md`, `SECURITY.md` y `ROADMAP.md`, que `AI-GUIDE.md` listaba sin
+  que existieran.
+- `docs/API_fixed_int_stl.md`, y `docs/API_fixed_int.md` al día: documentaba
+  `data` como público cuando es privado desde T2.4.
 
 
 ## [v1.81 — 22 May 2026] — Fase MS-INTEROP: interop signed/unsigned al estilo built-in
@@ -3448,7 +3491,7 @@ Ported 8 additional numeric functions: sign, is_even, is_odd, abs_diff, ilog2, i
 
 > **Phase 1.75 Status:**  **ACTIVE DEVELOPMENT - Extended Features Porting**  
 > **Started:** 11 January 2026 19:30 UTC  
-> **Last Updated:** 23 August 2026
+> **Last Updated:** 24 August 2026
 > **Objective:** Full parity for TC, MS, and EK representations  
 > **Progress:** Phase 1.75 complete (11/11 priorities) + 4 extended feature headers ported ✅
 
