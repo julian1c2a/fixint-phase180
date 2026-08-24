@@ -1028,11 +1028,19 @@ namespace nstd
             {
                 if (!std::is_constant_evaluated())
                 {
+                    // Los CUATRO limbos se leen antes de escribir nada. Es
+                    // imprescindible: si `o` es este mismo objeto (`x *= x`, que
+                    // es justo lo que hace `pow` en su bucle de cuadrados),
+                    // escribir data[0] antes de leer o.data[0] y o.data[1]
+                    // corrompe el resultado. La rama de GCC/Clang de arriba ya
+                    // cacheaba b0 y b1; esta no, y por eso `pow(-2, 3)` daba un
+                    // valor equivocado solo con MSVC.
                     const std::uint64_t a0 = data[0], a1 = data[1];
+                    const std::uint64_t b0 = o.data[0], b1 = o.data[1];
                     std::uint64_t hi00;
-                    const std::uint64_t lo00 = _umul128(a0, o.data[0], &hi00);
+                    const std::uint64_t lo00 = _umul128(a0, b0, &hi00);
                     data[0] = lo00;
-                    data[1] = hi00 + a0 * o.data[1] + a1 * o.data[0];
+                    data[1] = hi00 + a0 * b1 + a1 * b0;
                     return *this;
                 }
             }
