@@ -18,11 +18,27 @@
     "Diagnostico:  python scripts/toolchains.py"
   ],
 
+  "_aviso_plataforma": [
+    "Las rutas van SEPARADAS POR PLATAFORMA. La primera version de este fichero",
+    "las tenia sueltas en la raiz y el CI de Linux acabo intentando ejecutar",
+    "'C:/msys64/ucrt64/bin/g++.exe'. En posix se dejan los nombres pelados: los",
+    "compiladores estan en el PATH y el CI inyecta los suyos por variable de",
+    "entorno (GCC_CXX, CLANG_CXX...), que tiene prioridad sobre este fichero."
+  ],
+
   "compilers": {
-    "gcc": "C:/msys64/ucrt64/bin/g++.exe",
-    "clang": "C:/msys64/clang64/bin/clang++.exe",
-    "intel": "icx",
-    "msvc": "cl.exe"
+    "windows": {
+      "gcc": "C:/msys64/ucrt64/bin/g++.exe",
+      "clang": "C:/msys64/clang64/bin/clang++.exe",
+      "intel": "icx",
+      "msvc": "cl.exe"
+    },
+    "posix": {
+      "gcc": "g++",
+      "clang": "clang++",
+      "intel": "icpx",
+      "msvc": "cl.exe"
+    }
   },
 
   "herramientas": {

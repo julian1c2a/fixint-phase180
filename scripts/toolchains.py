@@ -71,15 +71,39 @@ _UNWANTED_WINDOWS_PREFIXES = (
 _FALLBACK_NAMES = {"gcc": "g++", "clang": "clang++", "intel": "icx", "msvc": "cl.exe"}
 
 
+def _platform_key():
+    """Clave de plataforma para toolchains.json."""
+    return "windows" if sys.platform == "win32" else "posix"
+
+
 def _load_overrides():
-    """Lee toolchains.json de la raiz del proyecto, si existe."""
+    """Rutas de toolchains.json para ESTA plataforma, si las hay.
+
+    El fichero admite dos formas:
+
+        {"compilers": {"windows": {...}, "posix": {...}}}   <- recomendada
+        {"compilers": {"gcc": "...", ...}}                  <- heredada
+
+    La segunda se interpreta como si fuera de Windows, que es de donde venia.
+    Esta distincion NO es cosmetica: la primera version de este fichero tenia
+    las rutas de Windows en la raiz y el CI de Linux acabo intentando ejecutar
+    'C:/msys64/ucrt64/bin/g++.exe'.
+    """
     path = PROJECT_ROOT / "toolchains.json"
     if not path.exists():
         return {}
     try:
         with open(path, "r", encoding="utf-8") as fh:
             data = json.load(fh)
-        return data.get("compilers", data) or {}
+        compilers = data.get("compilers", {}) or {}
+        if any(k in compilers for k in ("windows", "posix", "linux")):
+            key = _platform_key()
+            out = compilers.get(key, {}) or {}
+            if not out and key == "posix":
+                out = compilers.get("linux", {}) or {}
+            return out
+        # Forma heredada: rutas sueltas, que eran de Windows.
+        return compilers if sys.platform == "win32" else {}
     except (OSError, ValueError) as exc:
         print(f"[WARN] toolchains.json ilegible ({exc}); se ignora", file=sys.stderr)
         return {}
@@ -95,13 +119,15 @@ def resolve(name):
         return env_value
 
     overrides = _load_overrides()
-    if name in overrides and overrides[name]:
-        return overrides[name]
+    candidate = overrides.get(name) or None
 
-    defaults = DEFAULTS_WINDOWS if sys.platform == "win32" else DEFAULTS_POSIX
-    candidate = defaults[name]
+    if candidate is None:
+        defaults = DEFAULTS_WINDOWS if sys.platform == "win32" else DEFAULTS_POSIX
+        candidate = defaults[name]
 
-    # Si el default es una ruta absoluta que no existe, caemos al nombre pelado.
+    # Toda ruta absoluta que no exista cae al nombre pelado, venga del JSON o del
+    # default de plataforma. Sin esta red, un toolchains.json escrito en una
+    # maquina rompe el build en cualquier otra.
     if ("/" in candidate or "\\" in candidate) and not Path(candidate).exists():
         return _FALLBACK_NAMES[name]
 

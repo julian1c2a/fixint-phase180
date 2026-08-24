@@ -8,16 +8,90 @@ import subprocess
 from pathlib import Path
 
 
-# Visual Studio 2026 (version 18)
-VCVARSALL = Path(r"C:\Program Files\Microsoft Visual Studio\18\Community\VC\Auxiliary\Build\vcvarsall.bat")
+# =============================================================================
+# Localizacion de Visual Studio
+#
+# T7.1 (24 ago 2026): esta ruta estaba CABLEADA a "Visual Studio\18\Community",
+# que es la instalacion de la maquina del autor. En el runner de GitHub hay una
+# VS 2022 Enterprise, asi que vcvarsall.bat no existia, la funcion avisaba por
+# stderr y seguia adelante SIN entorno de MSVC: cl.exe no estaba en el PATH y
+# fallaban los 55 tests. El job de MSVC llevaba meses en rojo por esto.
+#
+# Ahora se busca en cascada:
+#   1. VSINSTALLDIR / VCINSTALLDIR  -- las pone cualquier shell de VS ya
+#      inicializada, incluida la del `call vcvars64.bat` del CI
+#   2. vswhere.exe                  -- el localizador oficial, siempre en la
+#      misma ruta desde VS 2017
+#   3. rutas conocidas              -- ultima red, incluida la de esta maquina
+# =============================================================================
+
+
+def _vs_candidates():
+    """Rutas de vcvarsall.bat a probar, en orden de preferencia."""
+    out = []
+
+    # 1. Entorno de una shell de VS ya inicializada.
+    for var in ("VSINSTALLDIR", "VCINSTALLDIR"):
+        root = os.environ.get(var)
+        if root:
+            base = Path(root)
+            if var == "VCINSTALLDIR":
+                base = base.parent
+            out.append(base / "VC" / "Auxiliary" / "Build" / "vcvarsall.bat")
+
+    # 2. vswhere: el localizador oficial de Microsoft.
+    vswhere = Path(os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")) / \
+        "Microsoft Visual Studio" / "Installer" / "vswhere.exe"
+    if vswhere.exists():
+        try:
+            res = subprocess.run(
+                [str(vswhere), "-latest", "-products", "*",
+                 "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+                 "-property", "installationPath"],
+                capture_output=True, text=True, encoding="utf-8", errors="replace",
+                timeout=60, check=False)
+            for line in res.stdout.splitlines():
+                line = line.strip()
+                if line:
+                    out.append(Path(line) / "VC" / "Auxiliary" / "Build" / "vcvarsall.bat")
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    # 3. Rutas conocidas, por si las dos anteriores fallan.
+    for root in (r"C:\Program Files\Microsoft Visual Studio",
+                 r"C:\Program Files (x86)\Microsoft Visual Studio"):
+        base = Path(root)
+        if not base.exists():
+            continue
+        for version in sorted((d for d in base.iterdir() if d.is_dir()), reverse=True):
+            for edition in ("Enterprise", "Professional", "Community", "BuildTools"):
+                out.append(version / edition / "VC" / "Auxiliary" / "Build" / "vcvarsall.bat")
+
+    return out
+
+
+def _find_vcvarsall() -> Path:
+    for cand in _vs_candidates():
+        if cand.exists():
+            return cand
+    # Se devuelve la primera candidata aunque no exista, para que el mensaje de
+    # error diga algo util.
+    cands = _vs_candidates()
+    return cands[0] if cands else Path("vcvarsall.bat")
+
+
+VCVARSALL = _find_vcvarsall()
+
 
 def _find_msvc_cl() -> Path:
-    """Find the latest cl.exe under VS 18 Community (Hostx64/x64)."""
-    base = Path(r"C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC")
+    """Localiza el cl.exe mas reciente de la instalacion encontrada."""
+    # VCVARSALL = <vs>/VC/Auxiliary/Build/vcvarsall.bat  ->  <vs>/VC/Tools/MSVC
+    base = VCVARSALL.parent.parent.parent / "Tools" / "MSVC"
     if not base.exists():
         return Path("cl.exe")
     candidates = sorted(base.glob("*/bin/Hostx64/x64/cl.exe"), reverse=True)
     return candidates[0] if candidates else Path("cl.exe")
+
 
 MSVC_CL = _find_msvc_cl()
 
@@ -125,7 +199,12 @@ class CompilerEnvironment:
             return _msvc_env_cache.copy()
 
         if not VCVARSALL.exists():
-            print(f"[WARN] vcvarsall.bat not found at {VCVARSALL}")
+            # Antes esto era un [WARN] y se seguia adelante sin entorno de MSVC,
+            # de modo que fallaban los 55 tests con un error incomprensible. Es
+            # un fallo de configuracion y debe decirlo claro.
+            print(f"[ERROR] No se encuentra vcvarsall.bat. Probado: {VCVARSALL}")
+            print("[ERROR] Instala las VC++ Build Tools o abre una shell de "
+                  "Visual Studio antes de compilar con msvc.")
             return os.environ.copy()
 
         env = _capture_env_from_bat(str(VCVARSALL), "x64")
@@ -141,8 +220,8 @@ class CompilerEnvironment:
 
         ICX (icpx.exe) uses MSVC's standard library headers and needs:
           1. The full MSVC environment (vcvarsall.bat x64) for system headers
-          2. Intel compiler\<ver>\bin in PATH for the icpx.exe itself
-          3. Intel compiler\<ver>\include in INCLUDE for Intel-specific headers
+          2. Intel compiler/<ver>/bin in PATH for the icpx.exe itself
+          3. Intel compiler/<ver>/include in INCLUDE for Intel-specific headers
 
         setvars.bat is NOT used here because it often returns exit 1 in
         non-interactive contexts and captures nothing.  The manual approach

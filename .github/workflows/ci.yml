@@ -116,10 +116,19 @@ jobs:
       - name: Setup MSVC
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build & Test
+      # T7.1 (24 ago 2026): aqui se hacia `call` a una ruta cableada de
+      # VS 2022 Enterprise. Si esa ruta no existe, cmd imprime un error y
+      # SIGUE, asi que el build continuaba sin entorno de MSVC y fallaban los
+      # 55 tests. Ahora se localiza con vswhere (el localizador oficial de
+      # Microsoft) y se aborta con un mensaje claro si no aparece.
+      - name: Localizar Visual Studio y compilar
         shell: cmd
         run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set VSPATH=%%i
+          if not defined VSPATH (echo No hay ninguna instalacion de Visual Studio con VC++ & exit /b 1)
+          echo Visual Studio en: %VSPATH%
+          call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
+          where cl.exe || (echo cl.exe no esta en el PATH tras vcvars64 & exit /b 1)
           python make.py test msvc ${{ matrix.mode }}
 
   # ============================================================================
