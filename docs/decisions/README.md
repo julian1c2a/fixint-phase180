@@ -22,6 +22,7 @@ Lo esencial:
 | 005 | Representación parametrizada (TC, MS, EK, binnat) | ⬜ pendiente de escribir |
 | [006](ADR-006-migracion-int128-param-a-fixed-int.md) | Replicar `int128_param_t` en `fixed_int_t` hasta retirarlo | ✅ Aceptado |
 | [007](ADR-007-politica-de-desbordamiento-como-parametro.md) | La política de desbordamiento pasa a ser parámetro de plantilla | ✅ Aceptado |
+| [008](ADR-008-diseno-de-la-politica-de-desbordamiento.md) | Diseño de la política: `wrap` por defecto, `checked` con marca pegajosa | ✅ Aceptado |
 
 ## Sobre los ADR 001–005
 

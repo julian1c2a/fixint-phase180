@@ -1,8 +1,8 @@
 # `scripts/` — inventario
 
-**Última revisión:** 23 August 2026 (T7.6 del plan de auditoría)
+**Última revisión:** 24 August 2026 (T7.6 del plan de auditoría)
 
-En este directorio conviven 47 ficheros de varias generaciones del proyecto. La
+En este directorio convivían 47 ficheros de varias generaciones del proyecto. La
 auditoría del 23 ago 2026 encontró que la mitad no los referencia nadie: son
 ancestros de los tres scripts genéricos que hoy hacen el trabajo. Este
 documento dice cuál es cuál, para que nadie tenga que averiguarlo leyéndolos.
@@ -45,19 +45,40 @@ Lo que usa `make.py` hoy. Tocar aquí es tocar el build de verdad.
 | `wsl_build_and_test.bash` | Compilación y tests en WSL |
 | `compile_wsl.bash` | Compilación puntual en WSL |
 
-## Superados — candidatos a archivar
+## Todavía vivos, pese a estar superados
 
-Ninguno de estos lo referencia nadie salvo, como mucho, otro script igual de
-muerto. Son la generación anterior a `build_generic.py` / `run_generic.py` /
-`check_generic.py`, o herramientas de refactores que ya se hicieron.
+Estos cinco **siguen siendo llamados desde código vivo**, así que no se han
+archivado aunque su sustituto en Python exista:
+
+| Script | Quién lo llama |
+|---|---|
+| `build_generic.bash` | `Makefile` |
+| `run_generic.bash` | `Makefile` |
+| `check_generic.bash` | `Makefile` |
+| `build_benchs_generic.bash` | `Makefile` |
+| `build_extracted_tests.bash` | `.github/workflows/release.yml` |
+
+Desengancharlos es una tarea aparte y con riesgo: significa convertir el
+`Makefile` en el shim sobre `make.py` que propone la sección de más abajo, y
+tocar el workflow de release, que no se puede probar en local. Hasta entonces se
+quedan donde están.
+
+> El primer intento de archivarlos, el 24 ago 2026, los daba por muertos según
+> un recuento de referencias mal filtrado. Lo pilló la comprobación que se hace
+> al mover: **ningún script se archiva sin verificar antes que nada vivo lo
+> referencia.**
+
+## Archivados en `archive/`
+
+Movidos a [`archive/`](archive/) el 24 ago 2026: 27 ficheros que no referencia
+nadie. Son la generación anterior a `build_generic.py` / `run_generic.py` /
+`check_generic.py`, los de la fase 1.5, o herramientas de refactores ya
+aplicados. Se conservan porque alguno sigue valiendo como referencia de cómo se
+hacía algo; recuperarlos es un `git mv`.
 
 | Script | Sustituido por |
 |---|---|
-| `build_generic.bash` | `build_generic.py` |
-| `run_generic.bash` | `run_generic.py` |
-| `check_generic.bash` | `check_generic.py` |
 | `build_tests_generic.bash` | `build_generic.py` |
-| `build_benchs_generic.bash` | `build_generic.py` |
 | `build_phase15_tests.bash` | `build_generic.py` (fase 1.5, ya cerrada) |
 | `build_phase15_benchs.bash` | `build_generic.py` (fase 1.5, ya cerrada) |
 | `check_phase15_tests.bash` | `check_generic.py` (fase 1.5, ya cerrada) |
@@ -77,7 +98,6 @@ muerto. Son la generación anterior a `build_generic.py` / `run_generic.py` /
 | `wsl_build_system.bash` | `wsl_build_and_test.bash` |
 | `wsl_build_and_test.py` | `wsl_build_and_test.bash` |
 | `run_wsl_tests.py` | `wsl_build_and_test.bash` |
-| `build_extracted_tests.bash` | — (los «extracted tests» ya no existen) |
 | `run_uint128_extracted_tests.bash` | — (ídem) |
 | `fix_structure.bash` | — (refactor ya aplicado) |
 | `fix_benchmark_api.py` | — (refactor ya aplicado) |
@@ -86,11 +106,9 @@ muerto. Son la generación anterior a `build_generic.py` / `run_generic.py` /
 | `verify_refactor.bash` | — (refactor ya aplicado) |
 | `verify_stdbyte_migration.bash` | — (migración a `std::byte` ya aplicada) |
 
-**No se han borrado.** Son 32 ficheros y borrarlos es una decisión del autor, no
-de una auditoría: alguno puede seguir siendo útil como referencia de cómo se
-hacía algo. La recomendación es moverlos a `scripts/archive/` en un commit
-propio, para que el directorio deje de dar a entender que hay 47 herramientas
-vivas cuando en realidad son unas 15.
+**No se han borrado**, solo movidos: alguno puede seguir siendo útil como
+referencia. Con esto el directorio pasa de aparentar 47 herramientas vivas a las
+20 que hay de verdad.
 
 ---
 

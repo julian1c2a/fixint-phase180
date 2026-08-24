@@ -74,6 +74,12 @@ llamante para ganar seguridad.
 
 ## Lo que queda por decidir
 
+> **Actualización 2026-08-24:** las seis preguntas de esta sección quedaron
+> respondidas el mismo día en
+> [ADR-008](ADR-008-diseno-de-la-politica-de-desbordamiento.md). Se conservan
+> aquí tal como se plantearon, porque un ADR no se reescribe.
+
+
 La decisión de fondo está tomada; el diseño concreto no. Estas son las preguntas
 abiertas, que conviene cerrar antes de escribir código:
 

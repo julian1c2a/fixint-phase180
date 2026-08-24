@@ -61,10 +61,16 @@ el código llamante — que es lo que hoy hace que las `checked_*` casi no se us
 **Va primero por una razón concreta:** introducir la política después de replicar
 los diez headers de ADR-006 significaría portar esa API dos veces.
 
-Queda por decidir el diseño: qué políticas, cuál es la de por defecto, cómo
-informa `checked`, dónde va en la lista de parámetros, qué pasa al mezclar
-políticas, y cómo interactúa con las representaciones MS y EK. Las seis
-preguntas están enumeradas en el ADR.
+El diseño está cerrado en
+[ADR-008](docs/decisions/ADR-008-diseno-de-la-politica-de-desbordamiento.md):
+`wrap` por defecto (el comportamiento de hoy y el de los built-in), `checked`
+sin excepciones y con **marca pegajosa** dentro del valor —el equivalente entero
+de un NaN—, cuarto parámetro de plantilla, y **prohibido mezclar políticas**:
+error de compilación, no conversión silenciosa. Toda la aritmética sigue siendo
+`constexpr` y `noexcept`.
+
+Queda una sola cuestión de implementación: dónde vive la marca de inválido sin
+que quien use `wrap` pague tamaño.
 
 Es un cambio mayor: marca la **2.0**.
 
