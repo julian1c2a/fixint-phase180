@@ -8,9 +8,23 @@
 # editor aplicaba su estilo por defecto y generaba diffs de cientos de líneas
 # de puro reformateo sobre ficheros escritos a mano.
 #
+# VERSION DE REFERENCIA: clang-format 21.
+#
+# clang-format NO es estable entre versiones mayores. Comprobado sobre este
+# arbol (103 ficheros):
+#   v19  rompe `a ^ T{0}` en `a ^ T { 0 }`        (lee `^ T{` como declaracion)
+#   v21  deja el arbol tal cual                   <-- la de referencia
+#   v22  rompe `std::bitset<64 * N>` en `<64 *N>` (lee `*` como puntero)
+#
+# El artefacto `R{a} ^ R { b }` que aparecio en el arbol de trabajo al empezar
+# la auditoria del 23 ago 2026 venia de un clang-format de la serie 19.
+#
+# El job `format-and-docs` del CI usa clang-format-21. Si tu editor usa otra
+# version, o lo fijas a 21 o desactivas el formateo automatico al guardar.
+#
 # Uso:
-#   clang-format -i include/**.hpp tests/*.cpp benchs/*.cpp
-#   clang-format --dry-run --Werror <fichero>   # comprobación en CI
+#   clang-format-21 -i include/**.hpp tests/*.cpp benchs/*.cpp
+#   clang-format-21 --dry-run --Werror <fichero>   # comprobación en CI
 # =============================================================================
 
 Language: Cpp

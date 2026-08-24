@@ -25,6 +25,11 @@
     "msvc": "cl.exe"
   },
 
+  "herramientas": {
+    "clang-format": "21",
+    "_clang_format_nota": "clang-format NO es estable entre versiones mayores. v19 y v22 reformatean este arbol de formas distintas; v21 lo deja igual. Ver la cabecera de .clang-format."
+  },
+
   "notas": {
     "gcc": "MSYS2 UCRT64. NO usar C:/msys64/usr/bin/g++: es el toolchain MSYS y sus binarios dependen de msys-2.0.dll.",
     "clang": "MSYS2 CLANG64, target x86_64-w64-windows-gnu. Mismo aviso que con gcc.",

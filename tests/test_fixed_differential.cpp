@@ -37,6 +37,26 @@
 using nstd::int_fixed_t;
 using nstd::uint_fixed_t;
 
+// -----------------------------------------------------------------------------
+// Deteccion de sanitizers, para reducir el numero de casos cuando estan activos.
+// GCC define __SANITIZE_ADDRESS__ / __SANITIZE_UNDEFINED__; Clang lo expone por
+// __has_feature.
+// -----------------------------------------------------------------------------
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_UNDEFINED__) || defined(__SANITIZE_THREAD__)
+#define NSTD_SANITIZERS_ON 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer) || __has_feature(undefined_behavior_sanitizer) || \
+    __has_feature(thread_sanitizer)
+#define NSTD_SANITIZERS_ON 1
+#endif
+#endif
+
+#ifdef NSTD_SANITIZERS_ON
+static constexpr int SAN_DIV = 10;
+#else
+static constexpr int SAN_DIV = 1;
+#endif
+
 static int g_passed{0};
 static int g_failed{0};
 
@@ -439,12 +459,17 @@ int main()
 
     // El oraculo es O(bits^2) en la division, asi que el numero de casos baja
     // conforme sube N. Aun asi son decenas de miles de comprobaciones.
-    sweep<2, false>("uint128", 900);
-    sweep<2, true>("int128", 900);
-    sweep<4, false>("uint256", 600);
-    sweep<4, true>("int256", 600);
-    sweep<8, false>("uint512", 300);
-    sweep<8, true>("int512", 300);
+    // Bajo sanitizers todo va entre 10 y 20 veces mas lento. Se reduce el numero
+    // de casos: lo que interesa ahi es recorrer los CAMINOS de codigo, no el
+    // volumen. Con la division a la decima parte se siguen ejecutando los mismos
+    // caminos (Karatsuba, Knuth D, camino rapido de un limbo, reduccion con
+    // signo) y el test cabe de sobra en el tiempo del job.
+    sweep<2, false>("uint128", 900 / SAN_DIV);
+    sweep<2, true>("int128", 900 / SAN_DIV);
+    sweep<4, false>("uint256", 600 / SAN_DIV);
+    sweep<4, true>("int256", 600 / SAN_DIV);
+    sweep<8, false>("uint512", 300 / SAN_DIV);
+    sweep<8, true>("int512", 300 / SAN_DIV);
 
     std::cout << "\n====================================================================\n";
     std::cout << "Results: " << g_passed << " passed, " << g_failed << " failed\n";

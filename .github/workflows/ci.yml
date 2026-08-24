@@ -365,7 +365,11 @@ jobs:
             if $CXX $FLAGS -o "build_temp/${name}_san" "$src" 2>/dev/null; then
               export ASAN_OPTIONS=detect_leaks=1
               export UBSAN_OPTIONS=print_stacktrace=1
-              if timeout 120 "./build_temp/${name}_san" >/dev/null 2>&1; then
+              # 120 s no daba ni de lejos: bajo ASan+UBSan los sweep tests
+              # tardan minutos (test_sweep_string, 6m17s medido en WSL). El job
+              # llevaba meses en rojo por esto, no por ningun hallazgo del
+              # sanitizer.
+              if timeout 900 "./build_temp/${name}_san" >/dev/null 2>&1; then
                 echo "OK"; PASS=$((PASS + 1))
               else
                 echo "FAIL (sanitizer)"; FAIL=$((FAIL + 1))
@@ -456,24 +460,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install clang-format 19 y doxygen
+      # OJO CON LA VERSION. clang-format no es estable entre versiones mayores:
+      #   v19 rompe `a ^ T{0}` en `a ^ T { 0 }` (lee `^ T{` como declaracion)
+      #   v22 rompe `std::bitset<64 * N>` en `std::bitset<64 *N>` (lee `*` como puntero)
+      # v21 es la unica de las tres que deja el arbol tal cual, asi que es la que
+      # se fija aqui y la que debe usar el editor. El artefacto `R{a} ^ R { b }`
+      # que aparecio en el arbol de trabajo al empezar la auditoria venia
+      # justamente de un clang-format de la serie 19.
+      - name: Install clang-format 21 y doxygen
         run: |
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null
-          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main"
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-21 main"
           sudo apt-get update -qq
-          sudo apt-get install -y -qq clang-format-19 doxygen
+          sudo apt-get install -y -qq clang-format-21 doxygen
 
       - name: El arbol respeta .clang-format
         run: |
           FAIL=0
           for f in $(find include tests benchs demos -name '*.hpp' -o -name '*.cpp' | sort); do
-            if ! clang-format-19 --dry-run --Werror "$f" 2>/dev/null; then
+            if ! clang-format-21 --dry-run --Werror "$f" 2>/dev/null; then
               echo "  sin formatear: $f"
               FAIL=$((FAIL + 1))
             fi
           done
           if [ $FAIL -gt 0 ]; then
-            echo "$FAIL ficheros no respetan .clang-format. Ejecuta: clang-format -i <fichero>"
+            echo "$FAIL ficheros no respetan .clang-format (clang-format 21)."
+            echo "Ejecuta: clang-format-21 -i <fichero>. Ver la nota de version mas arriba."
             exit 1
           fi
           echo "Todo el arbol respeta .clang-format"
