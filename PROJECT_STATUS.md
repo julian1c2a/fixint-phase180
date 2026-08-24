@@ -1,4 +1,4 @@
-# PROJECT STATUS: v1.90.1 — auditoría completa
+# PROJECT STATUS: v1.90.1 — PUBLICADA (tag anotado, 24 ago 2026)
 
 **Last Updated:** 24 August 2026
 **Last Session:** Auditoría del proyecto y ejecución de las 8 fases del plan resultante (branch `phase-1.80`)
