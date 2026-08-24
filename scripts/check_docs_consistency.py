@@ -49,15 +49,38 @@ LIVE_DOCS = ["README.md", "PROJECT_STATUS.md", "NEXT_STEPS.md", "CHANGELOG.md"]
 
 # Avisos de doxygen que NO son culpa nuestra ni del codigo, con su motivo.
 # Cualquier otro aviso hace fallar la comprobacion.
+# El criterio DURO es: cero avisos procedentes de include/. Esos vienen del
+# codigo y son estables entre versiones de doxygen.
+#
+# Fuera de include/ la cosa cambia: el conjunto de avisos depende de la VERSION
+# de doxygen, y la del runner no tiene por que ser la del desarrollo. Medido el
+# 24 ago 2026: doxygen 1.14 (local) da 4 avisos y doxygen 1.9.8 (ubuntu-24.04)
+# da 21 sobre el MISMO arbol. Por eso esta lista contempla clases de aviso que
+# son ruido de version, cada una con su motivo.
 DOXYGEN_ALLOWED = [
-    # Doxygen 1.14 no trae la traduccion al espanyol completa. No afecta al
+    # La traduccion al espanyol de doxygen no esta completa. No afecta al
     # contenido generado, solo a las cadenas de la interfaz.
     ('The selected output language "spanish" has not been updated',
      "limitacion de doxygen, no del proyecto"),
     # Enlaces del README a documentos que SI existen en el repositorio y
     # funcionan al navegar por GitHub, pero que doxygen no resuelve como
     # referencia interna de la documentacion generada.
-    ("unable to resolve reference to '/", "enlace valido en el repo, no en el sitio generado"),
+    ("unable to resolve reference to '",
+     "enlace valido en el repo, no en el sitio generado"),
+    # El Doxyfile se actualizo con `doxygen -u` desde una version mas nueva que
+    # la del runner, asi que este ignora tags que no conoce. Es puro desfase de
+    # version: no cambia lo que se genera.
+    ("ignoring unsupported tag",
+     "tag del Doxyfile que la version del runner no conoce"),
+    # El reverso del anterior: una version MAS nueva que la que genero el
+    # Doxyfile marca tags como obsoletos. Mismo desfase, otra direccion.
+    ("has become obsolete",
+     "tag del Doxyfile marcado obsoleto por una version mas nueva"),
+    # doxygen 1.9.x intenta autoenlazar cosas como `::max()` incluso dentro de
+    # spans de codigo; 1.14 ya no lo hace. Reescribir documentacion correcta
+    # para contentar a una version concreta seria peor que ignorar el aviso.
+    ("could not be resolved",
+     "autolink de doxygen 1.9.x dentro de spans de codigo"),
 ]
 
 # Ficheros a los que no se les exige cabecera SPDX.
@@ -267,11 +290,22 @@ def check_doxygen(rep: Report):
         (PROJECT_ROOT / d).mkdir(parents=True, exist_ok=True)
 
     try:
+        ver = subprocess.run(["doxygen", "--version"], capture_output=True, text=True,
+                             encoding="utf-8", errors="replace", timeout=60, check=False)
+        version = ver.stdout.strip().splitlines()[0] if ver.stdout.strip() else "?"
+    except (OSError, subprocess.SubprocessError, IndexError):
+        version = "?"
+
+    try:
         proc = subprocess.run(["doxygen", str(doxyfile)], cwd=str(PROJECT_ROOT),
-                              capture_output=True, text=True, timeout=900, check=False)
+                              capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", timeout=900, check=False)
     except (OSError, subprocess.SubprocessError) as exc:
         rep.fail("no se pudo ejecutar doxygen", str(exc))
         return
+
+    if not rep.quiet:
+        print(f"  [info] doxygen {version}")
 
     avisos = [l for l in proc.stderr.splitlines() if "warning:" in l]
     permitidos, reales = [], []
@@ -290,7 +324,10 @@ def check_doxygen(rep: Report):
 
     otros = [a for a in reales if "include/" not in a]
     if otros:
-        rep.fail(f"{len(otros)} avisos de doxygen fuera de include/", "\n".join(otros[:15]))
+        rep.fail(f"{len(otros)} avisos de doxygen fuera de include/ (doxygen {version})",
+                 "\n".join(otros[:15]) +
+                 "\n(si son ruido de esta version de doxygen, van a DOXYGEN_ALLOWED "
+                 "CON SU MOTIVO; si no, se arreglan)")
     else:
         rep.ok("0 avisos de doxygen fuera de include/ (aparte de los permitidos)")
 
