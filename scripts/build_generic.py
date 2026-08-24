@@ -257,6 +257,8 @@ def compile_with_compiler(
                 cmd,
                 capture_output=True,
                 text=True,
+            encoding="utf-8",
+            errors="replace",
                 cwd=project_root,  # Use project root from global scope
                 env=env  # Use isolated compiler environment
             )

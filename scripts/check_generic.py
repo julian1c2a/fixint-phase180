@@ -94,6 +94,8 @@ def run_test(executable: Path, compiler: str) -> bool:
             [str(executable)],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=300,
             env=env
         )
@@ -161,6 +163,8 @@ def check_demo_compilation(category: str, demo_file: Path, compiler: str, mode: 
             cmd,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=60,
             cwd=project_root,
             env=env

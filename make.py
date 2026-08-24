@@ -124,7 +124,9 @@ def _wsl_available() -> bool:
     try:
         r = subprocess.run(
             ["wsl", "--", "echo", "ok"],
-            capture_output=True, text=True, timeout=15
+            capture_output=True, text=True,
+            encoding="utf-8",
+            errors="replace", timeout=15
         )
         return r.returncode == 0 and "ok" in r.stdout
     except (FileNotFoundError, subprocess.TimeoutExpired):
@@ -855,7 +857,9 @@ def cmd_compare(args: argparse.Namespace) -> int:
     if sys.platform == "win32" and cxx and '\\' in cxx:
         cygpath = Path(r"C:\msys64\usr\bin\cygpath.exe")
         if cygpath.exists():
-            cp = subprocess.run([str(cygpath), "-u", cxx], capture_output=True, text=True)
+            cp = subprocess.run([str(cygpath), "-u", cxx], capture_output=True, text=True,
+            encoding="utf-8",
+            errors="replace")
             if cp.returncode == 0:
                 cxx = cp.stdout.strip()
         else:

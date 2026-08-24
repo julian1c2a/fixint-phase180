@@ -96,6 +96,8 @@ def run_demo(executable: Path, compiler: str, demo_args: List[str] = None) -> bo
         result = subprocess.run(
             cmd,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=300,  # 5 minutos máximo
             env=env
         )
@@ -130,6 +132,8 @@ def run_benchmark(executable: Path, compiler: str) -> Optional[float]:
             [str(executable)],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=300,  # 5 minutos máximo
             env=env
         )
