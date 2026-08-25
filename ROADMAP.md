@@ -77,10 +77,18 @@ marca no la paga. Y decide que las funciones libres `checked_*` **se completan
 además de la política**: falta `checked_div` y faltan las tres `saturating_*`,
 y mientras falten `int128_param_t` no puede retirarse.
 
-Sigue abierto qué forma devuelven esas funciones: hoy hay dos convenciones
-distintas para la misma idea en la misma biblioteca (`std::optional` en
-`fixed_width_int_t.hpp`, `checked_result{value, bool}` en
-`int128_param_safe.hpp`), y hay que quedarse con una.
+Y devuelven **el propio tipo con política `checked`**: la función libre y la
+política dejan de ser dos mecanismos y pasan a ser uno con dos puertas de
+entrada, con `valid()` como consulta en ambos casos. Se retira el
+`std::optional`, que era la única de las tres formas candidatas que tiraba el
+valor al desbordar.
+
+[ADR-010](docs/decisions/ADR-010-orden-total-con-valores-invalidos.md) revoca la
+parte de ADR-008 que imitaba al NaN al comparar: **los valores inválidos se
+ordenan** en vez de volverse incomparables, así que `operator<=>` conserva su
+`std::strong_ordering` y `std::map`, `std::set`, `std::sort` y los contenedores
+desordenados siguen siendo correctos. La propagación por la aritmética —lo que
+de verdad se quería— no dependía de aquello.
 
 Es un cambio mayor: marca la **2.0**.
 
