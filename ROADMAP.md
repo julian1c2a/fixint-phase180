@@ -69,8 +69,18 @@ de un NaN—, cuarto parámetro de plantilla, y **prohibido mezclar políticas**
 error de compilación, no conversión silenciosa. Toda la aritmética sigue siendo
 `constexpr` y `noexcept`.
 
-Queda una sola cuestión de implementación: dónde vive la marca de inválido sin
-que quien use `wrap` pague tamaño.
+[ADR-009](docs/decisions/ADR-009-almacenamiento-de-la-marca-y-operaciones-checked.md)
+cierra la última cuestión de implementación que quedaba: **la marca vive en un
+miembro extra que solo existe cuando `Policy == checked`**, de modo que
+`fixed_int_t<4, ..., wrap>` conserva sus 32 bytes exactos y quien no pide la
+marca no la paga. Y decide que las funciones libres `checked_*` **se completan
+además de la política**: falta `checked_div` y faltan las tres `saturating_*`,
+y mientras falten `int128_param_t` no puede retirarse.
+
+Sigue abierto qué forma devuelven esas funciones: hoy hay dos convenciones
+distintas para la misma idea en la misma biblioteca (`std::optional` en
+`fixed_width_int_t.hpp`, `checked_result{value, bool}` en
+`int128_param_safe.hpp`), y hay que quedarse con una.
 
 Es un cambio mayor: marca la **2.0**.
 

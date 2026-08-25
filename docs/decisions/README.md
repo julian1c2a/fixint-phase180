@@ -23,6 +23,7 @@ Lo esencial:
 | [006](ADR-006-migracion-int128-param-a-fixed-int.md) | Replicar `int128_param_t` en `fixed_int_t` hasta retirarlo | ✅ Aceptado |
 | [007](ADR-007-politica-de-desbordamiento-como-parametro.md) | La política de desbordamiento pasa a ser parámetro de plantilla | ✅ Aceptado |
 | [008](ADR-008-diseno-de-la-politica-de-desbordamiento.md) | Diseño de la política: `wrap` por defecto, `checked` con marca pegajosa | ✅ Aceptado |
+| [009](ADR-009-almacenamiento-de-la-marca-y-operaciones-checked.md) | La marca de inválido vive en un miembro extra solo con `checked`; las `checked_*` se completan | ✅ Aceptado |
 
 ## Sobre los ADR 001–005
 
