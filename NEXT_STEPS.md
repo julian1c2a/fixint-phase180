@@ -27,23 +27,96 @@ escribieron los cinco ADR fundacionales que estaban pendientes desde siempre.
 | **Suite** | 55/55 |
 | **Release de v1.90.1** | ❌ **no publicada** — ver abajo |
 
-## La release ya está: queda una decisión sobre Intel
+## Para mañana — tres cosas, decididas el 25 ago 2026
 
-**`v1.90.4` publicada**, con tres zips (gcc, clang, msvc). Esa deuda se cierra.
+Las tres salieron de la sesión de hoy y están por delante de la 2.0.
 
-Lo que queda es decidir qué hacer con **Intel en Windows, que no funciona**:
-`ONEAPI_ROOT` viene vacío y la acción `rscohn2/setup-oneapi` deja un
-`CMAKE_PREFIX_PATH` que apunta a `/opt/intel/...`, una ruta de Linux en un runner
-de Windows. El CI sí cubre Intel, pero sobre Ubuntu.
+### 1. Intel oneAPI tiene que funcionar, y **está instalado en esta máquina**
 
-- **Retirarlo de la matriz de release.** Las cabeceras son idénticas en los
-  cuatro compiladores, así que el contenido útil del zip no cambia. Las releases
-  saldrían limpias en verde.
-- **Hacerlo funcionar.** Requiere una acción que instale oneAPI en Windows de
-  verdad, y varios ciclos sobre el CI: no se puede reproducir en local.
+Esto cambia el planteamiento por completo: **se puede reproducir y arreglar en
+local**, sin gastar ciclos de CI a ciegas. Comprobado hoy:
 
-Mientras no se decida, su job sale **en rojo a propósito** y el run entero figura
-como `failure` aunque la release se publique.
+```
+C:\Program Files (x86)\Intel\oneAPI\setvars.bat          <- existe
+C:\Program Files (x86)\Intel\oneAPI\2026.1\bin\icx.exe   <- y 2026.0, y 2025.3
+```
+
+Hay **tres versiones** instaladas (2025.3, 2026.0, 2026.1) más una copia bajo
+`compiler\2025.3\`. Primera decisión: cuál se fija, y dónde se anota — igual que
+se hizo con clang-format en [ADR-013](docs/decisions/ADR-013-clang-format-local-22-ci-21.md).
+
+Orden de trabajo:
+
+1. **En local primero.** `setvars.bat` y luego `python make.py test intel release`.
+   Que funcione aquí antes de tocar el CI.
+2. **`scripts/toolchains.py` y `toolchains.json`**: que Intel se resuelva por la
+   ruta real en vez de confiar en el `PATH`, que es lo que ya se hizo con los
+   demás compiladores.
+3. **Después el CI.** Lo de allí es un problema distinto y hay que separarlo: en
+   el runner, `ONEAPI_ROOT` viene **vacío** y `rscohn2/setup-oneapi` deja un
+   `CMAKE_PREFIX_PATH` apuntando a `/opt/intel/oneapi/...`, **una ruta de Linux
+   en un runner de Windows**. Con el camino local resuelto se sabrá qué hay que
+   exigirle al runner.
+
+Hasta entonces el job de Intel en `release.yml` sale **en rojo a propósito**, y
+así se queda: es preferible a que vuelva a dar un falso verde.
+
+### 2. `make.py` no detecta que el enlazado ha fallado
+
+**Es lo más serio de la lista**, porque invalida cualquier uso de `make.py build`
+como puerta, en un guion o en un workflow.
+
+Reproducción, un solo comando:
+
+```bash
+python make.py build uint128 vs_builtin benchs gcc release
+# ld.exe: undefined reference to `__gmpz_clear'
+# collect2.exe: error: ld returned 1 exit status
+# OK Build complete for uint128 vs_builtin benchs!
+# exit=0                                            <- y no genera binario
+```
+
+El diagnóstico ya está hecho, y son **dos fallos distintos** en
+`scripts/build_generic.py`:
+
+- **El código de salida no se propaga.** La función de compilación imprime el
+  error del enlazador y **no devuelve nada**; `main()` imprime «Build complete»
+  incondicionalmente y termina. No hay ni un `sys.exit(1)` en todo el camino.
+- **Línea 268:** `if result.returncode == 0 or output_check.exists():`. Ese `or`
+  hace que **un binario viejo de una compilación anterior disfrace un fallo
+  nuevo**. Es un fallo latente aparte del anterior, y más traicionero, porque
+  solo se manifiesta cuando ya has compilado bien alguna vez.
+
+Al arreglarlo hay que comprobar que no se rompe nada que dependiera del
+comportamiento actual: `make.py test`, `bench` y el bucle de `release.yml` usan
+esos códigos de salida.
+
+### 3. La penalización de `operator*`: ¿solo N=3, o todos los impares?
+
+El control del benchmark de Karatsuba destapó que el bucle escolar de
+`operator*` es un **14 % más lento que una copia idéntica suya escrita como
+función libre**, con las mismas primitivas y el mismo compilador. Estable en dos
+ejecuciones (0,86× y 0,87×). En N=16, en cambio, la razón sale 1,02×.
+
+**Lo que hay que averiguar:** si el efecto es de los N impares, de los N
+pequeños, o solo del 3.
+
+Barrido a hacer, con el benchmark que ya existe:
+
+| N | | qué distinguiría |
+|---|---|---|
+| 3, 5, 7, 9 | impares | si es cosa de la paridad |
+| 6, 10, 12 | pares que **no** usan Karatsuba | separa «impar» de «no es 2, 4, 8» |
+| 16 | ya medido, 1,02× | el control que ya pasa |
+
+Si sale que son todos los N∉{2,4,8} pequeños, apunta a la generación de código
+del `if constexpr` encadenado; si son solo los impares, a algo del bucle de
+acarreo. Mirar el ensamblador de los dos caminos en el N que peor salga.
+
+Las cifras van a [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) con fecha,
+compilador y máquina, como exige su regla.
+
+---
 
 ## Después: escribir la 2.0
 

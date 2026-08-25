@@ -140,8 +140,12 @@ jobs:
     # release se publique igual ya lo da el `always()` del job de publicacion.
     # `continue-on-error` no aportaba nada y escondia el fallo.
     #
-    # ESTADO CONOCIDO: Intel en Windows NO FUNCIONA en este repositorio. El log
-    # del dispatch lo dice sin ambiguedad:
+    # ESTADO CONOCIDO: Intel NO COMPILA EN ESTE RUNNER. Ojo: si compila en la
+    # maquina de desarrollo, donde oneAPI esta instalado de verdad en
+    # "C:\Program Files (x86)\Intel\oneAPI\" con tres versiones. O sea que el
+    # problema es del entorno del runner, no del proyecto ni de make.py. Lo
+    # primero es dejarlo funcionando en local y con eso saber que hay que
+    # exigirle aqui. El log del dispatch dice:
     #     setvars.bat no esta en ONEAPI_ROOT=
     #     icx.exe no esta en el PATH
     # `ONEAPI_ROOT` viene VACIO, y la accion rscohn2/setup-oneapi deja un

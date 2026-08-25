@@ -90,12 +90,18 @@ propiedades sobre `int128_param_t`.
   con `benchmark_vs_builtin`, que necesita GMP: el enlazador falla, make.py
   imprime «Build complete» y sale con 0. Significa que **`make.py build` no
   sirve como puerta** en ningún guion ni workflow. Es lo más serio de esta lista.
+  Localizado en `scripts/build_generic.py`: el código de salida no se propaga, y
+  además la línea 268 acepta un binario viejo como prueba de éxito.
+- **Intel oneAPI no compila en el runner de Windows**, pero **sí está instalado
+  en la máquina de desarrollo** (`C:\Program Files (x86)\Intel\oneAPI\`, con las
+  versiones 2025.3, 2026.0 y 2026.1). Se arregla primero en local.
 - **Documentación de `int128_param_*`: 349 avisos**, exentos a propósito hasta
   que ADR-006 retire el tipo.
 - **Karatsuba solo está medido en GCC.** Faltan Clang, MSVC e Intel.
 - **El bucle escolar de `operator*` es un 14 % más lento que una copia idéntica
   suya escrita como función libre**, en N=3. Lo destapó el control del benchmark
-  de Karatsuba y no está explicado.
+  de Karatsuba y no está explicado. Falta barrer N impares y N pares que no usen
+  Karatsuba, para saber si es cosa de la paridad o del tamaño.
 - Falta la especialización de `representation_traits<binnat>`. Su contenido ya
   está determinado por
   [ADR-011](docs/decisions/ADR-011-sin-signo-equivale-a-binnat.md); es escribirla.
