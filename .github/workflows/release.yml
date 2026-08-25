@@ -6,6 +6,13 @@ on:
       - 'v*.*.*'
   workflow_dispatch:
 
+# Crear una release es ESCRITURA sobre el repositorio, y por defecto el
+# GITHUB_TOKEN es de solo lectura. Sin esto el job "Create GitHub Release" falla
+# aunque los builds hayan ido bien y los artefactos esten subidos: fue justo lo
+# que paso en v1.90.3, con gcc y clang en verde y sus zips ya arriba.
+permissions:
+  contents: write
+
 jobs:
   # ============================================================================
   # Build Release Binaries for All Compilers
@@ -76,6 +83,7 @@ jobs:
     # ANTES DE TOCAR ESTE PASO: reproducir el comando en local. Es barato y es
     # lo que no se hizo las dos veces anteriores.
     - name: Build all with ${{ matrix.compiler }}
+      if: matrix.compiler == 'gcc' || matrix.compiler == 'clang'
       shell: msys2 {0}
       run: |
         set -e
@@ -95,14 +103,72 @@ jobs:
         ls -1 build/build_benchs/${{ matrix.compiler }}/release/ || true
         echo "=== esperados: $(ls -1 benchs/benchmark_*.cpp | wc -l) ==="
 
+    # MSVC no puede construirse desde el shell de MSYS2: `setup-msbuild` trae
+    # MSBuild pero NO el entorno de C++, y `cl.exe` no esta en el PATH. Fallo asi
+    # en v1.90.3. Es el mismo problema que el CI ya resolvio en T7.1, y se copia
+    # su receta: localizar Visual Studio con vswhere -- el localizador oficial de
+    # Microsoft, en vez de una ruta cableada -- y abortar con un mensaje claro si
+    # no aparece.
+    - name: Build all with msvc
+      if: matrix.compiler == 'msvc'
+      shell: cmd
+      run: |
+        setlocal enabledelayedexpansion
+        for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) do set VSPATH=%%i
+        if not defined VSPATH (echo No hay ninguna instalacion de Visual Studio con VC++ & exit /b 1)
+        echo Visual Studio en: %VSPATH%
+        call "%VSPATH%\VC\Auxiliary\Build\vcvars64.bat" || exit /b 1
+        where cl.exe || (echo cl.exe no esta en el PATH tras vcvars64 & exit /b 1)
+        python make.py test msvc release || exit /b 1
+        for %%f in (benchs\benchmark_*.cpp) do (
+          set BN=%%~nf
+          set BN=!BN:benchmark_=!
+          echo --- benchmark: !BN!
+          python make.py build uint128 !BN! benchs msvc release
+        )
+
+    # Intel ICX necesita su propio setvars.bat, por el mismo motivo que MSVC.
+    # `continue-on-error` porque la accion que lo instala es de terceros y ya
+    # fallo una vez (v1.90.2): que Intel no salga no debe dejar sin release a los
+    # demas.
+    - name: Build all with intel
+      if: matrix.compiler == 'intel'
+      continue-on-error: true
+      shell: cmd
+      run: |
+        setlocal enabledelayedexpansion
+        if exist "%ONEAPI_ROOT%\setvars.bat" (call "%ONEAPI_ROOT%\setvars.bat") else (echo setvars.bat no esta en ONEAPI_ROOT=%ONEAPI_ROOT%)
+        where icx.exe || (echo icx.exe no esta en el PATH & exit /b 1)
+        python make.py test intel release || exit /b 1
+        for %%f in (benchs\benchmark_*.cpp) do (
+          set BN=%%~nf
+          set BN=!BN:benchmark_=!
+          echo --- benchmark: !BN!
+          python make.py build uint128 !BN! benchs intel release
+        )
+
+    # Si el build de este compilador no dejo binarios, no hay nada que
+    # empaquetar: se salta en vez de fallar con un `cp` sobre un directorio que
+    # no existe.
     - name: Package release - ${{ matrix.compiler }}
       shell: msys2 {0}
       run: |
+        if [ ! -d "build/build_tests/${{ matrix.compiler }}/release" ]; then
+          echo "sin binarios para ${{ matrix.compiler }}; no se empaqueta"
+          exit 0
+        fi
         mkdir -p release-package
         
-        # Copiar ejecutables
+        # Copiar ejecutables. Los benchmarks pueden no estar --  `make.py build`
+        # devuelve 0 aunque el enlazado falle, y benchmark_vs_builtin no enlaza
+        # sin GMP -- asi que su copia es opcional. Los tests no: si faltan, el
+        # paso ya habria salido arriba.
         cp -r build/build_tests/${{ matrix.compiler }}/release release-package/tests
-        cp -r build/build_benchs/${{ matrix.compiler }}/release release-package/benchmarks
+        if [ -d "build/build_benchs/${{ matrix.compiler }}/release" ]; then
+          cp -r build/build_benchs/${{ matrix.compiler }}/release release-package/benchmarks
+        else
+          echo "sin benchmarks para ${{ matrix.compiler }}"
+        fi
         
         # Copiar headers
         cp -r include release-package/
@@ -126,6 +192,9 @@ jobs:
         name: release-${{ matrix.compiler }}
         path: int128-${{ matrix.compiler }}-windows-x64.zip
         retention-days: 90
+        # Sin esto, un compilador que no llego a empaquetar hace fallar la subida
+        # y con ella el job entero.
+        if-no-files-found: ignore
 
   # ============================================================================
   # Create GitHub Release
