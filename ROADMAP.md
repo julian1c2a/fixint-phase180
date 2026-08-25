@@ -1,6 +1,6 @@
 # Roadmap
 
-**Última actualización:** 24 August 2026
+**Última actualización:** 25 August 2026
 
 Dónde está el proyecto y hacia dónde va. Las nueve etapas vienen de
 [`AI_PROMPT/GENERAL_GUIDES/Explicación_del_Proyecto.md`](AI_PROMPT/GENERAL_GUIDES/Explicaci%C3%B3n_del_Proyecto.md),
