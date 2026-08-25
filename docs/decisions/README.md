@@ -19,12 +19,13 @@ Lo esencial:
 | [002](ADR-002-almacenamiento-little-endian-de-limbos.md) | Los limbos se almacenan en orden little-endian | ✅ Aceptado · documentado a posteriori |
 | [003](ADR-003-std-byte-para-buffers.md) | Los buffers de bytes son `std::byte` | ✅ Aceptado · documentado a posteriori |
 | [004](ADR-004-sin-excepciones-en-el-nucleo.md) | La aritmética no lanza; las excepciones son para errores de programación | ✅ Aceptado · documentado a posteriori |
-| [005](ADR-005-representacion-como-parametro-de-plantilla.md) | La representación es un parámetro de plantilla (binnat, TC, MS, EK) | ✅ Aceptado · documentado a posteriori |
+| [005](ADR-005-representacion-como-parametro-de-plantilla.md) | La representación es un parámetro de plantilla (binnat, TC, MS, EK) | ✅ Aceptado · documentado a posteriori · su cabo suelto 1 lo cierra [011](ADR-011-sin-signo-equivale-a-binnat.md) |
 | [006](ADR-006-migracion-int128-param-a-fixed-int.md) | Replicar `int128_param_t` en `fixed_int_t` hasta retirarlo | ✅ Aceptado |
 | [007](ADR-007-politica-de-desbordamiento-como-parametro.md) | La política de desbordamiento pasa a ser parámetro de plantilla | ✅ Aceptado |
 | [008](ADR-008-diseno-de-la-politica-de-desbordamiento.md) | Diseño de la política: `wrap` por defecto, `checked` con marca pegajosa | ✅ Aceptado · decisión 3 revocada en parte por [010](ADR-010-orden-total-con-valores-invalidos.md) |
 | [009](ADR-009-almacenamiento-de-la-marca-y-operaciones-checked.md) | La marca de inválido vive en un miembro extra solo con `checked`; las `checked_*` se completan | ✅ Aceptado |
 | [010](ADR-010-orden-total-con-valores-invalidos.md) | Los valores inválidos se ordenan (orden total) en vez de volverse incomparables como el NaN | ✅ Aceptado |
+| [011](ADR-011-sin-signo-equivale-a-binnat.md) | Sin signo equivale a `binnat`; las combinaciones válidas son cuatro, no ocho | ✅ Aceptado |
 
 ## Sobre los ADR 001–005
 
@@ -56,6 +57,10 @@ a ADR-006.
 ### Lo que salió de escribirlas
 
 Reconstruir estas cinco destapó dos cabos sueltos concretos, anotados al final de
-ADR-005 para que la migración de ADR-006 los cierre: los dos tipos **no admiten
-las mismas combinaciones** de signo y representación, y `binnat` **no tiene
-especialización de `representation_traits`**.
+ADR-005: los dos tipos **no admitían las mismas combinaciones** de signo y
+representación, y `binnat` **no tiene especialización de
+`representation_traits`**.
+
+El primero lo cierra [ADR-011](ADR-011-sin-signo-equivale-a-binnat.md), que al
+hacerlo deja definido el contenido del segundo. Es el argumento a favor de
+escribir los ADR viejos: no son arqueología, destapan trabajo real.
