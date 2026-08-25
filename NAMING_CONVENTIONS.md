@@ -61,12 +61,12 @@ Los binarios salen a
 
 ---
 
-## Divergencias entre esta convención y el código de hoy
+## Divergencias resueltas — gana el código
 
-Escrito el 25 ago 2026 al extraer este documento. La versión anterior de la
-convención describía cosas que el código **no cumple**, así que aquí está la
-tabla corregida y, abajo, lo que la versión vieja pedía y nunca se aplicó. Hay
-que decidir qué gana.
+**Decidido el 25 ago 2026.** Al extraer este documento aparecieron reglas que la
+versión anterior pedía y que el código nunca cumplió. La decisión es que **gana
+el código**: la tabla de arriba describe lo que hay, y lo de abajo queda como
+registro de lo que se descartó.
 
 | La convención vieja pedía | El código hace | Ficheros afectados |
 |---|---|---|
@@ -75,9 +75,10 @@ que decidir qué gana.
 | Constantes `MSULL` / `LSULL` para índices de limbo | no existen; se usa `limb(0)` y `limb(N-1)` | — |
 | Límites numéricos con patrón `UI64_MAX` | se usa `std::numeric_limits` | — |
 
-**Recomendación:** que gane el código. Los tres enumerados llevan años con su
-nombre actual, son API pública, y `_ec_t` no aporta nada que `enum class` no
-diga ya. Renombrarlos sería una ruptura sin beneficio. Lo mismo con `_tt`: la
-plantilla se distingue por su uso, no por su nombre de fichero.
+**Motivo.** Los tres enumerados llevan años con su nombre actual, son API
+pública, y `_ec_t` no aporta nada que `enum class` no diga ya: renombrarlos sería
+una ruptura sin beneficio. Lo mismo con `_tt`: una plantilla se distingue por su
+uso, no por el nombre de su fichero.
 
-Si se prefiere lo contrario, es una ruptura de API y necesita su propio ADR.
+Si alguna vez se quiere lo contrario, es una ruptura de API y necesita su propio
+ADR.

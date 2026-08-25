@@ -132,16 +132,18 @@ C.
 
 ---
 
-## Divergencias entre esta convención y el código de hoy
+## Divergencias resueltas — gana el código
 
-Escrito el 25 ago 2026 al extraer este documento. La versión anterior de las
-«Coding Standards» pedía dos cosas que el código **no cumple**, y en ambos casos
-gana el código porque está enforced por herramienta o por volumen.
+**Decidido el 25 ago 2026.** Al extraer este documento aparecieron dos reglas que
+la versión anterior de las «Coding Standards» pedía y que el código nunca
+cumplió. La decisión es que **gana el código**, en ambos casos por el mismo
+motivo: una está impuesta por herramienta y la otra por volumen.
 
 | La convención vieja pedía | El código hace | Quién gana y por qué |
 |---|---|---|
 | **Llaves K&R** — apertura en la misma línea | **Allman** — apertura en su propia línea | El código. Lo impone `.clang-format` y el CI lo comprueba en los 103 ficheros |
 | **Llaves siempre**, incluso en `if` de una sentencia | `fixed_width_int_t.hpp` tiene **98 `if` sin llaves y 0 con llaves** | El código. Cambiarlo sería reescribir el árbol entero por una regla que nadie ha seguido nunca |
 
-Ambas se han corregido ya en la tabla de arriba. Se dejan anotadas para que
-quede claro que fue una decisión y no un descuido.
+Ambas están ya corregidas en la tabla de arriba. Se dejan anotadas para que
+quede claro que fue una decisión tomada, no un descuido, y para que nadie
+"arregle" el código hacia la regla vieja.

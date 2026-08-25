@@ -1,3 +1,13 @@
+<!-- =========================================================================
+     CUADERNO PERSONAL DEL AUTOR — FUERA DE TODO FLUJO DE DOCUMENTACION
+
+     Notas informales, tentativas y material para conversar. NO es fuente de
+     verdad de nada, NO se consolida, NO se archiva y NO lo revisa ningun
+     verificador.
+
+     Si estas haciendo una pasada de documentacion: este fichero no se toca.
+     ========================================================================= -->
+
 **Predicados/bit utilities:**
 
 count_leading_zeros(),

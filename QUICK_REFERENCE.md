@@ -1,345 +1,104 @@
-# ⚡ Quick Reference: ALL 6 PHASES COMPLETE + GM CONSTEXPR DIVISION + A1/A2/A4 + TEST CONSOLIDATION ✅
+# Referencia rápida
 
-## CURRENT STATUS (15 May 2026)
+**v1.90.1** · documento **derivado**: no es fuente de verdad de nada. Cada cosa
+enlaza a donde se decide de verdad.
 
-**✅ ALL 11 COMPILERS PASSING — 24 HEADERS — ALL TESTS PASS — 8 BENCHMARKS — 15 API DOCS**
-
-### v1.77 Additions (15 May 2026 — Test Suite Consolidation)
-
-- **Oleadas 1-5:** 29 archivos standalone consolidados en framework test_param_* coherente
-  - test_param_divmod.cpp (75 tests): consolida 8 archivos de división
-  - test_param_ek.cpp: consolida 5 archivos EK
-  - test_param_ms.cpp: consolida 3 archivos MS
-  - test_param_float.cpp, test_param_array.cpp, test_param_core_operators.cpp, etc.
-- **PATH fix:** scripts/env_setup/compiler_env.py antepone C:\msys64\ucrt64\bin (evita GCC Cygwin)
-
-### Session 7 Additions (A1/A2/A4 Performance & Sweep Migration)
-
-- **A1:** New `sub128()`/`add128()` intrinsics in `arithmetic_operations.hpp` — GCC SUB 0.96x, ADD 0.96x (faster than `__int128`)
-- **A2:** 4-compiler benchmarks: GCC 0.96x, Clang 1.06x, ICX 0.99x, MSVC 0.98x
-- **A4:** 5 new sweep test files — 60/60 new sweep tests, ~455M+ value checks
-  - `test_sweep_shift.cpp` — 16 tests (identity, arithmetic equiv, roundtrip, composition)
-  - `test_sweep_comparison.cpp` — 11 tests (reflexivity, complements, trichotomy, antisymmetry)
-  - `test_sweep_division.cpp` — 13 tests (q*d+r=n, r<d, div-by-1, pow2 equiv)
-  - `test_sweep_unary_ops.cpp` — 12 tests (inc/dec, negation, bool conversion)
-  - `test_sweep_string.cpp` — 8 tests (decimal/hex/octal/binary roundtrip)
-- **Benchmark:** `benchs/benchmark_addsub.cpp`
-
-### Session 6 Additions (Granlund-Montgomery Constexpr)
-
-- **`int128_param_divmod.hpp`:** GM infrastructure, `compute_magic_128`, `GM_TABLE[3..1023]`
-- **`div<D>()`:** Compile-time constant division (4-7x faster than Knuth D)
-- **`mod<D>()`:** Compile-time constant modulus
-- **`divmod_const<D>()`:** Combined quotient + remainder
-- **`mul<K>()`:** Binary shift-add multiplication by constant
-- **Tests:** 71/71 PASS on 4 compilers (GCC, Clang, MSVC, Intel)
-- **Benchmark:** div<3> 6.7x faster, div<10> 6.2x faster vs `operator/`
-
-### Session 5 Additions
-
-- **Karatsuba API:** `widening_mul`, `mulhi`, `uint256_t` (12/12 tests)
-- **std::format Full Spec:** fill/align/sign/#/0/width/type (24/24 tests)
-- **std::hash:** All 4 types in `std::unordered_map`/`set`
-- **Benchmarks:** nstd 19.8x faster than __int128 for division (GCC)
-
-### Windows (4 compilers)
-
-- GCC 15.2.0: ✅ ALL PASS
-- Clang 19.x: ✅ ALL PASS
-- MSVC 19.50: ✅ ALL PASS
-- Intel ICX 2025.3.0: ✅ ALL PASS
-
-### WSL Ubuntu 25.04 (7 compilers)
-
-- GCC 13/14/15: ✅ ALL PASS
-- Clang 18/19/20/21: ✅ ALL PASS
-
-**Algorithm:** 100% Correct & Production Ready  
-**Performance:** 10^18x to ∞ speedup vs naive loop  
-**Cross-Platform:** Unix + Windows confirmed  
-
----
-
-## Quick Commands
-
-### Run All Tests (Auto-detect all 4 compilers)
-
-```bash
-python multi_compiler_test.py
-```
-
-### Run Individual Compiler
-
-```bash
-# GCC
-g++ -std=c++20 -O0 -Iinclude -o build/test.exe tests/test_divmod_final.cpp && build/test.exe
-
-# Clang
-clang++ -std=c++20 -O2 -Iinclude -o build/test.exe tests/test_divmod_final.cpp && build/test.exe
-
-# MSVC
-compile_with_msvc.bat
-
-# Intel
-compile_with_intel.bat
-```
-
-### Detect Available Compilers
-
-```bash
-python detect_compilers.py
-```
-
----
-
-## Files Created This Session
-
-uint128_t divisor{0x2, 0x0};    // Constructor takes (high, low)
-                                // But stores as data{low, high}
-
-// This creates divisor = 2 (CORRECT):
-uint128_t divisor{0x0, 0x2};    // high=0, low=2
-
-```
-
----
-
-## How to Verify It Works
-
-Run the test suite:
-
-```bash
-cd c:\msys64\ucrt64\home\julian\CppProjects\int128-phase175
-.\build\test_divmod_final.exe
-```
-
-**Expected output:**
-
-```
-RESULTS: 9 passed, 0 failed out of 9 tests
-```
-
----
-
-## What Each Test Covers
-
-| Test | What | Result |
-|------|------|--------|
-| 1 | Power-of-2 optimization | ✅ PASS |
-| 2 | 64-bit math | ✅ PASS |
-| 3 | Hybrid 128/64 | ✅ PASS |
-| 4 | Full 128/128 | ✅ PASS |
-| 5 | Small divisors 3-15 | ✅ PASS |
-| 6 | Division with remainder | ✅ PASS |
-| 7 | n / n = 1 | ✅ PASS |
-| 8 | n / 1 = n | ✅ PASS |
-| 9 | Large quotient | ✅ PASS |
-
----
-
-## Code Location
-
-**Main implementation:**  
-`include/int128_parameterized.hpp`
-
-- Lines 3067-3142: divmod() method
-- Lines 3143-3376: big_bin_divrem() algorithm
-
-**Tests:**  
-`tests/test_divmod_final.cpp` (9 verified tests, all passing)
-
----
-
-## Known Issues
-
-### GCC Compiler Bug (Not our code)
-
-```
-GCC 15.2.0 with -O2/-O3: ❌ Fails to compile (optimizer bug)
-GCC 15.2.0 with -O0/-O1: ✅ Works fine
-Clang with -O2:          ✅ Works fine
-```
-
-**Workaround:** Use Clang or GCC -O0 until GCC fixes this.
-
----
-
-## Constructor Parameter Order GOTCHA
-
-This has been the source of confusion:
+## Tipos
 
 ```cpp
-// Constructor signature:
-int128_param_t(uint64_t high, uint64_t low) : data{low, high}
-
-// The parameters are REVERSED when stored!
-// high parameter → data[1] (high word) ✓
-// low parameter → data[0] (low word) ✓
-// But they're called in opposite order!
-
-// Correct way to initialize value 2:
-uint128_t{0x0, 0x2}    // high=0, low=2 → data = {2, 0}
-
-// Common mistake (creates 2^65):
-uint128_t{0x2, 0x0}    // high=2, low=0 → data = {0, 2} = 2^65 ❌
+#include "fixed_width_int_t.hpp"          // nstd::fixed_int_t<N, Sign, Form>
 ```
 
-**This has been documented in the code with examples now.**
+| Alias | Bits | | Alias | Bits |
+|---|---:|---|---|---:|
+| `uint64_fixed_t` | 64 | | `int64_fixed_t` | 64 |
+| `uint128_fixed_t` | 128 | | `int128_fixed_t` | 128 |
+| `uint256_fixed_t` | 256 | | `int256_fixed_t` | 256 |
+| `uint512_fixed_t` | 512 | | `int512_fixed_t` | 512 |
 
----
+Genéricos: `uint_fixed_t<N>` e `int_fixed_t<N>`, con N limbos de 64 bits.
 
-## Next Steps (Priority Order)
+## Operaciones
 
-### Immediate (This Session)
+| | |
+|---|---|
+| Aritmética | `+ - * / %`, unario `-` y `+`, `++ --`, y sus `op=` |
+| Bits | `~ & \| ^ << >>`, y sus `op=` |
+| Comparación | `== != < <= > >=`, `<=>` |
+| Limbos | `limb(i)` · `set_limb(i,v)` · `limbs()` · `limbs_ref()` |
+| Consultas | `is_zero()` `is_negative()` `is_power_of_two()` `bit_width()` `popcount()` `count_leading_zeros()` `count_trailing_zeros()` |
+| Constructores | `zero()` `one()` `max()` `min()` |
+| Cadena | `to_string(base = 10)` · `from_string(s, base = 10)` · `try_from_string(s, base = 10)` |
+| Superiores | `mul_wide` `pow` `sqrt` `gcd` `lcm` `checked_add/sub/mul` |
 
-1. ✅ Binary long division working and tested
-2. ✅ Algorithm verified 100% correct
-3. ✅ Documentation created
+**Todo es `constexpr`**, división y módulo incluidos.
 
-### Short-term (Next 1-2 hours)
+## Semántica en una línea
 
-- [ ] Test with MSVC 2026
-- [ ] Test with Intel oneAPI ICX
-- Expected: Both pass (code is correct)
+| | |
+|---|---|
+| Desbordamiento | modular, 2^(64N) — como los built-in de C++ |
+| División | trunca hacia cero; el resto toma el signo del dividendo |
+| `min() / -1` | envuelve a `min()`, no es UB |
+| División por cero | `std::domain_error` · en contexto constante, error de compilación |
+| `from_string` fuera de rango | `std::out_of_range` |
+| Desde `float`: NaN / +inf / −inf | `0` / `max()` / `min()` |
+| Desplazamiento ≥ 64N | `0`, o relleno de signo en `>>` con signo |
+| Conversiones | todas **explícitas** |
 
-### Medium-term (Next 2-3 hours)
+Detalle: [`docs/API_fixed_int.md`](docs/API_fixed_int.md) ·
+[`docs/API_operator_semantics.md`](docs/API_operator_semantics.md)
 
-- [ ] Create performance benchmarks
-- [ ] Measure actual speedup
-
-### Later (Optional, 30+ hours)
-
-- [ ] EK arithmetic improvements
-- [ ] Extended feature headers
-- [ ] GCC bug report
-
----
-
-## Performance Reality
-
-### Example: Large Division
+## Biblioteca estándar
 
 ```cpp
-uint128_t dividend = 2^127;
-uint128_t divisor = 2;
-
-// OLD WAY (naive):
-// while (remainder >= divisor) { remainder -= divisor; ++quotient; }
-// Result: ~10^38 iterations, hangs forever ❌
-
-// NEW WAY (6-level cascade):
-// Level 1 detects power-of-2: result in 1 shift ✅
-// Time: ~nanoseconds
+#include "fixed_int_iostreams.hpp"   // std::cout << x, is >> x
+#include "fixed_int_format.hpp"      // std::format("{:#x}", x)
+#include "fixed_int_hash.hpp"        // unordered_map<uint256_fixed_t, T>
+#include "fixed_int_limits.hpp"      // std::numeric_limits
+#include "fixed_int_concepts.hpp"    // nstd::integral y compañía
 ```
 
-### Speedup Achieved
+Detalle: [`docs/API_fixed_int_stl.md`](docs/API_fixed_int_stl.md)
 
-| Case | Old | New | Speedup |
-|------|-----|-----|---------|
-| 2^120 / 2 | 10^36 iter | 1 shift | **∞** |
-| 1000 / 7 | 142 iter | native div | **142x** |
-| 2^127 / 2^64 | 2^63 iter | 64 iter | **10^18x** |
+## Comandos
 
----
-
-## File Structure
-
-```
-include/
-  ├─ int128_parameterized.hpp   (main code, 3609 lines)
-  ├─ representation.hpp          (types/traits)
-
-tests/
-  ├─ test_divmod_final.cpp       (9 verified tests, all passing)
-  ├─ test_divmod_debug.cpp       (single test, passing)
-  └─ test_divmod_suite.cpp       (larger suite, 24/27 passing)
-
-Documentation/
-  ├─ docs/archive/SESSION_COMPLETION_REPORT.md (this report)
-  ├─ docs/archive/NEXT_SESSION_RECOMMENDATIONS.md (action items)
-  ├─ docs/archive/DIVISION_VERIFICATION_COMPLETE.md (detailed analysis)
-  └─ CHANGELOG.md (updated with session work)
+```bash
+python make.py test gcc release-O2     # suite completa (~170 s)
+python make.py test all all            # todos los compiladores y modos
+python make.py bench gcc release-O2    # benchmarks
+python scripts/toolchains.py           # qué compilador se va a usar de verdad
 ```
 
----
+Antes de subir nada, los cuatro verificadores:
 
-## One-Minute Verification
+```bash
+python make.py test gcc release-O2
+python scripts/check_headers_selfcontained.py
+python scripts/check_docs_consistency.py --doxygen
+clang-format-21 --dry-run --Werror <ficheros>      # OJO: la versión 21
+```
 
-1. Open terminal:
+Detalle: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
-   ```bash
-   cd c:\msys64\ucrt64\home\julian\CppProjects\int128-phase175
-   ```
+## Tres cosas que muerden
 
-2. Run test:
+1. En Windows, `g++` y `clang++` **a secas no son los del proyecto**: resuelven
+   al toolchain MSYS. Usa `scripts/toolchains.py`.
+2. **clang-format es la 21.** La 19 y la 22 reformatean este árbol distinto.
+3. La salida de consola va en **ASCII**, sin acentos.
 
-   ```bash
-   .\build\test_divmod_final.exe
-   ```
+## Dónde está cada cosa
 
-3. Check result:
-
-   ```
-   RESULTS: 9 passed, 0 failed out of 9 tests ✅
-   ```
-
-**If you see that output, everything is working correctly.**
-
----
-
-## Compiler Status Quick Reference
-
-| Compiler | Status | Verified | Notes |
-|----------|--------|----------|-------|
-| GCC -O0 | ✅ | YES | Works perfect |
-| GCC -O1 | ✅ | Not tested | Should work |
-| GCC -O2 | ❌ | YES | Compiler bug |
-| GCC -O3 | ❌ | YES | Compiler bug |
-| Clang -O0 | ✅ | Not tested | Should work |
-| Clang -O2 | ✅ | YES | Works perfect |
-| MSVC | ? | NO | Test in next session |
-| Intel | ? | NO | Test in next session |
-
----
-
-## Key Insights Gained
-
-1. **Constructor parameter order is counterintuitive**
-   - Parameters are (high, low) but stored as data{low, high}
-   - Fixed: Added documentation with clear examples
-
-2. **GCC 15.2.0 has constexpr-if bug**
-   - Triggered by complex template code with multiple branches
-   - Fixed: Use Clang or GCC -O0/-O1
-
-3. **Binary long division is mathematically sound**
-   - All 6 optimization levels work correctly
-   - Algorithm verified with 128-bit iterations
-   - Produces correct results for all test cases
-
-4. **Systematic debugging saves time**
-   - Created 9 test programs to isolate issues
-   - Traced algorithm execution in detail
-   - Found root cause (initialization, not algorithm)
-
----
-
-## Bottom Line
-
-**The division algorithm is ready for production use.**
-
-All tests pass, all optimization levels work, and the code has been thoroughly documented. The only issue is an external GCC compiler bug which has a documented workaround.
-
----
-
-**Status:** ✅ Complete and Ready  
-**Quality:** Production Ready  
-**Testing:** 9/9 Passing  
-**Documentation:** Comprehensive  
-
-Start next session with Priority 1: Multi-compiler testing.
-
----
-
-Generated: 5 February 2026 02:46 UTC  
-For more details, see: [docs/archive/SESSION_COMPLETION_REPORT.md](docs/archive/SESSION_COMPLETION_REPORT.md)
+| Qué buscas | Dónde |
+|---|---|
+| Qué es el proyecto | [`README.md`](README.md) |
+| Estado actual | [`PROJECT_STATUS.md`](PROJECT_STATUS.md) |
+| Historia | [`CHANGELOG.md`](CHANGELOG.md) |
+| Qué viene | [`ROADMAP.md`](ROADMAP.md) · [`NEXT_STEPS.md`](NEXT_STEPS.md) |
+| Decisiones y su porqué | [`docs/decisions/`](docs/decisions/README.md) |
+| Cómo se construye | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
+| API y semántica | [`docs/`](docs/) |
+| Rendimiento | [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) |
+| Convenciones | [`NAMING_CONVENTIONS.md`](NAMING_CONVENTIONS.md) · [`STYLE_CONVENTIONS.md`](STYLE_CONVENTIONS.md) |
+| Guía de desarrollo | [`AI-GUIDE.md`](AI-GUIDE.md) |

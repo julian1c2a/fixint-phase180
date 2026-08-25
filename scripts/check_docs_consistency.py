@@ -126,8 +126,11 @@ def check_links(rep: Report):
     md_files += sorted((PROJECT_ROOT / "docs" / "decisions").glob("*.md"))
     # Los documentos de comunidad tambien: sus enlaces se rompen igual que los
     # demas, y son los primeros que lee alguien de fuera.
+    # THOUGHTS.md NO esta aqui a proposito: es el cuaderno personal del autor y
+    # queda fuera de todo flujo de documentacion.
     for extra in ("AI-GUIDE.md", "CONTRIBUTING.md", "SECURITY.md", "ROADMAP.md",
-                  "NAMING_CONVENTIONS.md", "STYLE_CONVENTIONS.md"):
+                  "NAMING_CONVENTIONS.md", "STYLE_CONVENTIONS.md",
+                  "QUICK_REFERENCE.md"):
         md_files.append(PROJECT_ROOT / extra)
 
     broken = []
