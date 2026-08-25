@@ -128,12 +128,28 @@ jobs:
         )
 
     # Intel ICX necesita su propio setvars.bat, por el mismo motivo que MSVC.
-    # `continue-on-error` porque la accion que lo instala es de terceros y ya
-    # fallo una vez (v1.90.2): que Intel no salga no debe dejar sin release a los
-    # demas.
+    #
+    # NO LLEVA `continue-on-error`, y es deliberado. Lo llevaba, y el resultado
+    # fue un FALSO VERDE: en el dispatch del 25 ago 2026 el paso fallo con
+    # `exit /b 1`, el job siguio, el empaquetado se salto por la guarda de "sin
+    # binarios", la subida lo ignoro por `if-no-files-found: ignore`, y el job
+    # aparecio como "success" en 2,3 minutos con CERO artefactos. Tres
+    # tolerancias encadenadas convirtiendo un fallo en un verde.
+    #
+    # Que Intel no arrastre a los demas ya lo da `fail-fast: false`, y que la
+    # release se publique igual ya lo da el `always()` del job de publicacion.
+    # `continue-on-error` no aportaba nada y escondia el fallo.
+    #
+    # ESTADO CONOCIDO: Intel en Windows NO FUNCIONA en este repositorio. El log
+    # del dispatch lo dice sin ambiguedad:
+    #     setvars.bat no esta en ONEAPI_ROOT=
+    #     icx.exe no esta en el PATH
+    # `ONEAPI_ROOT` viene VACIO, y la accion rscohn2/setup-oneapi deja un
+    # CMAKE_PREFIX_PATH que apunta a /opt/intel/... -- una ruta de Linux en un
+    # runner de Windows. El CI cubre Intel, pero sobre Ubuntu y compilando los
+    # tests a mano, sin make.py: no hay receta de Windows que copiar.
     - name: Build all with intel
       if: matrix.compiler == 'intel'
-      continue-on-error: true
       shell: cmd
       run: |
         setlocal enabledelayedexpansion
