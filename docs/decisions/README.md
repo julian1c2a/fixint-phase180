@@ -15,11 +15,11 @@ Lo esencial:
 
 | ADR | Título | Estado |
 |---|---|---|
-| 001 | Constructores explícitos | ⬜ pendiente de escribir |
-| 002 | Almacenamiento little-endian de limbos | ⬜ pendiente de escribir |
-| 003 | `std::byte` para buffers | ⬜ pendiente de escribir |
-| 004 | Sin excepciones en el núcleo | ⬜ pendiente de escribir |
-| 005 | Representación parametrizada (TC, MS, EK, binnat) | ⬜ pendiente de escribir |
+| [001](ADR-001-constructores-y-conversiones-explicitos.md) | Todos los constructores y conversiones son `explicit` | ✅ Aceptado · documentado a posteriori |
+| [002](ADR-002-almacenamiento-little-endian-de-limbos.md) | Los limbos se almacenan en orden little-endian | ✅ Aceptado · documentado a posteriori |
+| [003](ADR-003-std-byte-para-buffers.md) | Los buffers de bytes son `std::byte` | ✅ Aceptado · documentado a posteriori |
+| [004](ADR-004-sin-excepciones-en-el-nucleo.md) | La aritmética no lanza; las excepciones son para errores de programación | ✅ Aceptado · documentado a posteriori |
+| [005](ADR-005-representacion-como-parametro-de-plantilla.md) | La representación es un parámetro de plantilla (binnat, TC, MS, EK) | ✅ Aceptado · documentado a posteriori |
 | [006](ADR-006-migracion-int128-param-a-fixed-int.md) | Replicar `int128_param_t` en `fixed_int_t` hasta retirarlo | ✅ Aceptado |
 | [007](ADR-007-politica-de-desbordamiento-como-parametro.md) | La política de desbordamiento pasa a ser parámetro de plantilla | ✅ Aceptado |
 | [008](ADR-008-diseno-de-la-politica-de-desbordamiento.md) | Diseño de la política: `wrap` por defecto, `checked` con marca pegajosa | ✅ Aceptado · decisión 3 revocada en parte por [010](ADR-010-orden-total-con-valores-invalidos.md) |
@@ -28,15 +28,34 @@ Lo esencial:
 
 ## Sobre los ADR 001–005
 
-`AI-GUIDE.md` §26 los lista desde hace tiempo como ejemplo de la estructura del
-directorio, pero **nunca se escribieron**: este directorio no existía hasta el
-24 ago 2026. Las cinco decisiones sí se tomaron y están vivas en el código; lo
-que falta es documentarlas.
+Las cinco decisiones **son anteriores a este repositorio**. Su commit inicial
+—`f257cf8`, 11 ene 2026, «Phase 1.75: Infrastructure complete»— ya las trae todas
+puestas, y el propio código remite a una fase anterior: *«extends the unified
+template from Phase 1.66»*. Aquí no está, por tanto, el momento en que se
+tomaron.
 
-Se conserva su numeración en vez de renumerar desde 001 por dos motivos: no
-romper las referencias de la guía, y dejar visible que hay una deuda concreta de
-documentación en vez de esconderla bajo una numeración limpia.
+Se documentaron el **25 ago 2026**, reconstruyéndolas a partir de tres fuentes,
+en este orden de fiabilidad:
 
-Al escribirlas, reconstruir el contexto de la época a partir de `CHANGELOG.md` y
-del historial de git, no de cómo se ve el código hoy: un ADR que racionaliza a
-posteriori vale poco.
+1. **El estado del código en el commit inicial**, que es evidencia directa de qué
+   se decidió, aunque no de por qué.
+2. **Los comentarios de aquel código**, que en varios casos sí dan el motivo. El
+   propósito del proyecto que recoge ADR-005 —investigar codificaciones para coma
+   flotante— está citado literalmente de ahí.
+3. **`CHANGELOG.md`**, para fechar y para el contexto de cada fase.
+
+Donde la razón no consta se dice que se reconstruye, y no se inventa una. Un ADR
+que racionaliza a posteriori vale poco; uno que distingue lo documentado de lo
+deducido, sí vale.
+
+Se conserva la numeración 001–005 en vez de renumerar desde 001 para no romper
+las referencias de `AI-GUIDE.md`, y porque el orden refleja el orden real de
+dependencia: ADR-005 es la decisión que da forma al proyecto y la que da contexto
+a ADR-006.
+
+### Lo que salió de escribirlas
+
+Reconstruir estas cinco destapó dos cabos sueltos concretos, anotados al final de
+ADR-005 para que la migración de ADR-006 los cierre: los dos tipos **no admiten
+las mismas combinaciones** de signo y representación, y `binnat` **no tiene
+especialización de `representation_traits`**.

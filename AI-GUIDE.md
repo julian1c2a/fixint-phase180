@@ -443,9 +443,11 @@ docs/
 |   +-- compiler_notes.md
 |   +-- faq.md
 +-- decisions/            # Architecture Decision Records
-|   +-- ADR-001-explicit-constructors.md
-|   +-- ADR-002-little-endian-storage.md
+|   +-- README.md         # indice y estado de cada ADR
 |   +-- TEMPLATE.md
+|   +-- ADR-001-constructores-y-conversiones-explicitos.md
+|   +-- ADR-002-almacenamiento-little-endian-de-limbos.md
+|   +-- ...
 +-- generated/            # Salida de Doxygen (en .gitignore)
 ```
 
@@ -1398,12 +1400,14 @@ consideradas. Permite entender el "por que" detras del codigo.
 
 ```
 docs/decisions/
++-- README.md    # indice, estado de cada ADR y nota sobre los 001-005
 +-- TEMPLATE.md
-+-- ADR-001-explicit-constructors.md
-+-- ADR-002-little-endian-storage.md
-+-- ADR-003-stdbyte-for-buffers.md
-+-- ADR-004-no-exceptions-in-core.md
-+-- ADR-005-parameterized-representation.md
++-- ADR-001-constructores-y-conversiones-explicitos.md
++-- ADR-002-almacenamiento-little-endian-de-limbos.md
++-- ADR-003-std-byte-para-buffers.md
++-- ADR-004-sin-excepciones-en-el-nucleo.md
++-- ADR-005-representacion-como-parametro-de-plantilla.md
++-- ADR-006 .. ADR-010
 ```
 
 ### Formato (plantilla)
