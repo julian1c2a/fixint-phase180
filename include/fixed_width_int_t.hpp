@@ -243,7 +243,12 @@ namespace nstd
         friend class fixed_int_t;
 
     public:
+        /// @brief Si el tipo tiene signo. Copia del parametro `Sign`, consultable
+        ///        desde codigo generico sin repetir la lista de parametros.
         static constexpr signedness sign{Sign};
+
+        /// @brief Representacion interna. Copia del parametro `Form`. Sin signo
+        ///        implica `binnat`, y al reves (ADR-011).
         static constexpr representation_form form{Form};
 
         // =========================================================================
@@ -290,6 +295,15 @@ namespace nstd
 
         constexpr fixed_int_t() noexcept = default;
 
+        /// @brief Construye desde un entero del lenguaje.
+        ///
+        /// Es `explicit`, como todos (ADR-001): `f(42)` no compila, hay que
+        /// escribir `f(uint256_fixed_t{42})`.
+        ///
+        /// @tparam T Cualquier entero del lenguaje **salvo `bool`**.
+        /// @param v Valor de partida. Si `T` tiene signo y `v` es negativo, se
+        ///          **extiende el signo** a todos los limbos, de modo que en un
+        ///          tipo sin signo `-1` se convierte en `max()`, igual que en C++.
         template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
         explicit constexpr fixed_int_t(T v) noexcept : data{}
@@ -301,8 +315,20 @@ namespace nstd
         }
 
         // Construct from array of limbs (data[0]=LSB, data[N-1]=MSB)
+        /// @brief Construye desde los limbos en crudo.
+        /// @param limbs Los N limbos en **orden little-endian**: `limbs[0]` es el
+        ///        menos significativo (ADR-002). No se valida nada.
         explicit constexpr fixed_int_t(std::array<std::uint64_t, N> limbs) noexcept : data{limbs} {}
 
+        /// @brief Construye desde su representacion en bytes.
+        ///
+        /// Inverso exacto de la conversion a `std::array<std::byte, N * 8>`: la
+        /// ida y vuelta no pierde nada.
+        ///
+        /// @param bytes Los `8N` bytes en orden little-endian. La lectura se hace
+        ///        con desplazamientos, no con `memcpy`, asi que **el resultado no
+        ///        depende del orden de bytes de la maquina** y el formato es
+        ///        portable entre plataformas.
         explicit constexpr fixed_int_t(const std::array<std::byte, N * 8> &bytes) noexcept : data{}
         {
             for (std::size_t i{0}; i < N; ++i)
@@ -310,6 +336,8 @@ namespace nstd
                     data[i] |= static_cast<std::uint64_t>(bytes[i * 8 + j]) << (j * 8);
         }
 
+        /// @brief Construye desde un `std::bitset`.
+        /// @param b Bits del valor; el bit 0 es el menos significativo.
         explicit constexpr fixed_int_t(const std::bitset<64 * N> &b) noexcept : data{}
         {
             for (std::size_t i{0}; i < N; ++i)
@@ -338,6 +366,18 @@ namespace nstd
 
         // Cross-type constructor: from any other fixed_int_t<M, S2, F2>
         // Handles: same-sign different-N, different-sign, or any combination
+        /// @brief Convierte desde otro `fixed_int_t` de anchura o signo distintos.
+        ///
+        /// Cubre las tres mezclas a la vez: distinta N, distinto signo, o ambas.
+        ///
+        /// - **Al ensanchar** (`M < N`): si el origen tiene signo y es negativo se
+        ///   **extiende el signo**; si no, se rellena con ceros. El valor se
+        ///   conserva.
+        /// - **Al estrechar** (`M > N`): se **truncan** los limbos sobrantes, es
+        ///   decir se toma el valor modulo 2^(64N), igual que la conversion entre
+        ///   enteros del lenguaje. Puede cambiar el valor, y no avisa.
+        ///
+        /// @param o Valor de partida.
         template <std::size_t M, signedness S2, representation_form F2,
                   typename = std::enable_if_t<(M != N || S2 != Sign || F2 != Form)>>
         explicit constexpr fixed_int_t(const fixed_int_t<M, S2, F2> &o) noexcept : data{}
@@ -367,6 +407,24 @@ namespace nstd
         //
         // Los valores finitos fuera de rango siguen truncandose modulo 2^(64N),
         // igual que la conversion entre enteros built-in.
+        /// @brief Construye truncando un valor de coma flotante hacia cero.
+        ///
+        /// @tparam F `float`, `double` o `long double`.
+        /// @param v Valor de partida.
+        ///
+        /// Los **valores no finitos saturan** de forma definida, en vez de ser
+        /// comportamiento indefinido:
+        ///
+        /// | `v` | resultado |
+        /// |---|---|
+        /// | `NaN` | 0 |
+        /// | `+inf` | `max()` |
+        /// | `-inf` | `min()` con signo, 0 sin signo |
+        ///
+        /// Los valores finitos fuera de rango se truncan modulo 2^(64N), igual
+        /// que la conversion entre enteros del lenguaje.
+        ///
+        /// @note No es `constexpr`: usa `std::isfinite` y `std::fmod`.
         template <typename F, std::enable_if_t<std::is_floating_point_v<F>, int> = 0>
         explicit fixed_int_t(F v) noexcept : data{}
         {
@@ -408,8 +466,10 @@ namespace nstd
         // Named constructors
         // =========================================================================
 
+        /// @brief El valor cero.
         static constexpr fixed_int_t zero() noexcept { return fixed_int_t{}; }
 
+        /// @brief El valor uno.
         static constexpr fixed_int_t one() noexcept { return fixed_int_t{std::uint64_t{1}}; }
 
         /// @brief Mayor valor representable: 2^(64N)-1 sin signo, 2^(64N-1)-1 con signo.
@@ -447,12 +507,18 @@ namespace nstd
 
         // Aliases for compatibility with old int_fixed_t
         template <bool S = is_signed, typename = std::enable_if_t<S>>
+        /// @brief El mayor valor representable.
+        /// @return `2^(64N) - 1` sin signo; `2^(64N-1) - 1` con signo.
         static constexpr fixed_int_t max_val() noexcept
         {
             return max();
         }
 
         template <bool S = is_signed, typename = std::enable_if_t<S>>
+        /// @brief El menor valor representable.
+        /// @return 0 sin signo; `-2^(64N-1)` con signo. Ese minimo **no tiene
+        ///         opuesto** representable: `-min_val()` es `min_val()`, igual
+        ///         que con los `int` del lenguaje.
         static constexpr fixed_int_t min_val() noexcept
         {
             return min();
@@ -501,6 +567,8 @@ namespace nstd
             return true;
         }
 
+        /// @brief Si el valor es negativo.
+        /// @return El bit de signo, con signo; siempre `false` sin signo.
         constexpr bool is_negative() const noexcept
         {
             if constexpr (!is_signed)
@@ -774,6 +842,18 @@ namespace nstd
 
         // Reduce un contador de desplazamiento fixed_int_t<M,S2,F2> a `unsigned`,
         // saturando a 64*N cuando no cabe o es negativo.
+        /// @brief Reduce un contador de desplazamiento a `unsigned`, **saturando**.
+        ///
+        /// Permite escribir `x << y` con `y` de otro `fixed_int_t`. El contador
+        /// se satura a `64 * N` —lo que hace que el desplazamiento de un valor
+        /// completo— cuando no cabe en un `unsigned` o cuando es negativo.
+        ///
+        /// Saturar en vez de truncar es deliberado: truncando, `x << 2^64` daria
+        /// `x << 0`, es decir `x`, que es justo lo contrario de lo que cabe
+        /// esperar. Era un fallo real, corregido en v1.90.1.
+        ///
+        /// @param shift Contador, de cualquier anchura y signo.
+        /// @return El contador, o `64 * N` si no cabe o es negativo.
         template <std::size_t M, signedness S2, representation_form F2>
         static constexpr unsigned shift_count_of(const fixed_int_t<M, S2, F2> &shift) noexcept
         {
@@ -1088,6 +1168,23 @@ namespace nstd
         // Throws std::domain_error on division by zero.
         // =========================================================================
 
+        /// @brief Cociente y resto en una sola operacion.
+        ///
+        /// Calcula los dos a la vez, que cuesta lo mismo que uno solo: preferirla
+        /// a hacer `a / b` y `a % b` por separado.
+        ///
+        /// Sin signo usa el algoritmo D de Knuth. Con signo reduce a la version
+        /// sin signo y aplica las reglas de signo de C++: el cociente **trunca
+        /// hacia cero** y el resto lleva **el signo del dividendo**.
+        ///
+        /// @param a Dividendo.
+        /// @param b Divisor.
+        /// @return `{cociente, resto}`, cumpliendo `a == q * b + r`.
+        /// @throws std::domain_error si `b` es cero. Es la unica operacion
+        ///         aritmetica que puede lanzar (ADR-004), y por eso ni ella ni
+        ///         `/` ni `%` son `noexcept`. En contexto constante el `throw`
+        ///         convierte la expresion en no-constante, es decir en un error
+        ///         de compilacion, igual que `1 / 0` con un `int`.
         static constexpr std::pair<fixed_int_t, fixed_int_t> divmod(const fixed_int_t &a,
                                                                     const fixed_int_t &b)
         {
@@ -1847,18 +1944,29 @@ namespace nstd
         }
 
         // Signed-only utilities (guarded by enable_if)
+        /// @name Utilidades solo para tipos con signo
+        /// @{
+
+        /// @brief Valor absoluto.
+        /// @return `|x|`. **Salvo para `min_val()`**, cuyo opuesto no es
+        ///         representable: devuelve `min_val()`, que es negativo. Es el
+        ///         mismo agujero que tiene `std::abs` con `INT_MIN`.
         template <bool S = is_signed, typename = std::enable_if_t<S>>
         constexpr fixed_int_t abs() const noexcept
         {
             return is_negative() ? -(*this) : *this;
         }
 
+        /// @brief Si el valor es estrictamente mayor que cero.
+        /// @return `true` si no es cero ni negativo.
         template <bool S = is_signed, typename = std::enable_if_t<S>>
         [[nodiscard]] constexpr bool is_positive() const noexcept
         {
             return !is_zero() && !is_negative();
         }
 
+        /// @brief Signo del valor.
+        /// @return `-1`, `0` o `1`.
         template <bool S = is_signed, typename = std::enable_if_t<S>>
         [[nodiscard]] constexpr int signum() const noexcept
         {
@@ -1866,6 +1974,8 @@ namespace nstd
                 return 0;
             return is_negative() ? -1 : 1;
         }
+
+        /// @}
 
         // =========================================================================
         // String conversion — base 10
@@ -1882,6 +1992,11 @@ namespace nstd
         // tenga puesto std::uppercase.
         //
         // Una base fuera de [2, 36] lanza std::invalid_argument.
+        /// @brief Convierte a cadena en la base pedida.
+        /// @param base Base de 2 a 36. Los digitos por encima de 9 son letras
+        ///        minusculas.
+        /// @return La representacion, con `-` delante si el valor es negativo.
+        /// @throws std::invalid_argument si la base esta fuera de [2, 36].
         [[nodiscard]] std::string to_string(int base) const
         {
             if (base < 2 || base > 36)
@@ -1962,6 +2077,8 @@ namespace nstd
             return out;
         }
 
+        /// @brief Convierte a cadena en base 10.
+        /// @return La representacion decimal, con `-` delante si es negativo.
         std::string to_string() const
         {
             if (is_zero())
@@ -2014,6 +2131,18 @@ namespace nstd
         // prefijos 0x/0X (16), 0b/0B (2) y 0o/0O (8), tanto con base 0 como cuando
         // coinciden con la base pedida. Un '0' suelto NO se interpreta como octal:
         // ese es un pie de plomo heredado de strtoul que aqui no se replica.
+        /// @brief Convierte desde cadena **sin lanzar**.
+        ///
+        /// La version que hay que preferir cuando la cadena viene de fuera. Acepta
+        /// signo, los prefijos `0x`, `0b` y `0`, y separadores.
+        ///
+        /// @param s Cadena a convertir.
+        /// @param base Base de 2 a 36; 10 por defecto.
+        /// @return Un `parse_result`: si `success()`, el valor esta en `.value`;
+        ///         si no, `.error` dice que paso y `.error_index` donde.
+        ///         **Detecta el desbordamiento** y devuelve
+        ///         `parse_error::overflow`: antes de v1.90.1 un numero demasiado
+        ///         grande se truncaba en silencio.
         [[nodiscard]] static parse_result<fixed_int_t> try_from_string(const char *s, int base = 10) noexcept
         {
             using U = uint_fixed_t<N>;
@@ -2113,6 +2242,18 @@ namespace nstd
         // Version que lanza. Mensajes de error compatibles con las versiones
         // anteriores; el desbordamiento es std::out_of_range (como std::stoull),
         // no std::invalid_argument.
+        /// @brief Convierte desde cadena, **lanzando** si falla.
+        ///
+        /// Envoltorio de `try_from_string()` que traduce cada codigo de error a
+        /// su excepcion. Preferir `try_from_string()` si la cadena no es de fiar.
+        ///
+        /// @param s Cadena a convertir.
+        /// @param base Base de 2 a 36; 10 por defecto.
+        /// @return El valor convertido.
+        /// @throws std::invalid_argument si la cadena o la base no son validas.
+        /// @throws std::out_of_range si el valor no cabe en `64 * N` bits. Es
+        ///         `out_of_range` y no `invalid_argument`, por coherencia con
+        ///         `std::stoull`.
         static fixed_int_t from_string(const char *s, int base = 10)
         {
             const parse_result<fixed_int_t> r = try_from_string(s, base);
@@ -2581,6 +2722,8 @@ namespace nstd
     {
     };
 
+    /// @brief Atajo de `is_fixed_int<T>::value`.
+    /// @tparam T Tipo a comprobar.
     template <typename T>
     inline constexpr bool is_fixed_int_v = is_fixed_int<T>::value;
 
@@ -2595,6 +2738,8 @@ namespace nstd
     {
     };
 
+    /// @brief Atajo de `is_signed_fixed_int<T>::value`.
+    /// @tparam T Tipo a comprobar.
     template <typename T>
     inline constexpr bool is_signed_fixed_int_v = is_signed_fixed_int<std::remove_cv_t<T>>::value;
 
@@ -2609,6 +2754,8 @@ namespace nstd
     {
     };
 
+    /// @brief Atajo de `is_unsigned_fixed_int<T>::value`.
+    /// @tparam T Tipo a comprobar.
     template <typename T>
     inline constexpr bool is_unsigned_fixed_int_v = is_unsigned_fixed_int<std::remove_cv_t<T>>::value;
 
@@ -2619,12 +2766,17 @@ namespace nstd
     namespace detail
     {
         template <typename T>
+        /// @brief SFINAE: solo participa si `T` es un entero del lenguaje
+        ///        distinto de `bool`. Es lo que hace que las sobrecargas mixtas
+        ///        no se traguen cualquier tipo.
         using if_integral =
             std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>>;
 
         // Compatibility alias: kept so internal code referencing detail::mixed_iu_t
         // continues to work after the trait was promoted to nstd::mixed_iu_t.
         template <std::size_t N, std::size_t M>
+        /// @brief Alias interno de `nstd::mixed_iu_t`, conservado por
+        ///        compatibilidad con el codigo anterior a la Fase MS-INTEROP.
         using mixed_iu_t = nstd::mixed_iu_t<N, M>;
     } // namespace detail
 
@@ -4052,6 +4204,15 @@ namespace nstd
     // Higher arithmetic — mul_wide, pow, sqrt, gcd, lcm, checked_*
     // =========================================================================
 
+    /// @brief Producto **sin perder bits**: `N x N -> 2N` limbos.
+    ///
+    /// A diferencia de `operator*`, que es modular respecto a 2^(64N), aqui el
+    /// resultado tiene el doble de anchura y **nunca desborda**. Es la operacion
+    /// sobre la que se construyen `checked_mul()` y la division por constante.
+    ///
+    /// @param a Primer factor.
+    /// @param b Segundo factor.
+    /// @return El producto exacto, en `uint_fixed_t<2 * N>`.
     template <std::size_t N>
     [[nodiscard]] constexpr uint_fixed_t<2 * N> mul_wide(const uint_fixed_t<N> &a,
                                                          const uint_fixed_t<N> &b) noexcept
@@ -4059,6 +4220,10 @@ namespace nstd
         return uint_fixed_t<2 * N>{a} * uint_fixed_t<2 * N>{b};
     }
 
+    /// @brief Producto con signo sin perder bits: `N x N -> 2N` limbos.
+    /// @param a Primer factor.
+    /// @param b Segundo factor.
+    /// @return El producto exacto, en `int_fixed_t<2 * N>`.
     template <std::size_t N>
     [[nodiscard]] constexpr int_fixed_t<2 * N> mul_wide(const int_fixed_t<N> &a,
                                                         const int_fixed_t<N> &b) noexcept
@@ -4066,6 +4231,16 @@ namespace nstd
         return int_fixed_t<2 * N>{a} * int_fixed_t<2 * N>{b};
     }
 
+    /// @brief Potencia por cuadrados repetidos, **modular**.
+    ///
+    /// @param base Base.
+    /// @param exp  Exponente, sin signo.
+    /// @return `base^exp` modulo 2^(64N). **No avisa si desborda**, igual que
+    ///         `operator*`: si el resultado no cabe, se envuelve. Para saberlo,
+    ///         acotar el exponente antes o usar `mul_wide()` a mano.
+    ///
+    /// `pow(x, 0)` es 1, incluido `pow(0, 0)`, que es la convencion habitual.
+    /// El coste es logaritmico en el exponente, no lineal.
     template <std::size_t N>
     [[nodiscard]] constexpr uint_fixed_t<N> pow(uint_fixed_t<N> base, uint_fixed_t<N> exp) noexcept
     {
@@ -4080,6 +4255,14 @@ namespace nstd
         return result;
     }
 
+    /// @brief Potencia con base con signo y exponente sin signo, modular.
+    ///
+    /// El exponente es **sin signo a proposito**: un exponente negativo daria un
+    /// racional, que no es representable aqui.
+    ///
+    /// @param base Base, que puede ser negativa.
+    /// @param exp  Exponente, sin signo.
+    /// @return `base^exp` modulo 2^(64N), con el signo que corresponda.
     template <std::size_t N>
     [[nodiscard]] constexpr int_fixed_t<N> pow(int_fixed_t<N> base, uint_fixed_t<N> exp) noexcept
     {
@@ -4094,6 +4277,16 @@ namespace nstd
         return result;
     }
 
+    /// @brief Raiz cuadrada entera: el mayor `r` tal que `r * r <= x`.
+    ///
+    /// Metodo de Newton sobre enteros, partiendo de una potencia de dos deducida
+    /// de `bit_width()`. Converge cuadraticamente.
+    ///
+    /// @param x Radicando.
+    /// @return `floor(sqrt(x))`. Para `x = 0` devuelve 0.
+    /// @warning **No es `noexcept`**: usa `operator/`, que lanza
+    ///          `std::domain_error` si el divisor es cero. No puede ocurrir con
+    ///          la iteracion de aqui, pero la firma lo arrastra.
     template <std::size_t N>
     [[nodiscard]] constexpr uint_fixed_t<N> sqrt(const uint_fixed_t<N> &x)
     {
@@ -4111,6 +4304,15 @@ namespace nstd
         return r;
     }
 
+    /// @brief Maximo comun divisor, por el **algoritmo binario de Stein**.
+    ///
+    /// Se usa Stein y no Euclides porque solo necesita restas y desplazamientos:
+    /// evita la division, que en anchuras grandes es con diferencia la operacion
+    /// mas cara.
+    ///
+    /// @param a Primer operando.
+    /// @param b Segundo operando.
+    /// @return `gcd(a, b)`; `gcd(x, 0)` es `x`, y `gcd(0, 0)` es 0.
     template <std::size_t N>
     [[nodiscard]] constexpr uint_fixed_t<N> gcd(uint_fixed_t<N> a, uint_fixed_t<N> b) noexcept
     {
@@ -4138,6 +4340,12 @@ namespace nstd
         return a << k;
     }
 
+    /// @brief Maximo comun divisor de dos enteros con signo.
+    ///
+    /// @param a Primer operando, con signo.
+    /// @param b Segundo operando, con signo.
+    /// @return `gcd(|a|, |b|)`, **sin signo**: el mcd se define sobre los valores
+    ///         absolutos y siempre es no negativo.
     template <std::size_t N>
     [[nodiscard]] constexpr uint_fixed_t<N> gcd(const int_fixed_t<N> &a, const int_fixed_t<N> &b) noexcept
     {
@@ -4145,6 +4353,17 @@ namespace nstd
                    b.is_negative() ? uint_fixed_t<N>{-b} : uint_fixed_t<N>{b});
     }
 
+    /// @brief Minimo comun multiplo.
+    ///
+    /// Calculado como `a / gcd(a, b) * b`, en ese orden: dividir **antes** de
+    /// multiplicar evita desbordar en el paso intermedio siempre que el
+    /// resultado quepa.
+    ///
+    /// @param a Primer operando.
+    /// @param b Segundo operando.
+    /// @return `lcm(a, b)`; 0 si alguno de los dos es 0. Si el resultado no cabe
+    ///         en `64 * N` bits **se envuelve**, sin aviso.
+    /// @warning No es `noexcept`: usa `operator/`.
     template <std::size_t N>
     [[nodiscard]] constexpr uint_fixed_t<N> lcm(const uint_fixed_t<N> &a, const uint_fixed_t<N> &b)
     {
@@ -4153,6 +4372,11 @@ namespace nstd
         return a / gcd(a, b) * b;
     }
 
+    /// @brief Minimo comun multiplo de dos enteros con signo.
+    /// @param a Primer operando, con signo.
+    /// @param b Segundo operando, con signo.
+    /// @return `lcm(|a|, |b|)`, sin signo.
+    /// @warning No es `noexcept`: usa `operator/`.
     template <std::size_t N>
     [[nodiscard]] constexpr uint_fixed_t<N> lcm(const int_fixed_t<N> &a, const int_fixed_t<N> &b)
     {
@@ -4161,6 +4385,25 @@ namespace nstd
         return lcm(ua, ub);
     }
 
+    /// @name Aritmetica comprobada
+    ///
+    /// Devuelven `std::nullopt` en vez de envolver cuando el resultado no cabe.
+    /// Son la alternativa explicita al desbordamiento modular del `operator`
+    /// correspondiente, y **no lanzan**: el desbordamiento es un resultado
+    /// esperable, no un error de programacion (ADR-004).
+    ///
+    /// @note Estan **incompletas**: falta `checked_div()`, y faltan las tres
+    ///       `saturating_*` que si existen para `int128_param_t`. Mientras
+    ///       falten, ese tipo no puede retirarse (ADR-009). Ademas, cuando
+    ///       llegue la politica de desbordamiento como parametro de plantilla,
+    ///       estas funciones pasaran a devolver el propio tipo con politica
+    ///       `checked` en vez de un `std::optional`, que pierde el valor.
+    /// @{
+
+    /// @brief Suma sin signo comprobada.
+    /// @param a Primer sumando.
+    /// @param b Segundo sumando.
+    /// @return La suma, o `std::nullopt` si desborda por arriba.
     template <std::size_t N>
     [[nodiscard]] constexpr std::optional<uint_fixed_t<N>> checked_add(const uint_fixed_t<N> &a,
                                                                        const uint_fixed_t<N> &b) noexcept
@@ -4171,6 +4414,11 @@ namespace nstd
         return r;
     }
 
+    /// @brief Resta sin signo comprobada.
+    /// @param a Minuendo.
+    /// @param b Sustraendo.
+    /// @return La diferencia, o `std::nullopt` si `b > a`, que sin signo seria
+    ///         desbordar por abajo.
     template <std::size_t N>
     [[nodiscard]] constexpr std::optional<uint_fixed_t<N>> checked_sub(const uint_fixed_t<N> &a,
                                                                        const uint_fixed_t<N> &b) noexcept
@@ -4180,6 +4428,14 @@ namespace nstd
         return a - b;
     }
 
+    /// @brief Producto sin signo comprobado.
+    ///
+    /// Se calcula con `mul_wide()` y se comprueba que los N limbos altos sean
+    /// cero: es exacto, no una estimacion.
+    ///
+    /// @param a Primer factor.
+    /// @param b Segundo factor.
+    /// @return El producto, o `std::nullopt` si no cabe en `64 * N` bits.
     template <std::size_t N>
     [[nodiscard]] constexpr std::optional<uint_fixed_t<N>> checked_mul(const uint_fixed_t<N> &a,
                                                                        const uint_fixed_t<N> &b) noexcept
@@ -4191,6 +4447,15 @@ namespace nstd
         return uint_fixed_t<N>{wide};
     }
 
+    /// @brief Suma con signo comprobada.
+    ///
+    /// Detecta el desbordamiento por la regla clasica del complemento a dos: si
+    /// los dos sumandos tienen el mismo signo y el resultado tiene otro, ha
+    /// desbordado.
+    ///
+    /// @param a Primer sumando.
+    /// @param b Segundo sumando.
+    /// @return La suma, o `std::nullopt` si desborda por arriba o por abajo.
     template <std::size_t N>
     [[nodiscard]] constexpr std::optional<int_fixed_t<N>> checked_add(const int_fixed_t<N> &a,
                                                                       const int_fixed_t<N> &b) noexcept
@@ -4202,6 +4467,10 @@ namespace nstd
         return r;
     }
 
+    /// @brief Resta con signo comprobada.
+    /// @param a Minuendo.
+    /// @param b Sustraendo.
+    /// @return La diferencia, o `std::nullopt` si desborda.
     template <std::size_t N>
     [[nodiscard]] constexpr std::optional<int_fixed_t<N>> checked_sub(const int_fixed_t<N> &a,
                                                                       const int_fixed_t<N> &b) noexcept
@@ -4213,6 +4482,14 @@ namespace nstd
         return r;
     }
 
+    /// @brief Producto con signo comprobado.
+    ///
+    /// Se calcula con `mul_wide()` y se comprueba que los N limbos altos sean
+    /// todos la extension de signo del bit mas alto del resultado.
+    ///
+    /// @param a Primer factor.
+    /// @param b Segundo factor.
+    /// @return El producto, o `std::nullopt` si no cabe.
     template <std::size_t N>
     [[nodiscard]] constexpr std::optional<int_fixed_t<N>> checked_mul(const int_fixed_t<N> &a,
                                                                       const int_fixed_t<N> &b) noexcept
@@ -4224,6 +4501,8 @@ namespace nstd
                 return std::nullopt;
         return int_fixed_t<N>{wide};
     }
+
+    /// @}
 
 } // namespace nstd
 

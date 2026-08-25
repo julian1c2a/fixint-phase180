@@ -57,11 +57,37 @@
 namespace std
 {
 
+    /// @brief `std::numeric_limits` para `nstd::fixed_int_t`.
+    ///
+    /// Especializacion parcial generica sobre los tres parametros, de modo que
+    /// todo `fixed_int_t` la tiene sin declararla una por una.
+    ///
+    /// Los miembros son los que exige el estandar y significan lo mismo que para
+    /// cualquier entero: `min()`, `max()`, `digits`, `is_signed`, etcetera. Lo
+    /// unico que conviene destacar:
+    ///
+    /// - `is_modulo` es **`true`** tambien para los tipos con signo. La
+    ///   aritmetica de esta biblioteca envuelve en vez de ser comportamiento
+    ///   indefinido, que es la diferencia deliberada con los `int` del lenguaje.
+    /// - `digits` es `64 * N` sin signo y `64 * N - 1` con signo, descontando el
+    ///   bit de signo.
+    /// - No hay infinitos ni NaN: `has_infinity` y los `has_*_NaN` son `false`.
+    ///
+    /// @tparam N Numero de limbos de 64 bits.
+    /// @tparam Sign Con o sin signo.
+    /// @tparam Form Representacion interna.
     template <size_t N, ::nstd::signedness Sign, ::nstd::representation_form Form>
     class numeric_limits<::nstd::fixed_int_t<N, Sign, Form>>
     {
     public:
+        /// @brief El propio tipo al que se refieren estos limites.
         using value_type = ::nstd::fixed_int_t<N, Sign, Form>;
+
+        /// @name Miembros exigidos por el estandar
+        /// Significan lo mismo que para cualquier entero; ver `<limits>`. Lo
+        /// unico que se aparta de lo esperable esta explicado en la descripcion
+        /// de la clase: `is_modulo` es `true` tambien con signo.
+        /// @{
 
         static constexpr bool is_specialized = true;
         static constexpr bool is_signed = (Sign == ::nstd::signedness::signed_type);
@@ -96,6 +122,7 @@ namespace std
         static constexpr value_type quiet_NaN() noexcept { return value_type::zero(); }
         static constexpr value_type signaling_NaN() noexcept { return value_type::zero(); }
         static constexpr value_type denorm_min() noexcept { return value_type::zero(); }
+        /// @}
     };
 
 } // namespace std

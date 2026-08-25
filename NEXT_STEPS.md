@@ -83,7 +83,7 @@ Ver [ROADMAP.md](ROADMAP.md). Depende de que 1 y 2 estén cerradas.
 
 | Qué | Dónde |
 |---|---|
-| **Cerrar los 42 avisos de Doxygen** que quedan en `fixed_width_int_t.hpp`, más los 60 de los otros `fixed_int_*.hpp` | [ADR-014](docs/decisions/ADR-014-cobertura-de-doxygen.md) |
+| **`make.py build` devuelve 0 aunque el enlazado falle.** No sirve como puerta; hay que arreglarlo antes de fiarse de él en ningún sitio | [PROJECT_STATUS.md](PROJECT_STATUS.md) |
 | Medir Karatsuba en **Clang, MSVC e Intel**: hoy solo hay cifras de GCC | [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) |
 | Averiguar por qué el bucle escolar de `operator*` es un 14 % más lento que una copia suya escrita como función libre, en N=3 | [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) |
 

@@ -155,21 +155,33 @@ namespace nstd
 #if !defined(INT128_PARAM_TRAITS_SPECIALIZATIONS_HPP) && !defined(NSTD_MAKE_SIGNED_PRIMARY_DEFINED)
 #define NSTD_MAKE_SIGNED_PRIMARY_DEFINED 1
 
+    /// @brief Version de `std::make_signed` que **tambien acepta**
+    ///        `fixed_int_t`.
+    ///
+    /// El estandar prohibe especializar `std::make_signed` para tipos que no son
+    /// enteros del lenguaje, asi que la biblioteca ofrece la suya en `nstd`. Para
+    /// los tipos del lenguaje delega en la del estandar.
+    ///
+    /// @tparam T Entero del lenguaje o `fixed_int_t`.
     template <typename T>
     struct make_signed
     {
-        using type = std::make_signed_t<T>;
+        using type = std::make_signed_t<T>; ///< El tipo resultante.
     };
 
+    /// @brief Version de `std::make_unsigned` que tambien acepta `fixed_int_t`.
+    /// @tparam T Entero del lenguaje o `fixed_int_t`.
     template <typename T>
     struct make_unsigned
     {
-        using type = std::make_unsigned_t<T>;
+        using type = std::make_unsigned_t<T>; ///< El tipo resultante.
     };
 
+    /// @brief Atajo de `make_signed<T>::type`.
     template <typename T>
     using make_signed_t = typename make_signed<T>::type;
 
+    /// @brief Atajo de `make_unsigned<T>::type`.
     template <typename T>
     using make_unsigned_t = typename make_unsigned<T>::type;
 
@@ -177,28 +189,34 @@ namespace nstd
 
     // fixed_int_t specializations (default Form for the produced type follows the
     // canonical alias: binnat for unsigned, twos_complement for signed).
+    /// @brief `make_signed` de un `fixed_int_t` sin signo: da `int_fixed_t<N>`,
+    ///        con la misma anchura y la representacion canonica con signo.
     template <std::size_t N, representation_form F>
     struct make_signed<fixed_int_t<N, signedness::unsigned_type, F>>
     {
-        using type = int_fixed_t<N>;
+        using type = int_fixed_t<N>; ///< El tipo resultante.
     };
 
+    /// @brief `make_signed` de un tipo que ya tiene signo: identidad.
     template <std::size_t N, representation_form F>
     struct make_signed<fixed_int_t<N, signedness::signed_type, F>>
     {
-        using type = fixed_int_t<N, signedness::signed_type, F>; // identity
+        using type = fixed_int_t<N, signedness::signed_type, F>; ///< El propio tipo.
     };
 
+    /// @brief `make_unsigned` de un `fixed_int_t` con signo: da
+    ///        `uint_fixed_t<N>`, misma anchura, representacion `binnat`.
     template <std::size_t N, representation_form F>
     struct make_unsigned<fixed_int_t<N, signedness::signed_type, F>>
     {
-        using type = uint_fixed_t<N>;
+        using type = uint_fixed_t<N>; ///< El tipo resultante.
     };
 
+    /// @brief `make_unsigned` de un tipo que ya es sin signo: identidad.
     template <std::size_t N, representation_form F>
     struct make_unsigned<fixed_int_t<N, signedness::unsigned_type, F>>
     {
-        using type = fixed_int_t<N, signedness::unsigned_type, F>; // identity
+        using type = fixed_int_t<N, signedness::unsigned_type, F>; ///< El propio tipo.
     };
 
 } // namespace nstd
@@ -220,48 +238,55 @@ namespace nstd
 
 namespace std
 {
-    // signed/signed (TC/TC)
+    /// @brief `std::common_type` de dos `int_fixed_t`: gana la anchura mayor.
     template <std::size_t N, std::size_t M>
     struct common_type<::nstd::int_fixed_t<N>, ::nstd::int_fixed_t<M>>
     {
-        using type = ::nstd::int_fixed_t<(N > M ? N : M)>;
+        using type = ::nstd::int_fixed_t<(N > M ? N : M)>; ///< El mas ancho de los dos.
     };
 
-    // unsigned/unsigned (binnat/binnat)
+    /// @brief `std::common_type` de dos `uint_fixed_t`: gana la anchura mayor.
     template <std::size_t N, std::size_t M>
     struct common_type<::nstd::uint_fixed_t<N>, ::nstd::uint_fixed_t<M>>
     {
-        using type = ::nstd::uint_fixed_t<(N > M ? N : M)>;
+        using type = ::nstd::uint_fixed_t<(N > M ? N : M)>; ///< El mas ancho de los dos.
     };
 
-    // signed/unsigned and unsigned/signed → C++ UAC via mixed_iu_t
+    /// @brief `std::common_type` de con signo y sin signo, por las conversiones
+    ///        aritmeticas usuales de C++: si el sin signo es igual o mas ancho,
+    ///        **gana el sin signo**. Ver `nstd::mixed_iu_t`.
     template <std::size_t N, std::size_t M>
     struct common_type<::nstd::int_fixed_t<N>, ::nstd::uint_fixed_t<M>>
     {
-        using type = ::nstd::mixed_iu_t<N, M>;
+        using type = ::nstd::mixed_iu_t<N, M>; ///< El tipo resultante.
     };
 
+    /// @brief La orientacion contraria de la anterior, que da el mismo tipo.
     template <std::size_t N, std::size_t M>
     struct common_type<::nstd::uint_fixed_t<N>, ::nstd::int_fixed_t<M>>
     {
-        using type = ::nstd::mixed_iu_t<M, N>;
+        using type = ::nstd::mixed_iu_t<M, N>; ///< El tipo resultante.
     };
 
-    // fixed_int_t <-> built-in integral T → keep the fixed_int_t side (it's wider).
+    /// @brief `std::common_type` de un `fixed_int_t` con un entero del lenguaje:
+    ///        gana el `fixed_int_t`, que siempre es igual o mas ancho.
+    /// @tparam T Entero del lenguaje distinto de `bool`; si no, falla el
+    ///         `static_assert` con un mensaje que lo dice.
     template <std::size_t N, ::nstd::signedness S, ::nstd::representation_form F, typename T>
     struct common_type<::nstd::fixed_int_t<N, S, F>, T>
     {
         static_assert(std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>,
                       "common_type<fixed_int_t, T>: T must be a built-in integral (not bool)");
-        using type = ::nstd::fixed_int_t<N, S, F>;
+        using type = ::nstd::fixed_int_t<N, S, F>; ///< El lado `fixed_int_t`.
     };
 
+    /// @brief La orientacion contraria de la anterior, que da el mismo tipo.
     template <typename T, std::size_t N, ::nstd::signedness S, ::nstd::representation_form F>
     struct common_type<T, ::nstd::fixed_int_t<N, S, F>>
     {
         static_assert(std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>,
                       "common_type<T, fixed_int_t>: T must be a built-in integral (not bool)");
-        using type = ::nstd::fixed_int_t<N, S, F>;
+        using type = ::nstd::fixed_int_t<N, S, F>; ///< El lado `fixed_int_t`.
     };
 
 } // namespace std

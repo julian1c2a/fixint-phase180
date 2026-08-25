@@ -45,9 +45,21 @@
 namespace std
 {
 
+    /// @brief `std::hash` para `nstd::fixed_int_t`, de modo que sirva de clave
+    ///        en `unordered_map` y `unordered_set`.
+    ///
+    /// Mezcla los N limbos con el finalizador de splitmix64, que dispersa bien un
+    /// `uint64_t` sobre si mismo. Cumple el requisito del estandar: dos valores
+    /// iguales dan el mismo hash.
+    /// @tparam N Numero de limbos.
+    /// @tparam Sign Con o sin signo.
+    /// @tparam Form Representacion interna.
     template <std::size_t N, nstd::signedness Sign, nstd::representation_form Form>
     struct hash<nstd::fixed_int_t<N, Sign, Form>>
     {
+        /// @brief Calcula el hash del valor.
+        /// @param v Valor a dispersar.
+        /// @return El hash.
         [[nodiscard]] std::size_t operator()(const nstd::fixed_int_t<N, Sign, Form> &v) const noexcept
         {
             // Finalizador de splitmix64: mezcla bien un uint64 en si mismo.

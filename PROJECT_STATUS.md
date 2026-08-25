@@ -79,12 +79,15 @@ propiedades sobre `int128_param_t`.
 ## Deuda anotada
 
 - **La release de v1.90.1 no está publicada** (arriba). Es lo único que está roto.
-- Documentación de `int128_param_*`: **exenta a propósito** hasta que ADR-006
-  retire el tipo. Son 349 de los 596 avisos.
-- **596 miembros sin documentar** en `include/`, de los que **42** están en el
-  ámbito que [ADR-014](docs/decisions/ADR-014-cobertura-de-doxygen.md) obliga a
-  cerrar en `fixed_width_int_t.hpp`, más 60 en los demás `fixed_int_*.hpp`. La
-  cifra anterior de «0 avisos» no medía nada: la comprobación estaba apagada.
+- `intrinsics/compiler_detection.hpp` (29 avisos) y
+  `algorithms/karatsuba.hpp` (3) están fuera del ámbito de ADR-014 pero no de
+  `int128_param_*`: habrá que decidir si entran.
+- **`python make.py build` devuelve 0 aunque falle el enlazado.** Comprobado
+  con `benchmark_vs_builtin`, que necesita GMP: el enlazador falla, make.py
+  imprime «Build complete» y sale con 0. Significa que **`make.py build` no
+  sirve como puerta** en ningún guion ni workflow. Es lo más serio de esta lista.
+- **Documentación de `int128_param_*`: 349 avisos**, exentos a propósito hasta
+  que ADR-006 retire el tipo.
 - **Karatsuba solo está medido en GCC.** Faltan Clang, MSVC e Intel.
 - **El bucle escolar de `operator*` es un 14 % más lento que una copia idéntica
   suya escrita como función libre**, en N=3. Lo destapó el control del benchmark
