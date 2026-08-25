@@ -1,6 +1,6 @@
 # `scripts/` — inventario
 
-**Última revisión:** 24 August 2026 (T7.6 del plan de auditoría)
+**Última revisión:** 25 August 2026 (T7.6 del plan de auditoría)
 
 En este directorio convivían 47 ficheros de varias generaciones del proyecto. La
 auditoría del 23 ago 2026 encontró que la mitad no los referencia nadie: son
@@ -45,28 +45,22 @@ Lo que usa `make.py` hoy. Tocar aquí es tocar el build de verdad.
 | `wsl_build_and_test.bash` | Compilación y tests en WSL |
 | `compile_wsl.bash` | Compilación puntual en WSL |
 
-## Todavía vivos, pese a estar superados
+## Los cinco que estaban enganchados — ya no
 
-Estos cinco **siguen siendo llamados desde código vivo**, así que no se han
-archivado aunque su sustituto en Python exista:
+Hasta el 25 ago 2026, cinco scripts superados seguían vivos porque los llamaban
+el `Makefile` y `.github/workflows/release.yml`. Ya no:
 
-| Script | Quién lo llama |
-|---|---|
-| `build_generic.bash` | `Makefile` |
-| `run_generic.bash` | `Makefile` |
-| `check_generic.bash` | `Makefile` |
-| `build_benchs_generic.bash` | `Makefile` |
-| `build_extracted_tests.bash` | `.github/workflows/release.yml` |
+- El **`Makefile` es ahora un shim** sobre `make.py`: de 472 líneas con su propia
+  lógica de validación a un centenar que traducen `make <objetivo>` a la llamada
+  equivalente. Era una segunda implementación del build en paralelo, y se
+  quedaba atrás.
+- **`release.yml` construye con `make.py`.** Llamaba a cuatro scripts, y **tres
+  de ellos no existían** (`vcvarsall.py`, `setvarsall_intel.py`,
+  `build_benchmarks.bash`): el workflow fallaba en cada tag. Comprobado en
+  `v1.90.1`, que falló al publicarse.
 
-Desengancharlos es una tarea aparte y con riesgo: significa convertir el
-`Makefile` en el shim sobre `make.py` que propone la sección de más abajo, y
-tocar el workflow de release, que no se puede probar en local. Hasta entonces se
-quedan donde están.
-
-> El primer intento de archivarlos, el 24 ago 2026, los daba por muertos según
-> un recuento de referencias mal filtrado. Lo pilló la comprobación que se hace
-> al mover: **ningún script se archiva sin verificar antes que nada vivo lo
-> referencia.**
+Con eso los cinco pasan a `archive/`, y el directorio queda con **15
+herramientas vivas** de las 47 que llegó a tener.
 
 ## Archivados en `archive/`
 
@@ -78,6 +72,11 @@ hacía algo; recuperarlos es un `git mv`.
 
 | Script | Sustituido por |
 |---|---|
+| `build_generic.bash` | `build_generic.py` |
+| `run_generic.bash` | `run_generic.py` |
+| `check_generic.bash` | `check_generic.py` |
+| `build_benchs_generic.bash` | `build_generic.py` |
+| `build_extracted_tests.bash` | `make.py build` desde `release.yml` |
 | `build_tests_generic.bash` | `build_generic.py` |
 | `build_phase15_tests.bash` | `build_generic.py` (fase 1.5, ya cerrada) |
 | `build_phase15_benchs.bash` | `build_generic.py` (fase 1.5, ya cerrada) |
@@ -107,8 +106,7 @@ hacía algo; recuperarlos es un `git mv`.
 | `verify_stdbyte_migration.bash` | — (migración a `std::byte` ya aplicada) |
 
 **No se han borrado**, solo movidos: alguno puede seguir siendo útil como
-referencia. Con esto el directorio pasa de aparentar 47 herramientas vivas a las
-20 que hay de verdad.
+referencia. Con esto el directorio pasa de aparentar 47 herramientas vivas a las 15 que hay de verdad.
 
 ---
 

@@ -47,24 +47,18 @@ jobs:
           icx
           dpcpp
     
+    # T7.6 (25 ago 2026): este paso llamaba a CUATRO scripts, de los que TRES
+    # NO EXISTEN en el repositorio: scripts/vcvarsall.py,
+    # scripts/setvarsall_intel.py y scripts/build_benchmarks.bash. Por eso el
+    # workflow fallaba en cada tag; comprobado en v1.90.1, que fallo al
+    # publicarse. Ahora usa make.py, la capa canonica, que resuelve el entorno
+    # de MSVC y de Intel por su cuenta (scripts/env_setup/compiler_env.py).
     - name: Build all with ${{ matrix.compiler }}
       shell: msys2 {0}
       run: |
-        # Configurar entorno
-        if [ "${{ matrix.compiler }}" == "msvc" ]; then
-          source <(python scripts/vcvarsall.py)
-        elif [ "${{ matrix.compiler }}" == "intel" ]; then
-          source <(python scripts/setvarsall_intel.py)
-        fi
-        
-        # Build tests
-        chmod +x scripts/build_extracted_tests.bash
-        ./scripts/build_extracted_tests.bash ${{ matrix.compiler }}
-        
-        # Build benchmarks
-        chmod +x scripts/build_benchmarks.bash
-        ./scripts/build_benchmarks.bash ${{ matrix.compiler }}
-    
+        python make.py build uint128 all tests ${{ matrix.compiler }} release
+        python make.py build uint128 all benchs ${{ matrix.compiler }} release
+
     - name: Package release - ${{ matrix.compiler }}
       shell: msys2 {0}
       run: |
@@ -72,7 +66,7 @@ jobs:
         
         # Copiar ejecutables
         cp -r build/build_tests/${{ matrix.compiler }}/release release-package/tests
-        cp -r build/build_benchmarks/${{ matrix.compiler }}/release release-package/benchmarks
+        cp -r build/build_benchs/${{ matrix.compiler }}/release release-package/benchmarks
         
         # Copiar headers
         cp -r include release-package/
@@ -80,6 +74,10 @@ jobs:
         # Copiar documentación
         cp README.md release-package/
         cp LICENSE.txt release-package/
+        # `documentation/` solo existe tras ejecutar doxygen; en un checkout
+        # limpio no esta, y el `cp` fallaba.
+        mkdir -p documentation/generated documentation/doxygen/pages
+        doxygen Doxyfile > /dev/null 2>&1 || true
         cp -r documentation release-package/
         
         # Crear archivo zip
