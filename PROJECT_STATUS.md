@@ -1,7 +1,7 @@
 # PROJECT STATUS
 
 **Last Updated:** 25 August 2026
-**Versión:** v1.90.2 · **rama** `phase-1.80` · árbol limpio, todo en `origin`
+**Versión:** v1.90.4 · **rama** `phase-1.80` · árbol limpio, todo en `origin`
 
 > Instantánea **del estado actual**, y solo eso. No acumula historia: lo ya hecho
 > vive en [`CHANGELOG.md`](CHANGELOG.md); lo que viene, en [`ROADMAP.md`](ROADMAP.md)
@@ -31,10 +31,14 @@ sin cuestiones abiertas**: falta escribirlo.
 Compiladores en verde: GCC 13–16, Clang 18–22, MSVC 19.5x, Intel ICX. Arcos:
 x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 
-> **La release de `v1.90.1` nunca se publicó**: el workflow llamaba a tres
-> scripts inexistentes. El tag no se mueve
-> ([ADR-012](docs/decisions/ADR-012-no-se-mueve-un-tag-publicado.md)) y se queda
-> como testimonio. **`v1.90.2` es la primera que ejercita el arreglo.**
+> **`v1.90.4` es la primera release publicada del proyecto**: tres zips —gcc,
+> clang y msvc— en
+> [releases/tag/v1.90.4](https://github.com/julian1c2a/fixint-phase180/releases/tag/v1.90.4).
+> Hicieron falta cuatro intentos; `v1.90.1`, `.2` y `.3` se quedan sin release y
+> sin mover, por [ADR-012](docs/decisions/ADR-012-no-se-mueve-un-tag-publicado.md).
+>
+> **Intel no se publica**: no funciona en Windows en este repositorio y su job
+> sale en rojo a propósito. Queda por decidir si se retira de la matriz.
 
 ## Volumen
 

@@ -1,3 +1,103 @@
+## [1.90.4] - 2026-08-25 - La publicacion, al cuarto intento
+
+Ni una linea de logica cambia desde v1.90.1. Lo unico que toca a `include/` son
+comentarios de documentacion. Esta version, y las dos anteriores, existen
+enteramente por el workflow de publicacion.
+
+### Los cuatro intentos, y que se aprendio en cada uno
+
+| Tag | Que fallo |
+|---|---|
+| **v1.90.1** | El paso de build llamaba a cuatro scripts y **tres no existian** |
+| **v1.90.2** | El comando que los sustituyo **tampoco servia**: `make.py build` no acepta `all` como caracteristica. Y el fallo de Intel **cancelo a los otros tres**, por el `fail-fast` de la matriz |
+| **v1.90.3** | gcc y clang construyeron y **subieron sus zips**, pero el job de publicacion fallo: crear una release es **escritura**, y faltaba `permissions: contents: write`. MSVC fallaba aparte |
+| **v1.90.4** | **Publicada.** Tres zips: gcc, clang y msvc. Intel en rojo, a proposito |
+
+Los tres tags anteriores **se quedan donde estan, sin release**, por
+[ADR-012](docs/decisions/ADR-012-no-se-mueve-un-tag-publicado.md). Son el
+testimonio de que aquello fallo.
+
+**La leccion, que es de metodo y no tecnica:** las dos primeras veces se escribio
+un comando en un workflow sin ejecutarlo antes. Reproducir el de v1.90.2 en local
+costo dos segundos y da el error exacto. Esta vez los pasos de build se validaron
+con un `workflow_dispatch` sobre la rama, **sin gastar numero de version** — el
+job de publicacion se salta solo, porque exige que la referencia sea un tag.
+Queda escrito en el propio `release.yml` para el que venga.
+
+### Corregido en el workflow
+
+- **`permissions: contents: write`.** La causa directa de que v1.90.3 no
+  publicara, con los artefactos ya subidos.
+- **MSVC con `vswhere` + `vcvars64.bat` en shell `cmd`.** `setup-msbuild` trae
+  MSBuild pero **no el entorno de C++**: `cl.exe` no esta en el PATH. Es el mismo
+  problema que el CI ya habia resuelto en T7.1, y se copia su receta. La pista
+  era que el CI si compilaba con MSVC y la release no: hacian cosas distintas
+  para el mismo compilador.
+- **`fail-fast: false`** en la matriz y **`always()`** en la publicacion: un
+  compilador roto ya no deja sin release a los demas.
+- **Empaquetado y subida tolerantes** a que un compilador no deje binarios.
+- **Notas de publicacion reescritas.** Decian `#include "include/int128.hpp"`,
+  un fichero que **no existe**.
+
+### Un falso verde, y de donde salio
+
+Al validar con el dispatch, Intel aparecio como **`success` en 2,3 minutos con
+cero artefactos**. El log:
+
+```
+setvars.bat no esta en ONEAPI_ROOT=
+icx.exe no esta en el PATH
+##[error]Process completed with exit code 1.
+```
+
+El paso **fallo**. Pero llevaba `continue-on-error: true`, asi que el job siguio;
+el empaquetado se salto por la guarda de «sin binarios»; la subida lo ignoro por
+`if-no-files-found: ignore`; y el job salio verde. **Tres tolerancias encadenadas
+convirtiendo un fallo en un exito.**
+
+Retirado el `continue-on-error`: lo que se queria —que Intel no arrastre a los
+demas— ya lo daba `fail-fast: false`.
+
+### Intel en Windows no funciona en este repositorio
+
+`ONEAPI_ROOT` viene **vacio**, y la accion `rscohn2/setup-oneapi` deja un
+`CMAKE_PREFIX_PATH` apuntando a `/opt/intel/oneapi/...` — **una ruta de Linux en
+un runner de Windows**. El CI si cubre Intel, pero sobre Ubuntu, instalando por
+apt y compilando los tests a mano sin `make.py`: no hay receta de Windows que
+copiar.
+
+Su job sale **en rojo, a proposito**. Queda por decidir si se retira de la matriz
+de release —las cabeceras son identicas en los cuatro compiladores, asi que el
+contenido util del zip no cambia— o si se invierte en hacerlo funcionar.
+
+### Publicada
+
+**Run 32879673620.** Comprobado en `/releases`, no solo en el workflow:
+
+| Fichero | Tamano |
+|---|---:|
+| `int128-msvc-windows-x64.zip` | 10.877 KB |
+| `int128-gcc-windows-x64.zip` | 5.070 KB |
+| `int128-clang-windows-x64.zip` | 4.929 KB |
+
+<https://github.com/julian1c2a/fixint-phase180/releases/tag/v1.90.4>
+
+El job de Intel sale en rojo y el run entero figura como `failure`; el de
+publicacion salio en verde y subio los tres zips, que es lo que `always()` y
+`fail-fast: false` estaban para conseguir. **Es la primera release del
+proyecto.**
+
+### Medido en el dispatch (run 32878421791)
+
+| Compilador | Tiempo | Artefacto |
+|---|---:|---:|
+| gcc | 5,0 min | 4.870 KB |
+| clang | 4,0 min | 4.729 KB |
+| **msvc** | 9,5 min | **10.667 KB** |
+| intel | — | no construye |
+
+---
+
 ## [1.90.2] - 2026-08-25 - Karatsuba medido, cobertura de Doxygen encendida, release arreglada
 
 ### Por que existe esta version

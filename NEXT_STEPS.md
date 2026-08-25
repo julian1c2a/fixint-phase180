@@ -1,7 +1,7 @@
 # 🔮 NEXT STEPS
 
 **Last Updated:** 25 August 2026
-**Versión:** **v1.90.2** · **rama** `phase-1.80` · árbol limpio · todo en `origin`
+**Versión:** **v1.90.4** · **rama** `phase-1.80` · árbol limpio · todo en `origin`
 
 > Este documento es **el puntero y lo pendiente a corto**. No acumula historia:
 > lo ya hecho vive en [`CHANGELOG.md`](CHANGELOG.md), el plan largo en
@@ -27,15 +27,23 @@ escribieron los cinco ADR fundacionales que estaban pendientes desde siempre.
 | **Suite** | 55/55 |
 | **Release de v1.90.1** | ❌ **no publicada** — ver abajo |
 
-## Lo primero al retomar: comprobar que la release salió
+## La release ya está: queda una decisión sobre Intel
 
-**v1.90.2 es la primera versión que ejercita `release.yml` arreglado.** Si el
-workflow `Release` sale en verde y aparecen los cuatro zips, la deuda se cierra.
-Si no, el fallo estará en un paso distinto del que ya se arregló, y hay que
-mirarlo antes que nada.
+**`v1.90.4` publicada**, con tres zips (gcc, clang, msvc). Esa deuda se cierra.
 
-El tag `v1.90.1` se queda donde está, sin release, por
-[ADR-012](docs/decisions/ADR-012-no-se-mueve-un-tag-publicado.md).
+Lo que queda es decidir qué hacer con **Intel en Windows, que no funciona**:
+`ONEAPI_ROOT` viene vacío y la acción `rscohn2/setup-oneapi` deja un
+`CMAKE_PREFIX_PATH` que apunta a `/opt/intel/...`, una ruta de Linux en un runner
+de Windows. El CI sí cubre Intel, pero sobre Ubuntu.
+
+- **Retirarlo de la matriz de release.** Las cabeceras son idénticas en los
+  cuatro compiladores, así que el contenido útil del zip no cambia. Las releases
+  saldrían limpias en verde.
+- **Hacerlo funcionar.** Requiere una acción que instale oneAPI en Windows de
+  verdad, y varios ciclos sobre el CI: no se puede reproducir en local.
+
+Mientras no se decida, su job sale **en rojo a propósito** y el run entero figura
+como `failure` aunque la release se publique.
 
 ## Después: escribir la 2.0
 
