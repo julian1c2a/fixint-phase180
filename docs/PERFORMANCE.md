@@ -94,6 +94,57 @@ veces.
 
 ---
 
+## Multiplicación — Karatsuba frente al método escolar
+
+**Medido el 25 August 2026**, GCC 16.2.0 (MSYS2 UCRT64) -O2 `-march=native`,
+Windows 11 sobre x86-64. 256 operandos pseudoaleatorios, 400 000 iteraciones x
+7 rondas intercaladas, mínimo por caso. Dos ejecuciones independientes.
+
+`operator*` toma el camino de Karatsuba para **N=4 y N=8**, y el escolar O(N^2)
+para el resto. La referencia es una **copia fiel** del bucle escolar de la
+propia biblioteca, con sus mismas primitivas (`intrinsics::umul128` y
+`intrinsics::addcarry_u64`), de modo que lo único que cambia entre las dos
+ramas es el algoritmo.
+
+| N | bits | biblioteca (cyc/op) | escolar (cyc/op) | razón |
+|---|---:|---:|---:|---:|
+| **4** | 256 | 28,6 - 30,5 | 50,4 | **1,65x - 1,75x** |
+| **8** | 512 | 158,4 - 164,4 | 243,0 | **1,48x - 1,53x** |
+| 2 | 128 | 2,9 | 10,4 | 3,57x *(camino especializado, no Karatsuba)* |
+
+Los dos números por celda son las dos ejecuciones; la dispersión entre
+ellas da la idea del error de medida.
+
+### Los controles, y lo que destapó uno de ellos
+
+El benchmark mide dos casos que **no** usan Karatsuba, donde la razón tiene
+que salir 1,00x. Sirven para comprobar que la implementación de referencia es
+fiel; si fallan, ninguna cifra de arriba vale.
+
+| Control | Razón | |
+|---|---:|---|
+| N=16 (1024 bits) | **1,02x** | OK, la referencia es fiel |
+| N=3 (192 bits) | **0,86x - 0,87x** | falla, estable en dos ejecuciones |
+
+**El control de N=3 falla, y no es ruido:** sale igual en las dos ejecuciones.
+Significa que el bucle escolar de la biblioteca es un **14 % más lento que
+una copia idéntica suya escrita como función libre**, con las mismas
+primitivas y el mismo compilador. Es un hallazgo sobre la biblioteca, no sobre
+el benchmark, y queda anotado como deuda: hay que mirar la generación de
+código de `operator*` para N pequeño e impar.
+
+Para las cifras de Karatsuba ese sesgo juega **a favor de la prudencia**: se
+está comparando el camino de Karatsuba contra un escolar *más rápido*
+que el de la propia biblioteca, así que 1,65x y 1,48x son cotas
+conservadoras.
+
+La primera versión de este benchmark usaba una propagación de acarreo
+portable en vez de los intrínsecos. El control de N=16 salió **2,00x** y
+el de N=2 **6,23x**: no estaba midiendo Karatsuba contra el método escolar,
+sino la biblioteca contra un espantapájaros. Los controles existen por eso.
+
+---
+
 ## Tiempo de compilación
 
 **Medido el 24 August 2026**, GCC 16.2.0 −O2, la misma máquina.
@@ -114,8 +165,10 @@ compilar toda la biblioteca con `-fconstexpr-steps=100000000`.
 
 - Re-medir las tablas de Knuth D y de comparación con built-in **con fecha,
   compilador y máquina**, que es lo que exige la regla de arriba.
-- Multiplicación: no hay cifras de Karatsuba frente a schoolbook para N=4 y N=8,
-  pese a ser una de las optimizaciones destacadas de la v1.90.
+- **Por qué el bucle escolar de `operator*` es un 14 % más lento que una copia
+  idéntica suya escrita como función libre**, en N=3. Lo destapó el control
+  del benchmark de Karatsuba.
+- Karatsuba en Clang, MSVC e Intel: las cifras de arriba son solo de GCC.
 - Coste de las conversiones a y desde cadena, ahora que hay bases 2..36.
 - Coste de la política de desbordamiento cuando se implemente
   ([ADR-008](decisions/ADR-008-diseno-de-la-politica-de-desbordamiento.md) dice

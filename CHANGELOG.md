@@ -1,3 +1,76 @@
+## [1.90.2] - 2026-08-25 - Karatsuba medido, cobertura de Doxygen encendida, release arreglada
+
+### Por que existe esta version
+
+La release de **v1.90.1 nunca llego a publicarse**: el workflow `Release` fallo
+sobre el tag porque llamaba a cuatro scripts de los que **tres no existian**
+(`scripts/vcvarsall.py`, `scripts/setvarsall_intel.py`,
+`scripts/build_benchmarks.bash`). El arreglo estaba en `03283af`, posterior al
+tag, de modo que nunca se habia ejercitado.
+
+El tag `v1.90.1` **no se mueve**, por decision de
+[ADR-012](docs/decisions/ADR-012-no-se-mueve-un-tag-publicado.md): un tag ya
+empujado a `origin` es una promesa, y moverlo la rompe en silencio. Se queda como
+testimonio de que aquella publicacion fallo. Esta version es la primera que
+ejercita `release.yml` con el paso de construccion corregido.
+
+### Anadido
+
+- **`benchs/benchmark_karatsuba.cpp`** — Karatsuba frente al metodo escolar, la
+  optimizacion de cabecera de v1.90 que nunca se habia medido. Con **controles**:
+  mide tambien N=3 y N=16, que no usan Karatsuba y donde la razon debe salir
+  1,00x. La primera version del benchmark los suspendio (2,00x y 6,23x) porque la
+  implementacion de referencia usaba acarreo portable en vez de los intrinsecos:
+  no medía Karatsuba contra el metodo escolar, sino la biblioteca contra un
+  espantapajaros. Reescrita como copia fiel del bucle de la biblioteca.
+- **Cinco ADR nuevos**: 010 (orden total con valores invalidos), 011 (sin signo
+  equivale a `binnat`), 012 (no se mueve un tag publicado), 013 (clang-format),
+  014 (cobertura de Doxygen). El directorio llega a **14 registros**.
+
+### Medido
+
+- **Karatsuba**: **1,65x - 1,75x** en N=4 y **1,48x - 1,53x** en N=8 frente al
+  metodo escolar. GCC 16.2 -O2 `-march=native`, 7 rondas intercaladas, minimo por
+  caso, dos ejecuciones. Detalle en [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
+- **clang-format**: sobre los 103 ficheros del arbol, la **21.1.8 y la 22.1.8 lo
+  dejan las dos tal cual**. La nota que decia que la 22 rompia
+  `std::bitset<64 * N>` ya no es cierta sobre este arbol.
+
+### Corregido
+
+- **La cifra «0 avisos de Doxygen» no medía nada.** El `Doxyfile` tenia
+  `EXTRACT_ALL = YES` y `WARN_IF_UNDOCUMENTED = NO`: con esa configuracion es
+  imposible tener un aviso de cobertura, este la biblioteca documentada o no.
+  Encendida la comprobacion, aparecen **596 miembros sin documentar**. No ha
+  empeorado nada: se ha encendido la luz. `AI-GUIDE.md` seccion 26 especificaba
+  la configuracion correcta desde el principio, y llevaba tiempo contradiciendo
+  al `Doxyfile`.
+- **`README.md` se contradecia a si mismo**, diciendo a la vez «v1.90.1 auditoria
+  completa» y «v1.90 IN DEVELOPMENT», y acumulaba historial de logros que segun
+  T6.7 vive solo aqui. De **661 a 165 renglones**: ahora dice que es el proyecto,
+  para que se hizo, y donde esta todo lo demas.
+- **`PROJECT_STATUS.md`** afirmaba que v1.90.1 estaba publicada, listaba T6.7 y
+  T7.6 como pendientes estando hechos, y decia que `CONTRIBUTING`, `SECURITY` y
+  `ROADMAP` no existen. De 189 a 92 renglones.
+
+### Documentacion
+
+- Cobertura de Doxygen en `fixed_width_int_t.hpp`: de **257 avisos a 224**, y de
+  esos, 182 son sobrecargas de operador que quedan cubiertas por su familia
+  (`@name`). **La cifra de la que se responde baja de 75 a 42.**
+- Documentados: los diez alias por anchura, `uint_fixed_t` e `int_fixed_t`,
+  `parse_error` con sus once codigos, `parse_result`, y `succ`/`pred`.
+- Cinco familias de operadores heterogeneos agrupadas con `@name`, cada una con
+  la explicacion que un lector necesita: que tipo resulta de la mezcla, que la
+  aritmetica es modular, y que `/` y `%` no son `noexcept`.
+
+### Sin cambios en la biblioteca
+
+Ni una linea de logica cambia respecto a v1.90.1. Lo unico que toca a `include/`
+son comentarios de documentacion.
+
+---
+
 ## [1.90.1] - 2026-08-24 — Auditoría completa
 
 Auditoría del proyecto y ejecución de las 8 fases del plan resultante

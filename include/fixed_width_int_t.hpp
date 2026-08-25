@@ -118,35 +118,54 @@ namespace nstd
 
 #ifndef NSTD_PARSE_COMMON_DEFINED
 #define NSTD_PARSE_COMMON_DEFINED
+    /// @brief Motivo por el que fallo una conversion desde cadena.
+    ///
+    /// Lo devuelve `try_from_string()`, que **no lanza**: la cadena mal formada
+    /// es un resultado esperable, no un error de programacion (ver ADR-004).
+    /// `from_string()`, en cambio, traduce cada uno de estos codigos a la
+    /// excepcion correspondiente.
     enum class parse_error : std::uint8_t
     {
-        success = 0,
-        null_pointer,
-        empty_string,
-        invalid_base,
-        invalid_base_value,
-        invalid_character,
-        digit_out_of_range,
-        no_digits,
-        overflow,
-        separator_at_boundaries,
-        unknown_error
+        success = 0,             ///< No hubo error.
+        null_pointer,            ///< Se paso un puntero nulo.
+        empty_string,            ///< La cadena estaba vacia.
+        invalid_base,            ///< La base no esta en [2, 36].
+        invalid_base_value,      ///< El prefijo de base (`0x`, `0b`, `0`) no cuadra con la base pedida.
+        invalid_character,       ///< Un caracter que no es digito ni separador.
+        digit_out_of_range,      ///< Un digito valido pero fuera de la base (una `9` en base 8).
+        no_digits,               ///< Solo habia signo, prefijo o separadores.
+        overflow,                ///< El valor no cabe en `64 * N` bits.
+        separator_at_boundaries, ///< Un separador al principio o al final del numero.
+        unknown_error            ///< Reservado; no deberia salir.
     };
 
+    /// @brief Resultado de una conversion desde cadena que no lanza.
+    ///
+    /// @tparam T Tipo del valor convertido.
+    ///
+    /// Si `error` es `parse_error::success`, `value` es el valor convertido. En
+    /// cualquier otro caso `value` no significa nada y `error_index` dice en que
+    /// posicion de la cadena se detecto el problema.
     template <typename T>
     struct parse_result
     {
-        parse_error error;
-        T value;
-        std::size_t error_index;
+        parse_error error;       ///< Codigo de error; `success` si todo fue bien.
+        T value;                 ///< Valor convertido. Solo valido si `success()`.
+        std::size_t error_index; ///< Posicion del fallo; `std::string::npos` si no lo hubo.
 
+        /// @brief `true` si la conversion salio bien.
         constexpr bool success() const noexcept { return error == parse_error::success; }
 
+        /// @brief Construye un resultado correcto con el valor por defecto de `T`.
         constexpr parse_result() noexcept
             : error(parse_error::success), value(T{}), error_index(std::string::npos)
         {
         }
 
+        /// @brief Construye un resultado explicito.
+        /// @param err Codigo de error.
+        /// @param val Valor convertido, o el que sea si hubo error.
+        /// @param idx Posicion del fallo en la cadena.
         constexpr parse_result(parse_error err, T val, std::size_t idx) noexcept
             : error(err), value(val), error_index(idx)
         {
@@ -162,9 +181,16 @@ namespace nstd
     // Aliases (forward-declared so cross-type constructors compile)
     // =============================================================================
 
+    /// @brief Entero **sin signo** de `64 * N` bits.
+    /// @tparam N Numero de limbos de 64 bits.
+    /// Sin signo implica `binnat`, y al reves (ver ADR-011): no hay signo que
+    /// codificar. Preferir los alias por anchura (`uint256_fixed_t`, ...).
     template <std::size_t N>
     using uint_fixed_t = fixed_int_t<N, signedness::unsigned_type, representation_form::binnat>;
 
+    /// @brief Entero **con signo** de `64 * N` bits, en complemento a dos.
+    /// @tparam N Numero de limbos de 64 bits.
+    /// Preferir los alias por anchura (`int256_fixed_t`, ...).
     template <std::size_t N>
     using int_fixed_t = fixed_int_t<N, signedness::signed_type, representation_form::twos_complement>;
 
@@ -2447,45 +2473,74 @@ namespace nstd
     // Type aliases — unsigned
     // =============================================================================
 
-    using uint64_fixed_t = uint_fixed_t<1>;
-    using uint128_fixed_t = uint_fixed_t<2>;
-    using uint256_fixed_t = uint_fixed_t<4>;
-    using uint512_fixed_t = uint_fixed_t<8>;
-    using uint1024_fixed_t = uint_fixed_t<16>;
+    /// @name Alias sin signo por anchura en bits
+    /// Los nombres que se usan en la practica. Cada uno fija el numero de
+    /// limbos: la anchura en bits es `64 * N`.
+    /// @{
+    using uint64_fixed_t = uint_fixed_t<1>;    ///< 64 bits sin signo (1 limbo).
+    using uint128_fixed_t = uint_fixed_t<2>;   ///< 128 bits sin signo (2 limbos).
+    using uint256_fixed_t = uint_fixed_t<4>;   ///< 256 bits sin signo (4 limbos).
+    using uint512_fixed_t = uint_fixed_t<8>;   ///< 512 bits sin signo (8 limbos).
+    using uint1024_fixed_t = uint_fixed_t<16>; ///< 1024 bits sin signo (16 limbos).
+    /// @}
 
     // =============================================================================
     // Type aliases — signed
     // =============================================================================
 
-    using int64_fixed_t = int_fixed_t<1>;
-    using int128_fixed_t = int_fixed_t<2>;
-    using int256_fixed_t = int_fixed_t<4>;
-    using int512_fixed_t = int_fixed_t<8>;
-    using int1024_fixed_t = int_fixed_t<16>;
+    /// @name Alias con signo por anchura en bits
+    /// Complemento a dos, como los enteros con signo del lenguaje.
+    /// @{
+    using int64_fixed_t = int_fixed_t<1>;    ///< 64 bits con signo (1 limbo).
+    using int128_fixed_t = int_fixed_t<2>;   ///< 128 bits con signo (2 limbos).
+    using int256_fixed_t = int_fixed_t<4>;   ///< 256 bits con signo (4 limbos).
+    using int512_fixed_t = int_fixed_t<8>;   ///< 512 bits con signo (8 limbos).
+    using int1024_fixed_t = int_fixed_t<16>; ///< 1024 bits con signo (16 limbos).
+    /// @}
 
+    /// @name Sucesor y predecesor
+    /// `succ(x)` y `pred(x)` son `x + 1` y `x - 1` sin modificar `x`, para
+    /// usarlos en contextos donde `++`/`--` no encajan (algoritmos, `constexpr`
+    /// sobre un valor constante). Como toda la aritmetica de la biblioteca son
+    /// **modulares**: `succ(max())` da `min()` y `pred(min())` da `max()`.
+    /// @{
+
+    /// @brief Sucesor sin signo: `x + 1` modulo 2^(64N).
+    /// @param x Valor de partida, que no se modifica.
+    /// @return `x + 1`; `0` si `x` era `max()`.
     template <std::size_t N>
     [[nodiscard]] constexpr uint_fixed_t<N> succ(const uint_fixed_t<N> &x) noexcept
     {
         return x + uint_fixed_t<N>::one();
     }
 
+    /// @brief Predecesor sin signo: `x - 1` modulo 2^(64N).
+    /// @param x Valor de partida, que no se modifica.
+    /// @return `x - 1`; `max()` si `x` era cero.
     template <std::size_t N>
     [[nodiscard]] constexpr uint_fixed_t<N> pred(const uint_fixed_t<N> &x) noexcept
     {
         return x - uint_fixed_t<N>::one();
     }
 
+    /// @brief Sucesor con signo: `x + 1` modulo 2^(64N).
+    /// @param x Valor de partida, que no se modifica.
+    /// @return `x + 1`; `min()` si `x` era `max()`.
     template <std::size_t N>
     [[nodiscard]] constexpr int_fixed_t<N> succ(const int_fixed_t<N> &x) noexcept
     {
         return x + int_fixed_t<N>::one();
     }
 
+    /// @brief Predecesor con signo: `x - 1` modulo 2^(64N).
+    /// @param x Valor de partida, que no se modifica.
+    /// @return `x - 1`; `max()` si `x` era `min()`.
     template <std::size_t N>
     [[nodiscard]] constexpr int_fixed_t<N> pred(const int_fixed_t<N> &x) noexcept
     {
         return x - int_fixed_t<N>::one();
     }
+    /// @}
 
     // =========================================================================
     // Public trait: mixed_iu_t (C++ usual arithmetic conversions for fixed_int_t)
@@ -2576,6 +2631,24 @@ namespace nstd
     // =========================================================================
     // Free-function binary operators — uint_fixed_t<N> mixed with integral T
     // =========================================================================
+
+    /// @name Operadores mixtos: `uint_fixed_t<N>` con un entero del lenguaje
+    ///
+    /// Existen porque los constructores son `explicit` (ADR-001): sin conversion
+    /// implicita, `a + 42` solo funciona si hay una sobrecarga que lo acepte. Se
+    /// proveen en las dos orientaciones, `fixed op T` y `T op fixed`.
+    ///
+    /// **Semantica comun a toda la familia:**
+    /// - El entero del lenguaje se convierte a `uint_fixed_t<N>` y la operacion
+    ///   se hace en esa anchura; el **resultado es siempre `uint_fixed_t<N>`**,
+    ///   nunca el tipo del operando pequeno.
+    /// - La aritmetica es **modular** respecto a 2^(64N), como la de los enteros
+    ///   sin signo del lenguaje.
+    /// - Un `T` con signo y valor negativo se convierte igual que lo haria el
+    ///   lenguaje: por complemento a dos, de modo que `-1` es `max()`.
+    /// - Todas son `constexpr`. Todas son `noexcept` **salvo `/` y `%`**, que
+    ///   lanzan `std::domain_error` si el divisor es cero (ADR-004).
+    /// @{
 
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator+(const uint_fixed_t<N> &a, T b) noexcept
@@ -3027,9 +3100,21 @@ namespace nstd
     }
 #endif
 
+    /// @}
+
     // =========================================================================
     // Free-function binary operators — int_fixed_t<N> mixed with integral T
     // =========================================================================
+
+    /// @name Operadores mixtos: `int_fixed_t<N>` con un entero del lenguaje
+    ///
+    /// La misma familia que la anterior, para el tipo con signo. El resultado es
+    /// siempre `int_fixed_t<N>`, la aritmetica es modular en complemento a dos y
+    /// el desbordamiento **envuelve** en vez de ser comportamiento indefinido,
+    /// que es la unica diferencia deliberada con los `int` del lenguaje.
+    ///
+    /// `constexpr` todas; `noexcept` todas salvo `/` y `%`.
+    /// @{
 
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator+(const int_fixed_t<N> &a, T b) noexcept
@@ -3481,9 +3566,21 @@ namespace nstd
     }
 #endif
 
+    /// @}
+
     // =========================================================================
     // Cross-N binary operators — uint_fixed_t<N> op uint_fixed_t<M> (N != M)
     // =========================================================================
+
+    /// @name Operadores entre anchuras distintas, sin signo
+    ///
+    /// `uint_fixed_t<N> op uint_fixed_t<M>` con `N != M`. **Gana la anchura
+    /// mayor**: el operando estrecho se extiende con ceros y el resultado es
+    /// `uint_fixed_t<max(N,M)>`. Es el equivalente de las promociones del
+    /// lenguaje, pero sin perder bits nunca.
+    ///
+    /// `constexpr` todas; `noexcept` todas salvo `/` y `%`.
+    /// @{
 
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr uint_fixed_t<(N > M ? N : M)> operator+(const uint_fixed_t<N> &a,
@@ -3589,9 +3686,20 @@ namespace nstd
         return uint_fixed_t<R>{a} >= uint_fixed_t<R>{b};
     }
 
+    /// @}
+
     // =========================================================================
     // Cross-N binary operators — int_fixed_t<N> op int_fixed_t<M> (N != M)
     // =========================================================================
+
+    /// @name Operadores entre anchuras distintas, con signo
+    ///
+    /// `int_fixed_t<N> op int_fixed_t<M>` con `N != M`. Gana la anchura mayor y
+    /// el operando estrecho se extiende **con su signo**, de modo que un valor
+    /// negativo sigue siendo el mismo negativo en la anchura grande.
+    ///
+    /// `constexpr` todas; `noexcept` todas salvo `/` y `%`.
+    /// @{
 
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr int_fixed_t<(N > M ? N : M)> operator+(const int_fixed_t<N> &a,
@@ -3697,11 +3805,30 @@ namespace nstd
         return int_fixed_t<R>{a} >= int_fixed_t<R>{b};
     }
 
+    /// @}
+
     // =========================================================================
     // Mixed-sign free operators — int_fixed_t<N> op uint_fixed_t<M>
     // C++ usual arithmetic conversions: N > M -> int_fixed_t<N>; N <= M -> uint_fixed_t<M>.
     // Both orientations (int op uint, uint op int) produce the same result type.
     // =========================================================================
+
+    /// @name Operadores entre signo y sin signo
+    ///
+    /// `int_fixed_t<N> op uint_fixed_t<M>` y la orientacion contraria, que dan
+    /// **el mismo tipo de resultado**. La regla es la de las conversiones
+    /// aritmeticas usuales de C++, con la misma sorpresa incluida:
+    ///
+    /// - `N > M`  -> `int_fixed_t<N>`: el con signo es mas ancho y gana.
+    /// - `N <= M` -> `uint_fixed_t<M>`: **gana el sin signo**, y el operando con
+    ///   signo se convierte, de modo que un valor negativo pasa a ser un valor
+    ///   grande. Es exactamente lo que hace `-1 < 0u` en C++, que es `false`.
+    ///
+    /// Se imita a proposito: la biblioteca reproduce la aritmetica del lenguaje,
+    /// trampas incluidas, para que trasladar codigo no cambie de significado.
+    ///
+    /// `constexpr` todas; `noexcept` todas salvo `/` y `%`.
+    /// @{
 
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator+(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
@@ -3918,6 +4045,8 @@ namespace nstd
         using R = detail::mixed_iu_t<N, M>;
         return R{a} >= R{b};
     }
+
+    /// @}
 
     // =========================================================================
     // Higher arithmetic — mul_wide, pow, sqrt, gcd, lcm, checked_*

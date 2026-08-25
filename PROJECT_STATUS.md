@@ -1,7 +1,7 @@
 # PROJECT STATUS
 
 **Last Updated:** 25 August 2026
-**Versión:** v1.90.1 · **rama** `phase-1.80` · árbol limpio, todo en `origin`
+**Versión:** v1.90.2 · **rama** `phase-1.80` · árbol limpio, todo en `origin`
 
 > Instantánea **del estado actual**, y solo eso. No acumula historia: lo ya hecho
 > vive en [`CHANGELOG.md`](CHANGELOG.md); lo que viene, en [`ROADMAP.md`](ROADMAP.md)
@@ -31,10 +31,10 @@ sin cuestiones abiertas**: falta escribirlo.
 Compiladores en verde: GCC 13–16, Clang 18–22, MSVC 19.5x, Intel ICX. Arcos:
 x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 
-> **Un fallo conocido:** el workflow **Release** falló sobre el tag `v1.90.1` y
-> **no hay ninguna release publicada**. Llamaba a tres scripts inexistentes;
-> está arreglado en `03283af`, pero **el tag es anterior al arreglo**, así que
-> hay que reetiquetar o relanzar para que la publicación ocurra.
+> **La release de `v1.90.1` nunca se publicó**: el workflow llamaba a tres
+> scripts inexistentes. El tag no se mueve
+> ([ADR-012](docs/decisions/ADR-012-no-se-mueve-un-tag-publicado.md)) y se queda
+> como testimonio. **`v1.90.2` es la primera que ejercita el arreglo.**
 
 ## Volumen
 
@@ -44,7 +44,7 @@ x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 | Tests | 55 ficheros |
 | Scripts vivos | 16 (llegaron a ser 47) |
 | Documentos de raíz | 12, 9.834 renglones — de los que 6.271 son el `CHANGELOG` |
-| ADR | **11**, ninguna decisión tomada sin documentar |
+| ADR | **14**, ninguna decisión tomada sin documentar |
 
 ## Cifras de la suite
 
@@ -70,7 +70,7 @@ propiedades sobre `int128_param_t`.
 | Aritmética modular completa y `constexpr`, división y módulo incluidos | ✅ |
 | Interop signed/unsigned al estilo de los built-in | ✅ |
 | iostreams, `std::format`, `std::hash`, cadena en bases 2..36 | ✅ |
-| Knuth D, Karatsuba (N=4/8), división por constante Granlund-Montgomery | ✅ |
+| Knuth D, Karatsuba (N=4/8, **medido: 1,65× y 1,48×**), Granlund-Montgomery | ✅ |
 | Magnitud-Signo y Exceso-K **en `int128_param_t`** | ✅ |
 | Magnitud-Signo y Exceso-K **en `fixed_int_t`** | ❌ pendiente — [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md) |
 | Política de desbordamiento como parámetro | ❌ diseñada, sin escribir — ADR-007 a 010 |
@@ -79,13 +79,16 @@ propiedades sobre `int128_param_t`.
 ## Deuda anotada
 
 - **La release de v1.90.1 no está publicada** (arriba). Es lo único que está roto.
-- `README.md` (661 renglones) sigue llevando historial de logros y una línea de
-  estado que se contradice: dice a la vez «v1.90.1 auditoría completa» y
-  «v1.90 IN DEVELOPMENT». T6.7 le asignó ser «qué es el proyecto»; aún no lo es.
-- Cobertura Doxygen de `fixed_width_int_t.hpp` a nivel de miembro: hoy están
-  documentados el fichero, la clase y los miembros de semántica no evidente.
-- **Karatsuba no tiene cifras medidas**, pese a ser una de las optimizaciones
-  de cabecera de v1.90. Ver [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
+- Documentación de `int128_param_*`: **exenta a propósito** hasta que ADR-006
+  retire el tipo. Son 349 de los 596 avisos.
+- **596 miembros sin documentar** en `include/`, de los que **42** están en el
+  ámbito que [ADR-014](docs/decisions/ADR-014-cobertura-de-doxygen.md) obliga a
+  cerrar en `fixed_width_int_t.hpp`, más 60 en los demás `fixed_int_*.hpp`. La
+  cifra anterior de «0 avisos» no medía nada: la comprobación estaba apagada.
+- **Karatsuba solo está medido en GCC.** Faltan Clang, MSVC e Intel.
+- **El bucle escolar de `operator*` es un 14 % más lento que una copia idéntica
+  suya escrita como función libre**, en N=3. Lo destapó el control del benchmark
+  de Karatsuba y no está explicado.
 - Falta la especialización de `representation_traits<binnat>`. Su contenido ya
   está determinado por
   [ADR-011](docs/decisions/ADR-011-sin-signo-equivale-a-binnat.md); es escribirla.

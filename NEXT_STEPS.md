@@ -1,7 +1,7 @@
 # 🔮 NEXT STEPS
 
 **Last Updated:** 25 August 2026
-**Versión:** **v1.90.1** · **rama** `phase-1.80` · árbol limpio · todo en `origin`
+**Versión:** **v1.90.2** · **rama** `phase-1.80` · árbol limpio · todo en `origin`
 
 > Este documento es **el puntero y lo pendiente a corto**. No acumula historia:
 > lo ya hecho vive en [`CHANGELOG.md`](CHANGELOG.md), el plan largo en
@@ -27,16 +27,15 @@ escribieron los cinco ADR fundacionales que estaban pendientes desde siempre.
 | **Suite** | 55/55 |
 | **Release de v1.90.1** | ❌ **no publicada** — ver abajo |
 
-## Lo primero al retomar: la release rota
+## Lo primero al retomar: comprobar que la release salió
 
-El workflow **Release** falló sobre el tag `v1.90.1` y **no hay ninguna release
-publicada**. Llamaba a cuatro scripts de los que tres no existían. Está
-arreglado en `03283af`, pero **el tag apunta a `ce71d5d`, anterior al arreglo**,
-así que el arreglo no se ha ejercitado nunca.
+**v1.90.2 es la primera versión que ejercita `release.yml` arreglado.** Si el
+workflow `Release` sale en verde y aparecen los cuatro zips, la deuda se cierra.
+Si no, el fallo estará en un paso distinto del que ya se arregló, y hay que
+mirarlo antes que nada.
 
-Hay que decidir entre mover el tag `v1.90.1` a un commit que ya lleve el arreglo,
-o publicar una `v1.90.2` que lo incluya. Lo segundo es más limpio: un tag ya
-pusheado que se mueve rompe a quien lo tenga.
+El tag `v1.90.1` se queda donde está, sin release, por
+[ADR-012](docs/decisions/ADR-012-no-se-mueve-un-tag-publicado.md).
 
 ## Después: escribir la 2.0
 
@@ -84,14 +83,14 @@ Ver [ROADMAP.md](ROADMAP.md). Depende de que 1 y 2 estén cerradas.
 
 | Qué | Dónde |
 |---|---|
-| `README.md` sigue llevando historial y una línea de estado que se contradice a sí misma | [PROJECT_STATUS.md](PROJECT_STATUS.md), «Deuda anotada» |
-| **Medir Karatsuba**: no tiene cifras, siendo optimización de cabecera de v1.90 | [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) |
-| Cobertura Doxygen de `fixed_width_int_t.hpp` a nivel de miembro | [ROADMAP.md](ROADMAP.md) |
+| **Cerrar los 42 avisos de Doxygen** que quedan en `fixed_width_int_t.hpp`, más los 60 de los otros `fixed_int_*.hpp` | [ADR-014](docs/decisions/ADR-014-cobertura-de-doxygen.md) |
+| Medir Karatsuba en **Clang, MSVC e Intel**: hoy solo hay cifras de GCC | [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) |
+| Averiguar por qué el bucle escolar de `operator*` es un 14 % más lento que una copia suya escrita como función libre, en N=3 | [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) |
 
 ## Cosas que conviene no redescubrir
 
-- **clang-format: el CI usa la 21**, que es la versión de referencia declarada en
-  la cabecera de `.clang-format`. No es estable entre versiones mayores.
+- **clang-format: en local la 22.1.8, en el CI la 21.** El árbol es punto fijo
+  de las dos, medido; la regla es que lo siga siendo. La serie 19 sí lo rompe.
 - En Windows, **`g++` y `clang++` a secas NO son los del proyecto**: resuelven al
   toolchain MSYS. Usar `python scripts/toolchains.py` para ver cuál se usará.
 - El `Makefile` es un **shim** sobre `make.py`, que es la capa canónica. Lo que

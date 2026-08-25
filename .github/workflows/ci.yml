@@ -470,12 +470,18 @@ jobs:
       - uses: actions/checkout@v4
 
       # OJO CON LA VERSION. clang-format no es estable entre versiones mayores:
-      #   v19 rompe `a ^ T{0}` en `a ^ T { 0 }` (lee `^ T{` como declaracion)
-      #   v22 rompe `std::bitset<64 * N>` en `std::bitset<64 *N>` (lee `*` como puntero)
-      # v21 es la unica de las tres que deja el arbol tal cual, asi que es la que
-      # se fija aqui y la que debe usar el editor. El artefacto `R{a} ^ R { b }`
-      # que aparecio en el arbol de trabajo al empezar la auditoria venia
-      # justamente de un clang-format de la serie 19.
+      # la v19 rompe `a ^ T{0}` en `a ^ T { 0 }` (lee `^ T{` como declaracion), y
+      # el artefacto `R{a} ^ R { b }` que aparecio en el arbol al empezar la
+      # auditoria venia justamente de ella.
+      #
+      # Medido el 25 ago 2026 sobre los 103 ficheros del arbol, la v21.1.8 y la
+      # v22.1.8 lo dejan las DOS tal cual: es punto fijo de ambas. En local se
+      # usa la 22.1.8, que es la que trae MSYS2; aqui se comprueba con la 21,
+      # que es la que hay en apt.llvm.org para noble.
+      #
+      # Que sean distintas es deliberado: da una segunda opinion gratis. Si
+      # alguna vez discrepan sobre una construccion nueva, este job se pone en
+      # rojo y esa construccion se escribe de forma que valga para las dos.
       - name: Install clang-format 21 y doxygen
         run: |
           wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null

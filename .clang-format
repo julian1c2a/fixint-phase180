@@ -8,23 +8,34 @@
 # editor aplicaba su estilo por defecto y generaba diffs de cientos de líneas
 # de puro reformateo sobre ficheros escritos a mano.
 #
-# VERSION DE REFERENCIA: clang-format 21.
+# VERSION DE REFERENCIA LOCAL: clang-format 22.1.8   (la que trae MSYS2)
+# VERSION DEL CI:                clang-format 21      (la de apt.llvm.org)
 #
-# clang-format NO es estable entre versiones mayores. Comprobado sobre este
-# arbol (103 ficheros):
-#   v19  rompe `a ^ T{0}` en `a ^ T { 0 }`        (lee `^ T{` como declaracion)
-#   v21  deja el arbol tal cual                   <-- la de referencia
-#   v22  rompe `std::bitset<64 * N>` en `<64 *N>` (lee `*` como puntero)
+# clang-format NO es estable entre versiones mayores, y este arbol lo sufrio:
+#   v19  rompe `a ^ T{0}` en `a ^ T { 0 }`   (lee `^ T{` como declaracion)
 #
 # El artefacto `R{a} ^ R { b }` que aparecio en el arbol de trabajo al empezar
-# la auditoria del 23 ago 2026 venia de un clang-format de la serie 19.
+# la auditoria del 23 ago 2026 venia justamente de un clang-format de la
+# serie 19.
 #
-# El job `format-and-docs` del CI usa clang-format-21. Si tu editor usa otra
-# version, o lo fijas a 21 o desactivas el formateo automatico al guardar.
+# MEDIDO EL 25 ago 2026 sobre los 103 ficheros de include/ tests/ benchs/
+# demos/, con las dos versiones instaladas en la maquina:
+#
+#   clang-format 21.1.8  ->  0 ficheros querrian cambiar
+#   clang-format 22.1.8  ->  0 ficheros querrian cambiar
+#
+# Es decir: el arbol es hoy PUNTO FIJO DE LAS DOS. La nota anterior decia que
+# la v22 rompia `std::bitset<64 * N>`; ya no es cierto sobre este arbol.
+#
+# LA REGLA: el arbol debe satisfacer las dos versiones. En local se usa la
+# 22.1.8, que es la que hay; el CI comprueba con la 21, lo que da una segunda
+# opinion gratis. Si alguna vez discrepan sobre una construccion nueva, el CI
+# se pone en rojo y esa construccion se escribe de una forma que valga para
+# ambas. Es preferible a fiarlo todo a una sola version.
 #
 # Uso:
-#   clang-format-21 -i include/**.hpp tests/*.cpp benchs/*.cpp
-#   clang-format-21 --dry-run --Werror <fichero>   # comprobación en CI
+#   clang-format -i include/**.hpp tests/*.cpp benchs/*.cpp
+#   clang-format --dry-run --Werror <fichero>   # lo mismo que comprueba el CI
 # =============================================================================
 
 Language: Cpp

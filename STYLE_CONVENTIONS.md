@@ -14,9 +14,13 @@ de la guía de desarrollo, [AI-GUIDE.md](AI-GUIDE.md).
 > no puede comprobar. Si los dos se contradicen, manda el fichero, y este
 > documento está mal y hay que arreglarlo.
 >
-> **La versión de clang-format es la 21.** No es estable entre versiones
-> mayores: la 19 y la 22 reformatean este árbol de maneras distintas. Está
-> explicado en la cabecera de `.clang-format`.
+> **En local se usa clang-format 22.1.8; el CI comprueba con la 21.** Medido
+> el 25 ago 2026 sobre los 103 ficheros del árbol, **las dos lo dejan tal cual**:
+> es punto fijo de ambas. La regla es que siga siéndolo — si alguna vez
+> discrepan sobre una construcción nueva, el CI se pone en rojo y esa
+> construcción se escribe de una forma que valga para las dos. La serie 19 sí
+> rompe el árbol y no debe usarse. Está explicado en la cabecera de
+> `.clang-format`.
 
 ---
 

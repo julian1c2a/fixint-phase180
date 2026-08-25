@@ -42,8 +42,9 @@
   },
 
   "herramientas": {
-    "clang-format": "21",
-    "_clang_format_nota": "clang-format NO es estable entre versiones mayores. v19 y v22 reformatean este arbol de formas distintas; v21 lo deja igual. Ver la cabecera de .clang-format."
+    "clang-format": "22.1.8",
+    "clang-format-ci": "21",
+    "_clang_format_nota": "Local: 22.1.8 (la de MSYS2). CI: 21 (la de apt.llvm.org). Medido el 25 ago 2026 sobre los 103 ficheros del arbol: las DOS dejan el arbol tal cual, asi que es punto fijo de ambas. La v19 si lo rompe (a ^ T{0} -> a ^ T { 0 }). La regla es que el arbol satisfaga las dos. Ver la cabecera de .clang-format."
   },
 
   "notas": {

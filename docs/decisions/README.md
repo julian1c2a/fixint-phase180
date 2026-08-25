@@ -26,6 +26,9 @@ Lo esencial:
 | [009](ADR-009-almacenamiento-de-la-marca-y-operaciones-checked.md) | La marca de inválido vive en un miembro extra solo con `checked`; las `checked_*` se completan | ✅ Aceptado |
 | [010](ADR-010-orden-total-con-valores-invalidos.md) | Los valores inválidos se ordenan (orden total) en vez de volverse incomparables como el NaN | ✅ Aceptado |
 | [011](ADR-011-sin-signo-equivale-a-binnat.md) | Sin signo equivale a `binnat`; las combinaciones válidas son cuatro, no ocho | ✅ Aceptado |
+| [012](ADR-012-no-se-mueve-un-tag-publicado.md) | Un tag publicado no se mueve; los arreglos van en una versión nueva | ✅ Aceptado |
+| [013](ADR-013-clang-format-local-22-ci-21.md) | clang-format 22.1.8 en local, 21 en el CI; el árbol satisface las dos | ✅ Aceptado |
+| [014](ADR-014-cobertura-de-doxygen.md) | La cobertura de Doxygen se mide de verdad, y se cierra por etapas | ✅ Aceptado |
 
 ## Sobre los ADR 001–005
 
