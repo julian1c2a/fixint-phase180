@@ -127,7 +127,7 @@ def check_links(rep: Report):
     # Los documentos de comunidad tambien: sus enlaces se rompen igual que los
     # demas, y son los primeros que lee alguien de fuera.
     for extra in ("AI-GUIDE.md", "CONTRIBUTING.md", "SECURITY.md", "ROADMAP.md",
-                  "OPERATOR_SEMANTICS.md"):
+                  "NAMING_CONVENTIONS.md", "STYLE_CONVENTIONS.md"):
         md_files.append(PROJECT_ROOT / extra)
 
     broken = []

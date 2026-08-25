@@ -551,5 +551,5 @@ schoolbook vs Karatsuba para diferentes tamaños.
 **Documentación relacionada:**
 
 - `docs/PLAN_BENCHMARK_AND_TESTING_METHODOLOGY.md` — Metodología de testing aplicable
-- `OPERATOR_SEMANTICS.md` — Semántica de operadores por representación
+- `docs/API_operator_semantics.md` — Semántica de operadores por representación
 - `include/int128_parameterized.hpp` — Template binario de referencia

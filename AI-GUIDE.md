@@ -11,7 +11,7 @@
 
 | Documento | Ruta | Descripción |
 |---|---|---|
-| **ai-instructions.md** | [`AI_PROMPT/ai-instructions.md`](AI_PROMPT/ai-instructions.md) | Reglas críticas para agentes IA (rutas, workflow, std::byte, ASCII) |
+| **ai-instructions.md** | [`STYLE_CONVENTIONS.md`](STYLE_CONVENTIONS.md) y [`NAMING_CONVENTIONS.md`](NAMING_CONVENTIONS.md) | Convenciones de código y de nombres (antes en `AI_PROMPT/ai-instructions.md`, hoy archivado) |
 | **Explicación del Proyecto** | [`AI_PROMPT/GENERAL_GUIDES/Explicación_del_Proyecto.md`](AI_PROMPT/GENERAL_GUIDES/Explicaci%C3%B3n_del_Proyecto.md) | 12 objetivos y 9 etapas del proyecto |
 | **CI Workflow** | [`AI_PROMPT/workflow/ci.yml`](AI_PROMPT/workflow/ci.yml) | Build + test multi-compilador (push/PR) |
 | **Benchmarks Workflow** | [`AI_PROMPT/workflow/benchmarks.yml`](AI_PROMPT/workflow/benchmarks.yml) | Suite completa de benchmarks (semanal) |
@@ -22,6 +22,19 @@
 | **SECURITY.md** | [`SECURITY.md`](SECURITY.md) | Política de seguridad; alcance y el aviso de que NO hay tiempo constante |
 
 ---
+
+> **Guía única del proyecto.** Desde el 25 ago 2026 esta es la única guía de
+> desarrollo. `AI_PROMPT/ai-instructions.md` está archivado y
+> `.github/copilot-instructions.md` es un puntero: eran, respectivamente, otra
+> guía y una copia de ella.
+>
+> Dos temas tienen documento propio por ser los que más se consultan:
+>
+> - [`NAMING_CONVENTIONS.md`](NAMING_CONVENTIONS.md) — cómo se nombran las cosas
+> - [`STYLE_CONVENTIONS.md`](STYLE_CONVENTIONS.md) — cómo se escribe el código
+>
+> Y para quien viene de fuera, [`CONTRIBUTING.md`](CONTRIBUTING.md) tiene lo
+> necesario para compilar, probar y enviar un cambio.
 
 ## Tabla de Contenidos
 
@@ -1545,7 +1558,7 @@ benchs/baselines/
 
 ### Reglas Críticas
 
-> **Referencia completa:** [`AI_PROMPT/ai-instructions.md`](AI_PROMPT/ai-instructions.md)
+> **Referencia completa:** [`STYLE_CONVENTIONS.md`](STYLE_CONVENTIONS.md)
 > contiene todas las reglas con ejemplos detallados.
 
 1. **Nunca compilar manualmente.** Usar siempre `python make.py ...` o el workflow establecido.
@@ -1692,7 +1705,7 @@ y amplían la información aquí contenida:
 
 | Documento | Ruta | Relación con AI-GUIDE.md |
 |---|---|---|
-| **ai-instructions.md** | [`AI_PROMPT/ai-instructions.md`](AI_PROMPT/ai-instructions.md) | Reglas detalladas para agentes IA: rutas de compiladores, jerarquía de build, std::byte, byteswap, ASCII, licencias. Complementa §13, §18, §20. |
+| **ai-instructions.md** | [`STYLE_CONVENTIONS.md`](STYLE_CONVENTIONS.md) | Reglas detalladas para agentes IA: rutas de compiladores, jerarquía de build, std::byte, byteswap, ASCII, licencias. Complementa §13, §18, §20. |
 | **Explicación del Proyecto** | [`AI_PROMPT/GENERAL_GUIDES/Explicación_del_Proyecto.md`](AI_PROMPT/GENERAL_GUIDES/Explicaci%C3%B3n_del_Proyecto.md) | Visión general del proyecto: 12 objetivos, 9 etapas (TC, MS, EK, fixed-point, big integers, etc.). Complementa §1. |
 | **CI Workflow** | [`AI_PROMPT/workflow/ci.yml`](AI_PROMPT/workflow/ci.yml) | Definición completa de CI multi-compilador (~400 líneas). Complementa §16. |
 | **Benchmarks Workflow** | [`AI_PROMPT/workflow/benchmarks.yml`](AI_PROMPT/workflow/benchmarks.yml) | Suite semanal de benchmarks (~170 líneas). Complementa §16. |

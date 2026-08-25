@@ -408,7 +408,7 @@ python make.py test  # All tests
 | [API_fixed_int.md](docs/API_fixed_int.md) | Referencia de `fixed_int_t<N, Sign, Form>` |
 | [API_fixed_int_stl.md](docs/API_fixed_int_stl.md) | iostreams, `std::format` y `std::hash` para `fixed_int_t` |
 | [PLAN_DIVMOD_CONSTEXPR.md](docs/PLAN_DIVMOD_CONSTEXPR.md) | Granlund-Montgomery constexpr division optimization plan |
-| [OPERATOR_SEMANTICS.md](OPERATOR_SEMANTICS.md) | Semantica de operadores por representacion |
+| [OPERATOR_SEMANTICS.md](docs/API_operator_semantics.md) | Semantica de operadores por representacion |
 | [API_representation.md](docs/API_representation.md) | Explicacion detallada de cada representacion |
 
 ### Source Files
