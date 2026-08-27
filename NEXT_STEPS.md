@@ -27,6 +27,102 @@ escribieron los cinco ADR fundacionales que estaban pendientes desde siempre.
 | **Suite** | 55/55 |
 | **Release de v1.90.1** | ❌ **no publicada** — ver abajo |
 
+## Prioridades
+
+Cómo se decide qué va antes. **Tres preguntas, en este orden**; la primera que
+dé «sí» fija el nivel. No es una lista de buenas intenciones: sale de los cinco
+tropiezos concretos del 25 ago 2026, y cada criterio existe porque algo salió mal
+por no aplicarlo.
+
+### Criterio 1 — ¿Miente?
+
+**Todo lo que hace creer al proyecto algo que no es cierto va primero.** No por
+pulcritud: es que las demás prioridades **se deciden leyendo esas señales**. Si
+mienten, se prioriza mal, y ni siquiera se sabe.
+
+Lo que apareció en un solo día:
+
+| Señal | Lo que decía | Lo que pasaba |
+|---|---|---|
+| `make.py build` | «Build complete», salida 0 | el enlazado había fallado |
+| «0 avisos de Doxygen» | cobertura perfecta | la comprobación estaba apagada |
+| Job de Intel | `success` en 2,3 min | cero artefactos |
+| Benchmark de Karatsuba | 6,23× de mejora | medía contra un espantapájaros |
+| CI en verde durante meses | todo bien | el workflow de release llevaba roto desde siempre |
+
+Cinco en una sesión, y ninguno se detectó mirando: **los cinco salieron de
+comprobar un resultado que ya se daba por bueno**. De ahí que este criterio vaya
+por delante del camino crítico.
+
+### Criterio 2 — ¿Bloquea?
+
+El orden del camino crítico **no es negociable**, lo fija
+[ADR-007](docs/decisions/ADR-007-politica-de-desbordamiento-como-parametro.md):
+política de desbordamiento → unificación de tipos → punto fijo. Hacerlo al revés
+significa **portar la API dos veces**.
+
+### Criterio 3 — ¿Caduca, y hacia qué lado?
+
+De dos tareas igual de secundarias, la que caduca va antes o después según en qué
+dirección lo haga. Es el criterio que da los resultados menos obvios:
+
+- **Medir caduca hacia adelante.** Una cifra tomada *después* de reescribir el
+  código **no se puede comparar** con las de hoy. Los benchmarks pendientes van
+  **antes** de la 2.0, aunque parezcan menos importantes.
+- **Documentar `int128_param_*` caduca hacia atrás.** Ese tipo lo retira
+  [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md): son
+  349 avisos de Doxygen que **desaparecen solos**. Va al final, o no va.
+
+### Desempate
+
+Entre iguales, **primero lo que se reproduce en local**. Las cuatro releases que
+costó publicar v1.90.4 se fueron en probar cosas que solo se podían probar en el
+CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
+
+---
+
+## Los siguientes pasos, ordenados
+
+### P0 — Señales que mienten
+
+| | Qué | Por qué aquí |
+|---|---|---|
+| **P0.1** | **`make.py` no detecta que el enlazado falla.** Dos fallos en `scripts/build_generic.py`: el código de salida no se propaga, y la línea 268 acepta un binario viejo como prueba de éxito | Invalida **cualquier** uso de `make.py build` como puerta. Todo lo que se construya encima hereda la mentira |
+| **P0.2** | **Intel oneAPI en Windows.** Está instalado en la máquina de desarrollo; el runner es otro problema | El proyecto dice «validado en 4 compiladores», y en Windows solo lo están 3. Es una afirmación sin comprobar, que es el criterio 1 en su forma más silenciosa |
+
+### P1 — Camino crítico (el orden lo fija ADR-007)
+
+| | Qué | Depende de |
+|---|---|---|
+| **P1.1** | **Almacenamiento de la política**: miembro extra solo con `checked`, con `static_assert` de que `sizeof(fixed_int_t<4, …, wrap>)` sigue siendo 32 | — |
+| **P1.2** | Propagación de la marca, `valid()`, y comparación lexicográfica sobre `(válido?, valor)` | P1.1 |
+| **P1.3** | **`checked_div` y las tres `saturating_*`**, devolviendo el tipo con política `checked` | P1.1 |
+| **P1.4** | `representation_traits<binnat>` y generalizar el `static_assert` al bicondicional de [ADR-011](docs/decisions/ADR-011-sin-signo-equivale-a-binnat.md) | — (pequeño, se puede colar antes) |
+| **P1.5** | **Portar Magnitud-Signo y Exceso-K** a `fixed_int_t` y retirar `int128_param_t` | P1.3 |
+| **P1.6** | Etapa 5: punto fijo | P1.5 |
+
+### P2 — Medir, antes de que el código cambie
+
+| | Qué | Por qué antes |
+|---|---|---|
+| **P2.1** | **Barrido de `operator*`**: N=3,5,7,9 frente a N=6,10,12. ¿Paridad o tamaño? | La 2.0 toca `operator*`; después no habría con qué comparar |
+| **P2.2** | Karatsuba en **Clang, MSVC e Intel** | Ídem. Y P0.2 lo desbloquea para Intel |
+| **P2.3** | **Re-medir las tablas heredadas** de Knuth D y de comparación con built-in | Hoy **incumplen la regla del propio `docs/PERFORMANCE.md`**: no llevan fecha, compilador ni máquina |
+| **P2.4** | Coste de las conversiones a y desde cadena, en bases 2..36 | API nueva de v1.90.1, sin medir |
+
+### P3 — Lo que se abarata o desaparece esperando
+
+| | Qué | Nota |
+|---|---|---|
+| **P3.1** | Decidir si `intrinsics/compiler_detection.hpp` (29 avisos) y `algorithms/karatsuba.hpp` (3) entran en el ámbito de [ADR-014](docs/decisions/ADR-014-cobertura-de-doxygen.md) | Decisión, no trabajo |
+| **P3.2** | Cerrar la puerta: `WARN_AS_ERROR = YES` cuando el ámbito llegue a cero | Depende de P3.1 |
+| **P3.3** | Los 6 headers sin `API_*.md` propio que señala el armonizador | — |
+| **P3.4** | `benchmark_vs_builtin` no enlaza sin GMP | Se ve solo cuando P0.1 esté arreglado |
+| **P3.5** | Documentar `int128_param_*` (349 avisos) | **Caduca hacia atrás**: desaparece con P1.5 |
+| **P3.6** | Decidir si Intel sale de la matriz de release | Se cae solo si P0.2 sale bien |
+
+---
+
 ## Para mañana — tres cosas, decididas el 25 ago 2026
 
 Las tres salieron de la sesión de hoy y están por delante de la 2.0.

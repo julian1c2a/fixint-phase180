@@ -117,13 +117,12 @@ Para que quede dicho, y no haya que deducirlo:
 
 ## Deuda anotada
 
-Cosas conocidas, con su sitio apuntado, para que no se pierdan:
+Los cuatro puntos que había aquí —T6.7, T7.6, los ADR 001–005 y la cobertura
+Doxygen del tipo insignia— **se cerraron el 25 ago 2026**. Lo que queda vivo, con
+su prioridad razonada, está en
+[`NEXT_STEPS.md`](NEXT_STEPS.md#prioridades); el detalle de cada cosa, en
+[`PROJECT_STATUS.md`](PROJECT_STATUS.md), sección «Deuda anotada».
 
-- **T6.7** — consolidar los ~10.000 renglones de documentación de raíz
-  repartidos en 11 ficheros solapados.
-- **T7.6** — mover a `scripts/archive/` los 32 scripts superados que identifica
-  [`scripts/README.md`](scripts/README.md).
-- **ADR 001–005** — cinco decisiones tomadas hace tiempo y nunca escritas. Ver
-  [`docs/decisions/README.md`](docs/decisions/README.md).
-- **Cobertura Doxygen** de `fixed_width_int_t.hpp` a nivel de miembro: hoy está
-  documentado el fichero, la clase y los miembros con semántica no evidente.
+La regla para no repetir el desfase: **esta sección no lista tareas**. Las tareas
+viven en `NEXT_STEPS.md`, que es corto y se revisa cada sesión; aquí solo se
+apunta lo que cambia el plan a largo.

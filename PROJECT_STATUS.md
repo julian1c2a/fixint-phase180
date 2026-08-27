@@ -82,7 +82,6 @@ propiedades sobre `int128_param_t`.
 
 ## Deuda anotada
 
-- **La release de v1.90.1 no está publicada** (arriba). Es lo único que está roto.
 - `intrinsics/compiler_detection.hpp` (29 avisos) y
   `algorithms/karatsuba.hpp` (3) están fuera del ámbito de ADR-014 pero no de
   `int128_param_*`: habrá que decidir si entran.
