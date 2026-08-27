@@ -158,6 +158,79 @@ Corrige el planteamiento de P3.5, que los daba por congelados hasta el final.
 
 ---
 
+## Para mañana — decidido el 26 ago 2026
+
+Las tres primeras están **decididas, no a debate**: se hacen.
+
+### A. Activar los 47 `assert()` que `-DNDEBUG` borra
+
+En `tests/test_param_iostreams.cpp` (35), `tests/test_representation_conversions.cpp`
+(8) y `tests/test_phase5_operators.cpp` (4). Hoy, en release —el modo que se
+ejecuta— no comprueban nada y los tres cuentan como aprobados.
+
+La vía directa es `#undef NDEBUG` antes de `#include <cassert>` en esos tres
+ficheros. Tiene una pega que conviene ver antes de escribirlo: **`assert` aborta
+en el primer fallo**, con `SIGABRT`. El código de salida es distinto de cero, que
+es lo que hace falta para que el arnés lo detecte, pero **no da recuento** ni
+sigue con los demás casos, al revés que el `TEST()` que usan los otros 51
+ficheros.
+
+Dos formas, y hay que elegir una:
+
+| | Coste | Qué se obtiene |
+|---|---|---|
+| `#undef NDEBUG` | tres líneas | Comprueban de verdad. Se paran en el primer fallo, sin recuento |
+| Convertirlos a `TEST()` | 47 sustituciones | Coherencia con los otros 51: recuento, sigue tras el fallo, mismo formato de salida |
+
+La segunda es mecánica y deja la suite homogénea; la primera se hace en un
+minuto. **Empezar por la primera** —que el agujero se cierre ya— y convertir
+después, que es lo que no corre prisa.
+
+### B. `tests/test_template_type.cpp`
+
+Imprime el resultado de dos `is_same_v` y termina con
+`«[OK] Template type test passed»` y `return 0`, pase lo que pase. Hay que
+convertir esas dos comprobaciones en `static_assert` —son de tiempo de
+compilación, no hace falta ejecutar nada— y que el mensaje final deje de afirmar
+algo que no se ha verificado.
+
+### C. `cross-arm32`: no es que sea inestable, es que **nadie ha mirado**
+
+**Pregunta contestada con datos, no con suposiciones.** Del último run de CI
+(33121568464):
+
+| Arco | Compilación | Ejecución bajo QEMU |
+|---|---|---|
+| **arm32** | **54/55** — 1 no compila | **53/54** — 1 falla |
+| **aarch64** | 55/55 | **53/55 — 2 fallan** |
+| riscv64 | 55/55 | 55/55 |
+
+Yo dije «arm32 puede ser inestable bajo QEMU». **Era una suposición mía y no
+está establecida en ninguna parte.** Lo que hay son **fallos concretos** que
+nadie ha mirado, tapados por dos mecanismos distintos:
+
+- **arm32** no hace `exit 1` **y** lleva `continue-on-error: true`.
+- **aarch64** sí hace `exit 1`, pero con un umbral:
+  `if [ $FAIL -gt $((TOTAL / 10 + 1)) ]` — tolera un 10 % más uno. Con 2 fallos
+  sobre 55, el umbral es 6: **pasa igual**. O sea que arm64 también está
+  tapando dos fallos, solo que con más disimulo.
+
+El plan es en este orden, y el primer paso es el que importa:
+
+1. **Averiguar qué tests son.** Cuál no compila en arm32, y cuáles dos fallan en
+   arm64. Sin eso no se puede decidir nada. Los logs del CI se descargan con el
+   token del gestor de credenciales de git.
+2. Si son fallos reales de la biblioteca en 32 bits o en ARM, **son bugs** y van
+   a P0: significan que la afirmación «probada en ARM32/ARM64» del README es
+   falsa.
+3. Si son cosa de QEMU —un `timeout` que se queda corto, una emulación
+   incompleta—, entonces **se documenta el caso concreto**, se excluye ese test
+   por nombre con su motivo, y **se quitan las dos tolerancias**: ni
+   `continue-on-error` ni umbral del 10 %. Una exclusión con nombre y motivo es
+   honesta; un umbral que se traga cualquier cosa, no.
+
+---
+
 ## Para mañana — tres cosas, decididas el 25 ago 2026
 
 Las tres salieron de la sesión de hoy y están por delante de la 2.0.

@@ -47,6 +47,18 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # Documentos "vivos": los que describen el estado actual y deben estar al dia.
 LIVE_DOCS = ["README.md", "PROJECT_STATUS.md", "NEXT_STEPS.md", "CHANGELOG.md"]
 
+# Cifra de referencia de avisos de cobertura de doxygen en include/.
+#
+# NO ES UN OBJETIVO, ES UN TECHO: la comprobacion falla si SUBE. Se baja a mano
+# cada vez que el armonizador diga que ha bajado. La mayoria son de la familia
+# int128_param_*, que ADR-006 retira, asi que esta cifra es tambien el medidor
+# de progreso de esa migracion: cuanto mas cerca de cero, mas cerca la paridad.
+#
+# Medida el 25 ago 2026 con doxygen 1.14.0, tras encender EXTRACT_ALL = NO y
+# WARN_IF_UNDOCUMENTED = YES (ADR-014).
+DOXYGEN_BASELINE = 505
+
+
 # Avisos de doxygen que NO son culpa nuestra ni del codigo, con su motivo.
 # Cualquier otro aviso hace fallar la comprobacion.
 # El criterio DURO es: cero avisos procedentes de include/. Esos vienen del
@@ -325,8 +337,34 @@ def check_doxygen(rep: Report):
 
     de_include = [a for a in reales if "include/" in a]
 
-    if de_include:
-        rep.fail(f"{len(de_include)} avisos de doxygen en include/", "\n".join(de_include[:15]))
+    # TRINQUETE, no puerta cerrada.
+    #
+    # Hasta el 25 ago 2026 esta comprobacion exigia CERO avisos, y daba cero
+    # siempre... porque el Doxyfile tenia EXTRACT_ALL = YES y
+    # WARN_IF_UNDOCUMENTED = NO: era imposible que apareciera un aviso de
+    # cobertura. Al encenderla de verdad (ADR-014) salieron mas de quinientos.
+    #
+    # Exigir cero de golpe dejaria el CI en rojo hasta terminar toda la
+    # documentacion, y un CI que siempre esta rojo no lo mira nadie. Exigir
+    # cero mintiendo era lo de antes. La salida es un trinquete: se guarda la
+    # cifra de referencia y **solo se falla si sube**.
+    #
+    # Ademas la cifra sirve de medidor: la mayor parte son de int128_param_*,
+    # que ADR-006 va a retirar, de modo que baja sola conforme se alcanza la
+    # paridad. Cuando llegue a cero, esto pasa a exigir cero de verdad.
+    n = len(de_include)
+    if n > DOXYGEN_BASELINE:
+        rep.fail(f"{n} avisos de doxygen en include/, y la referencia es "
+                 f"{DOXYGEN_BASELINE}: han SUBIDO en {n - DOXYGEN_BASELINE}",
+                 "\n".join(de_include[:15]) +
+                 "\n(documenta lo nuevo, o baja la referencia si has borrado codigo)")
+    elif n < DOXYGEN_BASELINE:
+        rep.ok(f"{n} avisos de doxygen en include/ — han BAJADO en "
+               f"{DOXYGEN_BASELINE - n} respecto a la referencia. "
+               f"Actualiza DOXYGEN_BASELINE a {n}.")
+    elif n:
+        rep.ok(f"{n} avisos de doxygen en include/, igual que la referencia "
+               f"(deuda conocida, ver ADR-014)")
     else:
         rep.ok("0 avisos de doxygen atribuibles a include/")
 
