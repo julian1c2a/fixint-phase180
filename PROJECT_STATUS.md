@@ -85,12 +85,48 @@ propiedades sobre `int128_param_t`.
 - `intrinsics/compiler_detection.hpp` (29 avisos) y
   `algorithms/karatsuba.hpp` (3) están fuera del ámbito de ADR-014 pero no de
   `int128_param_*`: habrá que decidir si entran.
-- **`python make.py build` devuelve 0 aunque falle el enlazado.** Comprobado
-  con `benchmark_vs_builtin`, que necesita GMP: el enlazador falla, make.py
-  imprime «Build complete» y sale con 0. Significa que **`make.py build` no
-  sirve como puerta** en ningún guion ni workflow. Es lo más serio de esta lista.
-  Localizado en `scripts/build_generic.py`: el código de salida no se propaga, y
-  además la línea 268 acepta un binario viejo como prueba de éxito.
+- ✅ **`make.py build` ya detecta el fallo de enlazado** (25 ago 2026). Eran dos
+  fallos en `scripts/build_generic.py`: el código de salida no se propagaba, y el
+  criterio era `returncode == 0 **o** existe el binario`, con un `or` que dejaba
+  que un binario viejo disfrazase un fallo nuevo. Ahora exige **las dos cosas** y
+  `main()` sale con 1. Comprobado con los tres casos: el que fallaba, uno bueno,
+  y uno roto a propósito con binario previo presente.
+### Lo que destapó la auditoría de señales (25 ago 2026)
+
+Se revisaron los 11 guiones de `scripts/`, los 55 tests y los 9 jobs del CI,
+buscando lo mismo: **quién puede decir «bien» sin haberlo comprobado.**
+
+- **47 `assert()` en 3 ficheros de test que `-DNDEBUG` borra.** La suite se
+  compila **siempre** con `-DNDEBUG` en los modos release, que son los que se
+  ejecutan. En esos tres ficheros el `assert()` es la **única** comprobación: no
+  hay contador de fallos que lo respalde. En release **no verifican nada** y
+  cuentan como aprobados.
+
+  | Fichero | `assert()` |
+  |---|---:|
+  | `tests/test_param_iostreams.cpp` | 35 |
+  | `tests/test_representation_conversions.cpp` | 8 |
+  | `tests/test_phase5_operators.cpp` | 4 |
+
+- **`tests/test_template_type.cpp` no comprueba nada.** Imprime el resultado de
+  dos `is_same_v` y termina con `«[OK] Template type test passed»` y `return 0`,
+  pase lo que pase. Afirma literalmente algo que no ha verificado.
+
+- **El job `cross-arm32` del CI no puede fallar.** Cuenta los fallos y los
+  imprime (`$PASS/$TOTAL passed, $FAIL failed`), pero **no hace `exit 1`** y
+  además lleva `continue-on-error: true`. `cross-arm64` y `cross-riscv64` sí
+  salen con error. Decidir si la excepción es deliberada —arm32 bajo QEMU puede
+  ser inestable— y, si lo es, **escribirlo**: hoy no consta en ninguna parte.
+
+- Los otros dos `continue-on-error` del CI (`static-cppcheck`, `static-clang-tidy`)
+  **sí están documentados** como no bloqueantes. Correcto.
+
+- `scripts/init_project.py` no devuelve código de error nunca. Riesgo bajo: no
+  se usa como puerta.
+
+**Los 51 tests restantes están bien**: devuelven código distinto de cero cuando
+fallan, comprobado uno a uno.
+
 - **Intel oneAPI no compila en el runner de Windows**, pero **sí está instalado
   en la máquina de desarrollo** (`C:\Program Files (x86)\Intel\oneAPI\`, con las
   versiones 2025.3, 2026.0 y 2026.1). Se arregla primero en local.

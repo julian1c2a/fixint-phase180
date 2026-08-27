@@ -37,7 +37,7 @@ import os
 import subprocess
 import shutil
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 # Add env_setup to path for importing compiler_env module
 sys.path.insert(0, str(Path(__file__).parent))
@@ -104,8 +104,18 @@ def compile_with_compiler(
     print_commands: bool,
     skip_check: bool = False,
     project_root: Path = None  # Add project_root parameter
-) -> None:
-    """Compile source file with specified compiler"""
+) -> Tuple[int, int, int]:
+    """Compila el fuente con el compilador indicado.
+
+    Devuelve (ok, fallos, saltados). ANTES DEVOLVIA None SIEMPRE, y por eso
+    `main()` no tenia forma de saber si algo habia fallado: imprimia
+    "Build complete" y terminaba con codigo 0 aunque el enlazado hubiera
+    reventado. Comprobado el 25 ago 2026 con benchmark_vs_builtin, que no
+    enlaza sin GMP.
+    """
+    ok = 0
+    fallos = 0
+    saltados = 0
     
     if project_root is None:
         project_root = Path.cwd()
@@ -129,7 +139,10 @@ def compile_with_compiler(
         if not find_compiler(compiler_cmd):
             echo_error(f"{compiler_name} not found ({compiler_cmd}). Skipping...")
             print()
-            return
+            # Se cuenta como SALTADO, no como exito. Quien pidio este
+            # compilador explicitamente lo vera como fallo; bajo `all` es
+            # solo un aviso.
+            return (0, 0, len(modes))
     
     # Compile for each mode
     for mode in modes:
@@ -263,21 +276,43 @@ def compile_with_compiler(
                 env=env  # Use isolated compiler environment
             )
             
-            # Check if compilation succeeded
-            output_check = Path(output_str)  # Use the string path for checking
-            if result.returncode == 0 or output_check.exists():
+            # Criterio de exito: el compilador tiene que decir que si Y ademas
+            # tiene que haber dejado el binario. Las dos cosas.
+            #
+            # Antes era `returncode == 0 OR output_check.exists()`, con un `or`
+            # que hacia que un binario VIEJO de una compilacion anterior
+            # disfrazase un fallo nuevo. Y `returncode == 0` a secas tampoco
+            # basta: un compilador puede devolver 0 sin producir nada.
+            # OJO CON EL .exe: en Windows, MinGW anade `.exe` al nombre que se
+            # le pasa en `-o` si no trae extension, asi que el fichero real es
+            # `<output_str>.exe` aunque el comando dijera `<output_str>`. Para
+            # msvc e intel el `.exe` ya va en output_str. Se aceptan los dos.
+            output_check = Path(project_root) / output_str
+            output_exe = Path(str(output_check) + ".exe")
+            compilo = (result.returncode == 0)
+            hay_binario = output_check.exists() or output_exe.exists()
+
+            if compilo and hay_binario:
                 echo_success(f"  {compiler_name} [{mode}]: {output_str}")
+                ok += 1
             else:
-                echo_error(f"  {compiler_name} [{mode}]: compilation failed")
-                echo_error(f"    Return code: {result.returncode}")
+                fallos += 1
+                if not compilo:
+                    echo_error(f"  {compiler_name} [{mode}]: compilation failed")
+                    echo_error(f"    Return code: {result.returncode}")
+                else:
+                    echo_error(f"  {compiler_name} [{mode}]: el compilador devolvio 0 "
+                               f"pero NO genero {output_str}")
                 if result.stderr:
                     print(f"\nSTDERR:\n{result.stderr}")
                 if result.stdout:
                     print(f"\nSTDOUT:\n{result.stdout}")
         except Exception as e:
             echo_error(f"  {compiler_name} [{mode}]: {str(e)}")
-    
+            fallos += 1
+
     print()
+    return (ok, fallos, saltados)
 
 
 def main():
@@ -428,39 +463,60 @@ def main():
         feature_arg = feature
     
     # Compile with each compiler
+    total_ok = total_fallos = total_saltados = 0
     if compiler in ["gcc", "all"]:
-        compile_with_compiler(
+        _o, _f, _s = compile_with_compiler(
             "gcc", gcc_cmd, source_file, build_dir,
             type_name_arg, feature_arg, output_suffix, modes_to_compile,
             print_commands, skip_check=True, project_root=project_root
         )
+        total_ok += _o; total_fallos += _f; total_saltados += _s
     
     if compiler in ["clang", "all"]:
-        compile_with_compiler(
+        _o, _f, _s = compile_with_compiler(
             "clang", clang_cmd, source_file, build_dir,
             type_name_arg, feature_arg, output_suffix, modes_to_compile,
             print_commands, project_root=project_root
         )
+        total_ok += _o; total_fallos += _f; total_saltados += _s
     
     if compiler in ["intel", "all"]:
-        compile_with_compiler(
+        _o, _f, _s = compile_with_compiler(
             "intel", intel_cmd, source_file, build_dir,
             type_name_arg, feature_arg, output_suffix, modes_to_compile,
             print_commands, skip_check=True, project_root=project_root
         )
+        total_ok += _o; total_fallos += _f; total_saltados += _s
     
     if compiler in ["msvc", "all"]:
-        compile_with_compiler(
+        _o, _f, _s = compile_with_compiler(
             "msvc", msvc_cmd, source_file, build_dir,
             type_name_arg, feature_arg, output_suffix, modes_to_compile,
             print_commands, skip_check=True, project_root=project_root
         )
+        total_ok += _o; total_fallos += _f; total_saltados += _s
     
-    # Summary
-    if is_demo:
-        echo_success(f"Build complete for demo {category}/{demo_name}!")
-    else:
-        echo_success(f"Build complete for {type_name} {feature} {target}!")
+    # Resumen. El codigo de salida es lo unico de lo que se fian make.py y los
+    # workflows: si aqui se devuelve 0 con algo roto, la mentira se propaga a
+    # todo lo que haya encima.
+    que = (f"demo {category}/{demo_name}" if is_demo
+           else f"{type_name} {feature} {target}")
+
+    if total_fallos:
+        echo_error(f"Build FALLIDO para {que}: {total_ok} ok, "
+                   f"{total_fallos} con fallo, {total_saltados} saltados")
+        sys.exit(1)
+
+    if total_ok == 0:
+        # Ni un solo binario. Puede que no hubiera ningun compilador disponible;
+        # en cualquier caso no es un exito.
+        echo_error(f"Build sin resultado para {que}: no se genero ningun binario "
+                   f"({total_saltados} saltados)")
+        sys.exit(1)
+
+    if total_saltados:
+        echo_info(f"  {total_saltados} compilacion(es) saltadas por falta de compilador")
+    echo_success(f"Build complete for {que}!")
 
 
 if __name__ == "__main__":

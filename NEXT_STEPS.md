@@ -110,6 +110,41 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | **P2.3** | **Re-medir las tablas heredadas** de Knuth D y de comparación con built-in | Hoy **incumplen la regla del propio `docs/PERFORMANCE.md`**: no llevan fecha, compilador ni máquina |
 | **P2.4** | Coste de las conversiones a y desde cadena, en bases 2..36 | API nueva de v1.90.1, sin medir |
 
+### Dos refinamientos del 26 ago 2026
+
+**Histórico de benchmarks.** La idea es correcta, con un matiz: **más frecuente
+no es mejor si las medidas no son comparables**. Una cifra tomada en un runner
+compartido del CI y otra tomada en la máquina de desarrollo no se pueden poner en
+la misma serie, y una serie con medidas incomparables es peor que no tener serie,
+porque invita a leer tendencias que no existen. El plan:
+
+1. Que el arnés (`benchs/bench_common.hpp`) emita, además de la tabla legible,
+   una línea **legible por máquina** con lo que exige la regla de
+   [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md): fecha, commit, compilador,
+   modo, máquina, y las cifras.
+2. Un `benchs/history/` con un fichero por ejecución, **indexado por máquina**.
+   Comparar solo dentro de la misma máquina.
+3. Un guion que compare la ejecución actual contra las N anteriores **de esa
+   misma máquina** y avise de las desviaciones que salgan del ruido. El umbral
+   hay que calibrarlo con ejecuciones repetidas sin cambios de código: sin eso,
+   avisaría de todo.
+4. Frecuencia: **en local, a menudo**, y en el CI solo lo que sea barato y
+   estable. Los benchmarks del CI valen para detectar una catástrofe (un 10×),
+   no un 5 %.
+
+Esto encaja en P2 y lo amplía: hoy P2 es «tomar las medidas que faltan», y con
+esto pasa a ser «montar el sitio donde se guardan».
+
+**Los avisos de `int128_param_*` como medidor de la migración.** Mejor que
+esperar a que ADR-006 termine y se vuelvan irrelevantes de golpe: **la cuenta
+baja sola conforme se alcanza la paridad**, porque cada pieza portada a
+`fixed_int_t` permite borrar su equivalente vieja. El trabajo no es documentar,
+es **borrar**.
+
+Eso convierte los **349 avisos** en un **medidor de progreso de ADR-006**: 349 al
+empezar, 0 al terminar. Se anota la cifra en cada sesión que toque la migración.
+Corrige el planteamiento de P3.5, que los daba por congelados hasta el final.
+
 ### P3 — Lo que se abarata o desaparece esperando
 
 | | Qué | Nota |
@@ -141,10 +176,31 @@ Hay **tres versiones** instaladas (2025.3, 2026.0, 2026.1) más una copia bajo
 `compiler\2025.3\`. Primera decisión: cuál se fija, y dónde se anota — igual que
 se hizo con clang-format en [ADR-013](docs/decisions/ADR-013-clang-format-local-22-ci-21.md).
 
+**Ya hay medio camino hecho, y una pista de por dónde falla.**
+`scripts/env_setup/compiler_env.py` **ya conoce la ruta**:
+
+```python
+INTEL_ROOT   = Path(r"C:\Program Files (x86)\Intel\oneAPI")   # linea 99
+INTEL_SETVARS = INTEL_ROOT / "setvars.bat"
+```
+
+y busca el compilador en `compiler/2025.3/bin/icpx.exe`, con
+`compiler/latest/bin/icpx.exe` como alternativa (líneas 166-169).
+
+**Pero lo instalado no está solo ahí.** En esta máquina hay `icx.exe`,
+`icpx.exe`, `icx-cc.exe` e `icx-cl.exe` bajo `2026.1\bin\` —y bajo `2026.0\` y
+`2025.3\`—, además de la copia en `compiler\2025.3\`. La ruta cableada apunta
+a la versión **más vieja** de las instaladas. Empezar por ahí.
+
+Y `toolchains.py` resuelve hoy `intel: icx`, **a secas**: depende del `PATH`, que
+es exactamente lo que ya se corrigió para los demás compiladores porque en
+Windows resuelve a lo que no es.
+
 Orden de trabajo:
 
 1. **En local primero.** `setvars.bat` y luego `python make.py test intel release`.
-   Que funcione aquí antes de tocar el CI.
+   Que funcione aquí antes de tocar el CI. Con `make.py` ya arreglado (P0.1), un
+   fallo de enlazado se verá; antes de hoy no se habría visto.
 2. **`scripts/toolchains.py` y `toolchains.json`**: que Intel se resuelva por la
    ruta real en vez de confiar en el `PATH`, que es lo que ya se hizo con los
    demás compiladores.
