@@ -64,7 +64,7 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 | Tests | 55 ficheros |
 | Scripts vivos | 16 (llegaron a ser 47) |
 | Documentos de raíz | 12, 9.834 renglones — de los que 6.271 son el `CHANGELOG` |
-| ADR | **14**, ninguna decisión tomada sin documentar |
+| ADR | **15**, ninguna decisión tomada sin documentar |
 
 ## Cifras de la suite
 
@@ -143,7 +143,9 @@ fallan, comprobado uno a uno.
 - ✅ **Intel funciona en local** (26 ago 2026): 55/55 con **2026.1**. La versión
   estaba **cableada a `2025.3`** teniendo tres instaladas, y las dos de 2026
   fallaban por el `TMP` —`error #10026`— con el `C:\msys64\tmp` de MSYS2.
-  Corregidas las dos cosas en `compiler_env.py`.
+  Corregidas las dos cosas en `compiler_env.py`; el porqué de coger la más
+  nueva en vez de fijar una,
+  en [ADR-015](docs/decisions/ADR-015-version-de-intel-oneapi.md).
 - **Intel sigue sin funcionar en el runner del CI**, que es otro problema:
   `ONEAPI_ROOT` viene vacío y la acción de terceros deja un `CMAKE_PREFIX_PATH`
   de Linux en un runner de Windows.

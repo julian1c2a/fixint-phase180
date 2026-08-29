@@ -23,7 +23,7 @@
 | **Suite local** | ✅ 55/55, GCC 16.2 |
 | **CI** | ✅ **recuperado** en `314543e`: el job del armonizador vuelve a estar en verde. Llevaba rojo desde el 25 ago |
 | **Diseño de la 2.0** | ✅ cerrado, sin cuestiones abiertas. Falta escribirlo |
-| **ADR** | 14 registros, ninguna decisión sin documentar |
+| **ADR** | 15 registros, ninguna decisión sin documentar |
 
 **Lo primero al retomar: `python scripts/check_docs_consistency.py --doxygen`.**
 Con `--doxygen`, que es la orden que corre el CI; sin el flag son 7

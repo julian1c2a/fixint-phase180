@@ -105,6 +105,10 @@ INTEL_SETVARS = INTEL_ROOT / "setvars.bat"
 # ANTES ESTABA CABLEADA A "2025.3" y no era una decision, era un descuido: en
 # esta maquina hay 2025.3, 2026.0 y 2026.1, y se estaba cogiendo la mas vieja de
 # las tres sin que nadie lo hubiera elegido.
+#
+# See ADR-015 (docs/decisions/ADR-015-version-de-intel-oneapi.md), que explica
+# por que aqui se coge la mas nueva y en clang-format se fija una version: la
+# diferencia es que clang-format produce el ARBOL DE FUENTES y el compilador no.
 INTEL_VERSION = "auto"
 
 # Directorio temporal para el entorno de Intel.
@@ -118,6 +122,9 @@ INTEL_VERSION = "auto"
 # Con %LOCALAPPDATA%\Temp o con cualquier otro directorio funcionan. El 2025.3
 # no se ve afectado, que es por lo que el problema paso desapercibido mientras
 # la version estuvo cableada a la vieja. Se le da a Intel un TMP que si acepta.
+#
+# Es un rodeo a un fallo ajeno: si Intel arregla el #10026, esto sobra.
+# See ADR-015.
 INTEL_TMP = Path(os.environ.get("LOCALAPPDATA", r"C:\Windows\Temp")) / "Temp"
 
 

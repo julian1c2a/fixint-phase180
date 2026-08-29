@@ -29,6 +29,7 @@ Lo esencial:
 | [012](ADR-012-no-se-mueve-un-tag-publicado.md) | Un tag publicado no se mueve; los arreglos van en una versión nueva | ✅ Aceptado |
 | [013](ADR-013-clang-format-local-22-ci-21.md) | clang-format 22.1.8 en local, 21 en el CI; el árbol satisface las dos | ✅ Aceptado |
 | [014](ADR-014-cobertura-de-doxygen.md) | La cobertura de Doxygen se mide de verdad, y se cierra por etapas | ✅ Aceptado |
+| [015](ADR-015-version-de-intel-oneapi.md) | Intel oneAPI se usa en su versión más alta instalada, no fijada | ✅ Aceptado |
 
 ## Sobre los ADR 001–005
 
