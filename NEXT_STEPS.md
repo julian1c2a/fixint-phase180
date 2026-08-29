@@ -21,12 +21,13 @@
 |---|---|
 | **Release** | ✅ **v1.90.4 publicada**, la primera del proyecto: tres zips (gcc, clang, msvc) |
 | **Suite local** | ✅ 55/55, GCC 16.2 |
-| **CI** | ⚠️ **en rojo desde el 25 ago**, por el techo de avisos de doxygen. Arreglado en `314543e`, **pendiente de confirmar** |
+| **CI** | ✅ **recuperado** en `314543e`: el job del armonizador vuelve a estar en verde. Llevaba rojo desde el 25 ago |
 | **Diseño de la 2.0** | ✅ cerrado, sin cuestiones abiertas. Falta escribirlo |
 | **ADR** | 14 registros, ninguna decisión sin documentar |
 
-**Lo primero al retomar: mirar si el CI se puso verde con `314543e`.** Si no,
-leer el log del job `format-and-docs` antes que nada.
+**Lo primero al retomar: `python scripts/check_docs_consistency.py --doxygen`.**
+Con `--doxygen`, que es la orden que corre el CI; sin el flag son 7
+comprobaciones en vez de 9 y no sirve de nada.
 
 ---
 
@@ -93,9 +94,9 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | | Qué | Estado |
 |---|---|---|
 | ~~P0.1~~ | ~~`make.py` y el enlazado~~ | ✅ **hecho** (`05ba169`) |
-| **P0.2** | **Confirmar que el CI se pone verde** con el techo por versión de doxygen | pendiente, `314543e` en marcha |
-| **P0.3** | **47 `assert()` que `-DNDEBUG` borra**, en 3 ficheros de test | decidido, sin hacer |
-| **P0.4** | **`tests/test_template_type.cpp` no comprueba nada** | decidido, sin hacer |
+| ~~P0.2~~ | ~~Confirmar que el CI se pone verde~~ | ✅ **confirmado** en `314543e` |
+| ~~P0.3~~ | ~~47 `assert()` que `-DNDEBUG` borra~~ | ✅ **hecho**, y comprobado que ahora saltan |
+| ~~P0.4~~ | ~~`test_template_type.cpp` no comprueba nada~~ | ✅ **hecho**: las identidades de tipo son `static_assert` |
 | **P0.5** | **`cross-arm32` y `aarch64` tapan fallos reales** | decidido, sin hacer |
 | **P0.6** | **Intel oneAPI en Windows**: el proyecto dice «validado en 4 compiladores» y en Windows solo lo están 3 | pendiente |
 
@@ -134,31 +135,6 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 ---
 
 ## El detalle de lo inmediato
-
-### P0.3 — Activar los 47 `assert()`
-
-`tests/test_param_iostreams.cpp` (35), `tests/test_representation_conversions.cpp`
-(8) y `tests/test_phase5_operators.cpp` (4). En release —el modo que se ejecuta—
-no comprueban nada y los tres cuentan como aprobados.
-
-La vía directa es `#undef NDEBUG` antes de `#include <cassert>`. Pega a tener en
-cuenta: **`assert` aborta en el primer fallo**, con `SIGABRT`. El código de
-salida es distinto de cero, que es lo que el arnés necesita, pero **no da
-recuento** ni sigue con los demás casos, al revés que el `TEST()` de los otros 51.
-
-| | Coste | Qué se obtiene |
-|---|---|---|
-| `#undef NDEBUG` | tres líneas | Comprueban de verdad. Se paran en el primer fallo |
-| Convertir a `TEST()` | 47 sustituciones | Recuento, sigue tras el fallo, suite homogénea |
-
-**Cerrar el agujero ya con la primera; convertir después.**
-
-### P0.4 — `test_template_type.cpp`
-
-Imprime el resultado de dos `is_same_v` y termina con
-`«[OK] Template type test passed»` y `return 0`, pase lo que pase. Pasar esas dos
-comprobaciones a `static_assert` —son de tiempo de compilación— y quitar el
-mensaje que afirma lo que no se ha verificado.
 
 ### P0.5 — arm32 y aarch64: no es inestabilidad, es que nadie ha mirado
 
@@ -254,5 +230,10 @@ que no existen.
 - El `Makefile` es un **shim** sobre `make.py`, que es la capa canónica.
 - **`make.py build` ya sí detecta el fallo de enlazado** (desde `05ba169`). Antes
   no, y todo lo construido encima heredaba la mentira.
+- **Para probar que una comprobación salta, primero se commitea el arreglo.**
+  Al validar los `assert()` se rompió un test a propósito y se restauró con
+  `git checkout --`, que deshizo la rotura **y también el arreglo**, porque
+  todavía no estaba commiteado. El fichero volvió a quedar inerte y la prueba
+  dijo «siguen inertes» cuando lo que fallaba era el procedimiento.
 - Antes de cerrar sesión: `/guarda_y_sube`, que ejecuta los cuatro verificadores
   que exige el CI.

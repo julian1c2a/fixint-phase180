@@ -103,21 +103,17 @@ propiedades sobre `int128_param_t`.
 Se revisaron los 11 guiones de `scripts/`, los 55 tests y los 9 jobs del CI,
 buscando lo mismo: **quién puede decir «bien» sin haberlo comprobado.**
 
-- **47 `assert()` en 3 ficheros de test que `-DNDEBUG` borra.** La suite se
-  compila **siempre** con `-DNDEBUG` en los modos release, que son los que se
-  ejecutan. En esos tres ficheros el `assert()` es la **única** comprobación: no
-  hay contador de fallos que lo respalde. En release **no verifican nada** y
-  cuentan como aprobados.
-
-  | Fichero | `assert()` |
-  |---|---:|
-  | `tests/test_param_iostreams.cpp` | 35 |
-  | `tests/test_representation_conversions.cpp` | 8 |
-  | `tests/test_phase5_operators.cpp` | 4 |
-
-- **`tests/test_template_type.cpp` no comprueba nada.** Imprime el resultado de
-  dos `is_same_v` y termina con `«[OK] Template type test passed»` y `return 0`,
-  pase lo que pase. Afirma literalmente algo que no ha verificado.
+- ✅ **Los 47 `assert()` ya no son inertes** (26 ago 2026). `-DNDEBUG` los
+  borraba en los modos release, que son los que se ejecutan, así que
+  `test_param_iostreams` (35), `test_representation_conversions` (8) y
+  `test_phase5_operators` (4) pasaban sin verificar nada. Ahora llevan
+  `#undef NDEBUG` antes de `<cassert>`, **comprobado rompiendo un `assert` en
+  cada uno**: los tres abortan. Queda pendiente convertirlos a la macro `TEST()`
+  de los otros 51 ficheros, que sí da recuento y no se para en el primer fallo.
+- ✅ **`tests/test_template_type.cpp` ya comprueba** (26 ago 2026). Las dos
+  identidades de tipo pasan a `static_assert` —si dejan de cumplirse, **no
+  compila**— y lo que depende de la ejecución lleva contador. Antes imprimía
+  «[OK] … passed» pasara lo que pasara.
 
 - **El job `cross-arm32` del CI no puede fallar.** Cuenta los fallos y los
   imprime (`$PASS/$TOTAL passed, $FAIL failed`), pero **no hace `exit 1`** y

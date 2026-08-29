@@ -7,8 +7,27 @@
 // =============================================================================
 
 #include "representation.hpp"
-#include <cassert>
 #include <iostream>
+
+// -----------------------------------------------------------------------------
+// ESTE TEST COMPRUEBA CON assert(), Y LA SUITE SE COMPILA CON -DNDEBUG.
+//
+// Sin el `#undef` de aqui abajo, `assert()` se expande a nada en todos los modos
+// release --que son los que se ejecutan-- y este fichero pasaria SIEMPRE, sin
+// verificar nada. Se descubrio el 26 ago 2026 auditando que senales podian decir
+// "bien" sin haberlo comprobado: eran 8 assert() inertes.
+//
+// El `#undef` va DESPUES de los demas includes a proposito: `assert` es una
+// macro que <cassert> redefine cada vez que se incluye, segun como este NDEBUG
+// en ese momento. Poniendolo aqui, gana este.
+//
+// OJO: assert() aborta en el primer fallo y no da recuento, al reves que la
+// macro TEST() que usan los otros 51 ficheros de la suite. El codigo de salida
+// es distinto de cero, que es lo que el arnes necesita, pero convertirlos a
+// TEST() sigue pendiente (P0.3 en NEXT_STEPS.md).
+// -----------------------------------------------------------------------------
+#undef NDEBUG
+#include <cassert>
 
 using namespace nstd;
 
