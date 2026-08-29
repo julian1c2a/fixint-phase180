@@ -98,7 +98,7 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P0.3~~ | ~~47 `assert()` que `-DNDEBUG` borra~~ | ✅ **hecho**, y comprobado que ahora saltan |
 | ~~P0.4~~ | ~~`test_template_type.cpp` no comprueba nada~~ | ✅ **hecho**: las identidades de tipo son `static_assert` |
 | ~~P0.5~~ | ~~`cross-arm32` y `aarch64` tapan fallos reales~~ | ✅ **hecho**: un bug de compilacion y tres timeouts |
-| **P0.6** | **Intel oneAPI en Windows**: el proyecto dice «validado en 4 compiladores» y en Windows solo lo están 3 | pendiente |
+| ~~P0.6~~ | ~~Intel oneAPI en Windows~~ | ✅ **en local**: 55/55 con Intel 2026.1. Queda **solo el runner del CI** |
 
 ### P1 — Camino crítico (el orden lo fija ADR-007)
 
@@ -136,29 +136,29 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 
 ## El detalle de lo inmediato
 
-### P0.6 — Intel oneAPI
+### P0.6 (lo que queda) — Intel en el runner del CI
 
-**Está instalado en esta máquina**, así que se reproduce y arregla en local:
+**En local ya funciona**: 55/55 con Intel 2026.1 (581,9 s). Lo que se arregló:
 
-```
-C:\Program Files (x86)\Intel\oneAPI\setvars.bat
-C:\Program Files (x86)\Intel\oneAPI\2026.1\bin\   icx.exe, icpx.exe, icx-cc.exe, icx-cl.exe
-                                    2026.0\bin\   y 2025.3\bin\
-```
+- `compiler_env.py` tenía la versión **cableada a `2025.3`** teniendo instaladas
+  2025.3, 2026.0 y 2026.1. No era una decisión, era un descuido: cogía la más
+  vieja de las tres. Ahora `INTEL_VERSION = "auto"` descubre y coge la más alta.
+- Las dos versiones de 2026 **fallaban hasta para responder a `--version`** con
+  `icpx: error #10026: error generating temporary file`, por culpa del `TMP`.
+  Con `C:\msys64\tmp` —lo que hay en esta máquina, por MSYS2— revientan; con
+  `%LOCALAPPDATA%\Temp` van bien. La 2025.3 no se ve afectada, que es por lo
+  que el problema pasó desapercibido mientras la versión estuvo cableada a la
+  vieja. El entorno aislado de Intel ahora lleva un `TMP` que Intel acepta.
 
-**Medio camino hecho, y una pista.** `scripts/env_setup/compiler_env.py` ya
-conoce `INTEL_ROOT` y `setvars.bat` (línea 99), pero busca el compilador en
-`compiler/2025.3/bin/icpx.exe` — **la versión más vieja de las tres
-instaladas**. Y `toolchains.py` resuelve `intel: icx` **a secas**, dependiendo
-del `PATH`, que es justo lo que ya se corrigió para los demás compiladores.
+**Queda el runner**, que es un problema distinto: allí `ONEAPI_ROOT` viene
+vacío y `rscohn2/setup-oneapi` deja un `CMAKE_PREFIX_PATH` apuntando a
+`/opt/intel/oneapi/...` —una ruta de Linux en un runner de Windows—. Con el
+camino local resuelto, ahora se sabe qué hay que exigirle: una instalación real
+bajo `C:\Program Files (x86)\Intel\oneAPI\compiler\<ver>\bin\icpx.exe`.
 
-Orden: (1) que funcione en local; (2) que `toolchains.py` y `toolchains.json` lo
-resuelvan por ruta real; (3) **después** el CI, que es otro problema — allí
-`ONEAPI_ROOT` viene vacío y `rscohn2/setup-oneapi` deja un `CMAKE_PREFIX_PATH`
-que apunta a `/opt/intel/...`, una ruta de Linux en un runner de Windows.
-
-Decisión pendiente: **cuál de las tres versiones se fija**, y anotarlo como se
-hizo con clang-format en [ADR-013](docs/decisions/ADR-013-clang-format-local-22-ci-21.md).
+Y sigue en pie la decisión de **si Intel se queda en la matriz de release**
+(P3.6): las cabeceras son idénticas en los cuatro compiladores, así que el
+contenido útil del zip no cambia.
 
 ### P2.1 — La penalización de `operator*`
 
@@ -213,6 +213,12 @@ que no existen.
   `timeout` de su `if` para guardar `$?` dejó el job de aarch64 muerto a mitad
   del bucle. La forma correcta es `code=0` y luego `cmd || code=$?`, que deja el
   comando comprobado y a la vez guarda el código.
+- **Intel: `icpx` usa flags estilo GCC**, no de MSVC — los `/Qstd:c++20` y
+  `/EHsc` son de `icx-cl`. Y necesita el entorno que monta `compiler_env.py`;
+  invocarlo a pelo da «`'cstddef' file not found`» y no significa nada.
+- **No se toca `compiler_env.py` con una compilación en marcha.** Cada test se
+  compila en un proceso nuevo que relee el módulo, así que el cambio se cuela a
+  mitad de la suite y el resultado sale mezclado sin que nada lo diga.
 - **QEMU está en WSL** (`qemu-arm`, `qemu-aarch64`, y las toolchains cruzadas).
   Reproducir un fallo de ARM en local cuesta minutos; por el CI, media hora.
 - **Para probar que una comprobación salta, primero se commitea el arreglo.**

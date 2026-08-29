@@ -34,9 +34,9 @@ abiertas**: falta escribirlo.
 > publicaba no significaba nada. Ver
 > [ADR-014](docs/decisions/ADR-014-cobertura-de-doxygen.md).
 
-Compiladores: GCC 13–16, Clang 18–22, MSVC 19.5x, Intel ICX (**este último solo
-sobre Linux**; en Windows no compila, ver la deuda). Arcos: x86-64, x86-32,
-ARM64, ARM32 y RISC-V 64.
+Compiladores: GCC 13–16, Clang 18–22, MSVC 19.5x e **Intel ICX 2026.1**
+(55/55 en local sobre Windows; en el runner del CI sigue sin instalarse, ver la
+deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 
 > **ARM ya no lleva reservas** (26 ago 2026). Los cuatro fallos que las
 > tolerancias del CI tapaban eran un bug de portabilidad real —`_umul128` en la
@@ -140,9 +140,13 @@ buscando lo mismo: **quién puede decir «bien» sin haberlo comprobado.**
 **Los 51 tests restantes están bien**: devuelven código distinto de cero cuando
 fallan, comprobado uno a uno.
 
-- **Intel oneAPI no compila en el runner de Windows**, pero **sí está instalado
-  en la máquina de desarrollo** (`C:\Program Files (x86)\Intel\oneAPI\`, con las
-  versiones 2025.3, 2026.0 y 2026.1). Se arregla primero en local.
+- ✅ **Intel funciona en local** (26 ago 2026): 55/55 con **2026.1**. La versión
+  estaba **cableada a `2025.3`** teniendo tres instaladas, y las dos de 2026
+  fallaban por el `TMP` —`error #10026`— con el `C:\msys64\tmp` de MSYS2.
+  Corregidas las dos cosas en `compiler_env.py`.
+- **Intel sigue sin funcionar en el runner del CI**, que es otro problema:
+  `ONEAPI_ROOT` viene vacío y la acción de terceros deja un `CMAKE_PREFIX_PATH`
+  de Linux en un runner de Windows.
 - **Documentación de `int128_param_*`: 349 avisos**, exentos a propósito hasta
   que ADR-006 retire el tipo.
 - **Karatsuba solo está medido en GCC.** Faltan Clang, MSVC e Intel.

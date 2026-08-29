@@ -99,6 +99,60 @@ MSVC_CL = _find_msvc_cl()
 INTEL_ROOT = Path(r"C:\Program Files (x86)\Intel\oneAPI")
 INTEL_SETVARS = INTEL_ROOT / "setvars.bat"
 
+# Version de Intel que se usa. "auto" coge la mas alta instalada; una cadena
+# como "2025.3" la fija.
+#
+# ANTES ESTABA CABLEADA A "2025.3" y no era una decision, era un descuido: en
+# esta maquina hay 2025.3, 2026.0 y 2026.1, y se estaba cogiendo la mas vieja de
+# las tres sin que nadie lo hubiera elegido.
+INTEL_VERSION = "auto"
+
+# Directorio temporal para el entorno de Intel.
+#
+# NO ES UN CAPRICHO. Medido el 26 ago 2026: con TMP apuntando a C:\msys64\tmp
+# --que es lo que hay en esta maquina, por MSYS2-- los compiladores 2026.0 y
+# 2026.1 fallan hasta para responder a `--version`:
+#
+#     icpx: error #10026: error generating temporary file
+#
+# Con %LOCALAPPDATA%\Temp o con cualquier otro directorio funcionan. El 2025.3
+# no se ve afectado, que es por lo que el problema paso desapercibido mientras
+# la version estuvo cableada a la vieja. Se le da a Intel un TMP que si acepta.
+INTEL_TMP = Path(os.environ.get("LOCALAPPDATA", r"C:\Windows\Temp")) / "Temp"
+
+
+def _intel_versions() -> list:
+    """Versiones de Intel instaladas, de la mas nueva a la mas vieja.
+
+    Solo las que tienen `bin/icpx.exe`; se ignora `latest`, que es un enlace y
+    duplicaria una de ellas.
+    """
+    base = INTEL_ROOT / "compiler"
+    if not base.exists():
+        return []
+    vers = []
+    for d in base.iterdir():
+        if not d.is_dir() or d.name == "latest":
+            continue
+        if (d / "bin" / "icpx.exe").exists():
+            vers.append(d.name)
+
+    def clave(v: str):
+        try:
+            return tuple(int(x) for x in v.split("."))
+        except ValueError:
+            return (0,)
+
+    return sorted(vers, key=clave, reverse=True)
+
+
+def _intel_version_elegida() -> str:
+    """La version que se va a usar, segun INTEL_VERSION."""
+    disponibles = _intel_versions()
+    if INTEL_VERSION != "auto":
+        return INTEL_VERSION
+    return disponibles[0] if disponibles else "latest"
+
 
 # Cache: avoid running vcvarsall.bat multiple times per session
 _msvc_env_cache = None
@@ -163,7 +217,7 @@ class CompilerEnvironment:
                 return str(MSVC_CL)
             return "cl.exe"
         elif self.compiler_name == "intel":
-            icpx = INTEL_ROOT / "compiler" / "2025.3" / "bin" / "icpx.exe"
+            icpx = INTEL_ROOT / "compiler" / _intel_version_elegida() / "bin" / "icpx.exe"
             if icpx.exists():
                 return str(icpx)
             icpx_latest = INTEL_ROOT / "compiler" / "latest" / "bin" / "icpx.exe"
@@ -234,8 +288,13 @@ class CompilerEnvironment:
         # Start from MSVC environment (provides system headers, LIB, etc.)
         env = self._get_msvc_env()
 
+        # Un TMP que Intel acepte; ver la nota de INTEL_TMP.
+        if INTEL_TMP.exists():
+            env["TMP"] = str(INTEL_TMP)
+            env["TEMP"] = str(INTEL_TMP)
+
         # Locate the Intel compiler bin and include directories
-        compiler_versions = ["2025.3", "latest"]
+        compiler_versions = [_intel_version_elegida(), "latest"]
         for ver in compiler_versions:
             compiler_bin = INTEL_ROOT / "compiler" / ver / "bin"
             compiler_inc = INTEL_ROOT / "compiler" / ver / "include"
