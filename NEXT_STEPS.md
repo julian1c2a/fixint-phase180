@@ -97,7 +97,7 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P0.2~~ | ~~Confirmar que el CI se pone verde~~ | ✅ **confirmado** en `314543e` |
 | ~~P0.3~~ | ~~47 `assert()` que `-DNDEBUG` borra~~ | ✅ **hecho**, y comprobado que ahora saltan |
 | ~~P0.4~~ | ~~`test_template_type.cpp` no comprueba nada~~ | ✅ **hecho**: las identidades de tipo son `static_assert` |
-| **P0.5** | **`cross-arm32` y `aarch64` tapan fallos reales** | decidido, sin hacer |
+| ~~P0.5~~ | ~~`cross-arm32` y `aarch64` tapan fallos reales~~ | ✅ **hecho**: un bug de compilacion y tres timeouts |
 | **P0.6** | **Intel oneAPI en Windows**: el proyecto dice «validado en 4 compiladores» y en Windows solo lo están 3 | pendiente |
 
 ### P1 — Camino crítico (el orden lo fija ADR-007)
@@ -135,28 +135,6 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 ---
 
 ## El detalle de lo inmediato
-
-### P0.5 — arm32 y aarch64: no es inestabilidad, es que nadie ha mirado
-
-Datos del run 33121568464, no suposiciones:
-
-| Arco | Compilación | Ejecución bajo QEMU |
-|---|---|---|
-| **arm32** | **54/55** — 1 no compila | **53/54** — 1 falla |
-| **aarch64** | 55/55 | **53/55 — 2 fallan** |
-| riscv64 | 55/55 | 55/55 |
-
-Tapado por dos mecanismos distintos: **arm32** no hace `exit 1` y además lleva
-`continue-on-error: true`; **aarch64** sí hace `exit 1`, pero con umbral
-`FAIL > TOTAL/10 + 1` — con 2 sobre 55 el umbral es 6 y **pasa igual**.
-
-1. **Averiguar qué tests son.** Sin eso no se decide nada. Los logs se bajan con
-   el token del gestor de credenciales de git.
-2. Si son fallos reales en ARM, **son bugs y van a P0**: el README afirma que la
-   biblioteca está probada ahí.
-3. Si son cosa de QEMU, **excluir ese test por nombre y con motivo**, y quitar
-   las dos tolerancias. Una exclusión nombrada es honesta; un umbral que se traga
-   cualquier cosa, no.
 
 ### P0.6 — Intel oneAPI
 
@@ -230,6 +208,13 @@ que no existen.
 - El `Makefile` es un **shim** sobre `make.py`, que es la capa canónica.
 - **`make.py build` ya sí detecta el fallo de enlazado** (desde `05ba169`). Antes
   no, y todo lo construido encima heredaba la mentira.
+- **Los `run:` de GitHub Actions van con `bash -e`.** Un comando que devuelve
+  distinto de cero **fuera de un `if`** mata el paso en el acto. Sacar un
+  `timeout` de su `if` para guardar `$?` dejó el job de aarch64 muerto a mitad
+  del bucle. La forma correcta es `code=0` y luego `cmd || code=$?`, que deja el
+  comando comprobado y a la vez guarda el código.
+- **QEMU está en WSL** (`qemu-arm`, `qemu-aarch64`, y las toolchains cruzadas).
+  Reproducir un fallo de ARM en local cuesta minutos; por el CI, media hora.
 - **Para probar que una comprobación salta, primero se commitea el arreglo.**
   Al validar los `assert()` se rompió un test a propósito y se restauró con
   `git checkout --`, que deshizo la rotura **y también el arreglo**, porque

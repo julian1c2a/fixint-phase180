@@ -36,7 +36,16 @@ abiertas**: falta escribirlo.
 
 Compiladores: GCC 13–16, Clang 18–22, MSVC 19.5x, Intel ICX (**este último solo
 sobre Linux**; en Windows no compila, ver la deuda). Arcos: x86-64, x86-32,
-ARM64, ARM32 y RISC-V 64 — **con reservas en ARM**, abajo.
+ARM64, ARM32 y RISC-V 64.
+
+> **ARM ya no lleva reservas** (26 ago 2026). Los cuatro fallos que las
+> tolerancias del CI tapaban eran un bug de portabilidad real —`_umul128` en la
+> rama `#else` de `test_fixed_karatsuba.cpp`, duplicado— y **tres tests
+> correctos a los que no les daba tiempo**. Reproducido bajo QEMU en WSL:
+> `test_param_divmod` tarda 202 s en arm32 y el límite estaba en 180.
+> Arreglado el bug, subidos los límites a 600 s y **retiradas las dos
+> tolerancias**: `cross-arm32` pasa de 54/55 compilando a **55/55 compilando y
+> 55/55 pasando**.
 
 > **`v1.90.4` es la primera release publicada del proyecto**: tres zips —gcc,
 > clang y msvc— en
@@ -115,11 +124,12 @@ buscando lo mismo: **quién puede decir «bien» sin haberlo comprobado.**
   compila**— y lo que depende de la ejecución lleva contador. Antes imprimía
   «[OK] … passed» pasara lo que pasara.
 
-- **El job `cross-arm32` del CI no puede fallar.** Cuenta los fallos y los
-  imprime (`$PASS/$TOTAL passed, $FAIL failed`), pero **no hace `exit 1`** y
-  además lleva `continue-on-error: true`. `cross-arm64` y `cross-riscv64` sí
-  salen con error. Decidir si la excepción es deliberada —arm32 bajo QEMU puede
-  ser inestable— y, si lo es, **escribirlo**: hoy no consta en ninguna parte.
+- ✅ **Los jobs cruzados ya pueden fallar** (26 ago 2026). `cross-arm32` no
+  tenía ninguna puerta —ni en compilación ni en ejecución— y encima llevaba
+  `continue-on-error: true`; `aarch64` y `riscv64` toleraban un 10 % de fallos,
+  que con 2 sobre 55 nunca saltaba. Retiradas las tres tolerancias y subidos los
+  límites de QEMU de 120/180 a **600 s**, con las medidas escritas en el
+  workflow. No era inestabilidad: era un límite mal calibrado.
 
 - Los otros dos `continue-on-error` del CI (`static-cppcheck`, `static-clang-tidy`)
   **sí están documentados** como no bloqueantes. Correcto.

@@ -167,14 +167,34 @@ jobs:
           done
           echo ""
           echo "=== COMPILE SUMMARY: $PASS/$TOTAL passed, $FAIL failed ==="
-          if [ $FAIL -gt $((TOTAL / 10 + 1)) ]; then
-            echo "Too many compile failures"; exit 1
+          # Un fallo de COMPILACION nunca es tolerable: no es lentitud ni
+          # emulacion, es codigo que no compila para ese arco. Asi estuvo tapado
+          # meses `test_fixed_karatsuba` en arm32, que usaba `_umul128` --
+          # intrinseco de MSVC -- dando por supuesto que «sin __int128» implica
+          # «MSVC». Arreglado el 26 ago 2026.
+          if [ $FAIL -gt 0 ]; then
+            echo "$FAIL test(s) no compilan"; exit 1
           fi
 
       - name: Run tests under QEMU aarch64
         run: |
           echo "=== Running aarch64 tests under QEMU user-mode ==="
           PASS=0; FAIL=0; TOTAL=0
+          # LIMITE DE TIEMPO BAJO QEMU: 600 s.
+          #
+          # Estaba en 120 s y no daba. Medido el 26 ago 2026 reproduciendo estos
+          # mismos tests bajo QEMU en WSL, en la maquina de desarrollo:
+          #
+          #     test_param_divmod        arm32     202 s   <- ya excedia los 180
+          #     test_fixed_differential  aarch64    99 s   <- a 21 s del corte
+          #     test_sweep_string        aarch64    64 s
+          #
+          # Los tres PASAN: no habia ningun resultado incorrecto, solo un limite
+          # mal calibrado. Y un runner compartido de GitHub va mas lento que esta
+          # maquina, asi que 99 s medidos aqui se pasan alli de 120.
+          #
+          # 600 s da unas tres veces la medida mas alta y sigue sirviendo para lo
+          # que un limite debe servir: cortar un cuelgue de verdad.
           for bin in build_temp/*_aarch64; do
             [ -x "$bin" ] || continue
             name=$(basename "$bin")
@@ -186,12 +206,15 @@ jobs:
             # tiempo", que son problemas opuestos: uno es un bug y el otro un
             # timeout corto. Se vio el 26 ago 2026, cuando aparecieron tres tests
             # fallando aqui sin forma de saber por que.
-            timeout 120 qemu-aarch64 -L /usr/aarch64-linux-gnu "$bin" >/dev/null 2>&1
-            code=$?
+            # `|| code=$?` y no `; code=$?`: los `run:` van con bash -e, y un
+            # `timeout` que devuelve 124 fuera de un `if` mata el paso antes de
+            # llegar a la linea siguiente. Paso en el run 33250926326.
+            code=0
+            timeout 600 qemu-aarch64 -L /usr/aarch64-linux-gnu "$bin" >/dev/null 2>&1 || code=$?
             if [ $code -eq 0 ]; then
               echo "OK"; PASS=$((PASS + 1))
             elif [ $code -eq 124 ]; then
-              echo "TIMEOUT (>120s bajo QEMU, no es un fallo del test)"
+              echo "TIMEOUT (>600s bajo QEMU: eso ya es un cuelgue)"
               FAIL=$((FAIL + 1))
             else
               echo "FAIL (runtime, exit=$code)"; FAIL=$((FAIL + 1))
@@ -199,7 +222,15 @@ jobs:
           done
           echo ""
           echo "=== TEST SUMMARY (aarch64/QEMU): $PASS/$TOTAL passed, $FAIL failed ==="
-          if [ $FAIL -gt $((TOTAL / 10 + 1)) ]; then exit 1; fi
+          # SIN UMBRAL: si falla uno, falla el job.
+          #
+          # Antes toleraba un 10 % mas uno, y con 2 fallos sobre 55 el umbral era
+          # 6: pasaba igual. Asi estuvieron tapados meses dos tests que no
+          # fallaban, se pasaban de tiempo. Corregido el limite, la tolerancia no
+          # protege de nada: solo esconde.
+          if [ $FAIL -gt 0 ]; then
+            echo "$FAIL test(s) fallaron"; exit 1
+          fi
 
   # ============================================================================
   # Cross-compile: ARM32 (armhf) — compile + test via QEMU
@@ -236,11 +267,29 @@ jobs:
           done
           echo ""
           echo "=== COMPILE SUMMARY (arm32): $PASS/$TOTAL passed, $FAIL failed ==="
+          if [ $FAIL -gt 0 ]; then
+            echo "$FAIL test(s) no compilan para arm32"; exit 1
+          fi
 
       - name: Run tests under QEMU arm32
         run: |
           echo "=== Running arm32 tests under QEMU user-mode ==="
           PASS=0; FAIL=0; TOTAL=0
+          # LIMITE DE TIEMPO BAJO QEMU: 600 s.
+          #
+          # Estaba en 180 s y no daba. Medido el 26 ago 2026 reproduciendo estos
+          # mismos tests bajo QEMU en WSL, en la maquina de desarrollo:
+          #
+          #     test_param_divmod        arm32     202 s   <- ya excedia los 180
+          #     test_fixed_differential  aarch64    99 s   <- a 21 s del corte
+          #     test_sweep_string        aarch64    64 s
+          #
+          # Los tres PASAN: no habia ningun resultado incorrecto, solo un limite
+          # mal calibrado. Y un runner compartido de GitHub va mas lento que esta
+          # maquina, asi que 99 s medidos aqui se pasan alli de 120.
+          #
+          # 600 s da unas tres veces la medida mas alta y sigue sirviendo para lo
+          # que un limite debe servir: cortar un cuelgue de verdad.
           for bin in build_temp/*_arm32; do
             [ -x "$bin" ] || continue
             name=$(basename "$bin")
@@ -252,12 +301,15 @@ jobs:
             # tiempo", que son problemas opuestos: uno es un bug y el otro un
             # timeout corto. Se vio el 26 ago 2026, cuando aparecieron tres tests
             # fallando aqui sin forma de saber por que.
-            timeout 180 qemu-arm -L /usr/arm-linux-gnueabihf "$bin" >/dev/null 2>&1
-            code=$?
+            # `|| code=$?` y no `; code=$?`: los `run:` van con bash -e, y un
+            # `timeout` que devuelve 124 fuera de un `if` mata el paso antes de
+            # llegar a la linea siguiente. Paso en el run 33250926326.
+            code=0
+            timeout 600 qemu-arm -L /usr/arm-linux-gnueabihf "$bin" >/dev/null 2>&1 || code=$?
             if [ $code -eq 0 ]; then
               echo "OK"; PASS=$((PASS + 1))
             elif [ $code -eq 124 ]; then
-              echo "TIMEOUT (>180s bajo QEMU, no es un fallo del test)"
+              echo "TIMEOUT (>600s bajo QEMU: eso ya es un cuelgue)"
               FAIL=$((FAIL + 1))
             else
               echo "FAIL (runtime, exit=$code)"; FAIL=$((FAIL + 1))
@@ -265,7 +317,14 @@ jobs:
           done
           echo ""
           echo "=== TEST SUMMARY (arm32/QEMU): $PASS/$TOTAL passed, $FAIL failed ==="
-        continue-on-error: true
+          # Este job NO tenia puerta ninguna: ni `exit 1` ni umbral, y encima
+          # llevaba `continue-on-error: true`. Contaba los fallos, los imprimia y
+          # los tiraba. Asi estuvieron tapados `test_fixed_karatsuba` (no
+          # compilaba) y `test_param_divmod` (se pasaba de los 180 s). Los dos
+          # arreglados el 26 ago 2026; la venda se retira con ellos.
+          if [ $FAIL -gt 0 ]; then
+            echo "$FAIL test(s) fallaron"; exit 1
+          fi
 
   # ============================================================================
   # Cross-compile: RISC-V 64 — compile + test via QEMU
@@ -301,12 +360,35 @@ jobs:
           done
           echo ""
           echo "=== COMPILE SUMMARY (riscv64): $PASS/$TOTAL passed, $FAIL failed ==="
-          if [ $FAIL -gt $((TOTAL / 10 + 1)) ]; then exit 1; fi
+          # SIN UMBRAL: si falla uno, falla el job.
+          #
+          # Antes toleraba un 10 % mas uno, y con 2 fallos sobre 55 el umbral era
+          # 6: pasaba igual. Asi estuvieron tapados meses dos tests que no
+          # fallaban, se pasaban de tiempo. Corregido el limite, la tolerancia no
+          # protege de nada: solo esconde.
+          if [ $FAIL -gt 0 ]; then
+            echo "$FAIL test(s) fallaron"; exit 1
+          fi
 
       - name: Run tests under QEMU riscv64
         run: |
           echo "=== Running riscv64 tests under QEMU user-mode ==="
           PASS=0; FAIL=0; TOTAL=0
+          # LIMITE DE TIEMPO BAJO QEMU: 600 s.
+          #
+          # Estaba en 120 s y no daba. Medido el 26 ago 2026 reproduciendo estos
+          # mismos tests bajo QEMU en WSL, en la maquina de desarrollo:
+          #
+          #     test_param_divmod        arm32     202 s   <- ya excedia los 180
+          #     test_fixed_differential  aarch64    99 s   <- a 21 s del corte
+          #     test_sweep_string        aarch64    64 s
+          #
+          # Los tres PASAN: no habia ningun resultado incorrecto, solo un limite
+          # mal calibrado. Y un runner compartido de GitHub va mas lento que esta
+          # maquina, asi que 99 s medidos aqui se pasan alli de 120.
+          #
+          # 600 s da unas tres veces la medida mas alta y sigue sirviendo para lo
+          # que un limite debe servir: cortar un cuelgue de verdad.
           for bin in build_temp/*_riscv64; do
             [ -x "$bin" ] || continue
             name=$(basename "$bin")
@@ -318,12 +400,15 @@ jobs:
             # tiempo", que son problemas opuestos: uno es un bug y el otro un
             # timeout corto. Se vio el 26 ago 2026, cuando aparecieron tres tests
             # fallando aqui sin forma de saber por que.
-            timeout 120 qemu-riscv64 -L /usr/riscv64-linux-gnu "$bin" >/dev/null 2>&1
-            code=$?
+            # `|| code=$?` y no `; code=$?`: los `run:` van con bash -e, y un
+            # `timeout` que devuelve 124 fuera de un `if` mata el paso antes de
+            # llegar a la linea siguiente. Paso en el run 33250926326.
+            code=0
+            timeout 600 qemu-riscv64 -L /usr/riscv64-linux-gnu "$bin" >/dev/null 2>&1 || code=$?
             if [ $code -eq 0 ]; then
               echo "OK"; PASS=$((PASS + 1))
             elif [ $code -eq 124 ]; then
-              echo "TIMEOUT (>120s bajo QEMU, no es un fallo del test)"
+              echo "TIMEOUT (>600s bajo QEMU: eso ya es un cuelgue)"
               FAIL=$((FAIL + 1))
             else
               echo "FAIL (runtime, exit=$code)"; FAIL=$((FAIL + 1))
@@ -331,7 +416,15 @@ jobs:
           done
           echo ""
           echo "=== TEST SUMMARY (riscv64/QEMU): $PASS/$TOTAL passed, $FAIL failed ==="
-          if [ $FAIL -gt $((TOTAL / 10 + 1)) ]; then exit 1; fi
+          # SIN UMBRAL: si falla uno, falla el job.
+          #
+          # Antes toleraba un 10 % mas uno, y con 2 fallos sobre 55 el umbral era
+          # 6: pasaba igual. Asi estuvieron tapados meses dos tests que no
+          # fallaban, se pasaban de tiempo. Corregido el limite, la tolerancia no
+          # protege de nada: solo esconde.
+          if [ $FAIL -gt 0 ]; then
+            echo "$FAIL test(s) fallaron"; exit 1
+          fi
 
   # ============================================================================
   # Cross-compile: x86 32-bit (i686) — compile + test natively (multilib)
