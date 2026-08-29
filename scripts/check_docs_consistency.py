@@ -54,9 +54,25 @@ LIVE_DOCS = ["README.md", "PROJECT_STATUS.md", "NEXT_STEPS.md", "CHANGELOG.md"]
 # int128_param_*, que ADR-006 retira, asi que esta cifra es tambien el medidor
 # de progreso de esa migracion: cuanto mas cerca de cero, mas cerca la paridad.
 #
-# Medida el 25 ago 2026 con doxygen 1.14.0, tras encender EXTRACT_ALL = NO y
-# WARN_IF_UNDOCUMENTED = YES (ADR-014).
-DOXYGEN_BASELINE = 505
+# HAY UNA CIFRA POR VERSION DE DOXYGEN, y no es un capricho. El primer intento
+# (25 ago 2026) uso un unico numero absoluto, 505, medido en local con doxygen
+# 1.18.0. El CI, que usa la 1.9.8 de ubuntu-24.04, conto 518 y el job siguio en
+# rojo: MISMO ARBOL, MISMA CONFIGURACION, TRECE AVISOS DE DIFERENCIA, solo por
+# la version. El proyecto ya sabia que doxygen no es estable entre versiones
+# --de ahi existe DOXYGEN_ALLOWED-- y aun asi el trinquete se escribio sin
+# tenerlo en cuenta.
+#
+# Al anadir una version nueva: ejecutar `check_docs_consistency.py --doxygen`,
+# leer la cifra y apuntarla aqui con su fecha.
+DOXYGEN_BASELINE = {
+    "1.9.8":  518,   # ubuntu-24.04, la que usa el CI      — medido 26 ago 2026
+    "1.18.0": 505,   # MSYS2, la de la maquina de trabajo  — medido 26 ago 2026
+}
+
+# Para una version que no este en la tabla no se puede afinar, asi que se usa la
+# mas alta conocida y se avisa: es preferible no detectar una subida pequena a
+# dejar el CI en rojo por un desfase de version que no dice nada del codigo.
+DOXYGEN_BASELINE_POR_DEFECTO = max(DOXYGEN_BASELINE.values())
 
 
 # Avisos de doxygen que NO son culpa nuestra ni del codigo, con su motivo.
@@ -353,18 +369,30 @@ def check_doxygen(rep: Report):
     # que ADR-006 va a retirar, de modo que baja sola conforme se alcanza la
     # paridad. Cuando llegue a cero, esto pasa a exigir cero de verdad.
     n = len(de_include)
-    if n > DOXYGEN_BASELINE:
-        rep.fail(f"{n} avisos de doxygen en include/, y la referencia es "
-                 f"{DOXYGEN_BASELINE}: han SUBIDO en {n - DOXYGEN_BASELINE}",
+
+    # La referencia depende de la version de doxygen; ver la nota de
+    # DOXYGEN_BASELINE. `version` viene como "1.9.8" o similar.
+    clave = version.strip()
+    if clave in DOXYGEN_BASELINE:
+        techo = DOXYGEN_BASELINE[clave]
+        de_donde = f"referencia de doxygen {clave}"
+    else:
+        techo = DOXYGEN_BASELINE_POR_DEFECTO
+        de_donde = (f"doxygen {clave} no esta en la tabla; se usa la referencia mas "
+                    f"alta conocida ({techo}). Apunta la cifra de esta version "
+                    f"en DOXYGEN_BASELINE")
+
+    if n > techo:
+        rep.fail(f"{n} avisos de doxygen en include/, y el techo es {techo}: "
+                 f"han SUBIDO en {n - techo} ({de_donde})",
                  "\n".join(de_include[:15]) +
                  "\n(documenta lo nuevo, o baja la referencia si has borrado codigo)")
-    elif n < DOXYGEN_BASELINE:
-        rep.ok(f"{n} avisos de doxygen en include/ — han BAJADO en "
-               f"{DOXYGEN_BASELINE - n} respecto a la referencia. "
-               f"Actualiza DOXYGEN_BASELINE a {n}.")
+    elif n < techo:
+        rep.ok(f"{n} avisos de doxygen en include/ — {techo - n} por debajo del "
+               f"techo ({de_donde}). Si has documentado, baja la referencia a {n}.")
     elif n:
-        rep.ok(f"{n} avisos de doxygen en include/, igual que la referencia "
-               f"(deuda conocida, ver ADR-014)")
+        rep.ok(f"{n} avisos de doxygen en include/, igual que el techo "
+               f"({de_donde}) — deuda conocida, ver ADR-014")
     else:
         rep.ok("0 avisos de doxygen atribuibles a include/")
 
