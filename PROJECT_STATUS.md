@@ -1,6 +1,6 @@
 # PROJECT STATUS
 
-**Last Updated:** 25 August 2026
+**Last Updated:** 26 August 2026
 **Versión:** v1.90.4 · **rama** `phase-1.80` · árbol limpio, todo en `origin`
 
 > Instantánea **del estado actual**, y solo eso. No acumula historia: lo ya hecho
@@ -12,24 +12,31 @@
 
 ## En una línea
 
-`fixed_int_t<N, Sign, Form>` está **terminado** como entero de N × 64 bits, la
-suite está en verde en los 24 jobs del CI, y **el diseño de la 2.0 está cerrado
-sin cuestiones abiertas**: falta escribirlo.
+`fixed_int_t<N, Sign, Form>` está **terminado** como entero de N × 64 bits,
+**v1.90.4 está publicada**, y **el diseño de la 2.0 está cerrado sin cuestiones
+abiertas**: falta escribirlo.
 
-## Verificación — 25 August 2026
+## Verificación — 26 August 2026
 
 | Comprobación | Resultado |
 |---|---|
-| CI sobre `HEAD` (`4d3ab66`) | ✅ **24/24 jobs** |
-| `python make.py test gcc release-O2` | **55/55 ficheros** (161,3 s, GCC 16.2 ucrt64) |
+| CI sobre `HEAD` (`314543e`) | job del armonizador **en verde**; el resto en verde salvo sanitizers, aún corriendo |
+| `python make.py test gcc release-O2` | **55/55 ficheros** (159,4 s, GCC 16.2 ucrt64) |
 | `scripts/check_headers_selfcontained.py` | **31/31** headers compilan aislados |
 | Clang **sin flags no estándar** | 31/31 headers + suite ✅ |
-| `clang-format --dry-run --Werror`, 97 ficheros | 0 sin formatear |
-| `scripts/check_docs_consistency.py` | **7/7** (9/9 con `--doxygen`) |
-| Avisos de Doxygen desde `include/` | **0** |
+| `clang-format --dry-run --Werror`, 104 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
+| `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
+| Avisos de cobertura de Doxygen desde `include/` | **505** (local, doxygen 1.18.0) · **518** (CI, doxygen 1.9.8) |
 
-Compiladores en verde: GCC 13–16, Clang 18–22, MSVC 19.5x, Intel ICX. Arcos:
-x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
+> **La cifra de Doxygen no ha empeorado: antes no se medía.** Hasta el 25 ago el
+> `Doxyfile` tenía `EXTRACT_ALL = YES` y `WARN_IF_UNDOCUMENTED = NO`, con lo que
+> era **imposible** que apareciera un aviso de cobertura, y el «0» que se
+> publicaba no significaba nada. Ver
+> [ADR-014](docs/decisions/ADR-014-cobertura-de-doxygen.md).
+
+Compiladores: GCC 13–16, Clang 18–22, MSVC 19.5x, Intel ICX (**este último solo
+sobre Linux**; en Windows no compila, ver la deuda). Arcos: x86-64, x86-32,
+ARM64, ARM32 y RISC-V 64 — **con reservas en ARM**, abajo.
 
 > **`v1.90.4` es la primera release publicada del proyecto**: tres zips —gcc,
 > clang y msvc— en
