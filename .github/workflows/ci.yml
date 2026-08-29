@@ -180,10 +180,21 @@ jobs:
             name=$(basename "$bin")
             TOTAL=$((TOTAL + 1))
             echo -n "  [$TOTAL] $name ... "
-            if timeout 120 qemu-aarch64 -L /usr/aarch64-linux-gnu "$bin" >/dev/null 2>&1; then
+            # Se guarda el CODIGO de salida: `timeout` devuelve 124 cuando corta
+            # por tiempo, y cualquier otra cosa es un fallo del propio test. Sin
+            # esto no se distingue "da un resultado incorrecto" de "no le ha dado
+            # tiempo", que son problemas opuestos: uno es un bug y el otro un
+            # timeout corto. Se vio el 26 ago 2026, cuando aparecieron tres tests
+            # fallando aqui sin forma de saber por que.
+            timeout 120 qemu-aarch64 -L /usr/aarch64-linux-gnu "$bin" >/dev/null 2>&1
+            code=$?
+            if [ $code -eq 0 ]; then
               echo "OK"; PASS=$((PASS + 1))
+            elif [ $code -eq 124 ]; then
+              echo "TIMEOUT (>120s bajo QEMU, no es un fallo del test)"
+              FAIL=$((FAIL + 1))
             else
-              echo "FAIL (runtime)"; FAIL=$((FAIL + 1))
+              echo "FAIL (runtime, exit=$code)"; FAIL=$((FAIL + 1))
             fi
           done
           echo ""
@@ -235,10 +246,21 @@ jobs:
             name=$(basename "$bin")
             TOTAL=$((TOTAL + 1))
             echo -n "  [$TOTAL] $name ... "
-            if timeout 180 qemu-arm -L /usr/arm-linux-gnueabihf "$bin" >/dev/null 2>&1; then
+            # Se guarda el CODIGO de salida: `timeout` devuelve 124 cuando corta
+            # por tiempo, y cualquier otra cosa es un fallo del propio test. Sin
+            # esto no se distingue "da un resultado incorrecto" de "no le ha dado
+            # tiempo", que son problemas opuestos: uno es un bug y el otro un
+            # timeout corto. Se vio el 26 ago 2026, cuando aparecieron tres tests
+            # fallando aqui sin forma de saber por que.
+            timeout 180 qemu-arm -L /usr/arm-linux-gnueabihf "$bin" >/dev/null 2>&1
+            code=$?
+            if [ $code -eq 0 ]; then
               echo "OK"; PASS=$((PASS + 1))
+            elif [ $code -eq 124 ]; then
+              echo "TIMEOUT (>180s bajo QEMU, no es un fallo del test)"
+              FAIL=$((FAIL + 1))
             else
-              echo "FAIL (runtime)"; FAIL=$((FAIL + 1))
+              echo "FAIL (runtime, exit=$code)"; FAIL=$((FAIL + 1))
             fi
           done
           echo ""
@@ -290,10 +312,21 @@ jobs:
             name=$(basename "$bin")
             TOTAL=$((TOTAL + 1))
             echo -n "  [$TOTAL] $name ... "
-            if timeout 120 qemu-riscv64 -L /usr/riscv64-linux-gnu "$bin" >/dev/null 2>&1; then
+            # Se guarda el CODIGO de salida: `timeout` devuelve 124 cuando corta
+            # por tiempo, y cualquier otra cosa es un fallo del propio test. Sin
+            # esto no se distingue "da un resultado incorrecto" de "no le ha dado
+            # tiempo", que son problemas opuestos: uno es un bug y el otro un
+            # timeout corto. Se vio el 26 ago 2026, cuando aparecieron tres tests
+            # fallando aqui sin forma de saber por que.
+            timeout 120 qemu-riscv64 -L /usr/riscv64-linux-gnu "$bin" >/dev/null 2>&1
+            code=$?
+            if [ $code -eq 0 ]; then
               echo "OK"; PASS=$((PASS + 1))
+            elif [ $code -eq 124 ]; then
+              echo "TIMEOUT (>120s bajo QEMU, no es un fallo del test)"
+              FAIL=$((FAIL + 1))
             else
-              echo "FAIL (runtime)"; FAIL=$((FAIL + 1))
+              echo "FAIL (runtime, exit=$code)"; FAIL=$((FAIL + 1))
             fi
           done
           echo ""

@@ -233,18 +233,28 @@ static void test_vs_n2_ref(const char *tag)
         };
 
         // Use __uint128_t for 64×64→128 products (available on GCC/Clang/ICX)
-        // On MSVC we rely on the N=2 path being tested independently.
-        // This reference test is most useful on GCC/Clang where __uint128_t is available.
-#ifdef __SIZEOF_INT128__
+        // Producto 64x64 -> 128. La misma escalera de tres que mas abajo: sin
+        // ella, la rama `#else` daba por supuesto que «sin __int128» implica
+        // «MSVC», y en GCC para arm32 no hay ninguna de las dos cosas.
+#if defined(__SIZEOF_INT128__)
         auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t
         {
             unsigned __int128 p = (unsigned __int128)x * y;
             *hi = (uint64_t)(p >> 64);
             return (uint64_t)p;
         };
-#else
-        // On MSVC, use _umul128
+#elif defined(_MSC_VER) && defined(_M_X64)
         auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t { return _umul128(x, y, hi); };
+#else
+        auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t
+        {
+            const uint64_t x0 = x & 0xFFFFFFFFull, x1 = x >> 32;
+            const uint64_t y0 = y & 0xFFFFFFFFull, y1 = y >> 32;
+            const uint64_t p00 = x0 * y0, p01 = x0 * y1, p10 = x1 * y0, p11 = x1 * y1;
+            const uint64_t mid = (p00 >> 32) + (p01 & 0xFFFFFFFFull) + (p10 & 0xFFFFFFFFull);
+            *hi = p11 + (p01 >> 32) + (p10 >> 32) + (mid >> 32);
+            return (p00 & 0xFFFFFFFFull) | (mid << 32);
+        };
 #endif
         for (std::size_t i = 0; i < 4; ++i)
         {
@@ -421,15 +431,41 @@ static void test_vs_n4_ref(const char *tag)
             }
         };
 
-#ifdef __SIZEOF_INT128__
+        // Producto 64x64 -> 128, en tres variantes.
+        //
+        // ANTES ERAN DOS, Y ESO NO COMPILABA EN arm32: la rama `#else` usaba
+        // `_umul128`, que es un intrinseco de MSVC en x64, dando por supuesto
+        // que «sin __int128» implica «MSVC». En GCC para arm32 no hay ninguna de
+        // las dos cosas, y el fichero no compilaba. Lo tapaba el
+        // `continue-on-error` del job cross-arm32; se vio el 26 ago 2026 al
+        // quitarle la venda.
+        //
+        // Es la misma escalera de tres que ya usa la biblioteca en
+        // fixed_width_int_t.hpp y en intrinsics/: __int128, luego el intrinseco
+        // de MSVC, y por ultimo un camino portable que funciona en cualquier
+        // sitio.
+#if defined(__SIZEOF_INT128__)
         auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t
         {
             unsigned __int128 p = (unsigned __int128)x * y;
             *hi = (uint64_t)(p >> 64);
             return (uint64_t)p;
         };
-#else
+#elif defined(_MSC_VER) && defined(_M_X64)
         auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t { return _umul128(x, y, hi); };
+#else
+        // Portable: cuatro productos de 32x32 y recomposicion. Mas lento, pero
+        // es el unico camino que existe en arm32 y en cualquier plataforma sin
+        // enteros de 128 bits ni intrinseco propio.
+        auto mul64 = [](uint64_t x, uint64_t y, uint64_t *hi) -> uint64_t
+        {
+            const uint64_t x0 = x & 0xFFFFFFFFull, x1 = x >> 32;
+            const uint64_t y0 = y & 0xFFFFFFFFull, y1 = y >> 32;
+            const uint64_t p00 = x0 * y0, p01 = x0 * y1, p10 = x1 * y0, p11 = x1 * y1;
+            const uint64_t mid = (p00 >> 32) + (p01 & 0xFFFFFFFFull) + (p10 & 0xFFFFFFFFull);
+            *hi = p11 + (p01 >> 32) + (p10 >> 32) + (mid >> 32);
+            return (p00 & 0xFFFFFFFFull) | (mid << 32);
+        };
 #endif
 
         // Full schoolbook 8×8→8 (truncated)
