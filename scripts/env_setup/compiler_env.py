@@ -5,7 +5,28 @@ Provides isolated environments for MSVC and Intel compilers.
 
 import os
 import subprocess
+import sys
 from pathlib import Path
+
+
+def _por_toolchains(nombre):
+    """Ruta del compilador segun `scripts/toolchains.py`, o None si no se puede.
+
+    Se importa aqui y no arriba del todo porque este modulo vive en
+    `scripts/env_setup/` y `toolchains` en `scripts/`. Quien lo importa desde
+    `build_generic` ya tiene las dos rutas en `sys.path`; quien lo importe
+    suelto, no. Si falla, se devuelve None y el llamante usa su cascada de
+    siempre: nunca debe reventar por esto.
+    """
+    try:
+        raiz_scripts = str(Path(__file__).resolve().parent.parent)
+        if raiz_scripts not in sys.path:
+            sys.path.insert(0, raiz_scripts)
+        import toolchains  # noqa: PLC0415  (a proposito, ver arriba)
+
+        return toolchains.resolve(nombre)
+    except Exception:
+        return None
 
 
 # =============================================================================
@@ -207,18 +228,45 @@ class CompilerEnvironment:
             self._env = self._get_msvc_env()
         elif self.compiler_name == "intel":
             self._env = self._get_intel_env()
-        elif self.compiler_name in ("gcc", "clang"):
-            # Both GCC and Clang live in ucrt64/bin and link against its DLLs.
-            # Git's mingw64/bin ships older libstdc++/libunwind that miss C++20
-            # entry points — ucrt64/bin must come first in PATH for both.
+        elif self.compiler_name == "gcc":
             self._env = self._get_gcc_env()
+        elif self.compiler_name == "clang":
+            # ANTES compartia entorno con GCC, con el comentario "both GCC and
+            # Clang live in ucrt64/bin". Es falso: toolchains.json dice desde
+            # T7.5 que el clang del proyecto es el de CLANG64, y sus DLL de
+            # runtime (libc++, libunwind) estan en clang64/bin. Poner ucrt64/bin
+            # delante dejaba a clang64 detras de las DLL de otro toolchain.
+            self._env = self._get_clang_env()
         else:
             self._env = os.environ.copy()
 
         return self._env
 
     def get_compiler_cmd(self) -> str:
-        """Get the full path to the compiler executable."""
+        """Comando del compilador, segun la FUENTE UNICA DE VERDAD.
+
+        Esa fuente es `toolchains.json`, leida por `scripts/toolchains.py`, que
+        aplica la cascada variable de entorno -> fichero -> default de plataforma
+        -> nombre pelado.
+
+        ANTES esta funcion tenia su propia tabla de rutas cableadas y, para
+        clang, devolvia el nombre pelado `clang++`. Eso la convertia en una
+        SEGUNDA fuente de verdad que contradecia a la primera: `build_generic`
+        imprimia "clang: C:/msys64/clang64/bin/clang++.exe" y a la linea
+        siguiente decia "clang not found (clang++)", porque el nombre pelado se
+        buscaba en el PATH del proceso, no en el entorno aislado. En una shell
+        sin MSYS2 en el PATH eso salia como 58 "build failed". Es lo que dejo el
+        job de clang sin comprobar desde P1.2 (5 sep 2026).
+
+        Para msvc e intel se conserva la logica propia: sus rutas van atadas al
+        entorno que montan `vcvarsall.bat` / `setvars.bat`, que es justo lo que
+        gestiona esta clase.
+        """
+        if self.compiler_name in ("gcc", "clang"):
+            resuelto = _por_toolchains(self.compiler_name)
+            if resuelto:
+                return resuelto
+
         if self.compiler_name == "msvc":
             if MSVC_CL.exists():
                 return str(MSVC_CL)
@@ -251,6 +299,23 @@ class CompilerEnvironment:
         ucrt64_bin = r"C:\msys64\ucrt64\bin"
         if Path(ucrt64_bin).exists():
             env["PATH"] = ucrt64_bin + os.pathsep + env.get("PATH", "")
+        return env
+
+    def _get_clang_env(self) -> dict:
+        """Entorno de clang: CLANG64 delante en el PATH.
+
+        El clang del proyecto es el de MSYS2 CLANG64 (`toolchains.json`, nota
+        "MSYS2 CLANG64, target x86_64-w64-windows-gnu"). Sus binarios cargan
+        libc++ y libunwind de `clang64/bin`; si delante va el `bin` de otro
+        toolchain --ucrt64, el mingw64 de Git-- se cargan las que no son.
+
+        Si no hay CLANG64 instalado se cae a UCRT64, que tambien trae un clang.
+        """
+        env = os.environ.copy()
+        for bin_dir in (r"C:\msys64\clang64\bin", r"C:\msys64\ucrt64\bin"):
+            if Path(bin_dir).exists():
+                env["PATH"] = bin_dir + os.pathsep + env.get("PATH", "")
+                break
         return env
 
     def _get_msvc_env(self) -> dict:

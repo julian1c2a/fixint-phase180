@@ -34,11 +34,16 @@ BUILD_BASE = PROJECT_ROOT / "build" / "build_demos"
 
 DEMO_CATEGORIES = ["tutorials", "examples", "showcase", "general"]
 
-# Compiler paths (Windows native)
-COMPILERS = {
-    "gcc": "C:/msys64/ucrt64/bin/g++.exe",
-    "clang": "C:/msys64/clang64/bin/clang++.exe",
-}
+# Los compiladores que sabe construir este script. La RUTA no se pone aqui: sale
+# de `toolchains.json` a traves de `scripts/toolchains.py`, que es la fuente
+# unica de verdad desde T7.5.
+#
+# ANTES habia aqui una tabla con las rutas de Windows cableadas. Era una tercera
+# fuente de verdad --con build_generic y con toolchains.json-- y ademas hacia
+# este script inservible fuera de Windows: en Linux intentaba ejecutar
+# 'C:/msys64/ucrt64/bin/g++.exe'. Es el mismo fallo que T7.5 arreglo en los otros
+# seis sitios y que aqui se quedo sin arreglar.
+COMPILERS = ("gcc", "clang")
 
 # Compiler flags by mode
 FLAGS = {
@@ -63,10 +68,13 @@ def needs_threading(demo_file: Path) -> bool:
 
 
 def get_compiler_cmd(compiler: str) -> str:
-    """Get compiler executable path."""
+    """Comando del compilador, segun `toolchains.json` (fuente unica de verdad)."""
     if compiler not in COMPILERS:
         raise ValueError(f"Unknown compiler: {compiler}")
-    return COMPILERS[compiler]
+    sys.path.insert(0, str(Path(__file__).parent))
+    import toolchains  # noqa: PLC0415
+
+    return toolchains.resolve(compiler)
 
 
 def get_flags(compiler: str, mode: str) -> List[str]:

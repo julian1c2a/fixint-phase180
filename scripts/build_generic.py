@@ -87,9 +87,21 @@ def echo_header(msg: str) -> None:
     print(f"{Colors.BLUE}{msg}{Colors.NC}")
 
 
-def find_compiler(compiler_cmd: str) -> Optional[str]:
-    """Check if compiler exists in PATH"""
-    return shutil.which(compiler_cmd)
+def find_compiler(compiler_cmd: str, env: dict = None) -> Optional[str]:
+    """Localiza el compilador EN EL PATH DEL ENTORNO QUE SE VA A USAR.
+
+    ANTES no recibia `env` y buscaba en el PATH del proceso. Como el compilador
+    se lanza despues con el entorno aislado --que puede traer un PATH
+    distinto--, la comprobacion y la ejecucion miraban sitios diferentes: con un
+    nombre pelado en una shell sin MSYS2 delante, esto decia "no esta" sobre un
+    compilador que si estaba y que la linea anterior acababa de imprimir con
+    ruta absoluta. Visto el 5 sep 2026 con clang.
+
+    Con ruta absoluta `shutil.which` no usa el PATH, asi que este arreglo solo
+    cambia el caso del nombre pelado, que es justo el que fallaba.
+    """
+    ruta = env.get("PATH") if env else None
+    return shutil.which(compiler_cmd, path=ruta)
 
 
 def compile_with_compiler(
@@ -136,8 +148,9 @@ def compile_with_compiler(
     
     # Check if compiler exists (unless skip_check is set)
     if not skip_check:
-        if not find_compiler(compiler_cmd):
-            echo_error(f"{compiler_name} not found ({compiler_cmd}). Skipping...")
+        if not find_compiler(compiler_cmd, env):
+            donde = "ruta absoluta" if os.path.isabs(compiler_cmd) else f"PATH={env.get('PATH', '')[:120]}..."
+            echo_error(f"{compiler_name} not found ({compiler_cmd}), buscado en {donde}. Skipping...")
             print()
             # Se cuenta como SALTADO, no como exito. Quien pidio este
             # compilador explicitamente lo vera como fallo; bajo `all` es
