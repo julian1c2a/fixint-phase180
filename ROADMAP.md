@@ -19,7 +19,7 @@ terminado como entero de N × 64 bits: aritmética modular completa y `constexpr
 los enteros built-in, integración con iostreams, `std::format` y `std::hash`, y
 conversión a y desde cadena en bases 2..36.
 
-Suite: 55 ficheros, en verde con GCC 13–16, Clang 18–22, MSVC 19.5x e Intel ICX,
+Suite: 56 ficheros, en verde con GCC 13–16, Clang 18–22, MSVC 19.5x e Intel ICX,
 sobre x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 
 ---

@@ -1,6 +1,6 @@
 # 🔮 NEXT STEPS
 
-**Last Updated:** 26 August 2026
+**Last Updated:** 5 September 2026
 **Versión:** **v1.90.4** publicada · **rama** `phase-1.80` · árbol limpio · todo en `origin`
 
 > Este documento es **el puntero y lo pendiente a corto**. No acumula historia:
@@ -20,7 +20,7 @@
 | | |
 |---|---|
 | **Release** | ✅ **v1.90.4 publicada**, la primera del proyecto: tres zips (gcc, clang, msvc) |
-| **Suite local** | ✅ 55/55, GCC 16.2 |
+| **Suite local** | ✅ 56/56, GCC 16.2 |
 | **CI** | ✅ **recuperado** en `314543e`: el job del armonizador vuelve a estar en verde. Llevaba rojo desde el 25 ago |
 | **Diseño de la 2.0** | ✅ cerrado, sin cuestiones abiertas. Falta escribirlo |
 | **ADR** | 15 registros, ninguna decisión sin documentar |

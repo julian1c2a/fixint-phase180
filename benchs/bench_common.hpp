@@ -26,8 +26,28 @@
 #include <string>
 
 // ============================================================================
-// Cycle/time counter — architecture-aware
-//   x86_64:  RDTSC (cycle-accurate)
+// Contador de tiempo, no de ciclos  -- OJO CON EL NOMBRE
+//
+// Esto se llamaba "cycle-accurate, clock-frequency independent", y ESO ES FALSO
+// en los procesadores modernos. El TSC de hoy es *invariante*: avanza a una
+// frecuencia de referencia FIJA, no a la del nucleo. O sea que RDTSC es un
+// cronometro de alta resolucion, no un contador de ciclos.
+//
+// La consecuencia importa: si el turbo sube o baja --por carga, por temperatura,
+// por otro proceso--, el trabajo hecho por tic cambia, y la cifra de "ciclos por
+// operacion" se mueve AUNQUE EL CODIGO SEA IDENTICO. Elegir RDTSC no inmuniza
+// contra el ruido del sistema, que es lo que se creia.
+//
+// Medido el 5 sep 2026: el mismo binario, en la misma maquina, da una mediana
+// del 5,1 % de diferencia entre ejecuciones, y hasta un 52 % si la maquina esta
+// haciendo otra cosa. Ver docs/PERFORMANCE.md.
+//
+// Se conserva RDTSC porque es lo mejor que hay de forma portable --contar ciclos
+// de verdad pide contadores de rendimiento del nucleo, con privilegios y sin
+// portabilidad--, pero se deja de llamarlo lo que no es.
+//
+// Contador por arquitectura:
+//   x86_64:  RDTSC (invariante: tiempo, no ciclos)
 //   ARM64:   CNTVCT_EL0 virtual counter (sub-nanosecond, ~1-50 MHz freq)
 //   RISC-V:  rdtime CSR (platform timer, comparable to ARM64 virtual counter)
 //   Fallback: std::chrono nanoseconds cast to uint64_t

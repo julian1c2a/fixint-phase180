@@ -116,6 +116,10 @@ namespace nstd
     // Parse error codes and result type
     // =========================================================================
 
+/// @def NSTD_PARSE_COMMON_DEFINED
+/// @brief Guarda para que `parse_error` y `parse_result` se definan una sola
+///        vez: los declaran tanto esta cabecera como la de `int128_param_t`, y
+///        un programa puede incluir las dos.
 #ifndef NSTD_PARSE_COMMON_DEFINED
 #define NSTD_PARSE_COMMON_DEFINED
     /// @brief Motivo por el que fallo una conversion desde cadena.
@@ -173,8 +177,87 @@ namespace nstd
     };
 #endif // NSTD_PARSE_COMMON_DEFINED
 
+    // =============================================================================
+    // Politica de desbordamiento  (ADR-007 a ADR-011)
+    // =============================================================================
+
+    /// @brief Que hace el tipo cuando una operacion desborda.
+    ///
+    /// Es el **cuarto parametro** de `fixed_int_t`, y su valor por defecto es
+    /// `wrap`, de modo que todo el codigo escrito antes de existir este
+    /// parametro sigue compilando y significando lo mismo.
+    ///
+    /// See ADR-007 (la politica como parametro) y ADR-008 (el diseno).
+    enum class overflow_policy : std::uint8_t
+    {
+        /// @brief Envuelve modulo 2^(64N). Lo que hacen los enteros del
+        ///        lenguaje, y lo que hacia esta biblioteca antes de existir
+        ///        este parametro. **No cuesta ni un byte ni un ciclo.**
+        wrap = 0,
+
+        /// @brief Marca el valor como invalido al desbordar, y la marca se
+        ///        propaga. El equivalente entero de un NaN; se consulta al
+        ///        final con `valid()`.
+        checked = 1,
+
+        /// @brief Satura en `max()` o en `min()`. **Sin implementar**; el
+        ///        enumerado nace con los cuatro valores para no ampliarlo
+        ///        despues y romper el ABI de la plantilla (ADR-008).
+        saturate = 2,
+
+        /// @brief Aborta al desbordar. **Sin implementar.**
+        trap = 3,
+    };
+
+    // -------------------------------------------------------------------------
+    // Almacenamiento de la marca: un miembro que SOLO EXISTE con `checked`
+    // -------------------------------------------------------------------------
+    //
+    // LA CONDICION ES EL ABI, NO EL COMPILADOR. MSVC ignora el
+    // `[[no_unique_address]]` estandar por compatibilidad de ABI y ofrece el
+    // suyo. E Intel ICX en Windows define `_MSC_VER` **y** `__clang__` --es
+    // clang por dentro y ABI de MSVC por fuera--, asi que tambien lo ignora.
+    //
+    // Medido en los cuatro compiladores el 5 sep 2026. Con el atributo
+    // estandar a secas, MSVC e Intel dan **40 bytes donde deben dar 32**: se
+    // llevan por delante la invariante que ADR-009 promete, y en silencio. De
+    // ahi que el `static_assert` de tamano de mas abajo no sea decorativo.
+/// @def NSTD_NO_UNIQUE_ADDRESS
+/// @brief El atributo que permite que un miembro vacio no ocupe nada, en la
+///        forma que entienda el ABI de destino.
+///
+/// La condicion es el **ABI**, no el compilador: MSVC ignora el atributo
+/// estandar por compatibilidad binaria, e Intel ICX en Windows tambien --define
+/// `_MSC_VER` y `__clang__` a la vez--. Sin esta distincion, los dos dan 40
+/// bytes donde deben dar 32.
+#if defined(_MSC_VER)
+#define NSTD_NO_UNIQUE_ADDRESS [[msvc::no_unique_address]]
+#else
+#define NSTD_NO_UNIQUE_ADDRESS [[no_unique_address]]
+#endif
+
+    namespace detail
+    {
+        /// @brief Marca de un tipo que no la necesita. Vacia a proposito: con
+        ///        `NSTD_NO_UNIQUE_ADDRESS` no ocupa nada.
+        struct marca_ausente
+        {
+        };
+
+        /// @brief El tipo del miembro de estado, segun la politica.
+        ///
+        /// Con `checked` es un **limbo entero de 64 bits**, no un `bool`. Por
+        /// el alineamiento los dos costarian lo mismo --40 bytes en N=4--, y el
+        /// limbo deja **63 bits libres** para lo que ADR-008 dejo contemplado
+        /// sin implementar (`saturate`, `trap`) sin volver a cambiar el
+        /// tamano del tipo, que es un cambio que solo se puede hacer una vez.
+        template <overflow_policy P>
+        using marca_de = std::conditional_t<P == overflow_policy::checked, std::uint64_t, marca_ausente>;
+    } // namespace detail
+
     // Forward declaration so cross-type constructors can reference the alias
-    template <std::size_t N, signedness Sign, representation_form Form>
+    template <std::size_t N, signedness Sign, representation_form Form,
+              overflow_policy Policy = overflow_policy::wrap>
     class fixed_int_t;
 
     // =============================================================================
@@ -185,14 +268,14 @@ namespace nstd
     /// @tparam N Numero de limbos de 64 bits.
     /// Sin signo implica `binnat`, y al reves (ver ADR-011): no hay signo que
     /// codificar. Preferir los alias por anchura (`uint256_fixed_t`, ...).
-    template <std::size_t N>
-    using uint_fixed_t = fixed_int_t<N, signedness::unsigned_type, representation_form::binnat>;
+    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
+    using uint_fixed_t = fixed_int_t<N, signedness::unsigned_type, representation_form::binnat, Policy>;
 
     /// @brief Entero **con signo** de `64 * N` bits, en complemento a dos.
     /// @tparam N Numero de limbos de 64 bits.
     /// Preferir los alias por anchura (`int256_fixed_t`, ...).
-    template <std::size_t N>
-    using int_fixed_t = fixed_int_t<N, signedness::signed_type, representation_form::twos_complement>;
+    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
+    using int_fixed_t = fixed_int_t<N, signedness::signed_type, representation_form::twos_complement, Policy>;
 
     // =============================================================================
     // fixed_int_t<N, Sign, Form> — unified signed/unsigned N-limb integer
@@ -201,7 +284,10 @@ namespace nstd
     template <std::size_t N, signedness Sign = signedness::unsigned_type,
               representation_form Form =
                   (Sign == signedness::unsigned_type ? representation_form::binnat
-                                                     : representation_form::twos_complement)>
+                                                     : representation_form::twos_complement),
+              // Sin `= wrap` aqui: el valor por defecto ya lo da la declaracion
+              // adelantada de arriba, y repetirlo es un error de compilacion.
+              overflow_policy Policy>
     /**
      * @brief Entero de anchura fija de N x 64 bits, con o sin signo.
      *
@@ -254,12 +340,19 @@ namespace nstd
                       "Magnitud-Signo y Exceso-K todavia no estan implementadas en fixed_int_t; "
                       "por ahora viven en int128_param_t (ADR-006).");
 
+        // TAREA PENDIENTE, como la de las representaciones: el enumerado nace
+        // con cuatro valores para no ampliarlo despues y romper el ABI de la
+        // plantilla, pero hoy solo hay dos implementados (ADR-008, decision 1).
+        static_assert(Policy == overflow_policy::wrap || Policy == overflow_policy::checked,
+                      "Las politicas saturate y trap estan contempladas en el enumerado "
+                      "pero todavia no implementadas (ADR-008).");
+
         static constexpr bool is_signed = (Sign == signedness::signed_type);
 
         // Cualquier otra instanciacion de fixed_int_t es amiga: los constructores
         // cross-tipo y los operadores cross-N/cross-signo necesitan leer los
         // limbos del otro tipo. Antes funcionaba solo porque `data` era publico.
-        template <std::size_t, signedness, representation_form>
+        template <std::size_t, signedness, representation_form, overflow_policy>
         friend class fixed_int_t;
 
     public:
@@ -270,6 +363,15 @@ namespace nstd
         /// @brief Representacion interna. Copia del parametro `Form`. Sin signo
         ///        implica `binnat`, y al reves (ADR-011).
         static constexpr representation_form form{Form};
+
+        /// @brief La politica de desbordamiento de este tipo, consultable desde
+        ///        codigo generico sin repetir la lista de parametros.
+        static constexpr overflow_policy policy{Policy};
+
+        /// @brief Si este tipo puede quedar marcado como invalido, es decir, si
+        ///        lleva el limbo de estado. Falso con `wrap`, que es el caso por
+        ///        defecto y no paga nada (ADR-009).
+        static constexpr bool comprueba_desbordamiento{Policy == overflow_policy::checked};
 
         // =========================================================================
         // Acceso a los limbos
@@ -307,6 +409,15 @@ namespace nstd
     private:
         // data[0] = least-significant limb, data[N-1] = most-significant limb
         std::array<std::uint64_t, N> data{};
+
+        /// @brief Marca de invalido. **Solo existe con `Policy == checked`**;
+        ///        con `wrap` es un tipo vacio y no ocupa nada.
+        ///
+        /// Cero significa valido. Es un limbo entero y no un `bool` a
+        /// proposito: por alineamiento cuestan lo mismo, y los 63 bits que
+        /// sobran quedan para `saturate` y `trap` sin volver a cambiar el
+        /// tamano del tipo (ADR-008, ADR-009).
+        NSTD_NO_UNIQUE_ADDRESS detail::marca_de<Policy> estado{};
 
     public:
         // =========================================================================
@@ -585,6 +696,30 @@ namespace nstd
                 if (limb != 0)
                     return false;
             return true;
+        }
+
+        /// @brief Si el valor es de fiar, es decir, si no lo ha marcado un
+        ///        desbordamiento.
+        ///
+        /// Con `Policy == wrap` devuelve **siempre `true`**: envolver no es un
+        /// error, es el comportamiento pedido, igual que en los enteros del
+        /// lenguaje. Con `checked`, un desbordamiento en cualquier punto de la
+        /// cadena deja la marca puesta y ya no se quita:
+        ///
+        /// @code
+        /// using u256c = uint_fixed_t<4, overflow_policy::checked>;
+        /// u256c r = a * b + c;        // aritmetica normal, noexcept, constexpr
+        /// if (!r.valid()) { ... }     // algo desbordo por el camino
+        /// @endcode
+        ///
+        /// See ADR-008 (la marca pegajosa) y ADR-010 (como comparan los
+        /// invalidos: se **ordenan**, no se vuelven incomparables).
+        [[nodiscard]] constexpr bool valid() const noexcept
+        {
+            if constexpr (Policy == overflow_policy::checked)
+                return estado == 0;
+            else
+                return true;
         }
 
         /// @brief Si el valor es negativo.
@@ -2629,6 +2764,131 @@ namespace nstd
             buf[--pos] = static_cast<char>('0' + val);
         }
     };
+
+    // =============================================================================
+    // El contrato de tamano y disposicion  (ADR-009)
+    // =============================================================================
+    //
+    // POR QUE ESTAN AQUI Y NO DENTRO DE LA CLASE. Dentro no se puede: en el
+    // cuerpo de la propia plantilla el tipo esta INCOMPLETO, y `sizeof` de un
+    // tipo incompleto es un error. Los `static_assert` que si dependen solo de
+    // los parametros --la ley de ADR-011, las formas y politicas implementadas--
+    // si estan dentro, que es donde valen mas.
+    //
+    // Estos se comprueban al leer la cabecera, sin ejecutar nada y sin que nadie
+    // tenga que acordarse de lanzar un test.
+    //
+    // QUE PROTEGEN. Que `wrap` no pague NADA por la existencia de la politica.
+    // No es una formalidad: con el `[[no_unique_address]]` estandar a secas,
+    // MSVC e Intel dan 40 bytes donde deben dar 32 --medido el 5 sep 2026 en los
+    // cuatro compiladores-- y se cargan la invariante en silencio. Aqui deja de
+    // ser silencio.
+
+    namespace detail
+    {
+        /// @brief Comprueba de una vez todo lo que ADR-009 promete de `wrap`:
+        ///        que ocupe `8N` bytes exactos, que este alineado como un limbo,
+        ///        y que conserve el standard layout y la copia trivial.
+        ///
+        /// Se usa desde los `static_assert` de mas abajo. Es una funcion y no
+        /// una expresion suelta para poder repetirla sobre varios N sin escribir
+        /// la lista de condiciones cinco veces.
+        ///
+        /// @tparam N Numero de limbos a comprobar.
+        /// @return `true` si el contrato se cumple.
+        template <std::size_t N>
+        inline constexpr bool contrato_de_wrap() noexcept
+        {
+            using u =
+                fixed_int_t<N, signedness::unsigned_type, representation_form::binnat, overflow_policy::wrap>;
+            using i = fixed_int_t<N, signedness::signed_type, representation_form::twos_complement,
+                                  overflow_policy::wrap>;
+            return sizeof(u) == 8 * N && sizeof(i) == 8 * N && alignof(u) == alignof(std::uint64_t) &&
+                   std::is_standard_layout_v<u> && std::is_standard_layout_v<i> &&
+                   std::is_trivially_copyable_v<u> && std::is_trivially_copyable_v<i>;
+        }
+    } // namespace detail
+
+    static_assert(detail::contrato_de_wrap<1>(), "wrap debe ocupar 8*N bytes y ser standard layout");
+    static_assert(detail::contrato_de_wrap<2>(), "wrap debe ocupar 8*N bytes y ser standard layout");
+    static_assert(detail::contrato_de_wrap<4>(), "wrap debe ocupar 8*N bytes y ser standard layout");
+    static_assert(detail::contrato_de_wrap<8>(), "wrap debe ocupar 8*N bytes y ser standard layout");
+    static_assert(detail::contrato_de_wrap<16>(), "wrap debe ocupar 8*N bytes y ser standard layout");
+
+    // Y `checked` paga lo que ADR-009 dijo que pagaria: un limbo mas. Ni mas ni
+    // menos. Que siga siendo standard layout es lo que hace que el miembro
+    // condicional fuera mejor que una clase base, que lo perdia en los cuatro
+    // compiladores.
+    static_assert(sizeof(fixed_int_t<4, signedness::unsigned_type, representation_form::binnat,
+                                     overflow_policy::checked>) == 40,
+                  "checked debe ocupar exactamente un limbo mas que wrap");
+    static_assert(
+        std::is_standard_layout_v<
+            fixed_int_t<4, signedness::unsigned_type, representation_form::binnat, overflow_policy::checked>>,
+        "checked tiene que conservar el standard layout");
+    static_assert(
+        std::is_trivially_copyable_v<
+            fixed_int_t<4, signedness::unsigned_type, representation_form::binnat, overflow_policy::checked>>,
+        "checked tiene que seguir siendo trivialmente copiable");
+
+    // =============================================================================
+    // Cruzar de una politica a otra: solo con nombre
+    // =============================================================================
+    //
+    // NO HAY NINGUNA CONVERSION ENTRE POLITICAS QUE NO SE LEA EN EL PUNTO DE
+    // LLAMADA. Ni implicita, ni por `static_cast`, ni por constructor: las dos
+    // funciones de aqui abajo son el unico camino.
+    //
+    // ADR-008 prohibe MEZCLAR politicas en una operacion --`a + b` con politicas
+    // distintas es error de compilacion-- pero no decia nada de convertir. Un
+    // `static_cast` habria bastado tecnicamente, y se descarto por un motivo
+    // concreto: dice COMO convertir pero no QUE PASA CON LA MARCA. Con un nombre,
+    // el contrato va en el nombre y se ve al leer la linea.
+
+    /// @brief De `checked` a `wrap`, **tirando la marca**.
+    ///
+    /// El valor numerico se conserva tal cual --es el resultado envuelto, que
+    /// siempre esta ahi--; lo que se pierde es el saber si era de fiar.
+    ///
+    /// @warning Si `x` estaba marcado como invalido, **esa informacion
+    ///          desaparece aqui y no hay forma de recuperarla**. Por eso la
+    ///          funcion se llama como se llama: para que la linea diga lo que
+    ///          hace. Lo normal es consultar `valid()` ANTES.
+    ///
+    /// @param x Valor con politica `checked`.
+    /// @return El mismo numero, con politica `wrap`.
+    template <std::size_t N, signedness Sign, representation_form Form>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::wrap>
+    descartar_marca(const fixed_int_t<N, Sign, Form, overflow_policy::checked> &x) noexcept
+    {
+        fixed_int_t<N, Sign, Form, overflow_policy::wrap> r{};
+        for (std::size_t i{0}; i < N; ++i)
+            r.set_limb(i, x.limb(i));
+        return r;
+    }
+
+    /// @brief De `wrap` a `checked`, marcando el resultado como valido.
+    ///
+    /// Es la direccion segura: un valor de `wrap` no lleva marca que pueda
+    /// contradecir nada, asi que el resultado nace valido.
+    ///
+    /// @note Que nazca valido **no dice que no haya desbordado antes**. Si `x`
+    ///       viene de una cadena con `wrap`, cualquier desbordamiento de esa
+    ///       cadena ya se perdio sin dejar rastro, que es lo que `wrap`
+    ///       significa. Esta funcion empieza a comprobar desde aqui, no
+    ///       reconstruye el pasado.
+    ///
+    /// @param x Valor con politica `wrap`.
+    /// @return El mismo numero, con politica `checked` y marcado como valido.
+    template <std::size_t N, signedness Sign, representation_form Form>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::checked>
+    con_comprobacion(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &x) noexcept
+    {
+        fixed_int_t<N, Sign, Form, overflow_policy::checked> r{};
+        for (std::size_t i{0}; i < N; ++i)
+            r.set_limb(i, x.limb(i));
+        return r;
+    }
 
     // =============================================================================
     // Type aliases — unsigned
