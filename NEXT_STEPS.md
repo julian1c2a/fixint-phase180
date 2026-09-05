@@ -15,14 +15,14 @@
 
 # 📍 POR AQUÍ VAMOS
 
-## Estado al 26 ago 2026
+## Estado al 5 sep 2026
 
 | | |
 |---|---|
 | **Release** | ✅ **v1.90.4 publicada**, la primera del proyecto: tres zips (gcc, clang, msvc) |
-| **Suite local** | ✅ 58/58, GCC 16.2 |
-| **CI** | ✅ **recuperado** en `314543e`: el job del armonizador vuelve a estar en verde. Llevaba rojo desde el 25 ago |
-| **Diseño de la 2.0** | ✅ cerrado, sin cuestiones abiertas. Falta escribirlo |
+| **Suite local** | ✅ 58/58 con **GCC, MSVC e Intel**. clang: 55/58 (ver P0.7) |
+| **CI** | ⚠️ verde, pero **su matriz de compiladores no compilaba lo que decía**: ver P0.8 |
+| **Diseño de la 2.0** | ✅ cerrado. **P1.1 a P1.4 escritos**; quedan P1.5 y P1.6 |
 | **ADR** | 15 registros, ninguna decisión sin documentar |
 
 **Lo primero al retomar: `python scripts/check_docs_consistency.py --doxygen`.**
@@ -99,15 +99,17 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P0.4~~ | ~~`test_template_type.cpp` no comprueba nada~~ | ✅ **hecho**: las identidades de tipo son `static_assert` |
 | ~~P0.5~~ | ~~`cross-arm32` y `aarch64` tapan fallos reales~~ | ✅ **hecho**: un bug de compilacion y tres timeouts |
 | ~~P0.6~~ | ~~Intel oneAPI en Windows~~ | ✅ **en local**: 55/55 con Intel 2026.1. Queda **solo el runner del CI** |
+| **P0.7** | **Decidir el clang del proyecto: CLANG64 (libc++) o UCRT64.** `toolchains.json` dice CLANG64 y lo da por validado, pero con libc++ **tres tests no compilan**: las primarias `nstd::is_integral...` no se definen ahí ([`fixed_int_traits_specializations.hpp`](include/fixed_int_traits_specializations.hpp), *"the `_v` helpers may need different handling"*). O se cierra el hueco, o el JSON pasa a decir UCRT64. **Nunca se ha probado con libc++** |
+| **P0.8** | **Ver qué saca la matriz del CI ahora que compila de verdad.** Hasta este commit, `get_compiler_cmd()` pisaba `GCC_CXX`/`CLANG_CXX` con el nombre pelado: **todas las celdas usaban el compilador por defecto del runner**. La primera pasada puede sacar fallos reales que estaban tapados |
 
 ### P1 — Camino crítico (el orden lo fija ADR-007)
 
 | | Qué | Depende de |
 |---|---|---|
-| ~~P1.1~~ | ~~Almacenamiento de la política~~ | ✅ **hecho**: 32 bytes con `wrap` en los cuatro compiladores |
-| ~~P1.2~~ | ~~Propagación de la marca, `valid()`, comparación~~ | ✅ **hecho**: `+ - * << - ++ --` y sus `op=`, orden total, `to_string` |
-| ~~P1.3~~ | ~~`checked_div` y las tres `saturating_*`~~ | ✅ **hecho**, y las `checked_*` dejan `std::optional` |
-| **P1.4** | `representation_traits<binnat>` y generalizar el `static_assert` al bicondicional de [ADR-011](docs/decisions/ADR-011-sin-signo-equivale-a-binnat.md) | — (pequeño, se puede colar antes) |
+| ~~P1.1~~ | ~~Almacenamiento de la política~~ | ✅ **hecho** en `6ea1ae4`: 32 bytes con `wrap` en los cuatro compiladores |
+| ~~P1.2~~ | ~~Propagación de la marca, `valid()`, comparación~~ | ✅ **hecho** en `5ad2bad`: `+ - * << - ++ --` y sus `op=`, orden total, `to_string` |
+| ~~P1.3~~ | ~~`checked_div` y las tres `saturating_*`~~ | ✅ **hecho** en `d684bb6`, y las `checked_*` dejan `std::optional`. Destapó el producto con signo, que se leía sin signo |
+| ~~P1.4~~ | ~~`representation_traits<binnat>` y el `static_assert` al bicondicional de [ADR-011](docs/decisions/ADR-011-sin-signo-equivale-a-binnat.md)~~ | ✅ **hecho** en `c73e55a` |
 | **P1.5** | **Portar Magnitud-Signo y Exceso-K** a `fixed_int_t` y retirar `int128_param_t` | P1.3 |
 | **P1.6** | Etapa 5: punto fijo | P1.5 |
 

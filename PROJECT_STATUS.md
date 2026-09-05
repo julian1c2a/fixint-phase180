@@ -16,14 +16,15 @@
 **v1.90.4 está publicada**, y **el diseño de la 2.0 está cerrado sin cuestiones
 abiertas**: falta escribirlo.
 
-## Verificación — 26 August 2026
+## Verificación — 5 September 2026
 
 | Comprobación | Resultado |
 |---|---|
-| CI sobre `HEAD` (`314543e`) | job del armonizador **en verde**; el resto en verde salvo sanitizers, aún corriendo |
 | `python make.py test gcc release-O2` | **58/58 ficheros** (GCC 16.2 ucrt64) |
+| `python make.py test msvc release-O2` | **58/58 ficheros** |
+| `python make.py test intel release-O2` | **58/58 ficheros** (oneAPI 2026.1) |
+| `python make.py test clang release-O2` | **55/58** — tres no compilan bajo libc++, ajeno a este trabajo: ver P0.7 en NEXT_STEPS |
 | `scripts/check_headers_selfcontained.py` | **31/31** headers compilan aislados |
-| Clang **sin flags no estándar** | 31/31 headers + suite ✅ |
 | `clang-format --dry-run --Werror`, 104 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
 | `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
 | Avisos de cobertura de Doxygen desde `include/` | **505** (local, doxygen 1.18.0) · **518** (CI, doxygen 1.9.8) |

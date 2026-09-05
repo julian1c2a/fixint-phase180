@@ -1,3 +1,117 @@
+## [sin publicar] - 2026-09-05 - La politica de desbordamiento, y tres fuentes de verdad de menos
+
+Todo lo que hay en `phase-1.80` desde v1.90.4. La cabecera del cambio es
+`fixed_int_t` con **cuarto parametro de plantilla**, `overflow_policy`; el resto
+son fallos que aparecieron al ir a comprobarlo.
+
+### `overflow_policy`, el cuarto parametro (P1.1 a P1.4)
+
+- **P1.1** — `fixed_int_t<N, Sign, Form, Policy>`, con `Policy = wrap` por
+  defecto para no romper nada escrito. El enum nace con sus cuatro valores
+  (`wrap`, `checked`, `saturate`, `trap`) aunque solo dos esten escritos, para no
+  cambiar la ABI de la plantilla mas adelante. La marca de invalido vive en un
+  **miembro condicional** que solo existe con `checked`: medido que la
+  alternativa (clase base vacia) pierde `is_standard_layout` en los cuatro
+  compiladores. Ver [ADR-009].
+- **P1.2** — La marca se **propaga** por `+ - * << - ++ --` y sus `op=`, y los
+  invalidos se **ordenan** (orden total, el invalido es el mayor) en vez de
+  volverse incomparables: incomparables romperia el orden estricto debil y con el
+  `std::map` y `std::sort`. Ver [ADR-008] y [ADR-010].
+- **P1.3** — `checked_div` y las tres `saturating_*`, que era lo que [ADR-009]
+  senalaba como bloqueante de [ADR-006]. Las `checked_*` **dejan
+  `std::optional`** y devuelven el propio tipo con politica `checked`: con
+  `optional` no se podia encadenar (`checked_add(a,b) * c`) ni conservar el valor
+  envuelto. `.has_value()` pasa a `.valid()`.
+- **P1.4** — `representation_traits<binnat>`, que era la unica forma sin
+  especializar, y el `static_assert` de la clase separado en dos: el que es LEY
+  ([ADR-011]) y el que es TAREA PENDIENTE.
+
+### El producto con signo se leia sin signo
+
+`producto_desborda` multiplicaba los **patrones de bits** --el producto sin
+signo-- y comparaba la mitad alta contra la extension de signo. Para `(-1) *
+(-1)` la mitad alta sale llena de unos, asi que decia "desborda" sobre un
+resultado que es 1. Faltaba la correccion de signo:
+
+    con_signo(a*b) = sin_signo(a*b) - (a<0 ? b<<64N : 0) - (b<0 ? a<<64N : 0)
+
+`saturating_mul` se apoya en `checked_mul`, asi que heredaba el fallo:
+`saturating_mul(-1,-1)` saturaba a `max()`.
+
+No basta con que vuelva a pasar el test que fallaba. Contrastado contra dos
+verdades de campo independientes: **16 184 529 pares** con N=1 contra `__int128`,
+y **5 851 561 pares** con N=2 contra un calculo por magnitud y signo sobre
+`unsigned __int128` --que es un camino distinto del complemento a dos--. Cero
+discrepancias, en la marca y en el valor.
+
+### Un fallo de plegado de clang, y por que no se habia visto
+
+Con clang 22.1.8, `__builtin_uaddll_overflow` / `__builtin_usubll_overflow` dan
+el acarreo correcto **en ejecucion** pero no cuando clang pliega la expresion en
+compilacion. Solo se estropea el acarreo que alimenta la marca --los valores
+nunca salen mal-- asi que afecta unicamente a `checked`, que no esta publicado.
+Los detalles, lo comprobado y lo descartado estan en la cabecera de
+`include/intrinsics/arithmetic_operations.hpp`.
+
+Arreglado poniendo la forma portable **solo bajo `__clang__`**. Medido con 25
+rondas en orden aleatorio y un caso por proceso: en clang no cuesta nada, en GCC
+costaria +17 % en N=8 y +30 % en N=16, y por eso GCC se queda con el builtin.
+
+**Por que no se habia visto:** el job de clang no comprobaba nada. Ver abajo.
+
+### Tres fuentes de verdad de menos en los scripts
+
+`toolchains.json` es desde T7.5 la fuente unica de que compilador usa el
+proyecto. No la respetaban:
+
+- `compiler_env.py` tenia **su propia tabla** de rutas y para clang devolvia el
+  nombre pelado `clang++`. Y `build_generic.py` lo buscaba en el PATH **del
+  proceso**, no en el del entorno aislado que el mismo acababa de montar. En una
+  shell sin MSYS2 delante, eso salia como *"clang: C:/msys64/clang64/bin/
+  clang++.exe"* seguido de *"clang not found (clang++)"* y 58 "build failed".
+- `build_demos.py` tenia una **tercera** tabla, cableada a rutas de Windows: en
+  Linux intentaba ejecutar `C:/msys64/ucrt64/bin/g++.exe`.
+
+Lo grave no es local. El CI inyecta `GCC_CXX` / `CLANG_CXX` desde la matriz
+(g++-13, g++-14, clang++-18...), y `get_compiler_cmd()` **pisaba ese valor** con
+el nombre pelado. Comprobado con las variables puestas:
+
+| | `toolchains.resolve` | lo que se usaba antes | lo que se usa ahora |
+|---|---|---|---|
+| gcc | `g++-14` | `g++` (el del runner) | `g++-14` |
+| clang | `clang++-19` | `clang++` (el del runner) | `clang++-19` |
+
+Es decir: **la matriz de compiladores del CI compilaba todas sus celdas con el
+compilador por defecto del runner.** La afirmacion "en verde con GCC 13-16, Clang
+18-22" no estaba sostenida por lo que se ejecutaba. La primera pasada de CI tras
+este cambio puede sacar fallos reales que estaban tapados.
+
+### Y lo que el arreglo destapa, sin cerrar
+
+Al obedecer a `toolchains.json`, clang pasa a ser el de **CLANG64** (libc++), que
+es el que el fichero declara validado. Con el, **tres tests no compilan**: bajo
+libc++ las primarias `nstd::is_integral...` no se definen
+(`fixed_int_traits_specializations.hpp`, con un comentario que dice *"the `_v`
+helpers may need different handling"*). Nunca se habia probado con libc++. Queda
+por decidir si se cierra ese hueco o si `toolchains.json` pasa a decir UCRT64.
+
+### Estado de la suite
+
+| Compilador | Resultado |
+|---|---|
+| GCC 16.2 (ucrt64) | 58/58 |
+| MSVC 19.5x | 58/58 |
+| Intel oneAPI 2026.1 | 58/58 |
+| clang 22.1.8 (clang64, libc++) | 55/58 — los tres de arriba, sin relacion con este trabajo |
+
+[ADR-006]: docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md
+[ADR-008]: docs/decisions/ADR-008-diseno-de-la-politica-de-desbordamiento.md
+[ADR-009]: docs/decisions/ADR-009-almacenamiento-de-la-marca-y-operaciones-checked.md
+[ADR-010]: docs/decisions/ADR-010-orden-total-con-valores-invalidos.md
+[ADR-011]: docs/decisions/ADR-011-sin-signo-equivale-a-binnat.md
+
+---
+
 ## [1.90.4] - 2026-08-25 - La publicacion, al cuarto intento
 
 Ni una linea de logica cambia desde v1.90.1. Lo unico que toca a `include/` son

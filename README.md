@@ -92,8 +92,12 @@ la ruta de inclusión.
 g++ -std=c++20 -I include mi_programa.cpp
 ```
 
-Requisitos: **C++20**. Probada en GCC 13–16, Clang 18–22, MSVC 19.5x e Intel
-ICX, sobre x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
+Requisitos: **C++20**. Verificada en local sobre GCC 16.2, MSVC 19.5x e Intel
+oneAPI 2026.1 (58/58 los tres) y Clang 22.1.8. El CI la cruza además con GCC
+13–16 y Clang 18–22 sobre x86-64, x86-32, ARM64, ARM32 y RISC-V 64; **esas
+celdas están pendientes de una pasada válida**: hasta el 5 sep 2026 los scripts
+pisaban la versión que inyectaba la matriz y compilaban todas con el compilador
+por defecto del runner (ver el CHANGELOG).
 
 ## Cómo se construye el proyecto
 
