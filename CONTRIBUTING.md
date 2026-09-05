@@ -61,7 +61,7 @@ python make.py test all all            # todos los compiladores y modos
 python make.py list                    # qué objetivos hay
 ```
 
-La suite son 57 ficheros y tarda unos 3 minutos con GCC en release.
+La suite son 58 ficheros y tarda unos 3 minutos con GCC en release.
 
 ---
 

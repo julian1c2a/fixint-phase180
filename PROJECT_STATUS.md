@@ -21,7 +21,7 @@ abiertas**: falta escribirlo.
 | Comprobación | Resultado |
 |---|---|
 | CI sobre `HEAD` (`314543e`) | job del armonizador **en verde**; el resto en verde salvo sanitizers, aún corriendo |
-| `python make.py test gcc release-O2` | **57/57 ficheros** (GCC 16.2 ucrt64) |
+| `python make.py test gcc release-O2` | **58/58 ficheros** (GCC 16.2 ucrt64) |
 | `scripts/check_headers_selfcontained.py` | **31/31** headers compilan aislados |
 | Clang **sin flags no estándar** | 31/31 headers + suite ✅ |
 | `clang-format --dry-run --Werror`, 104 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
@@ -61,7 +61,7 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 | | |
 |---|---|
 | Headers | 31 (`include/`, con `algorithms/` e `intrinsics/`) |
-| Tests | 57 ficheros |
+| Tests | 58 ficheros |
 | Scripts vivos | 16 (llegaron a ser 47) |
 | Documentos de raíz | 12, 9.834 renglones — de los que 6.271 son el `CHANGELOG` |
 | ADR | **15**, ninguna decisión tomada sin documentar |
@@ -93,8 +93,8 @@ propiedades sobre `int128_param_t`.
 | Knuth D, Karatsuba (N=4/8, **medido: 1,65× y 1,48×**), Granlund-Montgomery | ✅ |
 | Magnitud-Signo y Exceso-K **en `int128_param_t`** | ✅ |
 | Magnitud-Signo y Exceso-K **en `fixed_int_t`** | ❌ pendiente — [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md) |
-| Política de desbordamiento como parámetro | ❌ diseñada, sin escribir — ADR-007 a 010 |
-| `checked_div` y las tres `saturating_*` en `fixed_int_t` | ❌ pendiente — [ADR-009](docs/decisions/ADR-009-almacenamiento-de-la-marca-y-operaciones-checked.md) |
+| Política de desbordamiento como parámetro | ✅ **escrita** (P1.1–P1.3): almacenamiento, propagación, orden y las `checked_*`/`saturating_*` |
+| `checked_div` y las tres `saturating_*` en `fixed_int_t` | ✅ (5 sep 2026) — desbloquea [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md) |
 
 ## Deuda anotada
 

@@ -714,35 +714,43 @@ static void test_higher_arith(const char *tag)
         TEST("lcm(3,3)==3", nstd::lcm(U{3}, U{3}) == U{3});
     }
 
-    // checked_add unsigned
+    // -------------------------------------------------------------------------
+    // checked_* : MIGRADAS el 5 sep 2026 (P1.3, ADR-009)
+    // -------------------------------------------------------------------------
+    //
+    // Antes devolvian `std::optional<U>` y aqui se comprobaba con `.has_value()`
+    // y comparando contra `std::optional<U>{...}`. Ahora devuelven **el propio
+    // tipo con politica `checked`**: el valor sigue estando siempre, y lo que se
+    // consulta es `valid()`.
+    //
+    // El motivo del cambio es que `std::optional` rompia el encadenado --no se
+    // podia volver a operar sin desenvolver-- y tiraba el valor envuelto, que
+    // ADR-009 quiere conservar.
     {
+        // El tipo checked que corresponde a U, sea cual sea su N: se deduce, no
+        // se cablea. (En este bloque U es uint_fixed_t<1>.)
+        using C = decltype(nstd::con_comprobacion(U{}));
         const U mx = U::max();
-        U one{std::uint64_t{1}};
-        TEST("checked_add(1,2)==3", nstd::checked_add(U{1}, U{2}) == std::optional<U>{U{3}});
-        TEST("checked_add(max,1)==nullopt", !nstd::checked_add(mx, one).has_value());
-        TEST("checked_add(max,max)==nullopt", !nstd::checked_add(mx, mx).has_value());
-        TEST("checked_add(0,0)==0", nstd::checked_add(U{}, U{}) == std::optional<U>{U{}});
-    }
+        const U one{std::uint64_t{1}};
 
-    // checked_sub unsigned
-    {
-        const U mx = U::max();
-        U three{std::uint64_t{3}};
-        U five{std::uint64_t{5}};
-        TEST("checked_sub(5,3)==2", nstd::checked_sub(U{5}, three) == std::optional<U>{U{2}});
-        TEST("checked_sub(3,5)==nullopt", !nstd::checked_sub(U{3}, five).has_value());
-        TEST("checked_sub(max,max)==0", nstd::checked_sub(mx, mx) == std::optional<U>{U{}});
-        TEST("checked_sub(0,0)==0", nstd::checked_sub(U{}, U{}) == std::optional<U>{U{}});
-    }
+        TEST("checked_add(1,2)==3", nstd::checked_add(U{1}, U{2}) == C{std::uint64_t{3}});
+        TEST("checked_add(max,1) marca", !nstd::checked_add(mx, one).valid());
+        TEST("checked_add(max,max) marca", !nstd::checked_add(mx, mx).valid());
+        TEST("checked_add(0,0)==0", nstd::checked_add(U{}, U{}) == C{});
 
-    // checked_mul unsigned
-    {
-        const U mx = U::max();
-        U two{std::uint64_t{2}};
-        TEST("checked_mul(3,4)==12", nstd::checked_mul(U{3}, U{4}) == std::optional<U>{U{12}});
-        TEST("checked_mul(max,2)==nullopt", !nstd::checked_mul(mx, two).has_value());
-        TEST("checked_mul(0,max)==0", nstd::checked_mul(U{}, mx) == std::optional<U>{U{}});
-        TEST("checked_mul(1,max)==max", nstd::checked_mul(U{1}, mx) == std::optional<U>{mx});
+        TEST("checked_sub(5,3)==2", nstd::checked_sub(U{5}, U{3}) == C{std::uint64_t{2}});
+        TEST("checked_sub(3,5) marca", !nstd::checked_sub(U{3}, U{5}).valid());
+        TEST("checked_sub(max,max)==0", nstd::checked_sub(mx, mx) == C{});
+        TEST("checked_sub(0,0)==0", nstd::checked_sub(U{}, U{}) == C{});
+
+        TEST("checked_mul(3,4)==12", nstd::checked_mul(U{3}, U{4}) == C{std::uint64_t{12}});
+        TEST("checked_mul(max,2) marca", !nstd::checked_mul(mx, U{2}).valid());
+        TEST("checked_mul(0,max)==0", nstd::checked_mul(U{}, mx) == C{});
+        TEST("checked_mul(1,max)==max", nstd::checked_mul(U{1}, mx) == nstd::con_comprobacion(mx));
+
+        // Y lo que antes no se podia escribir: encadenar sin desenvolver.
+        TEST("encadenado: checked_add(1,2)*10 == 30",
+             nstd::checked_add(U{1}, U{2}) * C{std::uint64_t{10}} == C{std::uint64_t{30}});
     }
 }
 

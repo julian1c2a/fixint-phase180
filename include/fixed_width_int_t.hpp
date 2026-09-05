@@ -505,9 +505,38 @@ namespace nstd
 
             if constexpr (is_signed)
             {
-                // Con signo el producto de arriba es el de las magnitudes en
-                // complemento a dos truncado; se compara contra la extension de
-                // signo de la parte baja.
+                // CORRECCION DE SIGNO. Lo de arriba es el producto de los PATRONES
+                // DE BITS, o sea el producto SIN signo. Para leerlo como producto
+                // con signo hay que restar de la mitad alta cada operando cuando el
+                // OTRO es negativo:
+                //
+                //     con_signo(a*b) = sin_signo(a*b) - (a<0 ? b<<64N : 0)
+                //                                     - (b<0 ? a<<64N : 0)
+                //
+                // Sin esta correccion `(-1) * (-1)` decia que desbordaba: el
+                // producto sin signo de 0xFF..FF por si mismo tiene la mitad alta
+                // llena de unos y se leia como que no cabia. Lo cazo
+                // test_fixed_signed el 5 sep 2026, con cuatro fallos identicos.
+                auto restar_en_alta = [&p](const fixed_int_t &x) noexcept
+                {
+                    std::uint64_t prestamo{0};
+                    for (std::size_t k{0}; k < N; ++k)
+                    {
+                        const std::uint64_t minuendo = p[N + k];
+                        const std::uint64_t quito = x.data[k];
+                        const std::uint64_t d1 = minuendo - quito;
+                        const std::uint64_t d2 = d1 - prestamo;
+                        prestamo = ((minuendo < quito) ? 1u : 0u) + ((d1 < prestamo) ? 1u : 0u);
+                        p[N + k] = d2;
+                    }
+                };
+                if (a.is_negative())
+                    restar_en_alta(b);
+                if (b.is_negative())
+                    restar_en_alta(a);
+
+                // Ahora si: la mitad alta tiene que ser exactamente la extension de
+                // signo del bit mas alto de la parte baja.
                 const std::uint64_t relleno = (p[N - 1] >> 63) != 0 ? ~std::uint64_t{0} : std::uint64_t{0};
                 for (std::size_t i{N}; i < 2 * N; ++i)
                     if (p[i] != relleno)
@@ -800,6 +829,23 @@ namespace nstd
                 if (limb != 0)
                     return false;
             return true;
+        }
+
+        /// @brief Un valor marcado como invalido desde el principio.
+        ///
+        /// Solo existe con `Policy == checked`. Hace falta para las operaciones
+        /// que **no tienen resultado**, no que se salen de rango: dividir por
+        /// cero es el caso claro. El valor que se guarda es el que se pase, y no
+        /// significa nada mientras la marca este puesta.
+        ///
+        /// @param valor El numero que queda dentro; cero si no se dice otro.
+        /// @return Ese valor, marcado.
+        template <bool P = (Policy == overflow_policy::checked), typename = std::enable_if_t<P>>
+        [[nodiscard]] static constexpr fixed_int_t invalido(const fixed_int_t &valor = fixed_int_t{}) noexcept
+        {
+            fixed_int_t r{valor};
+            r.estado = 1;
+            return r;
         }
 
         /// @brief Si el valor es de fiar, es decir, si no lo ha marcado un
@@ -4954,121 +5000,165 @@ namespace nstd
         return lcm(ua, ub);
     }
 
-    /// @name Aritmetica comprobada
+    /// @name Aritmetica comprobada y saturada
     ///
-    /// Devuelven `std::nullopt` en vez de envolver cuando el resultado no cabe.
-    /// Son la alternativa explicita al desbordamiento modular del `operator`
-    /// correspondiente, y **no lanzan**: el desbordamiento es un resultado
-    /// esperable, no un error de programacion (ADR-004).
+    /// Dos formas de no tragarse un desbordamiento en silencio, para quien no
+    /// quiera cambiar el tipo de sus variables:
     ///
-    /// @note Estan **incompletas**: falta `checked_div()`, y faltan las tres
-    ///       `saturating_*` que si existen para `int128_param_t`. Mientras
-    ///       falten, ese tipo no puede retirarse (ADR-009). Ademas, cuando
-    ///       llegue la politica de desbordamiento como parametro de plantilla,
-    ///       estas funciones pasaran a devolver el propio tipo con politica
-    ///       `checked` en vez de un `std::optional`, que pierde el valor.
+    /// - Las `checked_*` **devuelven el propio tipo con politica `checked`**.
+    ///   La funcion libre y la politica dejan de ser dos mecanismos y pasan a
+    ///   ser uno con dos puertas de entrada: `valid()` es la consulta en los dos
+    ///   casos, y el resultado se puede seguir encadenando.
+    /// - Las `saturating_*` devuelven el tipo de siempre, pegado a `max()` o a
+    ///   `min()` cuando no cabe.
+    ///
+    /// **CAMBIO QUE ROMPE (5 sep 2026).** Las `checked_*` devolvian
+    /// `std::optional<...>`. Era la unica de las tres formas candidatas que
+    /// **tiraba el valor** al desbordar, y rompia el encadenado: `checked_add(a,b)`
+    /// no se podia volver a sumar sin desenvolverlo. La migracion es directa:
+    ///
+    /// | antes | ahora |
+    /// |---|---|
+    /// | `r.has_value()` | `r.valid()` |
+    /// | `*r` o `r.value()` | `r` (el valor siempre esta ahi) |
+    /// | `r == std::optional<U>{U{3}}` | `r == checked_of<U>{3}` |
+    ///
+    /// See ADR-009.
     /// @{
 
-    /// @brief Suma sin signo comprobada.
+    /// @brief Suma comprobada.
     /// @param a Primer sumando.
     /// @param b Segundo sumando.
-    /// @return La suma, o `std::nullopt` si desborda por arriba.
-    template <std::size_t N>
-    [[nodiscard]] constexpr std::optional<uint_fixed_t<N>> checked_add(const uint_fixed_t<N> &a,
-                                                                       const uint_fixed_t<N> &b) noexcept
+    /// @return La suma, con politica `checked`. Si desbordo, queda marcada y
+    ///         `valid()` devuelve `false`; **el valor envuelto sigue ahi**.
+    template <std::size_t N, signedness Sign, representation_form Form>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::checked>
+    checked_add(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
+                const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
     {
-        const uint_fixed_t<N> r = a + b;
-        if (r < a)
-            return std::nullopt;
-        return r;
+        return con_comprobacion(a) + con_comprobacion(b);
     }
 
-    /// @brief Resta sin signo comprobada.
+    /// @brief Resta comprobada.
     /// @param a Minuendo.
     /// @param b Sustraendo.
-    /// @return La diferencia, o `std::nullopt` si `b > a`, que sin signo seria
-    ///         desbordar por abajo.
-    template <std::size_t N>
-    [[nodiscard]] constexpr std::optional<uint_fixed_t<N>> checked_sub(const uint_fixed_t<N> &a,
-                                                                       const uint_fixed_t<N> &b) noexcept
+    /// @return La diferencia, con politica `checked`.
+    template <std::size_t N, signedness Sign, representation_form Form>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::checked>
+    checked_sub(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
+                const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
     {
-        if (b > a)
-            return std::nullopt;
-        return a - b;
+        return con_comprobacion(a) - con_comprobacion(b);
     }
 
-    /// @brief Producto sin signo comprobado.
-    ///
-    /// Se calcula con `mul_wide()` y se comprueba que los N limbos altos sean
-    /// cero: es exacto, no una estimacion.
-    ///
+    /// @brief Producto comprobado.
     /// @param a Primer factor.
     /// @param b Segundo factor.
-    /// @return El producto, o `std::nullopt` si no cabe en `64 * N` bits.
-    template <std::size_t N>
-    [[nodiscard]] constexpr std::optional<uint_fixed_t<N>> checked_mul(const uint_fixed_t<N> &a,
-                                                                       const uint_fixed_t<N> &b) noexcept
+    /// @return El producto, con politica `checked`.
+    template <std::size_t N, signedness Sign, representation_form Form>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::checked>
+    checked_mul(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
+                const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
     {
-        const uint_fixed_t<2 * N> wide = mul_wide(a, b);
-        for (std::size_t i = N; i < 2 * N; ++i)
-            if (wide.limb(i) != 0)
-                return std::nullopt;
-        return uint_fixed_t<N>{wide};
+        return con_comprobacion(a) * con_comprobacion(b);
     }
 
-    /// @brief Suma con signo comprobada.
+    /// @brief Division comprobada. **Faltaba**, y sin ella `int128_param_t` no
+    ///        podia retirarse (ADR-006).
     ///
-    /// Detecta el desbordamiento por la regla clasica del complemento a dos: si
-    /// los dos sumandos tienen el mismo signo y el resultado tiene otro, ha
-    /// desbordado.
+    /// La division entera solo desborda en un caso, y solo con signo:
+    /// `min() / -1`, cuyo resultado no es representable. Pero hay un segundo
+    /// motivo para marcar que no es desbordamiento sino **ausencia de
+    /// resultado**: dividir por cero.
     ///
+    /// @param a Dividendo.
+    /// @param b Divisor.
+    /// @return El cociente, con politica `checked`. Marcado si `b` es cero o si
+    ///         la division desborda.
+    /// @note **No lanza**, al reves que `operator/`. Es la diferencia entre las
+    ///       dos puertas: el operador considera la division por cero un error de
+    ///       programacion (ADR-004) y lanza `std::domain_error`; esta funcion la
+    ///       considera un resultado esperable y la marca.
+    template <std::size_t N, signedness Sign, representation_form Form>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::checked>
+    checked_div(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
+                const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
+    {
+        using W = fixed_int_t<N, Sign, Form, overflow_policy::wrap>;
+        using C = fixed_int_t<N, Sign, Form, overflow_policy::checked>;
+
+        // Dividir por cero no desborda: NO TIENE RESULTADO. Se marca, y el valor
+        // que queda dentro es cero porque cualquier otro seria igual de
+        // arbitrario.
+        if (b.is_zero())
+            return C::invalido();
+
+        if constexpr (Sign == signedness::signed_type)
+        {
+            // min() / -1 es el unico desbordamiento de la division entera: el
+            // cociente seria -min(), que no es representable. Se marca dejando
+            // dentro el valor envuelto, que es lo que ADR-009 pide conservar.
+            if (a == W::min() && b == -W::one())
+                return C::invalido(con_comprobacion(W::divmod(a, b).first));
+        }
+        return con_comprobacion(W::divmod(a, b).first);
+    }
+
+    /// @brief Suma saturada: se pega a `max()` o a `min()` en vez de envolver.
     /// @param a Primer sumando.
     /// @param b Segundo sumando.
-    /// @return La suma, o `std::nullopt` si desborda por arriba o por abajo.
-    template <std::size_t N>
-    [[nodiscard]] constexpr std::optional<int_fixed_t<N>> checked_add(const int_fixed_t<N> &a,
-                                                                      const int_fixed_t<N> &b) noexcept
+    /// @return La suma, o el extremo hacia el que se desbordo.
+    template <std::size_t N, signedness Sign, representation_form Form>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::wrap>
+    saturating_add(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
+                   const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
     {
-        const int_fixed_t<N> r = a + b;
-        const bool a_neg = a.is_negative();
-        if (a_neg == b.is_negative() && r.is_negative() != a_neg)
-            return std::nullopt;
-        return r;
+        using W = fixed_int_t<N, Sign, Form, overflow_policy::wrap>;
+        const auto r = checked_add(a, b);
+        if (r.valid())
+            return descartar_marca(r);
+        if constexpr (Sign == signedness::unsigned_type)
+            return W::max(); // sin signo solo se puede desbordar por arriba
+        else
+            return a.is_negative() ? W::min() : W::max();
     }
 
-    /// @brief Resta con signo comprobada.
+    /// @brief Resta saturada.
     /// @param a Minuendo.
     /// @param b Sustraendo.
-    /// @return La diferencia, o `std::nullopt` si desborda.
-    template <std::size_t N>
-    [[nodiscard]] constexpr std::optional<int_fixed_t<N>> checked_sub(const int_fixed_t<N> &a,
-                                                                      const int_fixed_t<N> &b) noexcept
+    /// @return La diferencia, o el extremo hacia el que se desbordo.
+    template <std::size_t N, signedness Sign, representation_form Form>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::wrap>
+    saturating_sub(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
+                   const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
     {
-        const int_fixed_t<N> r = a - b;
-        const bool a_neg = a.is_negative();
-        if (a_neg != b.is_negative() && r.is_negative() != a_neg)
-            return std::nullopt;
-        return r;
+        using W = fixed_int_t<N, Sign, Form, overflow_policy::wrap>;
+        const auto r = checked_sub(a, b);
+        if (r.valid())
+            return descartar_marca(r);
+        if constexpr (Sign == signedness::unsigned_type)
+            return W{}; // sin signo solo se puede desbordar por abajo: cero
+        else
+            return a.is_negative() ? W::min() : W::max();
     }
 
-    /// @brief Producto con signo comprobado.
-    ///
-    /// Se calcula con `mul_wide()` y se comprueba que los N limbos altos sean
-    /// todos la extension de signo del bit mas alto del resultado.
-    ///
+    /// @brief Producto saturado.
     /// @param a Primer factor.
     /// @param b Segundo factor.
-    /// @return El producto, o `std::nullopt` si no cabe.
-    template <std::size_t N>
-    [[nodiscard]] constexpr std::optional<int_fixed_t<N>> checked_mul(const int_fixed_t<N> &a,
-                                                                      const int_fixed_t<N> &b) noexcept
+    /// @return El producto, o el extremo hacia el que se desbordo.
+    template <std::size_t N, signedness Sign, representation_form Form>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::wrap>
+    saturating_mul(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
+                   const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
     {
-        const int_fixed_t<2 * N> wide = mul_wide(a, b);
-        const std::uint64_t fill = wide.limb(N - 1) >> 63 ? ~std::uint64_t{0} : std::uint64_t{0};
-        for (std::size_t i = N; i < 2 * N; ++i)
-            if (wide.limb(i) != fill)
-                return std::nullopt;
-        return int_fixed_t<N>{wide};
+        using W = fixed_int_t<N, Sign, Form, overflow_policy::wrap>;
+        const auto r = checked_mul(a, b);
+        if (r.valid())
+            return descartar_marca(r);
+        if constexpr (Sign == signedness::unsigned_type)
+            return W::max();
+        else
+            return (a.is_negative() != b.is_negative()) ? W::min() : W::max();
     }
 
     /// @}
