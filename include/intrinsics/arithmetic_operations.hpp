@@ -75,6 +75,55 @@
 #include <intrin.h>
 #endif
 
+// =============================================================================
+// LA NOTA: por que clang NO usa __builtin_uaddll_overflow / __builtin_usubll_overflow
+//
+// Encontrado el 5 sep 2026, con clang 22.1.8 (x86_64-w64-windows-gnu).
+//
+// En EJECUCION esos builtins dan el acarreo correcto. Cuando clang PLIEGA la
+// expresion en tiempo de compilacion --no una evaluacion constante de verdad,
+// sino el plegado oportunista de un objeto `const` inicializado con
+// constantes-- el acarreo que sale del bucle sobre limbos es otro. Resultado:
+//
+//     const U mx = U::max();
+//     const U one{std::uint64_t{1}};
+//     const auto rc = nstd::checked_add(mx, one);
+//     const bool g = rc.valid();      // clang: true  (mal)
+//     ... rc.valid() ...              // clang: false (bien)
+//
+// La misma llamada, dos lineas seguidas, dos respuestas. En el ensamblador se ve
+// literal: `movb $1, -65(%rbp)` en vez de la llamada a valid().
+//
+// Lo comprobado:
+//   - Los VALORES nunca salen mal, ni plegados ni en ejecucion. Solo se estropea
+//     el acarreo que alimenta la marca, asi que solo afecta a `checked`.
+//   - Solo con N >= 2: hace falta que el acarreo se PROPAGUE (carry_in = 1 sobre
+//     el limbo alto), no que se genere.
+//   - Una evaluacion constante de verdad (static_assert) SI da lo correcto.
+//   - GCC, MSVC e Intel no lo tienen: 58/58 los tres.
+//   - El builtin suelto pliega bien; hace falta el bucle sobre limbos.
+//   - No es el encadenado de dos builtins: con uno solo y el acarreo a mano,
+//     tambien falla.
+//
+// Lo descartado:
+//   - `__builtin_addcll` / `__builtin_subcll`: correctos aqui, pero este mismo
+//     fichero ya anota que subcll dio problemas antes (ver subborrow_u64).
+//   - `unsigned __int128`: correcto, pero medido +19 a +71 % en GCC y +30 a
+//     +51 % en clang. Sale caro.
+//
+// El coste de esta rama portable, medido con 25 rondas en orden aleatorio y un
+// caso por proceso (el orden importa: ver la retractacion de N=3 en
+// PERFORMANCE.md), ruido propio de +-3 a +-8 %:
+//
+//        N=2    N=4    N=8     N=16
+//   GCC    0 %    0 %  +17 a +19 %  +30 a +32 %   <- por eso GCC se queda con el builtin
+//   clang  0 %    0 %    0 %          0 %          <- por eso clang no lo echa de menos
+//
+// Reproductor minimo sin la biblioteca (~80 lineas, solo cabeceras estandar) en
+// el historial de la sesion; sirve para reportarlo a LLVM. Cuando se arregle
+// aguas arriba, esta rama se puede quitar mirando __clang_major__.
+// =============================================================================
+
 namespace intrinsics
 {
 
@@ -125,8 +174,14 @@ namespace intrinsics
             *result = sum_with_carry;
             return (sum < a) || (sum_with_carry < sum) ? 1 : 0;
         }
-#if (defined(__GNUC__) && __GNUC__ >= 5) || (defined(__clang__) && __clang_major__ >= 3)
-        // GCC/Clang: usar __builtin_uaddll_overflow para detección de overflow
+#if defined(__clang__)
+        // CLANG NO LLEVA EL BUILTIN AQUI. Ver la nota de abajo.
+        const uint64_t sum = a + b;
+        const uint64_t swc = sum + carry_in;
+        *result = swc;
+        return (sum < a) || (swc < sum) ? 1 : 0;
+#elif (defined(__GNUC__) && __GNUC__ >= 5)
+        // GCC: usar __builtin_uaddll_overflow para detección de overflow
         // Necesitamos manejar carry_in manualmente ya que __builtin_uaddll_overflow no lo soporta
         unsigned long long temp_sum;
         unsigned char overflow1 = __builtin_uaddll_overflow(a, b, &temp_sum);
@@ -212,8 +267,14 @@ namespace intrinsics
             *result = diff_with_borrow;
             return (diff > a) || (diff_with_borrow > diff) ? 1 : 0;
         }
-#if (defined(__GNUC__) && __GNUC__ >= 5) || (defined(__clang__) && __clang_major__ >= 3)
-        // GCC/Clang: usar __builtin_usubll_overflow para detección de underflow
+#if defined(__clang__)
+        // CLANG NO LLEVA EL BUILTIN AQUI. Ver la nota de abajo.
+        const uint64_t diff = a - b;
+        const uint64_t dwb = diff - borrow_in;
+        *result = dwb;
+        return (diff > a) || (dwb > diff) ? 1 : 0;
+#elif (defined(__GNUC__) && __GNUC__ >= 5)
+        // GCC: usar __builtin_usubll_overflow para detección de underflow
         // (NOTA: __builtin_subcll era buggy; __builtin_usubll_overflow es fiable)
         // Necesitamos manejar borrow_in manualmente ya que no hay builtin con borrow
         unsigned long long temp_diff;
