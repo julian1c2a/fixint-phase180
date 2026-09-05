@@ -1,0 +1,199 @@
+{
+  "fecha": "2026-09-05T19:06:53+00:00",
+  "commit": "0a18ee8",
+  "arbol_limpio": true,
+  "maquina": "MSI",
+  "so": "Windows 11",
+  "cpu": "Intel64 Family 6 Model 165 Stepping 2, GenuineIntel",
+  "compilador_pedido": "gcc",
+  "compilador": "g++.exe (Rev3, Built by MSYS2 project) 16.2.0",
+  "modo": "release-O2",
+  "suites": {
+    "karatsuba": {
+      "N=4 biblioteca": {
+        "valor": 53.5696,
+        "unidad": "cyc/op"
+      },
+      "N=4 escolar": {
+        "valor": 100.0286,
+        "unidad": "cyc/op"
+      },
+      "N=4 razon": {
+        "valor": 1.8673,
+        "unidad": "x"
+      },
+      "N=8 biblioteca": {
+        "valor": 302.3301,
+        "unidad": "cyc/op"
+      },
+      "N=8 escolar": {
+        "valor": 374.4304,
+        "unidad": "cyc/op"
+      },
+      "N=8 razon": {
+        "valor": 1.2385,
+        "unidad": "x"
+      },
+      "N=2 biblioteca": {
+        "valor": 5.3526,
+        "unidad": "cyc/op"
+      },
+      "N=2 escolar": {
+        "valor": 17.1894,
+        "unidad": "cyc/op"
+      },
+      "N=2 razon": {
+        "valor": 3.2114,
+        "unidad": "x"
+      },
+      "N=3 biblioteca": {
+        "valor": 41.5176,
+        "unidad": "cyc/op"
+      },
+      "N=3 escolar": {
+        "valor": 45.721,
+        "unidad": "cyc/op"
+      },
+      "N=3 razon": {
+        "valor": 1.1012,
+        "unidad": "x"
+      },
+      "N=5 biblioteca": {
+        "valor": 125.6931,
+        "unidad": "cyc/op"
+      },
+      "N=5 escolar": {
+        "valor": 124.4101,
+        "unidad": "cyc/op"
+      },
+      "N=5 razon": {
+        "valor": 0.9898,
+        "unidad": "x"
+      },
+      "N=7 biblioteca": {
+        "valor": 217.3413,
+        "unidad": "cyc/op"
+      },
+      "N=7 escolar": {
+        "valor": 240.3718,
+        "unidad": "cyc/op"
+      },
+      "N=7 razon": {
+        "valor": 1.106,
+        "unidad": "x"
+      },
+      "N=9 biblioteca": {
+        "valor": 380.3983,
+        "unidad": "cyc/op"
+      },
+      "N=9 escolar": {
+        "valor": 450.6807,
+        "unidad": "cyc/op"
+      },
+      "N=9 razon": {
+        "valor": 1.1848,
+        "unidad": "x"
+      },
+      "N=6 biblioteca": {
+        "valor": 166.439,
+        "unidad": "cyc/op"
+      },
+      "N=6 escolar": {
+        "valor": 179.6235,
+        "unidad": "cyc/op"
+      },
+      "N=6 razon": {
+        "valor": 1.0792,
+        "unidad": "x"
+      },
+      "N=10 biblioteca": {
+        "valor": 618.5739,
+        "unidad": "cyc/op"
+      },
+      "N=10 escolar": {
+        "valor": 645.2707,
+        "unidad": "cyc/op"
+      },
+      "N=10 razon": {
+        "valor": 1.0432,
+        "unidad": "x"
+      },
+      "N=12 biblioteca": {
+        "valor": 979.5702,
+        "unidad": "cyc/op"
+      },
+      "N=12 escolar": {
+        "valor": 1017.6691,
+        "unidad": "cyc/op"
+      },
+      "N=12 razon": {
+        "valor": 1.0389,
+        "unidad": "x"
+      },
+      "N=16 biblioteca": {
+        "valor": 1857.3461,
+        "unidad": "cyc/op"
+      },
+      "N=16 escolar": {
+        "valor": 2139.8907,
+        "unidad": "cyc/op"
+      },
+      "N=16 razon": {
+        "valor": 1.1521,
+        "unidad": "x"
+      }
+    },
+    "addsub": {
+      "sub uint64_t": {
+        "valor": 1.175,
+        "unidad": "cyc/op"
+      },
+      "add uint64_t": {
+        "valor": 1.1234,
+        "unidad": "cyc/op"
+      },
+      "sub nstd::uint128_t": {
+        "valor": 2.3508,
+        "unidad": "cyc/op"
+      },
+      "add nstd::uint128_t": {
+        "valor": 1.8846,
+        "unidad": "cyc/op"
+      },
+      "sub unsigned __int128": {
+        "valor": 2.57,
+        "unidad": "cyc/op"
+      },
+      "add unsigned __int128": {
+        "valor": 2.716,
+        "unidad": "cyc/op"
+      }
+    },
+    "tostring": {
+      "uint64_t (std::to_string)": {
+        "valor": 274.408,
+        "unidad": "cyc/op"
+      },
+      "uint128_t (small, <2^64)": {
+        "valor": 566.0192,
+        "unidad": "cyc/op"
+      },
+      "uint128_t (medium, 2^64)": {
+        "valor": 682.3846,
+        "unidad": "cyc/op"
+      },
+      "uint128_t (large, MAX)": {
+        "valor": 994.6659,
+        "unidad": "cyc/op"
+      },
+      "int128_t (negative, MIN)": {
+        "valor": 1079.8119,
+        "unidad": "cyc/op"
+      },
+      "__uint128_t (naive /10)": {
+        "valor": 1293.3258,
+        "unidad": "cyc/op"
+      }
+    }
+  }
+}

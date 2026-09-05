@@ -143,6 +143,53 @@ namespace nstd
     struct representation_traits;
 
     /**
+     * @brief Specialization for Binario Natural (binnat)
+     *
+     * @details Era la unica de las cuatro formas SIN especializacion, de modo
+     *          que cualquier codigo generico que consultara
+     *          `representation_traits<binnat>` no compilaba. Se detecto el
+     *          25 ago 2026 al escribir ADR-005 y quedo anotado como cabo suelto.
+     *
+     *          Su contenido no es una eleccion: lo determina
+     *          [ADR-011](../docs/decisions/ADR-011-sin-signo-equivale-a-binnat.md),
+     *          que fija que **sin signo y `binnat` son la misma cosa**. Un tipo
+     *          sin signo no tiene signo que codificar, asi que no hay bit de
+     *          signo, no hay inversion, no hay dos ceros y no hay sesgo; y su
+     *          aritmetica es la misma aritmetica modular que la del complemento
+     *          a dos, de modo que aprovecha el hardware igual de bien.
+     *
+     * See ADR-011.
+     */
+    template <>
+    struct representation_traits<representation_form::binnat>
+    {
+        /// @brief Human-readable name
+        static constexpr const char *name = "Binario Natural";
+
+        /// @brief No hay bit de signo: no hay signo que codificar.
+        static constexpr bool has_implicit_sign_bit = false;
+
+        /// @brief No hay negativos, luego no hay nada que invertir.
+        static constexpr bool uses_inversion = false;
+
+        /// @brief Misma aritmetica modular que el complemento a dos: mismos
+        ///        intrinsecos, mismo rendimiento.
+        static constexpr bool hardware_optimized = true;
+
+        /// @brief Un solo cero.
+        static constexpr bool has_two_zeros = false;
+
+        /// @brief Sin sesgo, al contrario que Exceso-K.
+        static constexpr bool uses_bias = false;
+
+        /// @brief Minimo: cero. El rango es [0, 2^n - 1].
+        static constexpr std::uint64_t min_u64 = 0ULL;
+
+        /// @brief Maximo de un limbo.
+        static constexpr std::uint64_t max_u64 = std::numeric_limits<std::uint64_t>::max();
+    };
+
+    /**
      * @brief Specialization for Two's Complement
      */
     template <>

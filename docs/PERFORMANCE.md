@@ -59,6 +59,17 @@ Consecuencias prácticas:
 - Lo que sí sobrevive al ruido es **el signo y el orden de magnitud**. «Karatsuba
   gana» es sólido; «Karatsuba gana un 1,65×» no lo es tanto como parecía.
 
+### Y la máquina tiene que estar ociosa
+
+Esto se aprendió del peor modo posible: **midiendo mal mientras se escribía la
+sección de arriba**. Dos tomas del mismo código, una de ellas con el equipo
+compilando en paralelo, dieron diferencias de **hasta un 52 %** — el doble del
+peor caso del ruido «en reposo».
+
+O sea que el 25 % de la tabla anterior es el ruido **de una máquina tranquila**.
+Con carga de fondo no hay umbral que valga: la medida sencillamente no sirve.
+`scripts/bench_history.py` lo avisa antes de empezar.
+
 ### Y el orden dentro de la ejecución importa
 
 La posición de un caso dentro del benchmark **afecta a su medida**. Se vio con

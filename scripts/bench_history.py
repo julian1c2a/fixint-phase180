@@ -264,6 +264,13 @@ def main():
         echo("  [OJO] el arbol tiene cambios sin commitear: esta medida no se puede")
         echo("        atribuir al commit de arriba.")
     echo("")
+    echo("  [OJO] LA MAQUINA TIENE QUE ESTAR OCIOSA mientras esto corre.")
+    echo("        Compilar otra cosa a la vez, o cualquier carga de fondo, mueve")
+    echo("        las cifras mas que casi cualquier cambio de codigo. Medido el")
+    echo("        5 sep 2026: dos tomas del MISMO codigo, una de ellas con el")
+    echo("        equipo compilando en paralelo, dieron diferencias de hasta un")
+    echo("        52 %. Si has hecho algo mientras, esta medida no vale.")
+    echo("")
 
     for nombre in quiero:
         print("  %-26s " % nombre, end="", flush=True)

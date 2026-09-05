@@ -230,9 +230,29 @@ namespace nstd
     class fixed_int_t
     {
         static_assert(N >= 1, "fixed_int_t requires at least 1 limb");
-        static_assert((Sign == signedness::unsigned_type && Form == representation_form::binnat) ||
-                          (Sign == signedness::signed_type && Form == representation_form::twos_complement),
-                      "Only binnat (unsigned) and twos_complement (signed) are currently implemented");
+        // Dos condiciones, y son de naturaleza distinta. Antes iban en un solo
+        // `static_assert` que las mezclaba, y asi no se veia cual era una ley y
+        // cual una tarea pendiente.
+
+        // LEY. Sin signo y `binnat` son la misma cosa, en los dos sentidos: las
+        // otras tres formas SON codificaciones del signo --complemento a dos,
+        // magnitud-signo y exceso-K existen para representar negativos--, y un
+        // tipo sin signo no tiene signo que codificar. «Sin signo en complemento
+        // a dos» no es una combinacion restrictiva: es una SIN SIGNIFICADO.
+        // Esto no se relaja nunca.
+        //
+        // See ADR-011.
+        static_assert((Sign == signedness::unsigned_type) == (Form == representation_form::binnat),
+                      "Sin signo implica binnat y binnat implica sin signo (ADR-011). "
+                      "Preferir los alias uint_fixed_t<N> e int_fixed_t<N>, que ya lo cumplen.");
+
+        // TAREA PENDIENTE. De las cuatro combinaciones que la ley admite
+        // --binnat sin signo, y TC / MS / EK con signo--, hoy solo hay dos
+        // implementadas. Esta condicion SE RELAJA al portar Magnitud-Signo y
+        // Exceso-K, que es lo que decide ADR-006.
+        static_assert(Form == representation_form::binnat || Form == representation_form::twos_complement,
+                      "Magnitud-Signo y Exceso-K todavia no estan implementadas en fixed_int_t; "
+                      "por ahora viven en int128_param_t (ADR-006).");
 
         static constexpr bool is_signed = (Sign == signedness::signed_type);
 
