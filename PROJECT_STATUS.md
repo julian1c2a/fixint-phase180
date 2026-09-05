@@ -21,7 +21,7 @@ abiertas**: falta escribirlo.
 | Comprobación | Resultado |
 |---|---|
 | CI sobre `HEAD` (`314543e`) | job del armonizador **en verde**; el resto en verde salvo sanitizers, aún corriendo |
-| `python make.py test gcc release-O2` | **56/56 ficheros** (GCC 16.2 ucrt64) |
+| `python make.py test gcc release-O2` | **57/57 ficheros** (GCC 16.2 ucrt64) |
 | `scripts/check_headers_selfcontained.py` | **31/31** headers compilan aislados |
 | Clang **sin flags no estándar** | 31/31 headers + suite ✅ |
 | `clang-format --dry-run --Werror`, 104 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
@@ -61,7 +61,7 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 | | |
 |---|---|
 | Headers | 31 (`include/`, con `algorithms/` e `intrinsics/`) |
-| Tests | 56 ficheros |
+| Tests | 57 ficheros |
 | Scripts vivos | 16 (llegaron a ser 47) |
 | Documentos de raíz | 12, 9.834 renglones — de los que 6.271 son el `CHANGELOG` |
 | ADR | **15**, ninguna decisión tomada sin documentar |

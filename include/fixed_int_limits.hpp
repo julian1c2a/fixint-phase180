@@ -76,12 +76,13 @@ namespace std
     /// @tparam N Numero de limbos de 64 bits.
     /// @tparam Sign Con o sin signo.
     /// @tparam Form Representacion interna.
-    template <size_t N, ::nstd::signedness Sign, ::nstd::representation_form Form>
-    class numeric_limits<::nstd::fixed_int_t<N, Sign, Form>>
+    template <size_t N, ::nstd::signedness Sign, ::nstd::representation_form Form,
+              ::nstd::overflow_policy Policy>
+    class numeric_limits<::nstd::fixed_int_t<N, Sign, Form, Policy>>
     {
     public:
         /// @brief El propio tipo al que se refieren estos limites.
-        using value_type = ::nstd::fixed_int_t<N, Sign, Form>;
+        using value_type = ::nstd::fixed_int_t<N, Sign, Form, Policy>;
 
         /// @name Miembros exigidos por el estandar
         /// Significan lo mismo que para cualquier entero; ver `<limits>`. Lo

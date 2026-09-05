@@ -419,6 +419,110 @@ namespace nstd
         /// tamano del tipo (ADR-008, ADR-009).
         NSTD_NO_UNIQUE_ADDRESS detail::marca_de<Policy> estado{};
 
+        // =========================================================================
+        // La marca: como se hereda y como se pone  (ADR-008, ADR-010)
+        // =========================================================================
+        //
+        // Con `wrap` todo esto se compila a nada: los `if constexpr` descartan el
+        // cuerpo y no queda ni una instruccion. Es lo que hace que la politica no
+        // cueste nada al caso por defecto.
+
+        /// @brief Cero si el valor es de fiar; distinto de cero si no.
+        [[nodiscard]] static constexpr std::uint64_t marca_de_valor(const fixed_int_t &x) noexcept
+        {
+            if constexpr (Policy == overflow_policy::checked)
+                return x.estado;
+            else
+                return 0;
+        }
+
+        /// @brief Marca este valor a partir de dos operandos y de si la operacion
+        ///        desbordo.
+        ///
+        /// La marca es **pegajosa**: se hereda de los operandos con un OR, de modo
+        /// que cualquier operacion con un operando invalido produce un resultado
+        /// invalido, sin importar si esta operacion concreta desbordo o no. Es la
+        /// regla de propagacion de ADR-008.
+        constexpr void marcar(const fixed_int_t &a, const fixed_int_t &b, bool desbordo) noexcept
+        {
+            if constexpr (Policy == overflow_policy::checked)
+                estado = a.estado | b.estado | (desbordo ? std::uint64_t{1} : std::uint64_t{0});
+        }
+
+        /// @brief La misma, para operaciones de un solo operando.
+        constexpr void marcar(const fixed_int_t &a, bool desbordo) noexcept
+        {
+            if constexpr (Policy == overflow_policy::checked)
+                estado = a.estado | (desbordo ? std::uint64_t{1} : std::uint64_t{0});
+        }
+
+        /// @brief Si con esta politica hay que molestarse en detectar nada.
+        ///        Con `wrap`, no: envolver es el comportamiento pedido.
+        static constexpr bool detecta = (Policy == overflow_policy::checked);
+
+        /// @brief Si el producto `a * b` no cabe en `64 * N` bits.
+        ///
+        /// Calcula el producto completo de `2N` limbos y mira lo que sobra por
+        /// arriba. Es exacto, no una estimacion: sin signo desborda si algun
+        /// limbo alto es distinto de cero; con signo, si los limbos altos no son
+        /// la extension de signo del bit mas alto de la parte baja. Es la misma
+        /// comprobacion que hace `checked_mul`.
+        ///
+        /// @note **Cuesta un producto de doble anchura.** Es el precio de
+        ///       `checked`, y solo lo paga `checked`: con `wrap` esta funcion no
+        ///       se llama nunca porque el `if constexpr` la descarta.
+        [[nodiscard]] static constexpr bool producto_desborda(const fixed_int_t &a,
+                                                              const fixed_int_t &b) noexcept
+        {
+            // Producto escolar sobre 2N limbos, sin truncar.
+            std::array<std::uint64_t, 2 * N> p{};
+            for (std::size_t i{0}; i < N; ++i)
+            {
+                std::uint64_t acarreo{0};
+                for (std::size_t j{0}; j < N; ++j)
+                {
+                    std::uint64_t hi{0};
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                    const std::uint64_t lo = intrinsics::umul128(a.data[i], b.data[j], &hi);
+#else
+                    const std::uint64_t x0 = a.data[i] & 0xFFFFFFFFULL, x1 = a.data[i] >> 32;
+                    const std::uint64_t y0 = b.data[j] & 0xFFFFFFFFULL, y1 = b.data[j] >> 32;
+                    const std::uint64_t p00 = x0 * y0, p01 = x0 * y1, p10 = x1 * y0, p11 = x1 * y1;
+                    const std::uint64_t medio = (p00 >> 32) + (p01 & 0xFFFFFFFFULL) + (p10 & 0xFFFFFFFFULL);
+                    const std::uint64_t lo = (p00 & 0xFFFFFFFFULL) | (medio << 32);
+                    hi = p11 + (p01 >> 32) + (p10 >> 32) + (medio >> 32);
+#endif
+                    std::uint64_t v = p[i + j];
+                    std::uint64_t suma = v + lo;
+                    std::uint64_t c1 = (suma < v) ? 1u : 0u;
+                    v = suma + acarreo;
+                    c1 += (v < suma) ? 1u : 0u;
+                    p[i + j] = v;
+                    acarreo = hi + c1;
+                }
+                p[i + N] += acarreo;
+            }
+
+            if constexpr (is_signed)
+            {
+                // Con signo el producto de arriba es el de las magnitudes en
+                // complemento a dos truncado; se compara contra la extension de
+                // signo de la parte baja.
+                const std::uint64_t relleno = (p[N - 1] >> 63) != 0 ? ~std::uint64_t{0} : std::uint64_t{0};
+                for (std::size_t i{N}; i < 2 * N; ++i)
+                    if (p[i] != relleno)
+                        return true;
+                return false;
+            }
+            else
+            {
+                for (std::size_t i{N}; i < 2 * N; ++i)
+                    if (p[i] != 0)
+                        return true;
+                return false;
+            }
+        }
+
     public:
         // =========================================================================
         // Construction
@@ -786,7 +890,7 @@ namespace nstd
             {
                 if (is_negative())
                     return -static_cast<F>(uint_fixed_t<N>{-(*this)});
-                return static_cast<F>(uint_fixed_t<N>{*this});
+                return static_cast<F>(uint_fixed_t<N, Policy>{*this});
             }
             else
             {
@@ -802,12 +906,46 @@ namespace nstd
         // Comparison
         // =========================================================================
 
-        constexpr bool operator==(const fixed_int_t &o) const noexcept { return data == o.data; }
+        /// @brief Igualdad.
+        ///
+        /// Con `checked` compara **primero la marca y despues el valor**: dos
+        /// invalidos distintos NO son iguales, porque ADR-009 conserva el valor al
+        /// desbordar y dos desbordamientos con resultados distintos son valores
+        /// distintos.
+        ///
+        /// Lo importante es que **`x == x` es siempre cierto**, tambien para un
+        /// invalido. Es lo que separa esto del NaN, y lo que hace que
+        /// `unordered_map` y `unordered_set` sigan siendo correctos: la igualdad
+        /// es una relacion de equivalencia. Ver ADR-010.
+        constexpr bool operator==(const fixed_int_t &o) const noexcept
+        {
+            if constexpr (Policy == overflow_policy::checked)
+                return estado == o.estado && data == o.data;
+            else
+                return data == o.data;
+        }
 
         constexpr bool operator!=(const fixed_int_t &o) const noexcept { return !(*this == o); }
 
+        /// @brief Menor que, con **orden total** aunque haya invalidos.
+        ///
+        /// Comparacion lexicografica sobre `(valido?, valor)`: un invalido es
+        /// mayor que cualquier valido, y entre dos del mismo estado deciden los
+        /// limbos. Ver ADR-010.
+        ///
+        /// La logica de la marca esta AQUI y no en `operator<=>` a proposito: en
+        /// C++20 los relacionales se sintetizan desde `<=>` **salvo que exista un
+        /// `operator<` propio**, y este existe. Ponerla solo en `<=>` dejaba a
+        /// `>`, `std::sort` y `std::max_element` usando el orden de siempre.
         constexpr bool operator<(const fixed_int_t &o) const noexcept
         {
+            if constexpr (Policy == overflow_policy::checked)
+            {
+                const bool a_mal = (estado != 0);
+                const bool b_mal = (o.estado != 0);
+                if (a_mal != b_mal)
+                    return b_mal; // el invalido es el mayor: a < b si b es el malo
+            }
             if constexpr (is_signed)
             {
                 const bool a_neg = is_negative();
@@ -835,8 +973,26 @@ namespace nstd
         // call sites are unchanged. New code can use `a <=> b` directly, and
         // generic algorithms / containers that require <=> can now use
         // fixed_int_t. T2 — Fase MS-INTEROP.
+        /// @brief Orden **total**, tambien con valores invalidos.
+        ///
+        /// Comparacion lexicografica sobre `(valido?, valor)`: si uno es invalido
+        /// y el otro no, **el invalido es el mayor**; si los dos tienen el mismo
+        /// estado, se comparan los valores.
+        ///
+        /// Devuelve `std::strong_ordering` con cualquier politica, a proposito.
+        /// Imitar al NaN --comparaciones falsas salvo `!=`-- habria roto el orden
+        /// debil estricto y convertido en comportamiento indefinido meter un
+        /// invalido en un `std::map`, un `std::set` o un `std::sort`. Se descarto
+        /// por eso: la propagacion por la aritmetica, que es lo que de verdad se
+        /// queria, no dependia de aquello. Ver ADR-010.
+        ///
+        /// El invalido va **arriba** para que el veneno salga a la superficie: al
+        /// ordenar queda al final, y `std::max_element` sobre un rango
+        /// contaminado devuelve el invalido en vez de esconderlo.
         constexpr std::strong_ordering operator<=>(const fixed_int_t &o) const noexcept
         {
+            // Delega en `operator<`, que es donde vive el criterio de orden --marca
+            // incluida-- para que no haya dos sitios que puedan discrepar.
             if (*this < o)
                 return std::strong_ordering::less;
             if (o < *this)
@@ -899,7 +1055,29 @@ namespace nstd
         }
 
         // Left shift (logical for both signed and unsigned)
+        /// @brief Desplazamiento a la izquierda.
+        ///
+        /// @note Con `checked` marca si se **pierden bits por arriba**, que es lo
+        ///       que un desplazamiento a la izquierda hace cuando desborda. El
+        ///       contador saturado a `64*N` cuenta como desbordamiento salvo que
+        ///       el valor sea cero.
         constexpr fixed_int_t operator<<(unsigned shift) const noexcept
+        {
+            if constexpr (detecta)
+            {
+                // Desborda si algun bit distinto de cero sale por arriba, es
+                // decir si el valor tiene mas de `64*N - shift` bits utiles.
+                const unsigned ancho = 64u * static_cast<unsigned>(N);
+                const bool desbordo = !is_zero() && (shift >= ancho || bit_width() + shift > ancho);
+                fixed_int_t r = this->shl_sin_marca(shift);
+                r.marcar(*this, desbordo);
+                return r;
+            }
+            return this->shl_sin_marca(shift);
+        }
+
+        /// @brief El desplazamiento de siempre, sin tocar la marca.
+        constexpr fixed_int_t shl_sin_marca(unsigned shift) const noexcept
         {
             fixed_int_t r{};
             if (shift >= 64U * N)
@@ -957,14 +1135,19 @@ namespace nstd
                 if (shift >= 64U * N)
                     return is_negative() ? fixed_int_t{std::int64_t{-1}} : zero();
                 if (!is_negative())
-                    return fixed_int_t{uint_fixed_t<N>{*this} >> shift};
-                const uint_fixed_t<N> fill = uint_fixed_t<N>::max() << (64U * N - shift);
-                return fixed_int_t{(uint_fixed_t<N>{*this} >> shift) | fill};
+                    return fixed_int_t{uint_fixed_t<N, Policy>{*this} >> shift};
+                const uint_fixed_t<N, Policy> fill = uint_fixed_t<N, Policy>::max() << (64U * N - shift);
+                return fixed_int_t{(uint_fixed_t<N, Policy>{*this} >> shift) | fill};
             }
         }
 
         constexpr fixed_int_t &operator<<=(unsigned shift) noexcept
         {
+            if constexpr (detecta)
+            {
+                *this = *this << shift;
+                return *this;
+            }
             *this = *this << shift;
             return *this;
         }
@@ -1075,6 +1258,24 @@ namespace nstd
                 r.data[i] = s;
 #endif
             }
+            if constexpr (detecta)
+            {
+                // Sin signo: desborda si sale acarreo del limbo mas alto.
+                // Con signo: desborda si los dos sumandos tienen el mismo signo y
+                // el resultado tiene otro. Es la regla clasica del complemento a
+                // dos, la misma que ya usaba `checked_add`.
+                bool desbordo;
+                if constexpr (is_signed)
+                {
+                    const bool sa = is_negative();
+                    desbordo = (sa == o.is_negative()) && (r.is_negative() != sa);
+                }
+                else
+                {
+                    desbordo = (carry != 0);
+                }
+                r.marcar(*this, o, desbordo);
+            }
             return r;
         }
 
@@ -1093,16 +1294,62 @@ namespace nstd
                 r.data[i] = d;
 #endif
             }
+            if constexpr (detecta)
+            {
+                // Sin signo: desborda por abajo si sale prestamo, es decir si el
+                // sustraendo era mayor. Con signo: si los operandos tienen signos
+                // distintos y el resultado no tiene el del minuendo.
+                bool desbordo;
+                if constexpr (is_signed)
+                {
+                    const bool sa = is_negative();
+                    desbordo = (sa != o.is_negative()) && (r.is_negative() != sa);
+                }
+                else
+                {
+                    desbordo = (borrow != 0);
+                }
+                r.marcar(*this, o, desbordo);
+            }
             return r;
         }
 
-        constexpr fixed_int_t operator-() const noexcept { return ~(*this) + one(); }
+        /// @brief Opuesto.
+        ///
+        /// @note Con `checked` y **sin signo**, `-x` marca para todo `x` distinto
+        ///       de cero: el resultado matematico es negativo y no cabe. Es
+        ///       coherente con `checked_sub(0, x)`, que devuelve `nullopt`.
+        ///       Con signo, solo marca en `min()`, cuyo opuesto no es
+        ///       representable.
+        constexpr fixed_int_t operator-() const noexcept
+        {
+            fixed_int_t r = ~(*this) + one();
+            if constexpr (detecta)
+            {
+                // `if constexpr` y no un ternario: `min_val()` solo existe para
+                // tipos con signo, y un ternario de ejecucion instanciaria sus
+                // dos brazos aunque solo se ejecute uno.
+                if constexpr (is_signed)
+                    r.marcar(*this, *this == min_val());
+                else
+                    r.marcar(*this, !is_zero());
+            }
+            return r;
+        }
 
         /// Unary plus — returns a copy. Mirrors built-in `+x` semantics.
         constexpr fixed_int_t operator+() const noexcept { return *this; }
 
         constexpr fixed_int_t &operator+=(const fixed_int_t &o) noexcept
         {
+            // Con `checked` se delega en `operator+`, que ya detecta y marca: la
+            // deteccion vive en un solo sitio. Con `wrap` sigue el camino rapido
+            // de siempre, sin tocar ni una instruccion.
+            if constexpr (detecta)
+            {
+                *this = *this + o;
+                return *this;
+            }
             unsigned char carry{0};
             for (std::size_t i{0}; i < N; ++i)
             {
@@ -1120,6 +1367,11 @@ namespace nstd
 
         constexpr fixed_int_t &operator-=(const fixed_int_t &o) noexcept
         {
+            if constexpr (detecta)
+            {
+                *this = *this - o;
+                return *this;
+            }
             unsigned char borrow{0};
             for (std::size_t i{0}; i < N; ++i)
             {
@@ -1175,6 +1427,25 @@ namespace nstd
         // =========================================================================
 
         constexpr fixed_int_t operator*(const fixed_int_t &o) const noexcept
+        {
+            // Con `checked`, la deteccion se hace ANTES y el resultado se calcula
+            // por el camino de siempre. Separarlo asi evita tener que marcar en
+            // los tres puntos de salida distintos que tiene este operador --el
+            // camino rapido de N=2, el de Karatsuba y el escolar-- y evita que
+            // alguno se quede sin marcar al tocarlo en el futuro.
+            if constexpr (detecta)
+            {
+                const bool desbordo = producto_desborda(*this, o);
+                fixed_int_t r = this->mul_sin_marca(o);
+                r.marcar(*this, o, desbordo);
+                return r;
+            }
+            return this->mul_sin_marca(o);
+        }
+
+        /// @brief El producto de siempre, modular y sin tocar la marca.
+        ///        Es el cuerpo que tenia `operator*` antes de existir la politica.
+        constexpr fixed_int_t mul_sin_marca(const fixed_int_t &o) const noexcept
         {
             fixed_int_t r{};
 
@@ -1272,6 +1543,11 @@ namespace nstd
 
         constexpr fixed_int_t &operator*=(const fixed_int_t &o) noexcept
         {
+            if constexpr (detecta)
+            {
+                *this = *this * o;
+                return *this;
+            }
 #ifdef __SIZEOF_INT128__
             if constexpr (N == 2)
             {
@@ -2154,6 +2430,14 @@ namespace nstd
         /// @throws std::invalid_argument si la base esta fuera de [2, 36].
         [[nodiscard]] std::string to_string(int base) const
         {
+            // Un valor marcado no imprime su numero a secas: el numero esta ahi
+            // --ADR-009 lo conserva-- pero no significa nada, y devolverlo tal
+            // cual seria dar basura con aspecto de resultado. ADR-008 lo pide asi.
+            if constexpr (Policy == overflow_policy::checked)
+            {
+                if (!valid())
+                    return "invalido";
+            }
             if (base < 2 || base > 36)
                 throw std::invalid_argument("fixed_int_t::to_string: base out of range [2, 36]");
             if (base == 10)
@@ -2167,7 +2451,7 @@ namespace nstd
                     return "-" + uint_fixed_t<N>{-(*this)}.to_string(base);
             }
 
-            const uint_fixed_t<N> mag{*this};
+            const uint_fixed_t<N, Policy> mag{*this};
 
             // El peor caso de longitud es la base 2: 64*N digitos.
             std::string out;
@@ -2186,7 +2470,7 @@ namespace nstd
                 start -= start % bits; // primer digito parcial
                 for (unsigned shift = start;; shift -= bits)
                 {
-                    const uint_fixed_t<N> piece = mag >> shift;
+                    const uint_fixed_t<N, Policy> piece = mag >> shift;
                     const std::uint64_t digit = piece.limb(0) & mask;
                     if (!out.empty() || digit != 0)
                         out.push_back(digit_char_(digit));
@@ -2208,14 +2492,14 @@ namespace nstd
                 ++digits_per_chunk;
             }
 
-            const uint_fixed_t<N> cb{chunk_base};
+            const uint_fixed_t<N, Policy> cb{chunk_base};
             uint_fixed_t<N> tmp{mag};
             std::string rev; // digitos en orden inverso
             rev.reserve(64U * N + 1U);
 
             while (!tmp.is_zero())
             {
-                const auto [q, r] = uint_fixed_t<N>::divmod(tmp, cb);
+                const auto [q, r] = uint_fixed_t<N, Policy>::divmod(tmp, cb);
                 std::uint64_t chunk = r.limb(0);
                 const bool last = q.is_zero();
                 for (unsigned d = 0; d < digits_per_chunk; ++d)
@@ -2236,6 +2520,11 @@ namespace nstd
         /// @return La representacion decimal, con `-` delante si es negativo.
         std::string to_string() const
         {
+            if constexpr (Policy == overflow_policy::checked)
+            {
+                if (!valid())
+                    return "invalido";
+            }
             if (is_zero())
                 return "0";
             if constexpr (is_signed)
@@ -2248,12 +2537,12 @@ namespace nstd
             char buf[max_digits];
             int pos = static_cast<int>(max_digits);
 
-            const uint_fixed_t<N> chunk_base{std::uint64_t{10000000000000000000ULL}};
-            uint_fixed_t<N> tmp{*this};
+            const uint_fixed_t<N, Policy> chunk_base{std::uint64_t{10000000000000000000ULL}};
+            uint_fixed_t<N, Policy> tmp{*this};
 
             while (!tmp.is_zero())
             {
-                const auto [q, r] = uint_fixed_t<N>::divmod(tmp, chunk_base);
+                const auto [q, r] = uint_fixed_t<N, Policy>::divmod(tmp, chunk_base);
                 const std::uint64_t chunk = r.data[0];
                 if (q.is_zero())
                     write_u64_digits(buf, pos, chunk);
@@ -2990,8 +3279,8 @@ namespace nstd
         {
         };
 
-        template <std::size_t N, signedness S, representation_form F>
-        struct is_fixed_int_impl<fixed_int_t<N, S, F>> : std::true_type
+        template <std::size_t N, signedness S, representation_form F, overflow_policy P>
+        struct is_fixed_int_impl<fixed_int_t<N, S, F, P>> : std::true_type
         {
         };
     } // namespace detail
@@ -3013,8 +3302,8 @@ namespace nstd
     {
     };
 
-    template <std::size_t N, representation_form F>
-    struct is_signed_fixed_int<fixed_int_t<N, signedness::signed_type, F>> : std::true_type
+    template <std::size_t N, representation_form F, overflow_policy P>
+    struct is_signed_fixed_int<fixed_int_t<N, signedness::signed_type, F, P>> : std::true_type
     {
     };
 

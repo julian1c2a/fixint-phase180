@@ -54,13 +54,20 @@ namespace std
     /// @tparam N Numero de limbos.
     /// @tparam Sign Con o sin signo.
     /// @tparam Form Representacion interna.
-    template <std::size_t N, nstd::signedness Sign, nstd::representation_form Form>
-    struct hash<nstd::fixed_int_t<N, Sign, Form>>
+    template <std::size_t N, nstd::signedness Sign, nstd::representation_form Form,
+              nstd::overflow_policy Policy>
+    struct hash<nstd::fixed_int_t<N, Sign, Form, Policy>>
     {
         /// @brief Calcula el hash del valor.
+        ///
+        /// Con `Policy == checked` **mezcla tambien la marca**, para que un valor
+        /// valido y uno invalido con los mismos limbos no colisionen. No es
+        /// obligatorio --colisionar solo seria ineficiente, no incorrecto-- pero
+        /// como `operator==` los distingue (ADR-010), el hash tambien deberia.
+        ///
         /// @param v Valor a dispersar.
         /// @return El hash.
-        [[nodiscard]] std::size_t operator()(const nstd::fixed_int_t<N, Sign, Form> &v) const noexcept
+        [[nodiscard]] std::size_t operator()(const nstd::fixed_int_t<N, Sign, Form, Policy> &v) const noexcept
         {
             // Finalizador de splitmix64: mezcla bien un uint64 en si mismo.
             constexpr auto mix = [](std::uint64_t x) noexcept -> std::uint64_t
@@ -78,6 +85,14 @@ namespace std
             {
                 h ^= mix(v.limb(i) + 0x9E3779B97F4A7C15ULL + (h << 6) + (h >> 2));
                 h *= 0x100000001B3ULL; // primo de FNV-1a de 64 bits
+            }
+            // La marca entra en la mezcla. Con `wrap` el `if constexpr` no deja
+            // ni una instruccion; con `checked`, un valor valido y uno invalido
+            // con los mismos limbos dejan de colisionar.
+            if constexpr (Policy == nstd::overflow_policy::checked)
+            {
+                if (!v.valid())
+                    h = mix(h ^ 0xD6E8FEB86659FD93ULL);
             }
             return static_cast<std::size_t>(h);
         }

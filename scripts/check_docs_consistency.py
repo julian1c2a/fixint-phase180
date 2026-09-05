@@ -66,7 +66,7 @@ LIVE_DOCS = ["README.md", "PROJECT_STATUS.md", "NEXT_STEPS.md", "CHANGELOG.md"]
 # leer la cifra y apuntarla aqui con su fecha.
 DOXYGEN_BASELINE = {
     "1.9.8":  518,   # ubuntu-24.04, la que usa el CI      — medido 26 ago 2026
-    "1.18.0": 505,   # MSYS2, la de la maquina de trabajo  — medido 26 ago 2026
+    "1.18.0": 500,   # MSYS2, la de la maquina de trabajo  — bajada 5 sep 2026 (P1.2)
 }
 
 # Para una version que no este en la tabla no se puede afinar, asi que se usa la

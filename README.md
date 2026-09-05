@@ -136,7 +136,7 @@ Para código nuevo, usar `fixed_int_t` y sus alias.
 
 ```
 include/          31 cabeceras; fixed_width_int_t.hpp es el tipo insignia
-tests/            56 ficheros de test
+tests/            57 ficheros de test
 benchs/           benchmarks (RDTSC, rondas intercaladas, minimo)
 demos/            ejemplos de uso
 docs/             referencia de la API y decisiones

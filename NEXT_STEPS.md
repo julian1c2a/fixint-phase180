@@ -20,7 +20,7 @@
 | | |
 |---|---|
 | **Release** | ✅ **v1.90.4 publicada**, la primera del proyecto: tres zips (gcc, clang, msvc) |
-| **Suite local** | ✅ 56/56, GCC 16.2 |
+| **Suite local** | ✅ 57/57, GCC 16.2 |
 | **CI** | ✅ **recuperado** en `314543e`: el job del armonizador vuelve a estar en verde. Llevaba rojo desde el 25 ago |
 | **Diseño de la 2.0** | ✅ cerrado, sin cuestiones abiertas. Falta escribirlo |
 | **ADR** | 15 registros, ninguna decisión sin documentar |
@@ -104,8 +104,8 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 
 | | Qué | Depende de |
 |---|---|---|
-| **P1.1** | **Almacenamiento de la política**: miembro extra solo con `checked`, con `static_assert` de que `sizeof(fixed_int_t<4, …, wrap>)` sigue siendo 32 | — |
-| **P1.2** | Propagación de la marca, `valid()`, comparación lexicográfica sobre `(válido?, valor)` | P1.1 |
+| ~~P1.1~~ | ~~Almacenamiento de la política~~ | ✅ **hecho**: 32 bytes con `wrap` en los cuatro compiladores |
+| ~~P1.2~~ | ~~Propagación de la marca, `valid()`, comparación~~ | ✅ **hecho**: `+ - * << - ++ --` y sus `op=`, orden total, `to_string` |
 | **P1.3** | **`checked_div` y las tres `saturating_*`**, devolviendo el tipo con política `checked` | P1.1 |
 | **P1.4** | `representation_traits<binnat>` y generalizar el `static_assert` al bicondicional de [ADR-011](docs/decisions/ADR-011-sin-signo-equivale-a-binnat.md) | — (pequeño, se puede colar antes) |
 | **P1.5** | **Portar Magnitud-Signo y Exceso-K** a `fixed_int_t` y retirar `int128_param_t` | P1.3 |
