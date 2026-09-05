@@ -43,6 +43,7 @@
 #include "../include/intrinsics/arithmetic_operations.hpp"
 #include "bench_common.hpp"
 
+#include <string>
 #include <vector>
 
 using namespace nstd;
@@ -181,6 +182,10 @@ static void bench_one(const char *etiqueta, const char *nota)
             mejor_e = ce;
     }
 
+    bench_record((std::string("N=") + std::to_string(N) + " biblioteca").c_str(), mejor_k);
+    bench_record((std::string("N=") + std::to_string(N) + " escolar").c_str(), mejor_e);
+    bench_record((std::string("N=") + std::to_string(N) + " razon").c_str(), mejor_e / mejor_k, "x");
+
     std::cout << "| " << std::left << std::setw(29) << etiqueta << " | " << std::right << std::fixed
               << std::setprecision(2) << std::setw(12) << mejor_k << " | " << std::setw(6)
               << (mejor_e / mejor_k) << "x   |";
@@ -217,9 +222,11 @@ int main()
               << " rondas intercaladas, minimo por caso\n";
 
     std::cout << "\n[correccion]\n";
-    const bool ok =
-        check_equal<2>() && check_equal<3>() && check_equal<4>() && check_equal<8>() && check_equal<16>();
-    std::cout << "  las dos implementaciones coinciden en N=2,3,4,8,16: " << (ok ? "SI" : "NO") << "\n";
+    const bool ok = check_equal<2>() && check_equal<3>() && check_equal<4>() && check_equal<5>() &&
+                    check_equal<6>() && check_equal<7>() && check_equal<8>() && check_equal<9>() &&
+                    check_equal<10>() && check_equal<12>() && check_equal<16>();
+    std::cout << "  las dos implementaciones coinciden en N=2,3,4,5,6,7,8,9,10,12,16: " << (ok ? "SI" : "NO")
+              << "\n";
     if (!ok)
     {
         std::cout << "  ABORTADO: no tiene sentido medir dos cosas que no calculan lo mismo.\n";
@@ -229,15 +236,42 @@ int main()
     print_header("multiplicacion, ciclos por operacion");
     std::cout << "|   razon = escolar / camino de la biblioteca;  >1.00x = la biblioteca gana\n";
     print_separator();
-    bench_one<4>("N=4  (256 bits)", "");
-    bench_one<8>("N=8  (512 bits)", "");
+    bench_one<4>("N=4  (256 bits)", "Karatsuba");
+    bench_one<8>("N=8  (512 bits)", "Karatsuba");
     bench_one<2>("N=2  (128 bits)", "camino especializado de 128 bits");
-    bench_one<16>("N=16 (1024 bits)", "CONTROL: debe salir ~1.00x");
-    bench_one<3>("N=3  (192 bits)", "CONTROL: debe salir ~1.00x");
     print_footer();
 
-    std::cout << "\nSi alguno de los dos CONTROL no sale entre 0.95x y 1.05x, la\n"
-              << "implementacion de referencia no es fiel y ninguna cifra de arriba vale.\n";
+    // ------------------------------------------------------------------
+    // Barrido: la penalizacion de N=3, es de los impares o de los pequenos?
+    // ------------------------------------------------------------------
+    //
+    // El control de este mismo benchmark destapo el 25 ago 2026 que en N=3 el
+    // bucle escolar de la biblioteca es un 14 % MAS LENTO que una copia
+    // identica suya escrita como funcion libre (razon 0,86x, estable). En N=16
+    // la razon sale 1,02x, o sea que ahi no pasa.
+    //
+    // Ninguno de estos N usa Karatsuba --solo lo usan 4 y 8--, asi que en todos
+    // deberia salir ~1.00x. Los impares y los pares se separan a proposito: si
+    // el efecto sigue la paridad, apunta al bucle de acarreo; si sigue al
+    // tamano, a la generacion de codigo del `if constexpr` encadenado.
+    std::cout << "\n";
+    print_header("barrido: N que NO usan Karatsuba (todos deberian dar ~1.00x)");
+    print_separator();
+    std::cout << "|   impares\n";
+    bench_one<3>("N=3  (192 bits)", "");
+    bench_one<5>("N=5  (320 bits)", "");
+    bench_one<7>("N=7  (448 bits)", "");
+    bench_one<9>("N=9  (576 bits)", "");
+    print_separator();
+    std::cout << "|   pares que tampoco usan Karatsuba\n";
+    bench_one<6>("N=6  (384 bits)", "");
+    bench_one<10>("N=10 (640 bits)", "");
+    bench_one<12>("N=12 (768 bits)", "");
+    bench_one<16>("N=16 (1024 bits)", "el control de siempre");
+    print_footer();
+
+    std::cout << "\nSi los N de este barrido no salen entre 0.95x y 1.05x, hay algo que\n"
+              << "explicar: la implementacion de referencia es la misma en todos.\n";
 
     return 0;
 }

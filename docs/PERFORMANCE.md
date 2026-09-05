@@ -1,6 +1,6 @@
 # Rendimiento
 
-**Última actualización:** 25 August 2026
+**Última actualización:** 5 September 2026
 
 Fuente de verdad de las cifras de rendimiento del proyecto. Antes vivían
 repartidas entre `README.md`, `PROJECT_STATUS.md` y `EXECUTIVE_SUMMARY.md`, con
@@ -30,6 +30,44 @@ Criterios que se aplican y por qué:
   las B: el estado térmico de la máquina deriva.
 - **Comprobar que los resultados coinciden** entre las variantes comparadas. Un
   benchmark que va más rápido porque calcula otra cosa no es un benchmark.
+
+---
+
+## Cuánto se mueven estas cifras
+
+**Medido el 5 sep 2026.** El mismo binario, en la misma máquina, dos veces
+seguidas, sin tocar nada entre medias:
+
+| | rango entre ejecuciones |
+|---|---:|
+| mediana de las 33 medidas | **5,1 %** |
+| percentil 90 | **15,6 %** |
+| peor caso | **25,2 %** |
+
+**Eso es el suelo de ruido, y cambia lo que se puede afirmar.** Una diferencia
+del 10 % entre dos medidas **no significa nada**: entra de sobra en lo que se
+mueve el mismo código consigo mismo. Publicar cifras con dos decimales, como se
+venía haciendo, da una precisión que no existe.
+
+Consecuencias prácticas:
+
+- El umbral de aviso de
+  [`scripts/bench_history.py`](../scripts/bench_history.py) está en **25 %**, no
+  en el 5 % que parecía razonable a ojo. Por debajo de eso serían todo falsos
+  positivos.
+- Una cifra suelta no vale: hacen falta **varias ejecuciones y el rango**.
+- Lo que sí sobrevive al ruido es **el signo y el orden de magnitud**. «Karatsuba
+  gana» es sólido; «Karatsuba gana un 1,65×» no lo es tanto como parecía.
+
+### Y el orden dentro de la ejecución importa
+
+La posición de un caso dentro del benchmark **afecta a su medida**. Se vio con
+N=3: cuando se medía el último, después de N=16, daba 0,86×; al pasarlo a la
+cuarta posición dio 1,12×–1,18×. Treinta puntos porcentuales por cambiar de
+sitio, sin tocar una línea de código.
+
+El benchmark **no controla esto** hoy. Mientras no lo haga, comparar dos casos
+medidos en posiciones distintas no es legítimo.
 
 ---
 
@@ -106,37 +144,51 @@ propia biblioteca, con sus mismas primitivas (`intrinsics::umul128` y
 `intrinsics::addcarry_u64`), de modo que lo único que cambia entre las dos
 ramas es el algoritmo.
 
-| N | bits | biblioteca (cyc/op) | escolar (cyc/op) | razón |
-|---|---:|---:|---:|---:|
-| **4** | 256 | 28,6 - 30,5 | 50,4 | **1,65x - 1,75x** |
-| **8** | 512 | 158,4 - 164,4 | 243,0 | **1,48x - 1,53x** |
-| 2 | 128 | 2,9 | 10,4 | 3,57x *(camino especializado, no Karatsuba)* |
-
-Los dos números por celda son las dos ejecuciones; la dispersión entre
-ellas da la idea del error de medida.
-
-### Los controles, y lo que destapó uno de ellos
-
-El benchmark mide dos casos que **no** usan Karatsuba, donde la razón tiene
-que salir 1,00x. Sirven para comprobar que la implementación de referencia es
-fiel; si fallan, ninguna cifra de arriba vale.
-
-| Control | Razón | |
+| N | bits | razón (escolar / biblioteca) |
 |---|---:|---|
-| N=16 (1024 bits) | **1,02x** | OK, la referencia es fiel |
-| N=3 (192 bits) | **0,86x - 0,87x** | falla, estable en dos ejecuciones |
+| **4** | 256 | **1,65× – 2,04×** |
+| **8** | 512 | **1,48× – 1,82×** |
+| 2 | 128 | 3,57× – 3,76× *(camino especializado, no Karatsuba)* |
 
-**El control de N=3 falla, y no es ruido:** sale igual en las dos ejecuciones.
-Significa que el bucle escolar de la biblioteca es un **14 % más lento que
-una copia idéntica suya escrita como función libre**, con las mismas
-primitivas y el mismo compilador. Es un hallazgo sobre la biblioteca, no sobre
-el benchmark, y queda anotado como deuda: hay que mirar la generación de
-código de `operator*` para N pequeño e impar.
+**Los rangos son anchos a propósito**: reúnen las cuatro ejecuciones de los días
+25 ago y 5 sep, y esa anchura *es* el resultado. Con un suelo de ruido del 15 %
+(ver arriba) no se puede afirmar «1,65×»; lo que se puede afirmar es que
+**Karatsuba gana con holgura, entre 1,5× y 2×**, que es una conclusión más
+pobre y verdadera.
 
-Para las cifras de Karatsuba ese sesgo juega **a favor de la prudencia**: se
-está comparando el camino de Karatsuba contra un escolar *más rápido*
-que el de la propia biblioteca, así que 1,65x y 1,48x son cotas
-conservadoras.
+Los valores absolutos en ciclos por operación están en el histórico
+(`benchs/history/`), no aquí: se mueven demasiado entre ejecuciones para
+publicarlos como si fueran una propiedad del código.
+
+### Los controles, y la anomalía que no era
+
+El benchmark mide varios N que **no** usan Karatsuba, donde la razón debería
+salir ~1,00×. Sirven para comprobar que la implementación de referencia es fiel.
+
+**El 25 ago 2026 el control de N=3 dio 0,86× dos veces seguidas**, y se
+concluyó que el bucle escolar de la biblioteca era un 14 % más lento que una
+copia idéntica suya. Se anotó como deuda: «hay que mirar la generación de
+código para N pequeño e impar».
+
+**No era cierto.** Al barrer N=3, 5, 7, 9 frente a N=6, 10, 12, 16 el 5 sep
+2026, no aparece ningún patrón:
+
+| N | razón | | N | razón |
+|---|---:|---|---|---:|
+| 3 | 1,12× – 1,18× | | 6 | 1,03× – 1,06× |
+| 5 | 1,13× – 1,15× | | 10 | 0,96× – 1,08× |
+| 7 | 1,03× – 1,13× | | 12 | 1,11× – 1,13× |
+| 9 | 0,99× – 1,13× | | 16 | 1,00× – 1,02× |
+
+Ni paridad ni tamaño: dispersión sin estructura, y **N=3 sale del lado
+contrario** al de agosto.
+
+**El error fue de método, no de medida.** Llamar «estable» a dos ejecuciones
+seguidas en la misma sesión no prueba reproducibilidad: prueba que la máquina
+estuvo igual durante cinco minutos. Entre sesiones —y cambiando N=3 de la
+última posición a la cuarta— el 0,86× no reaparece.
+
+No hay ninguna anomalía de `operator*` que perseguir.
 
 La primera versión de este benchmark usaba una propagación de acarreo
 portable en vez de los intrínsecos. El control de N=16 salió **2,00x** y
@@ -165,9 +217,10 @@ compilar toda la biblioteca con `-fconstexpr-steps=100000000`.
 
 - Re-medir las tablas de Knuth D y de comparación con built-in **con fecha,
   compilador y máquina**, que es lo que exige la regla de arriba.
-- **Por qué el bucle escolar de `operator*` es un 14 % más lento que una copia
-  idéntica suya escrita como función libre**, en N=3. Lo destapó el control
-  del benchmark de Karatsuba.
+- **Controlar el orden dentro de la ejecución**, que hoy afecta a la medida: el
+  mismo caso da 0,86× o 1,18× según en qué posición se mida.
+- **Calibrar el umbral de aviso con más de dos ejecuciones.** El 25 % de hoy
+  sale de dos, que es lo mínimo para tener un rango y muy poco para fiarse.
 - Karatsuba en Clang, MSVC e Intel: las cifras de arriba son solo de GCC.
 - Coste de las conversiones a y desde cadena, ahora que hay bases 2..36.
 - Coste de la política de desbordamiento cuando se implemente

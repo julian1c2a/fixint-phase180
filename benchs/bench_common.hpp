@@ -19,6 +19,8 @@
 #define BENCH_COMMON_HPP
 
 #include <cstdint>
+#include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <iomanip>
 #include <string>
@@ -134,6 +136,33 @@ static void doNotOptimize(T &val)
 }
 
 // ============================================================================
+// Registro legible por maquina
+// ============================================================================
+//
+// Ademas de la tabla para leer, cada benchmark puede dejar sus cifras en un
+// fichero para que se guarden en el historico. Se activa poniendo la variable
+// de entorno BENCH_OUT; si no esta, no pasa nada y la salida de siempre no
+// cambia. Formato: una linea por medida, separada por tabuladores.
+//
+//     <caso>\t<valor>\t<unidad>
+//
+// Los metadatos que exige la regla de docs/PERFORMANCE.md --fecha, compilador,
+// maquina, modo, commit-- NO se ponen aqui: los anade scripts/bench_history.py,
+// que es quien los sabe. Un benchmark no tiene por que saber en que commit esta.
+
+static void bench_record(const char *caso, double valor, const char *unidad = "cyc/op")
+{
+    const char *destino = std::getenv("BENCH_OUT");
+    if (destino == nullptr || *destino == '\0')
+        return;
+
+    std::ofstream f(destino, std::ios::app);
+    if (!f)
+        return;
+    f << caso << '\t' << std::fixed << std::setprecision(4) << valor << '\t' << unidad << '\n';
+}
+
+// ============================================================================
 // Result formatting
 // ============================================================================
 
@@ -158,6 +187,7 @@ static void print_header(const char *operation)
 
 static void print_result(const BenchResult &r, double baseline_cyc)
 {
+    bench_record(r.name.c_str(), r.cycles_per_op);
     const double ratio{(baseline_cyc > 0.0) ? r.cycles_per_op / baseline_cyc : 0.0};
     std::cout << "| " << std::left << std::setw(29) << r.name << " | " << std::right << std::fixed
               << std::setprecision(2) << std::setw(12) << r.cycles_per_op << " | " << std::fixed

@@ -236,6 +236,12 @@ int main()
     const double sub_nstd_med{sub_nstd[mid]};
     const double add_nstd_med{add_nstd[mid]};
 
+    // Al historico ademas de a la pantalla; ver bench_record en bench_common.hpp.
+    bench_record("sub uint64_t", sub_u64_med);
+    bench_record("add uint64_t", add_u64_med);
+    bench_record("sub nstd::uint128_t", sub_nstd_med);
+    bench_record("add nstd::uint128_t", add_nstd_med);
+
     std::printf("%-25s %12s %12s\n", "Type", "SUB cyc/op", "ADD cyc/op");
     std::printf("------------------------------------------------------\n");
     std::printf("%-25s %12.2f %12.2f\n", "uint64_t (baseline)", sub_u64_med, add_u64_med);
@@ -244,6 +250,8 @@ int main()
 #ifdef __SIZEOF_INT128__
     const double sub_bi_med{sub_builtin[mid]};
     const double add_bi_med{add_builtin[mid]};
+    bench_record("sub unsigned __int128", sub_bi_med);
+    bench_record("add unsigned __int128", add_bi_med);
     std::printf("%-25s %12.2f %12.2f\n", "unsigned __int128", sub_bi_med, add_bi_med);
 
     std::printf("\n--- Ratios (nstd / __int128) ---\n");
