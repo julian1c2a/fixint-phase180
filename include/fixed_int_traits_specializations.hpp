@@ -56,11 +56,28 @@
 
 // libc++ defines is_integral etc. for __int128 internally; our nstd:: primaries
 // must still work but the _v helpers may need different handling.
-#if defined(_LIBCPP_VERSION)
-#define FIXED_INT_USING_LIBCPP 1
-#else
-#define FIXED_INT_USING_LIBCPP 0
-#endif
+// NO HAY EXCEPCION PARA libc++, y antes si la habia.
+//
+// Este fichero tenia una macro `FIXED_INT_USING_LIBCPP` que, bajo libc++,
+// apagaba TANTO las primarias `nstd::is_integral...` COMO sus
+// especializaciones. El motivo escrito era que "libc++ define is_integral para
+// __int128 por dentro y los helpers _v pueden necesitar otro tratamiento". No se
+// sostiene: `nstd::is_integral` es una plantilla propia en un espacio de nombres
+// propio y no compite con `std::is_integral`.
+//
+// Lo que pasaba de verdad: apagadas las primarias, la especializacion de mas
+// abajo escribe `is_integral` sin cualificar, y ese nombre acababa resolviendo a
+// `std::__1::is_integral`, de ahi el error "not in a namespace enclosing '__1'".
+// Es decir, el sintoma que motivo la guarda lo CAUSABA la guarda.
+//
+// Consecuencia: con Clang y libc++ el proyecto se quedaba sin `nstd::is_integral`
+// y sus tres hermanas, y tres tests no compilaban. La misma guarda ya habia
+// mordido antes en el fichero hermano --ver en el CHANGELOG "Moved nstd::hash
+// outside #if !UINT128_USING_LIBCPP guard (was invisible to Clang/libc++)"--, y
+// entonces se parcheo moviendo una pieza en vez de quitar la guarda.
+//
+// Comprobado el 6 sep 2026 con clang 22.1.8 sobre libc++: sin la guarda, los
+// tres tests compilan y pasan.
 
 namespace nstd
 {
@@ -74,8 +91,7 @@ namespace nstd
     // scope and we skip ours. Otherwise we define them here. Either way the
     // fixed_int_t specializations below see a valid primary template.
 
-#if !FIXED_INT_USING_LIBCPP && !defined(INT128_PARAM_TRAITS_SPECIALIZATIONS_HPP) && \
-    !defined(NSTD_TRAITS_PRIMARY_DEFINED)
+#if !defined(INT128_PARAM_TRAITS_SPECIALIZATIONS_HPP) && !defined(NSTD_TRAITS_PRIMARY_DEFINED)
 #define NSTD_TRAITS_PRIMARY_DEFINED 1
 
     template <typename T>
@@ -104,45 +120,41 @@ namespace nstd
     template <typename T>
     inline constexpr bool is_unsigned_v = is_unsigned<T>::value;
 
-#endif // !FIXED_INT_USING_LIBCPP && !INT128_PARAM_TRAITS_SPECIALIZATIONS_HPP && !NSTD_TRAITS_PRIMARY_DEFINED
+#endif // !INT128_PARAM_TRAITS_SPECIALIZATIONS_HPP && !NSTD_TRAITS_PRIMARY_DEFINED
 
     // =============================================================================
     // Specializations for fixed_int_t<N, Sign, Form>
     // =============================================================================
 
-#if !FIXED_INT_USING_LIBCPP
-
-    template <std::size_t N, signedness S, representation_form F>
-    struct is_integral<fixed_int_t<N, S, F>> : std::true_type
+    template <std::size_t N, signedness S, representation_form F, overflow_policy P>
+    struct is_integral<fixed_int_t<N, S, F, P>> : std::true_type
     {
     };
 
-    template <std::size_t N, signedness S, representation_form F>
-    struct is_arithmetic<fixed_int_t<N, S, F>> : std::true_type
+    template <std::size_t N, signedness S, representation_form F, overflow_policy P>
+    struct is_arithmetic<fixed_int_t<N, S, F, P>> : std::true_type
     {
     };
 
-    template <std::size_t N, representation_form F>
-    struct is_signed<fixed_int_t<N, signedness::signed_type, F>> : std::true_type
+    template <std::size_t N, representation_form F, overflow_policy P>
+    struct is_signed<fixed_int_t<N, signedness::signed_type, F, P>> : std::true_type
     {
     };
 
-    template <std::size_t N, representation_form F>
-    struct is_signed<fixed_int_t<N, signedness::unsigned_type, F>> : std::false_type
+    template <std::size_t N, representation_form F, overflow_policy P>
+    struct is_signed<fixed_int_t<N, signedness::unsigned_type, F, P>> : std::false_type
     {
     };
 
-    template <std::size_t N, representation_form F>
-    struct is_unsigned<fixed_int_t<N, signedness::unsigned_type, F>> : std::true_type
+    template <std::size_t N, representation_form F, overflow_policy P>
+    struct is_unsigned<fixed_int_t<N, signedness::unsigned_type, F, P>> : std::true_type
     {
     };
 
-    template <std::size_t N, representation_form F>
-    struct is_unsigned<fixed_int_t<N, signedness::signed_type, F>> : std::false_type
+    template <std::size_t N, representation_form F, overflow_policy P>
+    struct is_unsigned<fixed_int_t<N, signedness::signed_type, F, P>> : std::false_type
     {
     };
-
-#endif // !FIXED_INT_USING_LIBCPP
 
     // =============================================================================
     // make_signed / make_unsigned — always-available specializations
@@ -191,32 +203,32 @@ namespace nstd
     // canonical alias: binnat for unsigned, twos_complement for signed).
     /// @brief `make_signed` de un `fixed_int_t` sin signo: da `int_fixed_t<N>`,
     ///        con la misma anchura y la representacion canonica con signo.
-    template <std::size_t N, representation_form F>
-    struct make_signed<fixed_int_t<N, signedness::unsigned_type, F>>
+    template <std::size_t N, representation_form F, overflow_policy P>
+    struct make_signed<fixed_int_t<N, signedness::unsigned_type, F, P>>
     {
-        using type = int_fixed_t<N>; ///< El tipo resultante.
+        using type = int_fixed_t<N, P>; ///< El tipo resultante, con la misma politica.
     };
 
     /// @brief `make_signed` de un tipo que ya tiene signo: identidad.
-    template <std::size_t N, representation_form F>
-    struct make_signed<fixed_int_t<N, signedness::signed_type, F>>
+    template <std::size_t N, representation_form F, overflow_policy P>
+    struct make_signed<fixed_int_t<N, signedness::signed_type, F, P>>
     {
-        using type = fixed_int_t<N, signedness::signed_type, F>; ///< El propio tipo.
+        using type = fixed_int_t<N, signedness::signed_type, F, P>; ///< El propio tipo.
     };
 
     /// @brief `make_unsigned` de un `fixed_int_t` con signo: da
     ///        `uint_fixed_t<N>`, misma anchura, representacion `binnat`.
-    template <std::size_t N, representation_form F>
-    struct make_unsigned<fixed_int_t<N, signedness::signed_type, F>>
+    template <std::size_t N, representation_form F, overflow_policy P>
+    struct make_unsigned<fixed_int_t<N, signedness::signed_type, F, P>>
     {
-        using type = uint_fixed_t<N>; ///< El tipo resultante.
+        using type = uint_fixed_t<N, P>; ///< El tipo resultante, con la misma politica.
     };
 
     /// @brief `make_unsigned` de un tipo que ya es sin signo: identidad.
-    template <std::size_t N, representation_form F>
-    struct make_unsigned<fixed_int_t<N, signedness::unsigned_type, F>>
+    template <std::size_t N, representation_form F, overflow_policy P>
+    struct make_unsigned<fixed_int_t<N, signedness::unsigned_type, F, P>>
     {
-        using type = fixed_int_t<N, signedness::unsigned_type, F>; ///< El propio tipo.
+        using type = fixed_int_t<N, signedness::unsigned_type, F, P>; ///< El propio tipo.
     };
 
 } // namespace nstd
@@ -239,54 +251,56 @@ namespace nstd
 namespace std
 {
     /// @brief `std::common_type` de dos `int_fixed_t`: gana la anchura mayor.
-    template <std::size_t N, std::size_t M>
-    struct common_type<::nstd::int_fixed_t<N>, ::nstd::int_fixed_t<M>>
+    template <std::size_t N, std::size_t M, ::nstd::overflow_policy P>
+    struct common_type<::nstd::int_fixed_t<N, P>, ::nstd::int_fixed_t<M, P>>
     {
-        using type = ::nstd::int_fixed_t<(N > M ? N : M)>; ///< El mas ancho de los dos.
+        using type = ::nstd::int_fixed_t<(N > M ? N : M), P>; ///< El mas ancho de los dos.
     };
 
     /// @brief `std::common_type` de dos `uint_fixed_t`: gana la anchura mayor.
-    template <std::size_t N, std::size_t M>
-    struct common_type<::nstd::uint_fixed_t<N>, ::nstd::uint_fixed_t<M>>
+    template <std::size_t N, std::size_t M, ::nstd::overflow_policy P>
+    struct common_type<::nstd::uint_fixed_t<N, P>, ::nstd::uint_fixed_t<M, P>>
     {
-        using type = ::nstd::uint_fixed_t<(N > M ? N : M)>; ///< El mas ancho de los dos.
+        using type = ::nstd::uint_fixed_t<(N > M ? N : M), P>; ///< El mas ancho de los dos.
     };
 
     /// @brief `std::common_type` de con signo y sin signo, por las conversiones
     ///        aritmeticas usuales de C++: si el sin signo es igual o mas ancho,
     ///        **gana el sin signo**. Ver `nstd::mixed_iu_t`.
-    template <std::size_t N, std::size_t M>
-    struct common_type<::nstd::int_fixed_t<N>, ::nstd::uint_fixed_t<M>>
+    template <std::size_t N, std::size_t M, ::nstd::overflow_policy P>
+    struct common_type<::nstd::int_fixed_t<N, P>, ::nstd::uint_fixed_t<M, P>>
     {
-        using type = ::nstd::mixed_iu_t<N, M>; ///< El tipo resultante.
+        using type = ::nstd::mixed_iu_t<N, M, P>; ///< El tipo resultante.
     };
 
     /// @brief La orientacion contraria de la anterior, que da el mismo tipo.
-    template <std::size_t N, std::size_t M>
-    struct common_type<::nstd::uint_fixed_t<N>, ::nstd::int_fixed_t<M>>
+    template <std::size_t N, std::size_t M, ::nstd::overflow_policy P>
+    struct common_type<::nstd::uint_fixed_t<N, P>, ::nstd::int_fixed_t<M, P>>
     {
-        using type = ::nstd::mixed_iu_t<M, N>; ///< El tipo resultante.
+        using type = ::nstd::mixed_iu_t<M, N, P>; ///< El tipo resultante.
     };
 
     /// @brief `std::common_type` de un `fixed_int_t` con un entero del lenguaje:
     ///        gana el `fixed_int_t`, que siempre es igual o mas ancho.
     /// @tparam T Entero del lenguaje distinto de `bool`; si no, falla el
     ///         `static_assert` con un mensaje que lo dice.
-    template <std::size_t N, ::nstd::signedness S, ::nstd::representation_form F, typename T>
-    struct common_type<::nstd::fixed_int_t<N, S, F>, T>
+    template <std::size_t N, ::nstd::signedness S, ::nstd::representation_form F, ::nstd::overflow_policy P,
+              typename T>
+    struct common_type<::nstd::fixed_int_t<N, S, F, P>, T>
     {
         static_assert(std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>,
                       "common_type<fixed_int_t, T>: T must be a built-in integral (not bool)");
-        using type = ::nstd::fixed_int_t<N, S, F>; ///< El lado `fixed_int_t`.
+        using type = ::nstd::fixed_int_t<N, S, F, P>; ///< El lado `fixed_int_t`.
     };
 
     /// @brief La orientacion contraria de la anterior, que da el mismo tipo.
-    template <typename T, std::size_t N, ::nstd::signedness S, ::nstd::representation_form F>
-    struct common_type<T, ::nstd::fixed_int_t<N, S, F>>
+    template <typename T, std::size_t N, ::nstd::signedness S, ::nstd::representation_form F,
+              ::nstd::overflow_policy P>
+    struct common_type<T, ::nstd::fixed_int_t<N, S, F, P>>
     {
         static_assert(std::is_integral_v<T> && !std::is_same_v<std::remove_cv_t<T>, bool>,
                       "common_type<T, fixed_int_t>: T must be a built-in integral (not bool)");
-        using type = ::nstd::fixed_int_t<N, S, F>; ///< El lado `fixed_int_t`.
+        using type = ::nstd::fixed_int_t<N, S, F, P>; ///< El lado `fixed_int_t`.
     };
 
 } // namespace std

@@ -116,15 +116,14 @@
  * @copyright Boost Software License 1.0
  */
 
-// Detectar si las especializaciones de traits están disponibles
-#if defined(_LIBCPP_VERSION)
-// libc++ (Clang with -stdlib=libc++) defines is_integral etc. for __int128 internally;
-// re-specializing in nstd:: is safe but the _v helpers may conflict.
-#define UINT128_USING_LIBCPP 1
-#else
-// GCC libstdc++, MSVC STL, Intel+MSVC: nstd:: traits are always safe to define.
-#define UINT128_USING_LIBCPP 0
-#endif
+// NO HAY EXCEPCION PARA libc++, y antes si la habia. Ver la explicacion larga en
+// fixed_int_traits_specializations.hpp: la macro apagaba las primarias
+// `nstd::is_integral...` bajo libc++, y era eso --y no libc++-- lo que hacia que
+// la especializacion de mas abajo resolviese contra `std::__1::is_integral`.
+//
+// Aqui ya habia mordido una vez: el CHANGELOG registra "Moved nstd::hash outside
+// #if !UINT128_USING_LIBCPP guard (was invisible to Clang/libc++)". Aquello
+// saco una pieza de dentro de la guarda; esto quita la guarda.
 
 // ⚠️ IMPORTANT: Include type_traits HERE, before the specializations
 // T2.5 (auditoria 23 ago 2026): este header NO era autocontenido -- usaba
@@ -150,8 +149,6 @@ namespace nstd
     // ===============================================================================
     // TYPE TRAITS FUNDAMENTALES (1 PARÁMETRO)
     // ===============================================================================
-
-#if !UINT128_USING_LIBCPP
 
     // Templates base que heredan de std::
     template <typename T>
@@ -389,8 +386,6 @@ namespace nstd
     template <typename T, typename U>
     inline constexpr bool is_trivially_assignable_v = is_trivially_assignable<T, U>::value;
 
-#endif // !UINT128_USING_LIBCPP
-
     // ===============================================================================
     // CONVERSIONES SIGNED/UNSIGNED (always available — required on MSVC/Intel too)
     // ===============================================================================
@@ -474,7 +469,8 @@ namespace nstd
     using make_unsigned_t = typename make_unsigned<T>::type;
 
     // ===============================================================================
-    // HASH (always available, independent of UINT128_USING_LIBCPP)
+    // HASH. Estaba aqui abajo, fuera de la guarda de libc++, porque dentro se
+    // volvia invisible para Clang. Ya no hay guarda, pero se queda donde esta.
     // ===============================================================================
 
     template <typename T>

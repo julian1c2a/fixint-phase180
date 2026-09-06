@@ -3311,8 +3311,11 @@ namespace nstd
     ///
     /// Both orientations (int op uint, uint op int) yield the same type. The order
     /// of template parameters here is conventionally (N = signed side, M = unsigned side).
-    template <std::size_t N, std::size_t M>
-    using mixed_iu_t = std::conditional_t<(N > M), int_fixed_t<N>, uint_fixed_t<M>>;
+    /// @tparam Policy Politica de desbordamiento, la MISMA en los dos lados:
+    ///         mezclarlas esta prohibido por ADR-008. Por defecto `wrap`, para
+    ///         que el codigo escrito antes del cuarto parametro siga valiendo.
+    template <std::size_t N, std::size_t M, overflow_policy Policy = overflow_policy::wrap>
+    using mixed_iu_t = std::conditional_t<(N > M), int_fixed_t<N, Policy>, uint_fixed_t<M, Policy>>;
 
     // =========================================================================
     // Detection traits for fixed_int_t — Fase MS-INTEROP
