@@ -104,6 +104,41 @@ def find_compiler(compiler_cmd: str, env: dict = None) -> Optional[str]:
     return shutil.which(compiler_cmd, path=ruta)
 
 
+_cache_libatomic = {}
+
+
+def _tiene_libatomic(compiler_cmd: str, env: dict = None) -> bool:
+    """Si este compilador tiene `libatomic`, preguntandoselo a el.
+
+    ANTES se anadia `-latomic` a ciegas para gcc y clang. `libatomic` es una
+    biblioteca del runtime de GCC: ucrt64 la trae, pero CLANG64 --que usa libc++
+    y lld-- no. Al pasar clang a ser el de clang64, `test_thread_safety` dejaba
+    de ENLAZAR con `lld: error: unable to find library -latomic`, sin que el
+    fuente tuviera nada malo.
+
+    `-print-file-name=X` devuelve la ruta si la encuentra, y el nombre pelado si
+    no: esa es la forma canonica de preguntarlo, y vale para gcc y para clang.
+    Se cachea porque esto se llama una vez por fichero de test.
+    """
+    if compiler_cmd in _cache_libatomic:
+        return _cache_libatomic[compiler_cmd]
+
+    encontrada = False
+    for nombre in ("libatomic.dll.a", "libatomic.a", "libatomic.so"):
+        try:
+            r = subprocess.run([compiler_cmd, f"-print-file-name={nombre}"],
+                               capture_output=True, text=True, env=env, timeout=30)
+        except Exception:
+            continue
+        ruta = r.stdout.strip()
+        if r.returncode == 0 and ruta and ruta != nombre and Path(ruta).exists():
+            encontrada = True
+            break
+
+    _cache_libatomic[compiler_cmd] = encontrada
+    return encontrada
+
+
 def compile_with_compiler(
     compiler_name: str,
     compiler_cmd: str,
@@ -262,7 +297,7 @@ def compile_with_compiler(
             cmd = [compiler_cmd] + common_flags + mode_flags + [source_str, "-o", output_str]
             
             # Add linker flags after -o output
-            if needs_atomic and compiler_name in ["gcc", "clang"]:
+            if needs_atomic and compiler_name in ["gcc", "clang"] and _tiene_libatomic(compiler_cmd, env):
                 cmd.append("-latomic")
             
             # Add sanitizer linker flags
@@ -485,11 +520,16 @@ def main():
         )
         total_ok += _o; total_fallos += _f; total_saltados += _s
     
+    # clang era el UNICO de los cuatro sin `skip_check=True`. Esa asimetria le
+    # daba un camino propio: si no se encontraba el binario, se contaba como
+    # SALTADO en vez de como fallo, asi que bajo `all` la suite podia terminar
+    # con codigo 0 sin haber probado clang. Los otros tres reportan el binario
+    # ausente como fallo, con mensaje, desde el `except` de la compilacion.
     if compiler in ["clang", "all"]:
         _o, _f, _s = compile_with_compiler(
             "clang", clang_cmd, source_file, build_dir,
             type_name_arg, feature_arg, output_suffix, modes_to_compile,
-            print_commands, project_root=project_root
+            print_commands, skip_check=True, project_root=project_root
         )
         total_ok += _o; total_fallos += _f; total_saltados += _s
     
