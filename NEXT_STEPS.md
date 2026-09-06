@@ -1,6 +1,6 @@
 # 🔮 NEXT STEPS
 
-**Last Updated:** 5 September 2026
+**Last Updated:** 6 September 2026
 **Versión:** **v1.90.4** publicada · **rama** `phase-1.80` · árbol limpio · todo en `origin`
 
 > Este documento es **el puntero y lo pendiente a corto**. No acumula historia:
@@ -15,13 +15,13 @@
 
 # 📍 POR AQUÍ VAMOS
 
-## Estado al 5 sep 2026
+## Estado al 6 sep 2026
 
 | | |
 |---|---|
 | **Release** | ✅ **v1.90.4 publicada**, la primera del proyecto: tres zips (gcc, clang, msvc) |
-| **Suite local** | ✅ 58/58 con **GCC, MSVC e Intel**. clang: 55/58 (ver P0.7) |
-| **CI** | ⚠️ verde, pero **su matriz de compiladores no compilaba lo que decía**: ver P0.8 |
+| **Suite local** | ✅ **58/58 con los cuatro**: GCC (libstdc++), clang (**libc++**), MSVC e Intel |
+| **CI** | ✅ **24/24 jobs** sobre `f959f53`, ya con la matriz compilando de verdad: no había fallos tapados |
 | **Diseño de la 2.0** | ✅ cerrado. **P1.1 a P1.4 escritos**; quedan P1.5 y P1.6 |
 | **ADR** | 15 registros, ninguna decisión sin documentar |
 
@@ -99,8 +99,8 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P0.4~~ | ~~`test_template_type.cpp` no comprueba nada~~ | ✅ **hecho**: las identidades de tipo son `static_assert` |
 | ~~P0.5~~ | ~~`cross-arm32` y `aarch64` tapan fallos reales~~ | ✅ **hecho**: un bug de compilacion y tres timeouts |
 | ~~P0.6~~ | ~~Intel oneAPI en Windows~~ | ✅ **en local**: 55/55 con Intel 2026.1. Queda **solo el runner del CI** |
-| **P0.7** | **Decidir el clang del proyecto: CLANG64 (libc++) o UCRT64.** `toolchains.json` dice CLANG64 y lo da por validado, pero con libc++ **tres tests no compilan**: las primarias `nstd::is_integral...` no se definen ahí ([`fixed_int_traits_specializations.hpp`](include/fixed_int_traits_specializations.hpp), *"the `_v` helpers may need different handling"*). O se cierra el hueco, o el JSON pasa a decir UCRT64. **Nunca se ha probado con libc++** |
-| **P0.8** | **Ver qué saca la matriz del CI ahora que compila de verdad.** Hasta este commit, `get_compiler_cmd()` pisaba `GCC_CXX`/`CLANG_CXX` con el nombre pelado: **todas las celdas usaban el compilador por defecto del runner**. La primera pasada puede sacar fallos reales que estaban tapados |
+| ~~P0.7~~ | ~~El clang del proyecto: CLANG64 (libc++) o UCRT64~~ | ✅ **cerrado a favor de las DOS**: `nstd::is_integral...` se define para libstdc++ y para libc++. Eran tres causas: la guarda que se causaba a sí misma, una regresión de P1.1 en el 4.º parámetro, y `-latomic` a ciegas |
+| ~~P0.8~~ | ~~Qué saca la matriz del CI ahora que compila de verdad~~ | ✅ **nada tapado**: 24/24 jobs verdes sobre `f959f53`, matriz completa |
 
 ### P1 — Camino crítico (el orden lo fija ADR-007)
 

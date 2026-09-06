@@ -1,4 +1,4 @@
-## [sin publicar] - 2026-09-05 - La politica de desbordamiento, y tres fuentes de verdad de menos
+## [sin publicar] - 2026-09-06 - La politica de desbordamiento, y clang con las dos bibliotecas
 
 Todo lo que hay en `phase-1.80` desde v1.90.4. La cabecera del cambio es
 `fixed_int_t` con **cuarto parametro de plantilla**, `overflow_policy`; el resto
@@ -86,23 +86,75 @@ compilador por defecto del runner.** La afirmacion "en verde con GCC 13-16, Clan
 18-22" no estaba sostenida por lo que se ejecutaba. La primera pasada de CI tras
 este cambio puede sacar fallos reales que estaban tapados.
 
-### Y lo que el arreglo destapa, sin cerrar
+### Clang con libc++, que nunca se habia probado
 
-Al obedecer a `toolchains.json`, clang pasa a ser el de **CLANG64** (libc++), que
-es el que el fichero declara validado. Con el, **tres tests no compilan**: bajo
-libc++ las primarias `nstd::is_integral...` no se definen
-(`fixed_int_traits_specializations.hpp`, con un comentario que dice *"the `_v`
-helpers may need different handling"*). Nunca se habia probado con libc++. Queda
-por decidir si se cierra ese hueco o si `toolchains.json` pasa a decir UCRT64.
+Al obedecer a `toolchains.json`, clang pasa a ser el de CLANG64 --el que el
+fichero declara validado-- y con el aparecieron tres tests que no compilaban.
+Eran TRES CAUSAS DISTINTAS, no una:
+
+**1. Una guarda que causaba el problema que decia evitar.** Los dos headers de
+traits tenian una macro (`FIXED_INT_USING_LIBCPP`, `UINT128_USING_LIBCPP`) que
+bajo libc++ apagaba TANTO las primarias `nstd::is_integral...` COMO sus
+especializaciones. El motivo escrito era que "libc++ define is_integral para
+__int128 por dentro". No se sostiene: `nstd::is_integral` es una plantilla propia
+en un espacio de nombres propio. Lo que pasaba de verdad: apagadas las primarias,
+la especializacion escribe `is_integral` sin cualificar y ese nombre acababa
+resolviendo a `std::__1::is_integral`. La guarda ya habia mordido antes --el
+CHANGELOG registra "Moved nstd::hash outside #if !UINT128_USING_LIBCPP guard"--
+y entonces se saco una pieza de dentro en vez de quitarla.
+
+**2. Una regresion de P1.1 que no habia visto nadie.** P1.1 generalizo `hash` y
+`numeric_limits` al cuarto parametro de plantilla, pero NO este fichero. Con lo
+cual:
+
+    nstd::is_integral_v<uint_fixed_t<2, overflow_policy::checked>>   ->  false
+
+Un trait que miente, de los del criterio 1. Generalizadas las seis `is_*`, las
+cuatro `make_signed`/`make_unsigned` --que ademas CONSERVAN la politica-- y las
+seis `common_type`. Las que cruzan dos `fixed_int_t` exigen la MISMA politica en
+los dos lados: mezclarlas esta prohibido por ADR-008, asi que si difieren tiene
+que ser error de compilacion, y lo es al no encajar ninguna especializacion.
+`mixed_iu_t` gana un tercer parametro con valor por defecto.
+
+**3. `-latomic` a ciegas.** Se anadia siempre que el fuente mencionara atomicos,
+para gcc y para clang. Es una biblioteca del runtime de GCC: ucrt64 la trae,
+CLANG64 --que usa libc++ y lld-- no. `test_param_thread_safety` dejaba de
+ENLAZAR con `lld: error: unable to find library -latomic` sin que el fuente
+tuviera nada malo. Ahora se le pregunta al compilador con `-print-file-name`,
+que es la forma canonica: gcc `True`, clang64 `False`. Sin `-latomic`, clang64
+enlaza y pasa 43/43.
+
+### Un falso verde en potencia: clang se podia saltar
+
+`clang` era el UNICO de los cuatro compiladores llamado sin `skip_check=True`.
+Esa asimetria le daba un camino propio: si no se encontraba el binario, se
+contaba como SALTADO en vez de como fallo, de modo que bajo `all` la suite podia
+terminar con codigo 0 sin haber probado clang. Los otros tres reportan el binario
+ausente como fallo. Igualado.
+
+### La matriz del CI, ya comprobada
+
+La pasada sobre `f959f53` --la primera que lleva el arreglo del compilador-- sale
+verde en los **24 jobs**, con la matriz entera: gcc-13/14/15/16,
+clang-18/19/20/21/22, ARM64, arm32, riscv64, i686, MSVC, Intel, sanitizers,
+clang-tidy, cppcheck y el armonizador. No habia fallos tapados.
+
+Los logs de los jobs necesitan permisos de admin, asi que no se ha leido la linea
+que dice que binario uso cada uno. El razonamiento cierra por otro lado: `main()`
+compila con `skip_check=True`, asi que un compilador que no exista FALLA --cae en
+el `except` de la compilacion-- en vez de saltarse. Si `g++-13` no estuviera en
+el runner, ese job estaria rojo.
 
 ### Estado de la suite
 
-| Compilador | Resultado |
-|---|---|
-| GCC 16.2 (ucrt64) | 58/58 |
-| MSVC 19.5x | 58/58 |
-| Intel oneAPI 2026.1 | 58/58 |
-| clang 22.1.8 (clang64, libc++) | 55/58 — los tres de arriba, sin relacion con este trabajo |
+| Compilador | Biblioteca estandar | Resultado |
+|---|---|---|
+| GCC 16.2 (ucrt64) | libstdc++ | 58/58 |
+| clang 22.1.8 (clang64) | **libc++** | 58/58 |
+| MSVC 19.5x | MS STL | 58/58 |
+| Intel oneAPI 2026.1 | MS STL | 58/58 |
+
+Es la primera vez que la suite corre entera con **libc++**.
 
 [ADR-006]: docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md
 [ADR-008]: docs/decisions/ADR-008-diseno-de-la-politica-de-desbordamiento.md
