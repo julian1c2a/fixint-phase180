@@ -272,13 +272,29 @@ namespace nstd
 
 /// @def NSTD_DESENROLLA_MAX
 /// @brief Anchura maxima que se multiplica con el escolar DESENROLLADO por
-///        construccion. Por encima se usa el bucle. Por defecto 16.
+///        construccion. Por encima se usa el bucle. Por defecto 20.
 ///
-/// El desenrollado paga de 2x a 4,9x hasta N=16 y deja de pagar en N=32
-/// (1,02x, medido), justo donde entra Karatsuba. Subirlo cuesta tiempo de
-/// compilacion: son N(N+1)/2 productos en linea recta.
+/// Barrido del 6 sep 2026, GCC 16.2, minimo de 5 rondas, bucle frente a
+/// desenrollado:
+///
+///     N=12  3,50x    N=18  1,40x    N=24  1,11x
+///     N=14  4,58x    N=20  1,48x    N=28  1,07x
+///     N=16  2,11x    N=22  1,25x
+///
+/// El coste por producto se dispara pasado N=16 --de 4,4 a 7,0 ciclos, que es
+/// presion de registros-- pero la ganancia no se agota hasta cerca de N=24. El
+/// tope se pone en 20, el ultimo punto con ganancia clara.
+///
+/// El tope se puso primero en 16, comparando N=16 con N=32 y sin mirar nada en
+/// medio. Eso dejaba a N=17..31 --y a N=20 en particular-- con el camino MAS
+/// LENTO de los tres: no son potencia de dos, asi que Karatsuba no les aplica,
+/// y quedaban por encima del tope. Lo señalo el autor el 6 sep 2026.
+///
+/// Subirlo mas cuesta tiempo de compilacion --son N(N+1)/2 productos en linea
+/// recta-- pero solo lo paga quien INSTANCIA esa anchura: para los tipos que
+/// nadie usa, el coste es cero.
 #ifndef NSTD_DESENROLLA_MAX
-#define NSTD_DESENROLLA_MAX 16
+#define NSTD_DESENROLLA_MAX 20
 #endif
     /// @}
 

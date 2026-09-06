@@ -266,6 +266,44 @@ static bool verosimil(std::size_t N, const char *que, double cyc_op)
     return false;
 }
 
+// ============================================================================
+// Coste teorico declarado, y su distancia con lo medido
+// ============================================================================
+//
+// Cuarta pieza del desguace (P2.7). Cada algoritmo declara SU CUENTA de
+// productos de limbo, y el benchmark publica la razon ESPERADA al lado de la
+// MEDIDA. La distancia entre las dos es el resultado interesante: ahi viven el
+// desenrollado, la presion de registros, la planificacion y los fallos de
+// medida.
+//
+// POR QUE. La razon medida decia 1,65x a favor de Karatsuba en N=4. La cuenta
+// teorica dice 10/9 = 1,11x. Un 1,65x medido contra un 1,11x esperado es medio
+// factor sin explicar, y ESO era la senal -- pero nadie la calculaba, asi que
+// el 1,65x se publico durante meses. Sale de una resta.
+//
+// Que la distancia no sea 1,00x no significa que la medida este mal: significa
+// que hay algo que la cuenta de multiplicaciones no captura, y que hay que
+// nombrarlo antes de publicar. En N=4 resulto ser el desenrollado.
+
+/// @brief Productos de limbo del escolar truncado de N limbos.
+static constexpr double productos_escolar(std::size_t N) noexcept
+{
+    return static_cast<double>(N * (N + 1) / 2);
+}
+
+/// @brief Productos de limbo de Karatsuba tal como esta escrito aqui: el
+///        producto bajo completo por kmul_full<N/2>, que cuesta 3^log2(N/2), mas
+///        los dos terminos del medio a media anchura. Solo en potencias de dos.
+static constexpr double productos_karatsuba(std::size_t N) noexcept
+{
+    if (N <= 1)
+        return 1.0;
+    double kf = 1.0;
+    for (std::size_t m = N / 2; m > 1; m /= 2)
+        kf *= 3.0;
+    return kf + 2.0 * productos_escolar(N / 2);
+}
+
 static int g_medidas_descartadas{0};
 
 static constexpr std::size_t OPERANDS{256};
@@ -338,6 +376,17 @@ static void bench_one(const char *etiqueta, const char *nota)
     bench_record((std::string("N=") + std::to_string(N) + " razon").c_str(), mejor_e / mejor_k, "x");
     // Esta es la buena: los dos lados desenrollados por construccion.
     bench_record((std::string("N=") + std::to_string(N) + " razon justa").c_str(), mejor_d / mejor_k, "x");
+
+    // Y la que dice si hay algo sin explicar: lo que la cuenta de productos
+    // predice, frente a lo que dice el cronometro. Si se separan, hay una
+    // variable en juego que la cuenta no captura, y hay que nombrarla.
+    {
+        const bool con_karatsuba = ((N & (N - 1)) == 0 && N >= NSTD_KARATSUBA_MIN && N <= NSTD_KARATSUBA_MAX);
+        const double esperada = con_karatsuba ? productos_escolar(N) / productos_karatsuba(N) : 1.0;
+        bench_record((std::string("N=") + std::to_string(N) + " razon esperada").c_str(), esperada, "x");
+        bench_record((std::string("N=") + std::to_string(N) + " sin explicar").c_str(),
+                     (mejor_d / mejor_k) / esperada, "x");
+    }
     // Y esta separa lo que aporta el desenrollado, que era lo que se colaba
     // dentro de la razon de arriba.
     bench_record((std::string("N=") + std::to_string(N) + " aporte del desenrollado").c_str(),

@@ -124,7 +124,7 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | **P2.4** | Coste de las conversiones a y desde cadena, bases 2..36 | API nueva de v1.90.1, sin medir |
 | **P2.5** | **Montar el histórico de benchmarks** (ver abajo) | Da sitio donde guardar P2.1–P2.4 |
 | **P2.6** | **La tercera combinación: `clang + libstdc++`** (el clang de UCRT64). Ya está instalado y no se usaba | Barato: amplía el recubrimiento sin tocar código |
-| **P2.7** | **Desguace de benchmarks de algoritmo**: separar en cada medida lo que aporta el algoritmo, lo que aporta el desenrollado, lo que aporta el compilador y lo que dice la cuenta teórica. Ver el diseño abajo | Dos piezas ya funcionan; falta el resto |
+| ~~P2.7~~ | ~~Desguace de benchmarks de algoritmo~~ | ✅ **las cuatro piezas hechas**: algoritmo/desenrollado, verosimilitud, código emitido (`scripts/bench_asm.py`) y coste teórico declarado |
 
 ### P3 — Lo que se abarata o desaparece esperando
 
@@ -325,7 +325,7 @@ publica y el benchmark sale con error**. Ojo con el suelo: `CycleTimer` usa
 RDTSC, que cuenta a la frecuencia invariante del TSC y no a la del núcleo, así
 que con turbo un ciclo real mide menos de un «ciclo» TSC.
 
-**3. Aportación del compilador: contar el código emitido.** ⬜ *pendiente*. Lo
+**3. Aportación del compilador: contar el código emitido.** ✅ *hecho el 6 sep 2026*, en `scripts/bench_asm.py`. Lo
 que destapó el fallo del desenrollado no fue el cronómetro sino el
 `-S`: en GCC, N=4, Karatsuba salía con 119 instrucciones y **9** `mul`
 —desenrollado— y la referencia con 61 y **1** `mul` —bucle—. Esa cuenta debe
@@ -338,7 +338,7 @@ tomarse automáticamente y publicarse junto al tiempo:
 - `call` dentro de un núcleo numérico es aviso por sí solo: MSVC dejaba
   `kmul_full` fuera de línea.
 
-**4. Coste teórico declarado, y su distancia con lo medido.** ⬜ *pendiente*.
+**4. Coste teórico declarado, y su distancia con lo medido.** ✅ *hecho el 6 sep 2026*.
 Cada algoritmo declara su cuenta de operaciones —escolar N(N+1)/2 productos;
 Karatsuba T(N)=3·T(N/2)+O(N)— y el benchmark publica la razón **esperada** al
 lado de la **medida**. La distancia entre ambas es el resultado interesante: es
