@@ -19,10 +19,9 @@ terminado como entero de N × 64 bits: aritmética modular completa y `constexpr
 los enteros built-in, integración con iostreams, `std::format` y `std::hash`, y
 conversión a y desde cadena en bases 2..36.
 
-Suite: 58 ficheros, en verde con GCC 16.2, MSVC 19.5x e Intel oneAPI 2026.1. El
-CI la cruza además con GCC 13–16 y Clang 18–22 sobre x86-64, x86-32, ARM64, ARM32
-y RISC-V 64; esas celdas están pendientes de una pasada válida (ver el CHANGELOG
-del 5 sep 2026).
+Suite: 58 ficheros, en verde con los cuatro compiladores — GCC 16.2 (libstdc++),
+Clang 22.1.8 (libc++), MSVC 19.5x e Intel oneAPI 2026.1. El CI la cruza además
+con GCC 13–16 y Clang 18–22 sobre x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 
 ---
 

@@ -147,6 +147,42 @@ da `NaN` y el `static_cast<uint64_t>` siguiente era comportamiento indefinido.
 
 All `mod 2^(64N)` (wraparound for unsigned, 2's-complement wrap for signed).
 
+#### Cómo multiplica `operator*`, y cómo ajustarlo
+
+`operator*` no tiene un solo algoritmo: elige según la anchura. El reparto está
+medido, no supuesto — ver [PERFORMANCE.md](PERFORMANCE.md).
+
+| anchura | camino | por qué |
+|---|---|---|
+| `N = 2` | especializado de 128 bits | `__int128` o `_umul128`, tres productos |
+| `N = 3 … 20` | escolar **desenrollado por construcción** | de 1,4× a 4,9× más rápido que el bucle |
+| `N` potencia de dos, `≥ 32` | **Karatsuba** | ahí sí gana: `N^1.585` vence a su constante |
+| resto | escolar en bucle | desenrollar deja de pagar |
+
+Los tres umbrales son macros y se pueden redefinir **antes** de incluir el
+header, o desde la línea de órdenes con `-D`:
+
+```cpp
+#define NSTD_DESENROLLA_MAX 24   // desenrollar hasta N=24 (por defecto 20)
+#define NSTD_KARATSUBA_MIN  16   // Karatsuba desde N=16   (por defecto 32)
+#include "fixed_width_int_t.hpp"
+```
+
+| macro | por defecto | qué hace |
+|---|---|---|
+| `NSTD_DESENROLLA_MAX` | 20 | anchura máxima con el escolar desenrollado |
+| `NSTD_KARATSUBA_MIN` | 32 | anchura mínima con Karatsuba (solo potencias de dos) |
+| `NSTD_KARATSUBA_MAX` | 4096 | anchura máxima con Karatsuba |
+
+**Subir `NSTD_DESENROLLA_MAX` cuesta tiempo de compilación** —son `N(N+1)/2`
+productos en línea recta— pero solo lo paga quien **instancia** esa anchura.
+Bajarlo no acelera nada: solo renuncia a la ganancia.
+
+Los valores por defecto salen de un barrido en los cuatro compiladores; si se
+cambian, conviene rehacerlo con `python scripts/bench_asm.py` y el benchmark de
+`karatsuba`, que publica la razón medida junto a la esperada por la cuenta de
+productos.
+
 ### Bitwise (same type)
 
 ```cpp
@@ -392,5 +428,5 @@ See [API_fixed_int_traits.md](API_fixed_int_traits.md) for the complete referenc
   saturacion definida de `inf`/`NaN` en el constructor desde punto flotante;
   contador de desplazamiento saturado; `operator<<`/`>>`, `std::formatter` y
   `std::hash` en headers propios.
-- **v1.90** — `fixed_int_t<N, Sign, Form>` unified template, cross-sign operators (`+, -, *, /, %, &, |, ^`), cross-sign comparators (`==, !=, <, <=, >, >=`), cross-sign compounds (`+=, -=, *=, /=, %=, &=, |=, ^=`), `detail::mixed_iu_t`, Knuth Algorithm D divmod, Karatsuba multiplication for N=4/8.
+- **v1.90** — `fixed_int_t<N, Sign, Form>` unified template, cross-sign operators (`+, -, *, /, %, &, |, ^`), cross-sign comparators (`==, !=, <, <=, >, >=`), cross-sign compounds (`+=, -=, *=, /=, %=, &=, |=, ^=`), `detail::mixed_iu_t`, Knuth Algorithm D divmod, Karatsuba multiplication (N=4/8 entonces; desde el 6 sep 2026, N>=32 y escolar desenrollado por debajo).
 - **v1.81 — Fase MS-INTEROP**: unary `operator+()`, shifts with cross-sign count, `operator<=>` (member + cross-type free), `mixed_iu_t` promoted to public `nstd::`, detection traits, `nstd::is_integral`/`is_arithmetic`/`is_signed`/`is_unsigned`, `nstd::make_signed`/`make_unsigned`, `nstd::integral`/`signed_integral`/`unsigned_integral` concepts, `std::common_type`, `std::numeric_limits`.

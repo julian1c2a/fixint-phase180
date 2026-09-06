@@ -23,6 +23,7 @@
 | **Suite local** | ✅ **58/58 con los cuatro**: GCC (libstdc++), clang (**libc++**), MSVC e Intel |
 | **CI** | ✅ **24/24 jobs** sobre `f959f53`, ya con la matriz compilando de verdad: no había fallos tapados |
 | **Diseño de la 2.0** | ✅ cerrado. **P1.1 a P1.4 escritos**; quedan P1.5 y P1.6 |
+| **`operator*`** | ✅ **de 2× a 4,9× más rápido** (6 sep 2026): escolar desenrollado hasta N=20, Karatsuba desde N=32. Los dos umbrales, medidos |
 | **ADR** | 15 registros, ninguna decisión sin documentar |
 
 **Lo primero al retomar: `python scripts/check_docs_consistency.py --doxygen`.**

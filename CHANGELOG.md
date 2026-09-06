@@ -1,4 +1,4 @@
-## [sin publicar] - 2026-09-06 - La politica de desbordamiento, y clang con las dos bibliotecas
+## [sin publicar] - 2026-09-06 - La politica de desbordamiento, clang con las dos bibliotecas, y `operator*` hasta 4,9x mas rapido
 
 Todo lo que hay en `phase-1.80` desde v1.90.4. La cabecera del cambio es
 `fixed_int_t` con **cuarto parametro de plantilla**, `overflow_policy`; el resto
@@ -144,6 +144,79 @@ que dice que binario uso cada uno. El razonamiento cierra por otro lado: `main()
 compila con `skip_check=True`, asi que un compilador que no exista FALLA --cae en
 el `except` de la compilacion-- en vez de saltarse. Si `g++-13` no estuviera en
 el runner, ese job estaria rojo.
+
+### `operator*` de 2x a 4,9x mas rapido, y como se llego
+
+Es la mejora mas grande que ha salido de medir, y salio de ARREGLAR LA MEDICION,
+no de buscarla.
+
+**El reparto nuevo:**
+
+| anchura | camino |
+|---|---|
+| N = 2 | especializado de 128 bits *(sin tocar)* |
+| N = 3 … 20 | **escolar desenrollado por construccion** |
+| N potencia de dos, >= 32 | **Karatsuba** |
+| resto | escolar en bucle |
+
+**Lo que gana**, minimos de 4 rondas en orden aleatorio:
+
+| N | GCC | Clang | MSVC | Intel |
+|---|---|---|---|---|
+| 3 | 2,34x | 3,83x | 1,55x | 1,33x |
+| 8 | 2,92x | 1,09x | 3,04x | 1,63x |
+| 12 | **4,92x** | 2,26x | 2,21x | 3,60x |
+| 16 | 1,99x | 1,55x | 1,64x | 2,26x |
+| 32 | 1,39x | 1,68x | 1,38x | 1,73x |
+
+N=2 sale 1,00x --tiene camino propio-- y sirve de control.
+
+**Como se llego.** El benchmark comparaba `a*b` contra una copia fiel del bucle
+escolar. Fiel en el fuente; en el binario, no: GCC emitia Karatsuba desenrollado
+--119 instrucciones, 9 `mul`-- y la referencia en bucle --61 y UN `mul`--. La
+razon publicada, 1,65x, era en su mayor parte desenrollado. Al escribir la
+referencia desenrollada POR CONSTRUCCION, Karatsuba pasaba a perder en N=4 y
+N=8... y lo que se descubrio de paso es que el bucle de la biblioteca era 3x mas
+lento de lo necesario.
+
+**Los dos umbrales, medidos.** Karatsuba sube a N>=32 porque por debajo pierde
+contra el escolar desenrollado (0,59x en N=4, 0,34x en N=8 con GCC) y en N=32
+gana en los cuatro (0,83x gcc, 0,58x clang, 0,88x msvc, 0,64x intel). El tope de
+desenrollado se puso primero en 16 comparando N=16 con N=32 y sin mirar en
+medio; eso dejaba a N=17..31 --que no son potencia de dos-- con el camino MAS
+LENTO. Barrida la banda, el desenrollado paga 1,48x en N=20 y se agota cerca de
+N=24: el tope queda en 20.
+
+**Lo que cuesta.** El tiempo de construccion sube ~25 %: la suite pasa de 163 a
+207 s con GCC y de 434 a 534 con MSVC. Solo lo paga quien instancia esas
+anchuras.
+
+**Correccion.** 860 256 pares por compilador contra una referencia escolar de 32
+bits --aritmetica del lenguaje, sin `umul128` ni `addcarry`, para que no comparta
+primitivas con lo que comprueba--: cero discrepancias en los cuatro.
+
+### El desguace de benchmarks (P2.7)
+
+Cuatro piezas para que un benchmark de algoritmo no pueda volver a medir otra
+cosa sin que se note:
+
+1. **Algoritmo separado del desenrollado**: se miden TRES implementaciones, no
+   dos, y se publican `razon justa` y `aporte del desenrollado`.
+2. **Verosimilitud**: ninguna medida puede saltarse el suelo fisico --N(N+1)/2
+   productos por su coste minimo--; si lo hace, el benchmark sale con error. Cazo
+   que Intel se llevaba el trabajo en N=4, con 0,20 ciclos por producto.
+3. **Codigo emitido** (`scripts/bench_asm.py`): cuenta instrucciones, `mul`,
+   `adc/sbb` y `call` por funcion, en los cuatro compiladores. La senal no es la
+   cuenta: es su discordancia con el cronometro.
+4. **Coste teorico declarado**: cada algoritmo declara su cuenta de productos y
+   se publica `razon esperada` junto a `sin explicar`. En N=32: medida 1,35x,
+   esperada 1,50x, sin explicar 0,90x -- Karatsuba entrega el 90 % de lo que
+   promete, y ese 10 % es repartir y recomponer.
+
+La regla, que vale aunque no se escriba una linea mas: **un benchmark de
+algoritmo no publica una razon sin decir contra que y compilada como.** Las tres
+veces que esta comparacion mintio, la razon estaba bien dividida; lo que estaba
+mal era el otro lado de la division.
 
 ### Estado de la suite
 
