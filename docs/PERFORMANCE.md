@@ -164,12 +164,46 @@ ramas es el algoritmo.
 **Los rangos son anchos a propósito**: reúnen las cuatro ejecuciones de los días
 25 ago y 5 sep, y esa anchura *es* el resultado. Con un suelo de ruido del 15 %
 (ver arriba) no se puede afirmar «1,65×»; lo que se puede afirmar es que
-**Karatsuba gana con holgura, entre 1,5× y 2×**, que es una conclusión más
-pobre y verdadera.
+**Karatsuba gana con holgura EN GCC, entre 1,5× y 2×**, que es una conclusión
+más pobre y verdadera. Y hay que decir «en GCC»: en MSVC pierde, ver la sección
+siguiente.
 
 Los valores absolutos en ciclos por operación están en el histórico
 (`benchs/history/`), no aquí: se mueven demasiado entre ejecuciones para
 publicarlos como si fueran una propiedad del código.
+
+### Los cuatro compiladores (6 sep 2026)
+
+Lo de arriba es **sólo GCC**, y hasta hoy no se había medido en los demás. Con
+los otros tres la conclusión no es la misma. Commit `ad7abba`, misma máquina,
+cuatro tomas por compilador, razón escolar/biblioteca:
+
+| N | GCC 16.2 | Clang 22.1 | Intel 2026.1 | **MSVC 19.51** |
+|---|---|---|---|---|
+| 2 | 3,2 – 3,4× | 0,99× | 1,29× | 1,53 – 1,58× |
+| **4** | 1,55 – 1,70× | 1,95× | 2,61× | **0,64 – 0,75×** |
+| **8** | 1,24 – 1,35× | 1,85× | 2,10× | **0,62 – 0,84×** |
+| 3, 5, 6, 7, 9, 10, 12, 16 | ~1,0 | ~1,0 | ~1,0 | ~1,0 |
+
+**En MSVC, Karatsuba es entre un 30 % y un 45 % MÁS LENTO que el escolar**, en
+los dos únicos tamaños donde se usa.
+
+Que esto es señal y no ruido lo dicen los controles, que aquí salen gratis: en
+todos los N donde Karatsuba **no** está activo las dos ramas son el mismo
+código, así que su razón tiene que ser 1,00. Medida, se queda entre **0,99 y
+1,11** en los cuatro compiladores y las cuatro tomas. Los 0,6-0,7 de MSVC están
+muy fuera de esa banda, y se repiten en las cuatro.
+
+Lo que **no** se sabe todavía: por qué. Karatsuba cambia siete multiplicaciones
+de limbo por tres más sumas y restas; que eso salga a perder sugiere que en MSVC
+el escolar se optimiza mucho mejor de lo que se penaliza el reparto, o que
+`_umul128` y `_addcarry_u64` se comportan distinto de sus equivalentes GNU. Sin
+mirar el ensamblador, es una conjetura.
+
+Tampoco se sabe **dónde estaría el umbral en MSVC**: hoy Karatsuba solo se activa
+en N=4 y N=8, así que N=16 y N=32 no dicen nada del algoritmo, solo del escolar
+contra sí mismo. Para hallar el umbral hay que activarlo en más anchuras primero.
+
 
 ### Los controles, y la anomalía que no era
 

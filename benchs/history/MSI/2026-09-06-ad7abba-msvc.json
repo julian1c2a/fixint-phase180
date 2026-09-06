@@ -1,0 +1,147 @@
+{
+  "fecha": "2026-09-06T10:57:36+00:00",
+  "commit": "ad7abba",
+  "arbol_limpio": false,
+  "maquina": "MSI",
+  "so": "Windows 10",
+  "cpu": "Intel64 Family 6 Model 165 Stepping 2, GenuineIntel",
+  "compilador_pedido": "msvc",
+  "compilador": "Microsoft (R) C/C++ Optimizing Compiler Version 19.51.36256 for x64",
+  "modo": "release-O2",
+  "suites": {
+    "karatsuba": {
+      "N=4 biblioteca": {
+        "valor": 103.5884,
+        "unidad": "cyc/op"
+      },
+      "N=4 escolar": {
+        "valor": 72.2854,
+        "unidad": "cyc/op"
+      },
+      "N=4 razon": {
+        "valor": 0.6978,
+        "unidad": "x"
+      },
+      "N=8 biblioteca": {
+        "valor": 353.4516,
+        "unidad": "cyc/op"
+      },
+      "N=8 escolar": {
+        "valor": 244.089,
+        "unidad": "cyc/op"
+      },
+      "N=8 razon": {
+        "valor": 0.6906,
+        "unidad": "x"
+      },
+      "N=2 biblioteca": {
+        "valor": 21.424,
+        "unidad": "cyc/op"
+      },
+      "N=2 escolar": {
+        "valor": 33.7697,
+        "unidad": "cyc/op"
+      },
+      "N=2 razon": {
+        "valor": 1.5763,
+        "unidad": "x"
+      },
+      "N=3 biblioteca": {
+        "valor": 40.887,
+        "unidad": "cyc/op"
+      },
+      "N=3 escolar": {
+        "valor": 44.2212,
+        "unidad": "cyc/op"
+      },
+      "N=3 razon": {
+        "valor": 1.0815,
+        "unidad": "x"
+      },
+      "N=5 biblioteca": {
+        "valor": 105.8788,
+        "unidad": "cyc/op"
+      },
+      "N=5 escolar": {
+        "valor": 105.4741,
+        "unidad": "cyc/op"
+      },
+      "N=5 razon": {
+        "valor": 0.9962,
+        "unidad": "x"
+      },
+      "N=7 biblioteca": {
+        "valor": 211.6078,
+        "unidad": "cyc/op"
+      },
+      "N=7 escolar": {
+        "valor": 225.5476,
+        "unidad": "cyc/op"
+      },
+      "N=7 razon": {
+        "valor": 1.0659,
+        "unidad": "x"
+      },
+      "N=9 biblioteca": {
+        "valor": 400.4636,
+        "unidad": "cyc/op"
+      },
+      "N=9 escolar": {
+        "valor": 380.592,
+        "unidad": "cyc/op"
+      },
+      "N=9 razon": {
+        "valor": 0.9504,
+        "unidad": "x"
+      },
+      "N=6 biblioteca": {
+        "valor": 137.1568,
+        "unidad": "cyc/op"
+      },
+      "N=6 escolar": {
+        "valor": 149.8321,
+        "unidad": "cyc/op"
+      },
+      "N=6 razon": {
+        "valor": 1.0924,
+        "unidad": "x"
+      },
+      "N=10 biblioteca": {
+        "valor": 414.5071,
+        "unidad": "cyc/op"
+      },
+      "N=10 escolar": {
+        "valor": 470.3013,
+        "unidad": "cyc/op"
+      },
+      "N=10 razon": {
+        "valor": 1.1346,
+        "unidad": "x"
+      },
+      "N=12 biblioteca": {
+        "valor": 789.3319,
+        "unidad": "cyc/op"
+      },
+      "N=12 escolar": {
+        "valor": 867.4516,
+        "unidad": "cyc/op"
+      },
+      "N=12 razon": {
+        "valor": 1.099,
+        "unidad": "x"
+      },
+      "N=16 biblioteca": {
+        "valor": 1866.0497,
+        "unidad": "cyc/op"
+      },
+      "N=16 escolar": {
+        "valor": 1838.5485,
+        "unidad": "cyc/op"
+      },
+      "N=16 razon": {
+        "valor": 0.9853,
+        "unidad": "x"
+      }
+    }
+  }
+}

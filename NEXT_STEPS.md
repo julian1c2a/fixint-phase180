@@ -101,6 +101,7 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P0.6~~ | ~~Intel oneAPI en Windows~~ | ✅ **en local**: 55/55 con Intel 2026.1. Queda **solo el runner del CI** |
 | ~~P0.7~~ | ~~El clang del proyecto: CLANG64 (libc++) o UCRT64~~ | ✅ **cerrado a favor de las DOS**: `nstd::is_integral...` se define para libstdc++ y para libc++. Eran tres causas: la guarda que se causaba a sí misma, una regresión de P1.1 en el 4.º parámetro, y `-latomic` a ciegas |
 | ~~P0.8~~ | ~~Qué saca la matriz del CI ahora que compila de verdad~~ | ✅ **nada tapado**: 24/24 jobs verdes sobre `f959f53`, matriz completa |
+| **P0.9** | **Tests de guardas de include y de macros de configuración.** Que la suite *afirme* en qué combinación compilador/biblioteca corre, y falle si no la reconoce. Ver el detalle abajo | — |
 
 ### P1 — Camino crítico (el orden lo fija ADR-007)
 
@@ -122,6 +123,7 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | **P2.3** | **Re-medir las tablas heredadas** de Knuth D y de comparación con built-in | Hoy **incumplen la regla del propio `docs/PERFORMANCE.md`**: sin fecha, compilador ni máquina |
 | **P2.4** | Coste de las conversiones a y desde cadena, bases 2..36 | API nueva de v1.90.1, sin medir |
 | **P2.5** | **Montar el histórico de benchmarks** (ver abajo) | Da sitio donde guardar P2.1–P2.4 |
+| **P2.6** | **La tercera combinación: `clang + libstdc++`** (el clang de UCRT64). Ya está instalado y no se usaba | Barato: amplía el recubrimiento sin tocar código |
 
 ### P3 — Lo que se abarata o desaparece esperando
 
@@ -230,3 +232,62 @@ que no existen.
   dijo «siguen inertes» cuando lo que fallaba era el procedimiento.
 - Antes de cerrar sesión: `/guarda_y_sube`, que ejecuta los cuatro verificadores
   que exige el CI.
+
+
+### P0.9 — Tests de guardas de include y de macros de configuración
+
+**De dónde sale.** De que en tres sesiones han aparecido once señales que
+mentían, y las que más caras han salido no eran fallos del código sino de la
+**configuración**: una guarda de libc++ que causaba el problema que decía evitar
+y dejaba al proyecto sin `nstd::is_integral` durante meses, un
+`[[no_unique_address]]` que elegía la rama equivocada porque Intel define
+`_MSC_VER` **y** `__clang__` a la vez, y un `-latomic` que se añadía a ciegas.
+Ninguna de las tres la habría cazado un test de aritmética.
+
+**Qué tiene que comprobar**, y todo en `static_assert` donde se pueda:
+
+1. **Qué hay debajo, dicho en voz alta.** Compilador, versión y biblioteca
+   estándar (`__GLIBCXX__` / `_LIBCPP_VERSION` / `_MSVC_STL_VERSION`). Que el
+   test *imprima* en qué combinación corre es media batalla.
+2. **Las macros propias resuelven a lo que deben** en esa combinación:
+   `INTRINSICS_USES_MSVC_ABI` frente a `INTRINSICS_USES_GNU_ABI`,
+   `NSTD_NO_UNIQUE_ADDRESS`, `INTRINSICS_IS_CONSTANT_EVALUATED`,
+   `NSTD_TRAITS_PRIMARY_DEFINED`.
+3. **Lo que existe, existe en todas las combinaciones**: `nstd::is_integral` y
+   sus hermanas, `nstd::hash`, `nstd::numeric_limits`, para `wrap` **y** para
+   `checked`. Es el agujero del 6 sep 2026, y como `static_assert` no se puede
+   volver a abrir en silencio.
+4. **Los contratos que dependen de la ABI**: `sizeof(fixed_int_t<4,…,wrap>) ==
+   32`, `== 40` con `checked`, `is_standard_layout` en las dos. Hoy viven
+   sueltos en la cabecera del tipo.
+5. **Las guardas son idempotentes**: incluir dos veces cada header no cambia
+   nada, y **el orden entre los dos ficheros de traits tampoco** — que es donde
+   vive `NSTD_TRAITS_PRIMARY_DEFINED` y donde estaba el fallo.
+
+**La vuelta de tuerca que lo hace útil:** el test debe **fallar si no reconoce la
+combinación**, no pasar de largo. Una configuración nueva y no contemplada tiene
+que salir en rojo. Si no, es otro verde que no significa nada.
+
+### P2.6 — La tercera combinación: `clang + libstdc++`
+
+Hay **tres** combinaciones compilador/biblioteca disponibles en esta máquina, y
+solo se usaban dos. Medido el 6 sep 2026 con una sonda que imprime los macros:
+
+| toolchain | compilador | biblioteca |
+|---|---|---|
+| `ucrt64/g++` | gcc 16.2.0 | libstdc++ 20260807 |
+| `ucrt64/clang++` | clang 22.1.8 | **libstdc++ 20260807** ← la que faltaba |
+| `clang64/clang++` | clang 22.1.8 | libc++ 220108 |
+
+La tercera **ya está instalada**: es el clang de UCRT64, con el que se trabajó
+media sesión sin caer en que era una configuración distinta. Añadirla es
+cuestión de que `toolchains.json` la nombre y `make.py test` la acepte.
+
+**La cuarta, `gcc + libc++`, no es viable en MinGW y se descarta.** No por culpa
+del proyecto: un hola-mundo compila (`gcc 16.2.0 / libc++ 220108`, con
+`-nostdinc++ -isystem …/include/c++/v1 -lc++`), pero con código real revienta
+dentro de la propia libc++ —`__algorithm/equal.h` usa un `static` en función
+`constexpr`, que es de C++23, y GCC lo rechaza en modo C++20; forzando C++23 cae
+en `cstdlib`, porque UCRT no tiene el `aligned_alloc` de C11—. Con las cabeceras
+de UCRT64 y con las de CLANG64, igual. Queda como job experimental del CI en
+Linux si algún día interesa, nunca como requisito.
