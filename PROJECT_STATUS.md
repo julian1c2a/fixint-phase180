@@ -92,7 +92,7 @@ propiedades sobre `int128_param_t`.
 | Aritmética modular completa y `constexpr`, división y módulo incluidos | ✅ |
 | Interop signed/unsigned al estilo de los built-in | ✅ |
 | iostreams, `std::format`, `std::hash`, cadena en bases 2..36 | ✅ |
-| Knuth D, Karatsuba (N=4/8), Granlund-Montgomery | ✅ escrito · ⚠️ **en MSVC Karatsuba pierde**, ver [PERFORMANCE](docs/PERFORMANCE.md#los-cuatro-compiladores-6-sep-2026) |
+| Knuth D, Karatsuba (N≥32), escolar desenrollado (N=3..16), Granlund-Montgomery | ✅ · **2× a 4,9× más rápido** desde el 6 sep 2026, ver [PERFORMANCE](docs/PERFORMANCE.md) |
 | Magnitud-Signo y Exceso-K **en `int128_param_t`** | ✅ |
 | Magnitud-Signo y Exceso-K **en `fixed_int_t`** | ❌ pendiente — [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md) |
 | Política de desbordamiento como parámetro | ✅ **escrita** (P1.1–P1.3): almacenamiento, propagación, orden y las `checked_*`/`saturating_*` |

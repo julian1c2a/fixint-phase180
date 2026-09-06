@@ -172,6 +172,59 @@ Los valores absolutos en ciclos por operación están en el histórico
 (`benchs/history/`), no aquí: se mueven demasiado entre ejecuciones para
 publicarlos como si fueran una propiedad del código.
 
+### El reparto nuevo, y lo que gana (6 sep 2026)
+
+**Esta seccion sustituye en la practica a las dos de abajo**, que quedan como
+testimonio de como se llego aqui.
+
+`operator*` reparte asi desde el 6 sep 2026:
+
+| anchura | camino | por que |
+|---|---|---|
+| N = 2 | especializado de 128 bits | `__int128` o `_umul128`, tres productos |
+| N = 3 … 16 | **escolar DESENROLLADO por construccion** | de 2x a 4,9x mas rapido que el bucle |
+| N potencia de dos, >= 32 | **Karatsuba** | ahi si gana: N^1.585 vence a la constante |
+| resto | escolar en bucle | desenrollar deja de pagar |
+
+Los umbrales son macros --`NSTD_DESENROLLA_MAX`, `NSTD_KARATSUBA_MIN`-- para
+poder barrerlos sin tocar el fichero, que es como se han fijado.
+
+**Lo que gana, medido**: minimos de 4 rondas en orden aleatorio, misma maquina,
+antes = el arbol en `6270a05`, despues = el de ahora.
+
+| N | GCC 16.2 | Clang 22.1 | MSVC 19.51 | Intel 2026.1 |
+|---|---|---|---|---|
+| 2 | 0,96x | 1,05x | 1,00x | 1,05x |
+| 3 | 2,34x | 3,83x | 1,55x | 1,33x |
+| 4 | 2,01x | 1,89x | 2,51x | *(nula)* |
+| 5 | 2,97x | 1,90x | 1,98x | 3,30x |
+| 6 | 3,04x | 1,85x | 1,86x | 3,06x |
+| 7 | 3,29x | 2,12x | 2,13x | 3,12x |
+| 8 | 2,92x | 1,09x | 3,04x | 1,63x |
+| 9 | 3,99x | 2,23x | 2,22x | 3,57x |
+| 10 | 4,52x | 2,46x | 2,23x | 3,56x |
+| 12 | **4,92x** | 2,26x | 2,21x | 3,60x |
+| 16 | 1,99x | 1,55x | 1,64x | 2,26x |
+| 32 | 1,39x | 1,68x | 1,38x | 1,73x |
+
+N=2 no cambia --tiene camino propio-- y esa fila sirve de control: sale 1,00x
+como debe. La casilla de Intel en N=4 esta **descartada por la comprobacion de
+verosimilitud**: daba 2,03 cyc/op para diez productos, o sea 0,20 ciclos por
+producto, y el benchmark sale con error en vez de publicarla.
+
+**Lo que cuesta.** El tiempo de CONSTRUCCION sube alrededor de un 25 %: la suite
+completa pasa de 163 a 207 s con GCC, de 434 a 534 con MSVC. Desenrollar N=16
+son 136 productos en linea recta, y ese tipo se instancia en muchos sitios. Es
+la razon de que el tope este en 16 y no mas arriba, ademas de que a partir de
+N=32 el desenrollado ya no paga (1,02x, medido).
+
+**Correccion, antes de creerse nada de esto**: 860 256 pares por compilador
+contra una referencia escolar de 32 bits --aritmetica del lenguaje, sin
+`umul128` ni `addcarry`, para que no comparta primitivas-- con cero
+discrepancias en los cuatro. Y la suite entera, 58/58 en los cuatro.
+
+---
+
 ### Los cuatro compiladores (6 sep 2026)
 
 Lo de arriba es **sólo GCC**, y hasta hoy no se había medido en los demás. Con

@@ -124,6 +124,7 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | **P2.4** | Coste de las conversiones a y desde cadena, bases 2..36 | API nueva de v1.90.1, sin medir |
 | **P2.5** | **Montar el histórico de benchmarks** (ver abajo) | Da sitio donde guardar P2.1–P2.4 |
 | **P2.6** | **La tercera combinación: `clang + libstdc++`** (el clang de UCRT64). Ya está instalado y no se usaba | Barato: amplía el recubrimiento sin tocar código |
+| **P2.7** | **Desguace de benchmarks de algoritmo**: separar en cada medida lo que aporta el algoritmo, lo que aporta el desenrollado, lo que aporta el compilador y lo que dice la cuenta teórica. Ver el diseño abajo | Dos piezas ya funcionan; falta el resto |
 
 ### P3 — Lo que se abarata o desaparece esperando
 
@@ -291,3 +292,67 @@ dentro de la propia libc++ —`__algorithm/equal.h` usa un `static` en función
 en `cstdlib`, porque UCRT no tiene el `aligned_alloc` de C11—. Con las cabeceras
 de UCRT64 y con las de CLANG64, igual. Queda como job experimental del CI en
 Linux si algún día interesa, nunca como requisito.
+
+
+### P2.7 — Desguace de benchmarks de algoritmo
+
+**De dónde sale.** De que la comparación Karatsuba/escolar ha medido tres cosas
+distintas de lo que decía medir, en tres ocasiones:
+
+| Cuándo | Decía | Medía |
+|---|---|---|
+| ago 2026 | Karatsuba gana 6,23× | contra un espantapájaros |
+| ago–sep 2026 | Karatsuba gana 1,65× | un desenrollado contra un bucle |
+| 6 sep 2026 | escolar desenrollado, 2,1 cyc/op en N=4 con Intel | el compilador se había llevado el trabajo |
+
+Las tres se destaparon **mirando**, no por una alarma. Un número solo, sin nada
+con qué contrastarlo, no puede delatarse a sí mismo. El desguace consiste en no
+publicar nunca un número solo.
+
+**Las cuatro piezas, y cuáles ya existen.**
+
+**1. Aportación del algoritmo, aislada del desenrollado.** ✅ *hecho el 6 sep
+2026*. Se miden **tres** implementaciones y no dos: la de la biblioteca, la
+referencia escrita como bucle, y la misma referencia desenrollada por
+construcción. Se publican `razon justa` (los dos lados desenrollados) y `aporte
+del desenrollado` (bucle frente a desenrollado). Sin esto, el «1,65×» de
+Karatsuba resultó ser 0,59×.
+
+**2. Verosimilitud: el suelo físico.** ✅ *hecho el 6 sep 2026*. Se compara la
+cifra medida con lo que la máquina no puede bajar: para el escolar de N limbos,
+N(N+1)/2 productos por su coste mínimo. Por debajo del suelo, la medida **no se
+publica y el benchmark sale con error**. Ojo con el suelo: `CycleTimer` usa
+RDTSC, que cuenta a la frecuencia invariante del TSC y no a la del núcleo, así
+que con turbo un ciclo real mide menos de un «ciclo» TSC.
+
+**3. Aportación del compilador: contar el código emitido.** ⬜ *pendiente*. Lo
+que destapó el fallo del desenrollado no fue el cronómetro sino el
+`-S`: en GCC, N=4, Karatsuba salía con 119 instrucciones y **9** `mul`
+—desenrollado— y la referencia con 61 y **1** `mul` —bucle—. Esa cuenta debe
+tomarse automáticamente y publicarse junto al tiempo:
+
+- compilar la sonda con `-S` (o `/FA` en MSVC), trocear por función y contar
+  instrucciones, `mul`, `adc`/`sbb`, `mov` y `call`;
+- **la señal es la discordancia**: si el tiempo dice 1,7× y el número de `mul`
+  dice 0,9×, hay una tercera variable, y hay que nombrarla antes de publicar.
+- `call` dentro de un núcleo numérico es aviso por sí solo: MSVC dejaba
+  `kmul_full` fuera de línea.
+
+**4. Coste teórico declarado, y su distancia con lo medido.** ⬜ *pendiente*.
+Cada algoritmo declara su cuenta de operaciones —escolar N(N+1)/2 productos;
+Karatsuba T(N)=3·T(N/2)+O(N)— y el benchmark publica la razón **esperada** al
+lado de la **medida**. La distancia entre ambas es el resultado interesante: es
+donde viven el desenrollado, la presión de registros, la planificación y los
+fallos de medida. Hoy esa distancia se calcula a mano y sólo cuando alguien
+sospecha.
+
+**Forma que propongo.** Un `benchs/bench_desguace.hpp` con el arnés —las tres
+medidas, la verosimilitud y el coste declarado— y un `scripts/bench_asm.py` que
+haga la parte 3, porque necesita invocar al compilador y trocear el ensamblador.
+El benchmark de Karatsuba sería el primer cliente; `divmod` y las conversiones a
+cadena, los siguientes.
+
+**Regla que sale de esto, y que vale aunque no se escriba una línea de código:**
+un benchmark de algoritmo no publica una razón sin decir **contra qué** y
+**compilada cómo**. Las tres veces que esto falló, la razón estaba bien
+calculada; lo que estaba mal era el otro lado de la división.
