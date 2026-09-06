@@ -49,6 +49,31 @@ RAIZ = Path(__file__).resolve().parent.parent
 BENCHS = RAIZ / "benchs"
 HISTORIA = BENCHS / "history"
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent / "env_setup"))
+
+
+def entorno_de(compilador: str) -> dict:
+    """Entorno con el que hay que LANZAR los binarios de ese compilador.
+
+    No basta con `os.environ`. Un binario de ucrt64 lanzado con el PATH de una
+    shell cualquiera puede cargar el `libstdc++-6.dll` viejo que trae Git y morir
+    con 0xC0000005; uno de clang64 necesita su `libc++`. Es el mismo entorno
+    aislado que usa `build_generic` para compilar, y hay que usarlo tambien para
+    EJECUTAR.
+
+    Sin esto, los binarios morian al arrancar, no escribian el TSV, y este guion
+    lo achacaba al fuente: "no registra (le falta bench_record)". Los ocho
+    benchmarks salian con ese mensaje el 6 sep 2026, y todos tienen
+    `bench_record`.
+    """
+    try:
+        from compiler_env import CompilerEnvironment  # noqa: PLC0415
+
+        return CompilerEnvironment(compilador).get_env()
+    except Exception:
+        return os.environ.copy()
+
 # Umbral para avisar en --compare, MEDIDO el 5 sep 2026: el mismo binario en la
 # misma maquina, dos ejecuciones seguidas sin tocar nada, da una mediana de
 # 5,1 % de diferencia, un p90 de 15,6 % y un peor caso de 25,2 %.
@@ -130,13 +155,24 @@ def ejecutar(nombre: str, compilador: str, modo: str, tmp: Path):
     if not exe.exists():
         return None, "sin binario"
 
-    env = os.environ.copy()
+    env = entorno_de(compilador)
     env["BENCH_OUT"] = str(salida_tsv)
     try:
-        subprocess.run([str(exe)], cwd=RAIZ, capture_output=True, text=True,
-                       env=env, timeout=1800)
+        r = subprocess.run([str(exe)], cwd=RAIZ, capture_output=True, text=True,
+                           env=env, timeout=1800)
     except subprocess.TimeoutExpired:
         return None, "timeout"
+
+    # ANTES no se miraba el codigo de salida. Un binario que moria al arrancar
+    # --por una DLL equivocada, por ejemplo-- no escribia el TSV, y la unica
+    # explicacion que daba este guion era "le falta bench_record": culpaba al
+    # fuente de un fallo del entorno. Ahora se distingue.
+    if r.returncode != 0:
+        detalle = "0x%08X" % (r.returncode & 0xFFFFFFFF) if r.returncode < 0 or r.returncode > 255 \
+            else str(r.returncode)
+        pista = (r.stderr or r.stdout or "").strip().splitlines()
+        return None, "el binario termino con %s%s" % (
+            detalle, (": " + pista[-1][:60]) if pista else "")
 
     if not salida_tsv.exists():
         return None, "no registra (le falta bench_record)"
