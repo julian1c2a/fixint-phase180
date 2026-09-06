@@ -236,6 +236,52 @@ namespace nstd
 #define NSTD_NO_UNIQUE_ADDRESS [[no_unique_address]]
 #endif
 
+/// @name Anchuras en las que `operator*` toma el camino de Karatsuba
+///
+/// Son macros, y no constantes, para poder BARRERLAS desde la linea de ordenes
+/// sin tocar el fichero: `-DNSTD_KARATSUBA_MAX=32`. El barrido es necesario
+/// porque el umbral no se puede razonar solo con la cuenta de operaciones.
+///
+/// La teoria dice que Karatsuba gana a partir de alguna anchura --cambia
+/// N^2 por N^1.585-- pero la constante que arrastra es grande: reparte,
+/// suma, resta y vuelve a juntar. Medido el 6 sep 2026 frente a un escolar
+/// DESENROLLADO, en N=4 y N=8 pierde en los cuatro compiladores. Donde esta
+/// el cruce de verdad es lo que hay que medir, no suponer.
+///
+/// Solo se aplica a anchuras potencia de dos: el reparto de Karatsuba parte
+/// el operando por la mitad y necesita que la mitad vuelva a ser par hasta
+/// llegar a 1.
+/// @{
+/// @def NSTD_KARATSUBA_MIN
+/// @brief Anchura minima, en limbos, a partir de la cual `operator*` toma el
+///        camino de Karatsuba. Por defecto 32.
+///
+/// Medido el 6 sep 2026: por debajo de 32, un escolar desenrollado es mas
+/// rapido que Karatsuba en los cuatro compiladores. A partir de 32, Karatsuba
+/// gana en los cuatro.
+#ifndef NSTD_KARATSUBA_MIN
+#define NSTD_KARATSUBA_MIN 32
+#endif
+
+/// @def NSTD_KARATSUBA_MAX
+/// @brief Anchura maxima con Karatsuba. Existe para poder acotar el barrido;
+///        en la practica no estorba.
+#ifndef NSTD_KARATSUBA_MAX
+#define NSTD_KARATSUBA_MAX 4096
+#endif
+
+/// @def NSTD_DESENROLLA_MAX
+/// @brief Anchura maxima que se multiplica con el escolar DESENROLLADO por
+///        construccion. Por encima se usa el bucle. Por defecto 16.
+///
+/// El desenrollado paga de 2x a 4,9x hasta N=16 y deja de pagar en N=32
+/// (1,02x, medido), justo donde entra Karatsuba. Subirlo cuesta tiempo de
+/// compilacion: son N(N+1)/2 productos en linea recta.
+#ifndef NSTD_DESENROLLA_MAX
+#define NSTD_DESENROLLA_MAX 16
+#endif
+    /// @}
+
     namespace detail
     {
         /// @brief Marca de un tipo que no la necesita. Vacia a proposito: con
@@ -1466,10 +1512,11 @@ namespace nstd
         // N=2 fast path:
         //   GCC/Clang/ICX (has __uint128_t): single __uint128_t multiply (constexpr-safe)
         //   MSVC x64 (no __uint128_t):       _umul128 + two 64-bit muls (runtime only)
-        // N=4/8 Karatsuba (runtime only): T(N)=3·T(N/2)+O(N), T(2)=3 umul128
+        // Karatsuba (runtime only): T(N)=3·T(N/2)+O(N), T(2)=3 umul128
+        //   anchuras segun NSTD_KARATSUBA_MIN/MAX (por defecto 4 y 8)
         //   kmul_full<N/2> for the full lower product; half-width operator* for middle terms
         //   N=4: 9 umul128+0 (vs 10 schoolbook); N=8: 19 umul128+8 muls (vs 36)
-        // Fallback: schoolbook O(N^2) for N∉{2,4,8} or constexpr on MSVC
+        // Fallback: schoolbook O(N^2) fuera de esas anchuras, o constexpr en MSVC
         // =========================================================================
 
         constexpr fixed_int_t operator*(const fixed_int_t &o) const noexcept
@@ -1523,9 +1570,10 @@ namespace nstd
             }
 #endif
 
-            // N=4/8 Karatsuba: full lower product via kmul_full<N/2>,
-            // middle terms via half-width operator* (recurses automatically for N=8).
-            if constexpr (N == 4 || N == 8)
+            // Karatsuba: producto bajo completo con kmul_full<N/2>, terminos del
+            // medio con el operator* de media anchura, que recurre solo.
+            // Las anchuras las fijan NSTD_KARATSUBA_MIN/MAX, ver arriba.
+            if constexpr ((N & (N - 1)) == 0 && N >= NSTD_KARATSUBA_MIN && N <= NSTD_KARATSUBA_MAX)
             {
                 if (!std::is_constant_evaluated())
                 {
@@ -1553,27 +1601,21 @@ namespace nstd
                 }
             }
 
-            // General schoolbook O(N^2) — used for N∉{2,4,8} or constexpr on MSVC
+            // Escolar desenrollado, para las anchuras donde compensa.
+            if constexpr (N <= NSTD_DESENROLLA_MAX)
+            {
+                filas_desenrolladas<0>(r.data, data, o.data);
+                return r;
+            }
+
+            // Escolar O(N^2) en bucle: por encima del tope de desenrollado, o en
+            // evaluacion constante con MSVC.
             for (std::size_t i{0}; i < N; ++i)
             {
                 for (std::size_t j{0}; i + j < N; ++j)
                 {
                     std::uint64_t hi{0};
-#if __has_include("intrinsics/arithmetic_operations.hpp")
-                    const std::uint64_t lo = intrinsics::umul128(data[i], o.data[j], &hi);
-#else
-                    const std::uint64_t a_lo = data[i] & 0xFFFFFFFFULL;
-                    const std::uint64_t a_hi = data[i] >> 32;
-                    const std::uint64_t b_lo = o.data[j] & 0xFFFFFFFFULL;
-                    const std::uint64_t b_hi = o.data[j] >> 32;
-                    const std::uint64_t p0 = a_lo * b_lo;
-                    const std::uint64_t p1 = a_lo * b_hi;
-                    const std::uint64_t p2 = a_hi * b_lo;
-                    const std::uint64_t p3 = a_hi * b_hi;
-                    const std::uint64_t mid = (p0 >> 32) + (p1 & 0xFFFFFFFFULL) + (p2 & 0xFFFFFFFFULL);
-                    const std::uint64_t lo = (p0 & 0xFFFFFFFFULL) | (mid << 32);
-                    hi = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
-#endif
+                    const std::uint64_t lo = producto64(data[i], o.data[j], hi);
                     unsigned char c = add_limb(r.data[i + j], lo);
                     const std::size_t next = i + j + 1;
                     if (next < N)
@@ -2873,6 +2915,95 @@ namespace nstd
         }
 
         // Add v to limb, return carry (0 or 1)
+        // =====================================================================
+        // Escolar desenrollado POR CONSTRUCCION
+        // =====================================================================
+        //
+        // Mismo algoritmo y mismas primitivas que el bucle de mas abajo. Lo
+        // unico que cambia es que los indices son de compilacion, asi que no
+        // depende de que el compilador se anime a desenrollar.
+        //
+        // POR QUE. Medido el 6 sep 2026 sobre el ensamblador de GCC 16.2 en N=4,
+        // el bucle salia con 61 instrucciones y UN `mul` --o sea, rodando-- y
+        // Karatsuba con 119 y NUEVE. Escrito asi, el escolar pasa de 79,8 a
+        // 26,7 cyc/op en GCC: 3x. Y no es un caso aislado, va de 1,5x a 3,8x en
+        // los cuatro compiladores. Es la mejora mas grande que ha aparecido
+        // midiendo, y afecta a TODAS las anchuras, no solo a las de Karatsuba.
+        //
+        // El tope es NSTD_DESENROLLA_MAX: desenrollar cuesta codigo --N(N+1)/2
+        // productos en linea recta-- y por encima de cierta anchura deja de
+        // compensar por presion de registros y cache de instrucciones. Por
+        // encima del tope se sigue usando el bucle.
+
+        /// @brief Propaga el acarreo desde el limbo K. Conserva la salida
+        ///        temprana del bucle original, que aqui es un `if`.
+        template <std::size_t K>
+        static constexpr void propaga_desde(std::array<std::uint64_t, N> &r, unsigned char c) noexcept
+        {
+            if constexpr (K < N)
+            {
+                if (c)
+                    propaga_desde<K + 1>(r, add_limb(r[K], std::uint64_t{c}));
+            }
+        }
+
+        /// @brief Una fila del escolar: los productos x[I]*y[J] con J creciente.
+        template <std::size_t I, std::size_t J>
+        static constexpr void fila_desenrollada(std::array<std::uint64_t, N> &r,
+                                                const std::array<std::uint64_t, N> &x,
+                                                const std::array<std::uint64_t, N> &y) noexcept
+        {
+            if constexpr (I + J < N)
+            {
+                std::uint64_t hi{0};
+                const std::uint64_t lo = producto64(x[I], y[J], hi);
+                unsigned char c = add_limb(r[I + J], lo);
+                if constexpr (I + J + 1 < N)
+                {
+                    c = add_limb_carry(r[I + J + 1], hi, c);
+                    propaga_desde<I + J + 2>(r, c);
+                }
+                fila_desenrollada<I, J + 1>(r, x, y);
+            }
+        }
+
+        /// @brief Todas las filas.
+        template <std::size_t I>
+        static constexpr void filas_desenrolladas(std::array<std::uint64_t, N> &r,
+                                                  const std::array<std::uint64_t, N> &x,
+                                                  const std::array<std::uint64_t, N> &y) noexcept
+        {
+            if constexpr (I < N)
+            {
+                fila_desenrollada<I, 0>(r, x, y);
+                filas_desenrolladas<I + 1>(r, x, y);
+            }
+        }
+
+        /// @brief Producto 64x64 -> 128. La parte baja se devuelve, la alta va a
+        ///        `hi`. Estaba copiado dentro del bucle escolar; ahora lo usan
+        ///        el bucle y la version desenrollada, para que no puedan
+        ///        separarse por descuido.
+        [[nodiscard]] static constexpr std::uint64_t producto64(std::uint64_t a, std::uint64_t b,
+                                                                std::uint64_t &hi) noexcept
+        {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+            return intrinsics::umul128(a, b, &hi);
+#else
+            const std::uint64_t a_lo = a & 0xFFFFFFFFULL;
+            const std::uint64_t a_hi = a >> 32;
+            const std::uint64_t b_lo = b & 0xFFFFFFFFULL;
+            const std::uint64_t b_hi = b >> 32;
+            const std::uint64_t p0 = a_lo * b_lo;
+            const std::uint64_t p1 = a_lo * b_hi;
+            const std::uint64_t p2 = a_hi * b_lo;
+            const std::uint64_t p3 = a_hi * b_hi;
+            const std::uint64_t mid = (p0 >> 32) + (p1 & 0xFFFFFFFFULL) + (p2 & 0xFFFFFFFFULL);
+            hi = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
+            return (p0 & 0xFFFFFFFFULL) | (mid << 32);
+#endif
+        }
+
         static constexpr unsigned char add_limb(std::uint64_t &limb, std::uint64_t v) noexcept
         {
 #if __has_include("intrinsics/arithmetic_operations.hpp")

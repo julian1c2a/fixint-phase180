@@ -381,9 +381,9 @@ int main()
     std::cout << "\n[correccion]\n";
     const bool ok = check_equal<2>() && check_equal<3>() && check_equal<4>() && check_equal<5>() &&
                     check_equal<6>() && check_equal<7>() && check_equal<8>() && check_equal<9>() &&
-                    check_equal<10>() && check_equal<12>() && check_equal<16>();
-    std::cout << "  las dos implementaciones coinciden en N=2,3,4,5,6,7,8,9,10,12,16: " << (ok ? "SI" : "NO")
-              << "\n";
+                    check_equal<10>() && check_equal<12>() && check_equal<16>() && check_equal<32>();
+    std::cout << "  las dos implementaciones coinciden en N=2,3,4,5,6,7,8,9,10,12,16,32: "
+              << (ok ? "SI" : "NO") << "\n";
     if (!ok)
     {
         std::cout << "  ABORTADO: no tiene sentido medir dos cosas que no calculan lo mismo.\n";
@@ -424,8 +424,17 @@ int main()
     bench_one<6>("N=6  (384 bits)", "");
     bench_one<10>("N=10 (640 bits)", "");
     bench_one<12>("N=12 (768 bits)", "");
-    bench_one<16>("N=16 (1024 bits)", "el control de siempre");
+    bench_one<16>("N=16 (1024 bits)", "");
+    bench_one<32>("N=32 (2048 bits)", "");
     print_footer();
+
+    std::cout << "\n"
+              << "N=16 y N=32 son las anchuras donde la teoria dice que Karatsuba\n"
+              << "deberia empezar a ganar: cambia N^2 por N^1.585, pero arrastra una\n"
+              << "constante grande. Con NSTD_KARATSUBA_MAX=8 (el defecto) `biblioteca`\n"
+              << "es el escolar en bucle; con =32 es Karatsuba. Comparar las dos\n"
+              << "construcciones da el efecto del algoritmo, con el escolar\n"
+              << "desenrollado de testigo, que no depende de la macro.\n";
 
     std::cout << "\nSi los N de este barrido no salen entre 0.95x y 1.05x, hay algo que\n"
               << "explicar: la implementacion de referencia es la misma en todos.\n";
