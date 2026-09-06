@@ -115,15 +115,28 @@ def nombre_maquina() -> str:
 
 
 def version_compilador(compilador: str) -> str:
-    sys.path.insert(0, str(RAIZ / "scripts"))
+    """Version del compilador, preguntandosela EN SU ENTORNO.
+
+    ANTES resolvia el comando con `toolchains.resolve` y lo lanzaba con el
+    entorno del proceso. Para intel eso da `icx` --un nombre pelado que no esta
+    en el PATH mientras no se haya corrido `setvars.bat`-- y para msvc `cl.exe`,
+    que necesita `vcvars64.bat`. Los dos caian en "desconocida", y la medida
+    quedaba guardada sin decir con que se habia compilado, que es justo el dato
+    que la hace comparable. Ahora se usa el entorno aislado, igual que para
+    compilar y para ejecutar.
+    """
     try:
-        import toolchains  # type: ignore
-        cmd = toolchains.resolve(compilador)
+        from compiler_env import CompilerEnvironment  # noqa: PLC0415
+
+        ce = CompilerEnvironment(compilador)
+        cmd, env = ce.get_compiler_cmd(), ce.get_env()
     except Exception:
-        cmd = compilador
+        cmd, env = compilador, None
+
     for flag in ("--version", "/?"):
         try:
-            r = subprocess.run([cmd, flag], capture_output=True, text=True, timeout=20)
+            r = subprocess.run([cmd, flag], capture_output=True, text=True,
+                               timeout=20, env=env)
             salida = (r.stdout or r.stderr).strip().splitlines()
             if salida:
                 return salida[0].strip()
@@ -191,7 +204,12 @@ def ejecutar(nombre: str, compilador: str, modo: str, tmp: Path):
 def guardar(datos: dict) -> Path:
     carpeta = HISTORIA / datos["maquina"]
     carpeta.mkdir(parents=True, exist_ok=True)
-    nombre = "%s-%s.json" % (datos["fecha"][:10], datos["commit"])
+    # EL COMPILADOR VA EN EL NOMBRE. Sin el, cuatro tomas del mismo dia y el
+    # mismo commit --una por compilador, que es justo lo que pide P2.2-- se
+    # pisaban unas a otras: el guion decia cuatro veces "70 medidas -> fichero"
+    # y al final solo quedaban las del ultimo. Visto el 6 sep 2026.
+    nombre = "%s-%s-%s.json" % (datos["fecha"][:10], datos["commit"],
+                                datos["compilador_pedido"])
     destino = carpeta / nombre
     io.open(destino, "w", encoding="utf-8", newline="\n").write(
         json.dumps(datos, indent=2, ensure_ascii=False) + "\n")
@@ -329,13 +347,30 @@ def main():
                                               destino.relative_to(RAIZ)))
 
     if args.compare:
-        previas = [p for p in anteriores(maquina) if p != destino]
+        # SOLO CONTRA EL MISMO COMPILADOR. Comparar la toma de gcc con la de
+        # intel no dice nada de si el codigo ha cambiado: dice que son dos
+        # compiladores distintos, que ya se sabia. Antes se cogia el fichero
+        # anterior sin mirar, porque el nombre no llevaba el compilador y las
+        # tomas de un mismo dia se pisaban entre si.
+        previas = []
+        for p in anteriores(maquina):
+            if p == destino:
+                continue
+            try:
+                d = json.loads(io.open(p, encoding="utf-8").read())
+            except Exception:
+                continue
+            # los ficheros viejos, de antes de que el nombre llevara compilador,
+            # llevan el dato dentro igualmente
+            if d.get("compilador_pedido") == datos["compilador_pedido"]:
+                previas.append(p)
         if previas:
             comparar(datos, previas[-1])
         else:
             echo("")
-            echo("  No hay ejecucion anterior en esta maquina con la que comparar.")
-            echo("  Esta es la base.")
+            echo("  No hay ejecucion anterior de %s en esta maquina con la que"
+                 % datos["compilador_pedido"])
+            echo("  comparar. Esta es la base.")
 
     return 0
 
