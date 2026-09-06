@@ -52,10 +52,31 @@ using namespace nstd;
 // Multiplicacion escolar O(N^2), el camino que Karatsuba pretende batir
 // ============================================================================
 //
-// COPIA FIEL del bucle general de `fixed_int_t::operator*`, con sus mismas
-// primitivas: `intrinsics::umul128` para el producto 64x64->128 y
-// `intrinsics::addcarry_u64` para la cadena de acarreo (que compila a ADC).
-// Lo unico que cambia entre las dos ramas medidas es el algoritmo.
+// HAY DOS REFERENCIAS, Y LA RAZON ES EL FALLO QUE ESTO DESTAPO.
+//
+// La primera, `schoolbook_mul`, es copia fiel del bucle general de
+// `fixed_int_t::operator*`, con sus mismas primitivas. Fiel EN EL FUENTE. Pero
+// medido el 6 sep 2026 sobre el ensamblador que emite GCC 16.2 en N=4:
+//
+//     Karatsuba (mul_sin_marca)   119 instrucciones,  9 `mul`  -> DESENROLLADO
+//     escolar   (este de abajo)    61 instrucciones,  1 `mul`  -> BUCLE
+//
+// Un `mul` ejecutado diez veces contra nueve `mul` en linea recta. Eso no
+// compara algoritmos: compara desenrollado. Y explica la mayor parte del
+// "1,65x" que se venia publicando -- con `-funroll-loops`, la razon en N=4
+// cae de 1,75x a 0,88x, o sea Karatsuba PIERDE.
+//
+// Es la segunda vez que esta comparacion mide algo que no es. La primera fue el
+// "6,23x" contra un espantapajaros, que se arreglo poniendo esta copia fiel. La
+// leccion: fiel en el fuente no es equivalente en el binario.
+//
+// Por eso la segunda referencia, `schoolbook_mul_desenrollado`: el MISMO
+// algoritmo y las MISMAS primitivas, pero desenrollado por construccion --
+// recursion de plantilla con indices de compilacion--, igual que lo esta el
+// Karatsuba de la biblioteca. Contra esa es contra la que hay que comparar.
+//
+// Las dos se miden y se publican las dos razones. La diferencia entre ellas ES
+// la aportacion del desenrollado, separada de la del algoritmo.
 
 namespace ref
 {
@@ -97,6 +118,68 @@ template <std::size_t N>
     return out;
 }
 
+// ----------------------------------------------------------------------------
+// La misma, desenrollada por construccion
+// ----------------------------------------------------------------------------
+//
+// Identica en aritmetica y en primitivas a la de arriba. Lo unico que cambia es
+// que los indices son de compilacion, asi que no depende de que el compilador
+// se anime a desenrollar: sale en linea recta en los cuatro.
+
+namespace ref
+{
+    /// Propaga el acarreo desde el limbo K en adelante. Conserva la salida
+    /// temprana del bucle original (`&& c`), que aqui es un `if`.
+    template <std::size_t N, std::size_t K>
+    inline void propaga(std::array<std::uint64_t, N> &r, unsigned char c) noexcept
+    {
+        if constexpr (K < N)
+        {
+            if (c)
+                propaga<N, K + 1>(r, ref::add_limb(r[K], std::uint64_t{c}));
+        }
+    }
+
+    /// Una fila del escolar: los productos x[I]*y[J] para J creciente.
+    template <std::size_t N, std::size_t I, std::size_t J>
+    inline void fila(std::array<std::uint64_t, N> &r, const std::array<std::uint64_t, N> &x,
+                     const std::array<std::uint64_t, N> &y) noexcept
+    {
+        if constexpr (I + J < N)
+        {
+            std::uint64_t hi{0};
+            const std::uint64_t lo = intrinsics::umul128(x[I], y[J], &hi);
+            unsigned char c = ref::add_limb(r[I + J], lo);
+            if constexpr (I + J + 1 < N)
+            {
+                c = ref::add_limb_carry(r[I + J + 1], hi, c);
+                propaga<N, I + J + 2>(r, c);
+            }
+            fila<N, I, J + 1>(r, x, y);
+        }
+    }
+
+    template <std::size_t N, std::size_t I>
+    inline void filas(std::array<std::uint64_t, N> &r, const std::array<std::uint64_t, N> &x,
+                      const std::array<std::uint64_t, N> &y) noexcept
+    {
+        if constexpr (I < N)
+        {
+            fila<N, I, 0>(r, x, y);
+            filas<N, I + 1>(r, x, y);
+        }
+    }
+} // namespace ref
+
+template <std::size_t N>
+[[nodiscard]] uint_fixed_t<N> schoolbook_mul_desenrollado(const uint_fixed_t<N> &a,
+                                                          const uint_fixed_t<N> &b) noexcept
+{
+    uint_fixed_t<N> out{};
+    ref::filas<N, 0>(out.limbs_ref(), a.limbs(), b.limbs());
+    return out;
+}
+
 // ============================================================================
 // Operandos
 // ============================================================================
@@ -134,6 +217,57 @@ static std::vector<uint_fixed_t<N>> make_operands(std::size_t count)
 // Medida
 // ============================================================================
 
+// ============================================================================
+// Verosimilitud: el suelo fisico de la maquina
+// ============================================================================
+//
+// Un `mul` de 64x64 no baja de ~1 ciclo de RENDIMIENTO en ningun x86-64 actual
+// (la latencia es mayor, pero se solapa). El escolar truncado de N limbos hace
+// N(N+1)/2 productos, asi que su coste NO PUEDE bajar de esa cuenta.
+//
+// PERO EL SUELO NO ES 1,0, Y LA RAZON IMPORTA. Lo que mide `CycleTimer` es
+// RDTSC, que en los procesadores actuales es TSC invariante: cuenta a una
+// frecuencia de referencia fija, no a la del nucleo. Con turbo, el nucleo va
+// mas rapido que el TSC, asi que un ciclo real MIDE MENOS DE UN "ciclo" TSC.
+// Esta escrito en la cabecera de bench_common.hpp y hay que tenerlo en cuenta
+// aqui: poner el suelo en 1,0 haria saltar el aviso sobre medidas legitimas.
+//
+// Con una relacion turbo/base de hasta ~2x, un producto que cuesta 1 ciclo de
+// nucleo puede medir 0,5. El suelo se pone en 0,35 para dejar margen de sobra:
+// no pretende ser ajustado, pretende no dar falsos positivos y aun asi cazar lo
+// que es imposible por goleada.
+//
+// Si una medida se salta ese suelo, no es que el codigo sea rapido: es que el
+// compilador se ha llevado el trabajo. Medido el 6 sep 2026, Intel daba 2,49
+// cyc/op en N=4 --0,25 ciclos por producto-- mientras que de N=5 en adelante
+// daba 2,3 a 3,2, que si es creible. Sin este aviso, ese 2,49 se habria
+// publicado como una razon de 0,09x.
+//
+// Es la tercera vez que esta comparacion mide algo que no es: primero el
+// espantapajaros del 6,23x, luego el escolar en bucle contra el Karatsuba
+// desenrollado, y ahora esto. La diferencia es que esto salta solo.
+static constexpr double CICLOS_MINIMOS_POR_PRODUCTO{0.35};
+
+/// @brief Avisa si una medida se ha saltado el suelo fisico.
+/// @return true si la cifra es creible.
+static bool verosimil(std::size_t N, const char *que, double cyc_op)
+{
+    // N=2 se queda fuera: la biblioteca toma ahi un camino especializado de 128
+    // bits que no hace N(N+1)/2 productos, asi que el modelo no le aplica.
+    if (N < 3)
+        return true;
+    const double productos = static_cast<double>(N * (N + 1) / 2);
+    const double por_producto = cyc_op / productos;
+    if (por_producto >= CICLOS_MINIMOS_POR_PRODUCTO)
+        return true;
+    std::cout << "  [OJO] N=" << N << ' ' << que << ": " << cyc_op << " cyc/op son " << por_producto
+              << " ciclos por producto, y el suelo fisico es " << CICLOS_MINIMOS_POR_PRODUCTO << ".\n"
+              << "        El compilador se ha llevado el trabajo. La cifra NO VALE.\n";
+    return false;
+}
+
+static int g_medidas_descartadas{0};
+
 static constexpr std::size_t OPERANDS{256};
 static constexpr std::size_t ROUNDS{7};
 static constexpr std::size_t ITERS{400000};
@@ -168,27 +302,50 @@ static void bench_one(const char *etiqueta, const char *nota)
 
     double mejor_k{1e300};
     double mejor_e{1e300};
+    double mejor_d{1e300}; // escolar desenrollado por construccion
 
     for (std::size_t r{0}; r < ROUNDS; ++r)
     {
-        // Intercaladas dentro de la ronda: el ruido cae por igual en las dos.
+        // Intercaladas dentro de la ronda: el ruido cae por igual en las tres.
         const double ck =
             measure<N>(xs, [](const uint_fixed_t<N> &a, const uint_fixed_t<N> &b) { return a * b; });
         const double ce = measure<N>(xs, [](const uint_fixed_t<N> &a, const uint_fixed_t<N> &b)
                                      { return schoolbook_mul<N>(a, b); });
+        const double cd = measure<N>(xs, [](const uint_fixed_t<N> &a, const uint_fixed_t<N> &b)
+                                     { return schoolbook_mul_desenrollado<N>(a, b); });
         if (ck < mejor_k)
             mejor_k = ck;
         if (ce < mejor_e)
             mejor_e = ce;
+        if (cd < mejor_d)
+            mejor_d = cd;
     }
+
+    // Antes de registrar nada, comprobar que las tres cifras son fisicamente
+    // posibles. Una medida imposible contamina el historico y, peor, se compara
+    // con las de manana como si valiera.
+    const bool ok_k = verosimil(N, "biblioteca", mejor_k);
+    const bool ok_e = verosimil(N, "escolar", mejor_e);
+    const bool ok_d = verosimil(N, "escolar desenrollado", mejor_d);
+    if (!(ok_k && ok_e && ok_d))
+        ++g_medidas_descartadas;
 
     bench_record((std::string("N=") + std::to_string(N) + " biblioteca").c_str(), mejor_k);
     bench_record((std::string("N=") + std::to_string(N) + " escolar").c_str(), mejor_e);
+    bench_record((std::string("N=") + std::to_string(N) + " escolar desenrollado").c_str(), mejor_d);
+    // `razon` se conserva con el mismo nombre para no romper el historico ya
+    // guardado, PERO es la que enganaba: compara contra el escolar en bucle.
     bench_record((std::string("N=") + std::to_string(N) + " razon").c_str(), mejor_e / mejor_k, "x");
+    // Esta es la buena: los dos lados desenrollados por construccion.
+    bench_record((std::string("N=") + std::to_string(N) + " razon justa").c_str(), mejor_d / mejor_k, "x");
+    // Y esta separa lo que aporta el desenrollado, que era lo que se colaba
+    // dentro de la razon de arriba.
+    bench_record((std::string("N=") + std::to_string(N) + " aporte del desenrollado").c_str(),
+                 mejor_e / mejor_d, "x");
 
     std::cout << "| " << std::left << std::setw(29) << etiqueta << " | " << std::right << std::fixed
               << std::setprecision(2) << std::setw(12) << mejor_k << " | " << std::setw(6)
-              << (mejor_e / mejor_k) << "x   |";
+              << (mejor_d / mejor_k) << "x   |";
     if (nota[0] != '\0')
         std::cout << "   <- " << nota;
     std::cout << "\n";
@@ -272,6 +429,17 @@ int main()
 
     std::cout << "\nSi los N de este barrido no salen entre 0.95x y 1.05x, hay algo que\n"
               << "explicar: la implementacion de referencia es la misma en todos.\n";
+
+    // Una medida imposible no es un detalle: si se cuela, contamina el historico
+    // y manana se compara con ella como si valiera. Se sale con error.
+    if (g_medidas_descartadas > 0)
+    {
+        std::cout << g_medidas_descartadas
+                  << " anchura(s) con medidas por debajo del suelo fisico."
+                     " Ver los [OJO] de arriba: esas cifras NO se pueden usar.";
+        std::cout << std::endl;
+        return 1;
+    }
 
     return 0;
 }
