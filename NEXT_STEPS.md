@@ -1,6 +1,6 @@
 # 🔮 NEXT STEPS
 
-**Last Updated:** 6 September 2026
+**Last Updated:** 7 September 2026
 **Versión:** **v1.90.4** publicada · **rama** `phase-1.80` · árbol limpio · todo en `origin`
 
 > Este documento es **el puntero y lo pendiente a corto**. No acumula historia:
@@ -15,12 +15,12 @@
 
 # 📍 POR AQUÍ VAMOS
 
-## Estado al 6 sep 2026
+## Estado al 7 sep 2026
 
 | | |
 |---|---|
 | **Release** | ✅ **v1.90.4 publicada**, la primera del proyecto: tres zips (gcc, clang, msvc) |
-| **Suite local** | ✅ **58/58 con los cuatro**: GCC (libstdc++), clang (**libc++**), MSVC e Intel |
+| **Suite local** | ✅ **59/59 con los cuatro**: GCC (libstdc++), clang (**libc++**), MSVC e Intel |
 | **CI** | ✅ **24/24 jobs** sobre `f959f53`, ya con la matriz compilando de verdad: no había fallos tapados |
 | **Diseño de la 2.0** | ✅ cerrado. **P1.1 a P1.4 escritos**; quedan P1.5 y P1.6 |
 | **`operator*`** | ✅ **de 2× a 4,9× más rápido** (6 sep 2026): escolar desenrollado hasta N=20, Karatsuba desde N=32. Los dos umbrales, medidos |
@@ -102,7 +102,7 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P0.6~~ | ~~Intel oneAPI en Windows~~ | ✅ **en local**: 55/55 con Intel 2026.1. Queda **solo el runner del CI** |
 | ~~P0.7~~ | ~~El clang del proyecto: CLANG64 (libc++) o UCRT64~~ | ✅ **cerrado a favor de las DOS**: `nstd::is_integral...` se define para libstdc++ y para libc++. Eran tres causas: la guarda que se causaba a sí misma, una regresión de P1.1 en el 4.º parámetro, y `-latomic` a ciegas |
 | ~~P0.8~~ | ~~Qué saca la matriz del CI ahora que compila de verdad~~ | ✅ **nada tapado**: 24/24 jobs verdes sobre `f959f53`, matriz completa |
-| **P0.9** | **Tests de guardas de include y de macros de configuración.** Que la suite *afirme* en qué combinación compilador/biblioteca corre, y falle si no la reconoce. Ver el detalle abajo | — |
+| ~~P0.9~~ | ~~Tests de guardas de include y de macros de configuración~~ | ✅ **hecho**: `tests/test_config_macros.cpp`. Cazó un fallo real en su primera compilación — las guardas entre los dos ficheros de traits eran asimétricas y solo permitían un orden de inclusión |
 
 ### P1 — Camino crítico (el orden lo fija ADR-007)
 

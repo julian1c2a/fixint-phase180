@@ -218,14 +218,61 @@ algoritmo no publica una razon sin decir contra que y compilada como.** Las tres
 veces que esta comparacion mintio, la razon estaba bien dividida; lo que estaba
 mal era el otro lado de la division.
 
+### P0.9: tests de guardas de include y macros de configuracion
+
+`tests/test_config_macros.cpp`. De las senales que han mentido en las ultimas
+sesiones, las mas caras no eran fallos de aritmetica sino de CONFIGURACION --una
+guarda de libc++ que causaba el problema que decia evitar, un
+`[[no_unique_address]]` que elegia mal porque Intel define `_MSC_VER` y
+`__clang__` a la vez, unas especializaciones que se quedaron con tres parametros
+de plantilla-- y ninguna la habria cazado un test de multiplicar.
+
+Comprueba cinco cosas, casi todas en `static_assert`: que hay debajo (compilador,
+biblioteca estandar y ABI, IMPRESOS), que las macros propias resuelven a lo que
+deben, que `nstd::is_integral` y sus hermanas existen para `wrap` **y** para
+`checked`, los contratos de tamano y disposicion que dependen del ABI, y que las
+guardas de include son idempotentes en los dos ordenes.
+
+**La vuelta de tuerca**: el test FALLA si no reconoce la combinacion en la que
+corre. Una configuracion nueva y no contemplada sale en rojo en vez de dar un
+verde ciego.
+
+**Y las alarmas saltan**, comprobado rompiendo la configuracion a proposito:
+`-DNSTD_DESENROLLA_MAX=64` dispara "los umbrales se solapan",
+`-DNSTD_KARATSUBA_MIN=24` dispara "su umbral tiene que ser potencia de dos", y
+`-DNSTD_KARATSUBA_MAX=4`, "el rango esta al reves". Un test que no puede fallar
+no sirve de nada, y eso hay que demostrarlo, no suponerlo.
+
+### El orden de inclusion de los dos ficheros de traits no compilaba
+
+Lo destapo el test de arriba en su PRIMERA compilacion. Este orden:
+
+    #include "fixed_int_traits_specializations.hpp"
+    #include "int128_param_traits_specializations.hpp"
+
+daba "redefinition of struct nstd::is_integral". El contrario si compilaba.
+
+La guarda era ASIMETRICA: `fixed_int_traits_specializations.hpp` cedia el paso
+--`#if !defined(INT128_PARAM_TRAITS_SPECIALIZATIONS_HPP) && !defined(NSTD_TRAITS_PRIMARY_DEFINED)`--
+pero `int128_param_traits_specializations.hpp` definia las suyas sin mirar nada.
+
+Comprobado que el fallo VENIA DE ANTES y no de quitar la guarda de libc++:
+reconstruidos los headers de `1db1bf0~1` aparte, fallan identico.
+
+Arreglado con guardas simetricas: quien llegue primero define las primarias. La
+bandera se calcula antes de definir nada, porque los dos bloques que definen
+primarias estan separados en el fichero y si cada uno mirase
+`NSTD_TRAITS_PRIMARY_DEFINED` el primero la definiria y el segundo se saltaria a
+si mismo.
+
 ### Estado de la suite
 
 | Compilador | Biblioteca estandar | Resultado |
 |---|---|---|
-| GCC 16.2 (ucrt64) | libstdc++ | 58/58 |
-| clang 22.1.8 (clang64) | **libc++** | 58/58 |
-| MSVC 19.5x | MS STL | 58/58 |
-| Intel oneAPI 2026.1 | MS STL | 58/58 |
+| GCC 16.2 (ucrt64) | libstdc++ | 59/59 |
+| clang 22.1.8 (clang64) | **libc++** | 59/59 |
+| MSVC 19.5x | MS STL | 59/59 |
+| Intel oneAPI 2026.1 | MS STL | 59/59 |
 
 Es la primera vez que la suite corre entera con **libc++**.
 
