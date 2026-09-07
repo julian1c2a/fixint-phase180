@@ -137,6 +137,44 @@
 #include <functional>
 #include <type_traits>
 
+// =============================================================================
+// QUIEN LLEGA PRIMERO DEFINE LAS PRIMARIAS
+// =============================================================================
+//
+// `nstd::is_integral` y sus tres hermanas las definen ESTE fichero y
+// `fixed_int_traits_specializations.hpp`, y solo puede hacerlo uno. Aquel ya
+// cedia el paso a este; este no cedia a aquel, asi que el orden
+//
+//     #include "fixed_int_traits_specializations.hpp"
+//     #include "int128_param_traits_specializations.hpp"
+//
+// NO COMPILABA: "redefinition of struct nstd::is_integral". El orden contrario
+// si. Lo destapo `tests/test_config_macros.cpp` en su primera compilacion, el 7
+// sep 2026; el fallo venia de antes, no de quitar la guarda de libc++.
+//
+// La bandera se calcula AQUI, antes de definir nada, y no en cada bloque: los
+// dos bloques que definen primarias estan separados en el fichero, y si cada uno
+// mirara `NSTD_TRAITS_PRIMARY_DEFINED` el primero la definiria y el segundo se
+// saltaria a si mismo.
+/// @def UINT128_DEFINE_PRIMARIAS
+/// @brief 1 si le toca a ESTE fichero definir `nstd::is_integral` y sus tres
+///        hermanas; 0 si ya las definio `fixed_int_traits_specializations.hpp`.
+#if defined(NSTD_TRAITS_PRIMARY_DEFINED)
+#define UINT128_DEFINE_PRIMARIAS 0
+#else
+#define UINT128_DEFINE_PRIMARIAS 1
+#define NSTD_TRAITS_PRIMARY_DEFINED 1
+#endif
+
+/// @def UINT128_DEFINE_MAKE_SIGNED
+/// @brief Lo mismo para `nstd::make_signed` y `nstd::make_unsigned`.
+#if defined(NSTD_MAKE_SIGNED_PRIMARY_DEFINED)
+#define UINT128_DEFINE_MAKE_SIGNED 0
+#else
+#define UINT128_DEFINE_MAKE_SIGNED 1
+#define NSTD_MAKE_SIGNED_PRIMARY_DEFINED 1
+#endif
+
 namespace nstd
 {
     // Forward declarations are handled by int128_parameterized.hpp
@@ -150,7 +188,9 @@ namespace nstd
     // TYPE TRAITS FUNDAMENTALES (1 PARÁMETRO)
     // ===============================================================================
 
-    // Templates base que heredan de std::
+    // Templates base que heredan de std::. Solo si no las ha definido ya
+    // fixed_int_traits_specializations.hpp: ver la nota de arriba.
+#if UINT128_DEFINE_PRIMARIAS
     template <typename T>
     struct is_integral : std::is_integral<T>
     {
@@ -170,6 +210,7 @@ namespace nstd
     struct is_signed : std::is_signed<T>
     {
     };
+#endif // UINT128_DEFINE_PRIMARIAS
 
     template <typename T>
     struct is_trivially_copyable : std::is_trivially_copyable<T>
@@ -344,6 +385,7 @@ namespace nstd
     // HELPER VARIABLES (C++17)
     // ===============================================================================
 
+#if UINT128_DEFINE_PRIMARIAS
     template <typename T>
     inline constexpr bool is_integral_v = is_integral<T>::value;
 
@@ -355,6 +397,7 @@ namespace nstd
 
     template <typename T>
     inline constexpr bool is_signed_v = is_signed<T>::value;
+#endif // UINT128_DEFINE_PRIMARIAS
 
     template <typename T>
     inline constexpr bool is_trivially_copyable_v = is_trivially_copyable<T>::value;
@@ -390,6 +433,7 @@ namespace nstd
     // CONVERSIONES SIGNED/UNSIGNED (always available — required on MSVC/Intel too)
     // ===============================================================================
 
+#if UINT128_DEFINE_MAKE_SIGNED
     template <typename T>
     struct make_signed
     {
@@ -401,6 +445,7 @@ namespace nstd
     {
         using type = std::make_unsigned_t<T>;
     };
+#endif // UINT128_DEFINE_MAKE_SIGNED
 
     // Binary Natural (unsigned) <-> Two's Complement (signed)
     template <>
