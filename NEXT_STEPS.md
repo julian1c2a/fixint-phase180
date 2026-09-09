@@ -119,6 +119,7 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 
 | | Qué | Por qué antes |
 |---|---|---|
+| **P2.8** | **El acantilado de `operator*`**: toda anchura > 20 que no sea potencia de dos cae al bucle y cuesta 3-4× por limbo. N=24 tarda MÁS que N=32. Ver la curva en [PERFORMANCE](docs/PERFORMANCE.md) | Decidir entre subir el tope, Karatsuba con relleno, o documentarlo y ya |
 | **P2.1** | **Barrido de `operator*`**: N=3,5,7,9 frente a N=6,10,12. ¿Paridad o tamaño? | La 2.0 toca `operator*`; después no habría con qué comparar |
 | **P2.2** | Karatsuba en **Clang, MSVC e Intel** | Ídem. P0.6 lo desbloquea para Intel |
 | ~~P2.3~~ | ~~Re-medir las tablas heredadas~~ | ✅ **hecho**: y **dos de las tres no se sostenían**. «Knuth D 6,24×» mide **1,31×**; «Granlund-Montgomery 4–7×» solo vale para divisores que no caben en un limbo |

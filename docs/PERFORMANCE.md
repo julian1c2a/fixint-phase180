@@ -342,6 +342,73 @@ sino la biblioteca contra un espantapájaros. Los controles existen por eso.
 
 ---
 
+## La curva: coste de cada operación frente a la anchura N
+
+**Medido el 9 September 2026**, GCC 16.2.0 (MSYS2 UCRT64) −O2, Windows 11 sobre
+x86-64, MSI. 64 operandos aleatorios, 50 000 iteraciones × 5 rondas, mínimo por
+caso. `benchmark_curva_n`.
+
+Los demás benchmarks miden anchuras sueltas —N=2, N=4, N=8— y con eso se ve un
+punto, no una curva: no se ve **dónde** cambia el comportamiento. Aquí se barre
+N de 1 a 64 y se publica el **coste por limbo**, que es lo que se lee: una
+operación lineal sale plana y una cuadrática sale creciendo.
+
+| N | add | por limbo | mul | por limbo | div | por limbo | camino de `mul` |
+|---:|---:|---:|---:|---:|---:|---:|---|
+| 1 | 1,3 | 1,35 | 2,0 | 2,02 | 14 | 14,0 | — |
+| 2 | 2,3 | 1,14 | 3,8 | 1,89 | 95 | 47,4 | 128 bits |
+| 3 | 15,2 | 5,05 | 21,8 | 7,26 | 230 | 76,8 | desenrollado |
+| 4 | 23,1 | 5,76 | 35,7 | 8,93 | 342 | 85,6 | desenrollado |
+| 8 | 31,1 | 3,88 | 137 | 17,1 | 607 | 75,9 | desenrollado |
+| 16 | 38,6 | 2,41 | 408 | 25,5 | 1088 | 68,0 | desenrollado |
+| 20 | 56,4 | 2,82 | 623 | **31,2** | 1448 | 72,4 | desenrollado |
+| **24** | 55,8 | 2,32 | **2925** | **121,9** | 1801 | 75,0 | **bucle** |
+| **32** | 85,3 | 2,66 | **2897** | **90,5** | 2485 | 77,7 | **Karatsuba** |
+| **48** | 132 | 2,75 | **12259** | **255,4** | 4520 | 94,2 | **bucle** |
+| 64 | 200 | 3,12 | 14419 | 225,3 | 6921 | 108,2 | Karatsuba |
+
+### El acantilado, que solo se ve mirando la curva entera
+
+**Multiplicar 1536 bits (N=24) cuesta más que multiplicar 2048 (N=32)**: 2925
+frente a 2897 cyc/op. Un número más grande se calcula más rápido.
+
+La causa es el reparto: `operator*` desenrolla hasta N=20 y usa Karatsuba en las
+potencias de dos desde 32. **Todo lo que queda entre medias —y toda anchura
+mayor que 20 que no sea potencia de dos— cae al bucle escolar**, que cuesta
+entre 3× y 4× por limbo lo que cualquiera de los otros dos caminos:
+
+| N | por limbo | camino |
+|---:|---:|---|
+| 20 | 31,2 | desenrollado |
+| 24 | 121,9 | bucle ← **3,9×** |
+| 32 | 90,5 | Karatsuba |
+| 48 | 255,4 | bucle ← **2,8×** frente a N=64 |
+| 64 | 225,3 | Karatsuba |
+
+Ya se había visto la punta de esto con N=20, cuando el tope de desenrollado
+estaba en 16. Resultó ser más ancho: no son cuatro anchuras raras, es **la mitad
+del rango por encima de 20**.
+
+Qué se puede hacer, y ninguna está decidida:
+
+- **Subir `NSTD_DESENROLLA_MAX`.** Tapa el hueco 21..31 pero no el de arriba, y
+  el desenrollado ya rendía poco a partir de 24 (1,11× frente al bucle).
+- **Karatsuba con relleno**: partir N=24 como 16+8 en vez de exigir potencia de
+  dos. Es el arreglo de verdad, y el que más trabajo cuesta.
+- **Dejarlo y documentarlo**, que es lo que hay hoy. Defendible si nadie usa
+  esas anchuras; hay que decidirlo, no que pase por descuido.
+
+### Lo que confirma
+
+- **`add`, `sub` y `shl` son lineales**: por limbo se quedan entre 2,3 y 3,9
+  desde N=8 en adelante. El pico de N=3 y N=4 (≈5,7) es el precio de salir del
+  camino especializado de 128 bits, no un problema de escala.
+- **`cmp` es O(1) en la práctica**: ~4 cyc/op sea cual sea N, porque sale por el
+  limbo alto en cuanto los operandos difieren. Su columna «por limbo» baja, y
+  eso es correcto, no un fallo.
+- **`div` por limbo va de 68 a 108** entre N=16 y N=64: crece, pero mucho menos
+  que `mul`. Knuth D aguanta bien.
+
 ## Conversión a y desde cadena — las bases 2..36
 
 **Medido el 9 September 2026**, GCC 16.2.0 (MSYS2 UCRT64) −O2, Windows 11 sobre
