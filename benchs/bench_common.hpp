@@ -197,8 +197,20 @@ static void print_separator()
     std::cout << "+-------------------------------+--------------+-----------+\n";
 }
 
+// La seccion en curso, para que las medidas del historico sepan de QUE operacion
+// son.
+//
+// POR QUE. `benchmark_vs_builtin` mide siete operaciones --suma, resta,
+// producto, division, desplazamiento, xor y comparacion-- sobre los mismos
+// dieciseis tipos, y registraba cada medida con el nombre del TIPO a secas. En
+// el TSV salian siete filas `uint64_t` indistinguibles, y una medida que no dice
+// que operacion es no se puede comparar con la de manana. Visto el 9 sep 2026 al
+// ir a re-medir las tablas heredadas (P2.3).
+static std::string g_seccion_actual;
+
 static void print_header(const char *operation)
 {
+    g_seccion_actual = operation ? operation : "";
     std::cout << "\n[" << operation << "]\n";
     print_separator();
     std::cout << "| Type                          |  cyc/op      | vs u64    |\n";
@@ -207,7 +219,8 @@ static void print_header(const char *operation)
 
 static void print_result(const BenchResult &r, double baseline_cyc)
 {
-    bench_record(r.name.c_str(), r.cycles_per_op);
+    const std::string etiqueta = g_seccion_actual.empty() ? r.name : (g_seccion_actual + " / " + r.name);
+    bench_record(etiqueta.c_str(), r.cycles_per_op);
     const double ratio{(baseline_cyc > 0.0) ? r.cycles_per_op / baseline_cyc : 0.0};
     std::cout << "| " << std::left << std::setw(29) << r.name << " | " << std::right << std::fixed
               << std::setprecision(2) << std::setw(12) << r.cycles_per_op << " | " << std::fixed

@@ -16,6 +16,7 @@
 #include "bench_common.hpp"
 
 #include <array>
+#include <cstdio>
 #include <vector>
 #include <cmath>
 
@@ -155,6 +156,14 @@ static void print_divmod_row(const DivmodResult &r, double baseline_cyc)
         winner = "[~SAME]";
     }
 
+    // Al historico ademas de a la pantalla. ESTE BENCHMARK NO REGISTRABA, y por
+    // eso las cifras de Knuth D en docs/PERFORMANCE.md eran las heredadas de la
+    // fase 1.75: sin fecha, sin compilador y sin maquina, o sea incomparables.
+    // Es lo que P2.3 venia a arreglar.
+    char etiqueta[96];
+    std::snprintf(etiqueta, sizeof(etiqueta), "%s / %s", r.test_name, r.algorithm_name);
+    bench_record(etiqueta, r.cycles_per_op);
+
     std::cout << "| " << std::left << std::setw(20) << r.test_name << " | " << std::setw(15)
               << r.algorithm_name << " | " << std::right << std::fixed << std::setprecision(2)
               << std::setw(12) << r.cycles_per_op << " | " << std::fixed << std::setprecision(2)
@@ -236,6 +245,10 @@ int main()
 
     const double avg_speedup{avg_binary_cyc / avg_knuth_cyc};
     const double avg_ratio{avg_speedup > 1.0 ? avg_speedup : 1.0 / avg_speedup};
+
+    bench_record("media big_bin_divrem", avg_binary_cyc);
+    bench_record("media D_knuth_divrem", avg_knuth_cyc);
+    bench_record("media Knuth D frente a binaria", avg_speedup, "x");
 
     std::cout << "Average Performance Across All " << test_cases.size() << " Tests:\n"
               << "  big_bin_divrem:  " << std::fixed << std::setprecision(2) << avg_binary_cyc << " cyc/op\n"

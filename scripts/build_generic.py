@@ -212,6 +212,7 @@ def compile_with_compiler(
         # Check if source file uses threading (for pthread flag)
         needs_pthread = False
         needs_atomic = False
+        needs_multiprecision = False
         try:
             with open(source_file, 'r', encoding='utf-8') as f:
                 content = f.read(4000)  # Read first 4000 chars
@@ -221,6 +222,8 @@ def compile_with_compiler(
                 if ('<atomic>' in content or 'std::atomic' in content or 'atomic_' in content or
                     'thread_safety.hpp' in content):
                     needs_atomic = True
+                if 'boost/multiprecision' in content:
+                    needs_multiprecision = True
         except:
             pass
         
@@ -303,6 +306,16 @@ def compile_with_compiler(
             cmd = [compiler_cmd] + common_flags + mode_flags + [source_str, "-o", output_str]
             
             # Add linker flags after -o output
+            # Bibliotecas de terceros que usa `benchmark_vs_builtin` para
+            # comparar contra Boost, GMP y libtommath.
+            #
+            # ESTE BENCHMARK NO ENLAZABA DESDE HACIA MESES --era P3.4-- y no era
+            # un problema del codigo: le faltaban estas tres banderas. Las tres
+            # bibliotecas estaban instaladas. Comprobado el 9 sep 2026 al ir a
+            # re-medir la tabla de comparacion con built-in, que sale de aqui.
+            if needs_multiprecision and compiler_name in ["gcc", "clang", "clang-libstdcxx"]:
+                cmd.extend(["-lgmpxx", "-lgmp", "-ltommath"])
+
             if needs_atomic and compiler_name in ["gcc", "clang", "clang-libstdcxx"] and _tiene_libatomic(compiler_cmd, env):
                 cmd.append("-latomic")
             
