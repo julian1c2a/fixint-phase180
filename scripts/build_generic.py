@@ -264,7 +264,20 @@ def compile_with_compiler(
                 mode_flags = ["/O2", "/DNDEBUG"]
             
             # MSVC-style uses /Fe: for output
-            cmd = [compiler_cmd] + common_flags + mode_flags + [source_str, f"/Fe:{output_str}"]
+            #
+            # Y TAMBIEN /Fo: y /Fd:, que faltaban. Sin /Fo, `cl` escribe el
+            # objeto intermedio en el DIRECTORIO ACTUAL, que es la raiz del
+            # repositorio: una pasada de la suite dejaba ahi 68 ficheros .obj y
+            # 29 MB. No los seguia git --.gitignore los cubre-- asi que el arbol
+            # salia limpio y nadie los veia. /Fd hace lo mismo con el .pdb de
+            # los modos debug, que si no cae como `vc140.pdb` en la raiz.
+            #
+            # La barra final es lo que le dice a `cl` que es un DIRECTORIO y no
+            # un nombre de fichero; sin ella, todas las unidades escribirian
+            # sobre el mismo objeto.
+            obj_dir = str(output.parent).replace("\\", "/") + "/"
+            cmd = ([compiler_cmd] + common_flags + mode_flags +
+                   [source_str, f"/Fe:{output_str}", f"/Fo:{obj_dir}", f"/Fd:{obj_dir}"])
         else:
             # GCC/Clang/Intel-Linux flags
             common_flags = ["-std=c++20", "-Wall", "-Wextra", "-pedantic", "-I./include"]
