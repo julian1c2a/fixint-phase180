@@ -117,7 +117,7 @@ que solo admite `binnat` sin signo y complemento a dos con signo. Portar MS y EK
 significa generalizarlo y revisar cada operación que hoy asume complemento a
 dos.
 
-## Decisión pendiente: los clones de `<algorithm>`
+## Decisión tomada: los clones de `<algorithm>` no se portan
 
 Auditados función por función el 9 sep 2026, al portar el tramo 2.
 
@@ -150,12 +150,33 @@ Las tres salidas:
 | **(b) Portarlos todos** | Paridad literal: nada de lo que hoy compila contra `int128_param_t` deja de compilar al cambiar de tipo. Son ~24 funciones más que escribir, documentar y probar, que hacen lo mismo que `std::` |
 | **(c) Portarlos como alias finos** | `nstd::fill(...)` reenvía a `std::fill(...)`. Conserva el nombre sin duplicar la lógica, pero deja igualmente 24 nombres en la API |
 
-**Recomendación: (a)**, y decirlo en la guía de migración: donde había
-`nstd::fill` sobre `int128_param_t`, va `std::fill` sobre `fixed_int_t`. El
-motivo de que existieran es que `int128_param_t` es anterior a que el tipo
-cumpliera los requisitos de `std::`, y eso ya no es cierto.
+**Decidido el 10 sep 2026: (a).** Donde había `nstd::fill` sobre
+`int128_param_t`, va `std::fill` sobre `fixed_int_t`. El motivo de que
+existieran es que `int128_param_t` es anterior a que el tipo cumpliera los
+requisitos de `std::`, y eso ya no es cierto.
 
-No está decidido. Mientras no lo esté, las dos filas siguen en «pendiente».
+### La línea que separa lo que hay que portar de lo que no
+
+Esta decisión da una regla general, y es lo más útil que sale de ella. **No
+es «`std::` frente a `nstd::`»; es si `std::` acepta el tipo o lo rechaza.**
+
+| Qué pide `std::` | Sobre `fixed_int_t` | Consecuencia |
+|---|---|---|
+| Nada (algoritmos de iterador: `fill`, `find`, `all_of`, `min_element`, `accumulate`) | **funciona** | `nstd::` no debe duplicarlo |
+| `std::is_integral` (`gcd`, `lcm`, `midpoint`, `popcount`, `rotl`, `abs`…) | **lo rechaza** | `nstd::` es la **única** opción |
+
+Verificado compilando: `std::find`, `std::min_element`, `std::accumulate`,
+`std::all_of` y `std::fill` funcionan sobre un `vector<fixed_int_t>`; y
+`std::gcd` falla con *«std::gcd arguments must be integers»*.
+
+La causa de la segunda fila es la decisión de v1.80: **`std::is_integral` no se
+puede especializar** —lo prohíbe el estándar— así que `fixed_int_t` nunca será
+`std::integral`, y todo lo de `std::` restringido a enteros lo rechaza. Por eso
+existe `nstd::`, y por eso el tramo 1 de P1.5 no es duplicación sino la única
+forma de tener esas funciones.
+
+Lo que **sí** se porta de `int128_param_ranges.hpp`, porque no está en `std::`:
+`range_stats` / `calculate_stats` y los tres generadores de secuencias.
 
 ## Consecuencias
 

@@ -112,6 +112,41 @@ código: **se documenta lo que no es evidente**. Precondiciones, qué pasa al
 desbordar, si es `constexpr`, qué excepción puede salir y cuándo, y las
 sorpresas —que `/` y `%` no son `noexcept`, por ejemplo.
 
+## Enmienda (10 sep 2026): qué cuenta como público
+
+La decisión original decía «todo `include/`», y eso metía en el ámbito dos
+headers que **nadie incluye directamente**:
+
+| Header | Avisos | Qué es |
+|---|---|---|
+| `intrinsics/compiler_detection.hpp` | 29 | Detección de compilador y de intrínsecos disponibles |
+| `algorithms/karatsuba.hpp` | 3 | Implementación de `kmul_full`, llamada desde `operator*` |
+| `intrinsics/arithmetic_operations.hpp` | 1 | Acarreos y productos de 64 bits |
+
+**Son 33, no 32.** La cifra que se manejaba al plantear la decisión eran los dos
+primeros headers; al medirla apareció un tercero. Por eso el criterio se escribe
+sobre **directorios** y no sobre una lista de ficheros: una lista se queda corta
+en cuanto alguien añade un header.
+
+**Quedan fuera del ámbito.** Son implementación: los subdirectorios
+`intrinsics/` y `algorithms/` existen precisamente para separarlos de la API que
+se instala y se documenta. Documentarlos al nivel de un header público es
+trabajo sobre código que nadie va a leer desde fuera.
+
+El criterio, para que no haya que decidirlo caso por caso otra vez: **entra en
+el ámbito lo que un usuario puede incluir**, es decir lo que está en la raíz de
+`include/`. `intrinsics/` y `algorithms/` no.
+
+Lo que esto desbloquea es lo que importa: con el ámbito público en cero avisos,
+`WARN_AS_ERROR = YES` pasa a ser posible (P3.2), y eso **cierra la puerta** a
+que la cobertura se degrade otra vez en silencio — que es exactamente lo que
+había pasado antes de este ADR, cuando `EXTRACT_ALL = YES` hacía imposible que
+apareciera un aviso y el «0» que se publicaba no significaba nada.
+
+**El riesgo asumido**: la frontera entre «público» e «interno» se difumina con
+el tiempo. Si algún día un header de `intrinsics/` pasa a ser parte de la API,
+hay que moverlo a la raíz de `include/` o volver a meterlo en el ámbito a mano.
+
 ## Consecuencias
 
 ### Positivas

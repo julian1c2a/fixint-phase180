@@ -66,7 +66,7 @@ LIVE_DOCS = ["README.md", "PROJECT_STATUS.md", "NEXT_STEPS.md", "CHANGELOG.md"]
 # leer la cifra y apuntarla aqui con su fecha.
 DOXYGEN_BASELINE = {
     "1.9.8":  518,   # ubuntu-24.04, la que usa el CI      — medido 26 ago 2026
-    "1.18.0": 499,   # MSYS2, la de la maquina de trabajo  — bajada 9 sep 2026 (P1.5 tramo 1)
+    "1.18.0": 466,   # MSYS2, la de la maquina de trabajo  — bajada 10 sep 2026 (P3.1: los internos salen del ambito)
 }
 
 # Para una version que no este en la tabla no se puede afinar, asi que se usa la
@@ -351,7 +351,21 @@ def check_doxygen(rep: Report):
         else:
             reales.append(a)
 
-    de_include = [a for a in reales if "include/" in a]
+    # P3.1 (ADR-014, enmienda del 10 sep 2026): el ambito PUBLICO es lo que un
+    # usuario puede incluir, o sea la raiz de `include/`. Los subdirectorios
+    # `intrinsics/` y `algorithms/` existen precisamente para separar la
+    # implementacion de la API que se instala, y quedan fuera.
+    #
+    # No se ignoran: se cuentan aparte y se informan, para que no desaparezcan
+    # de la vista. Lo que no hacen es contar contra el techo, que es lo que
+    # bloqueaba WARN_AS_ERROR (P3.2).
+    INTERNOS = ("include/intrinsics/", "include/algorithms/")
+
+    def es_interno(aviso):
+        return any(d in aviso.replace("\\", "/") for d in INTERNOS)
+
+    de_include = [a for a in reales if "include/" in a and not es_interno(a)]
+    de_internos = [a for a in reales if "include/" in a and es_interno(a)]
 
     # TRINQUETE, no puerta cerrada.
     #
@@ -395,6 +409,11 @@ def check_doxygen(rep: Report):
                f"({de_donde}) — deuda conocida, ver ADR-014")
     else:
         rep.ok("0 avisos de doxygen atribuibles a include/")
+
+    if de_internos:
+        print(f"  [nota] {len(de_internos)} avisos en headers INTERNOS "
+              f"(intrinsics/, algorithms/): fuera del ambito publico por la "
+              f"enmienda de ADR-014, no cuentan contra el techo")
 
     otros = [a for a in reales if "include/" not in a]
     if otros:

@@ -128,6 +128,19 @@ La regla para no repetir el desfase: **esta sección no lista tareas**. Las tare
 viven en `NEXT_STEPS.md`, que es corto y se revisa cada sesión; aquí solo se
 apunta lo que cambia el plan a largo.
 
+### El exponente de la multiplicación
+
+Cambia el plan a largo, así que va aquí. Hoy `operator*` es Θ(N^1,585) sólo
+cuando N es potencia de dos, y Θ(N²) en todas las demás. El diseño de
+[PLAN_MULTIPLICACION](docs/PLAN_MULTIPLICACION.md) lo lleva a Θ(N^1,585) para
+**toda** N, y deja la puerta abierta a Θ(N^1,465) con Toom-3.
+
+Lo que se aprendió al escribirlo, y vale para cualquier reparto futuro: **un
+reparto que deje un término cuadrático no baja el exponente por muchos niveles
+que se le pongan encima.** El esquema «potencia de dos más el resto» parecía
+razonable y resultó ser Θ(N²) con un factor acotado por 2×, porque los dos
+productos cruzados siguen siendo escolares.
+
 ### Lo que cada etapa nueva le cuesta a la matriz de paridad
 
 Sí cambia el plan a largo, y por eso está aquí: **cada parámetro de plantilla

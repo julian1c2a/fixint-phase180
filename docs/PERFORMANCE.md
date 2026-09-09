@@ -389,14 +389,18 @@ Ya se había visto la punta de esto con N=20, cuando el tope de desenrollado
 estaba en 16. Resultó ser más ancho: no son cuatro anchuras raras, es **la mitad
 del rango por encima de 20**.
 
-Qué se puede hacer, y ninguna está decidida:
+Ya no está abierto: el diseño está escrito en
+[PLAN_MULTIPLICACION](PLAN_MULTIPLICACION.md), y va por dos pasos —subir el
+tope de desenrollado a 31, y Karatsuba con reparto **equilibrado** para toda N
+en vez de sólo potencias de dos—.
 
-- **Subir `NSTD_DESENROLLA_MAX`.** Tapa el hueco 21..31 pero no el de arriba, y
-  el desenrollado ya rendía poco a partir de 24 (1,11× frente al bucle).
-- **Karatsuba con relleno**: partir N=24 como 16+8 en vez de exigir potencia de
-  dos. Es el arreglo de verdad, y el que más trabajo cuesta.
-- **Dejarlo y documentarlo**, que es lo que hay hoy. Defendible si nadie usa
-  esas anchuras; hay que decidirlo, no que pase por descuido.
+> **Corrección (10 sep 2026).** Aquí se decía que «el desenrollado ya rendía
+> poco a partir de 24 (1,11× frente al bucle)». **Esa cifra estaba mal
+> atribuida**: el 1,11× sale de la fila N=12 de la tabla del barrido de
+> paridad, que mide otra cosa. No existía ninguna medida del desenrollado en
+> N=24. Medido el 10 sep con `NSTD_DESENROLLA_MAX=32`: **3035 → 1245 cyc/op,
+> un 2,44×**. La conclusión que se sacaba de la cifra falsa —que subir el tope
+> no compensaba— era la contraria de la verdadera.
 
 ### Lo que confirma
 

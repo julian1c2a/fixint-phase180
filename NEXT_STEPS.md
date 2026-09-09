@@ -117,9 +117,9 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P1.5 tramo 1~~ | ~~`bits`, `cmath` y `numeric`~~ | ✅ **hecho**: `rotl`/`rotr`, los nombres de `<bit>`, `min`/`max`/`clamp`/`midpoint`/`abs_diff`, `ilog2`/`factorial`/`is_even`/`is_odd`, y las cuatro que el inventario del ADR no listaba (`is_power_of_2`, `sign`, `abs` y `divmod` libres). `tests/test_fixed_bits_numeric.cpp`, 60 `static_assert` |
 | ~~P1.5 tramo 2a~~ | ~~La política fijada en nueve firmas~~ | ✅ **hecho**: `mul_wide`, `pow`, `sqrt`, `gcd` y `lcm` no compilaban con un tipo `checked`. Ahora llevan `Policy` deducible |
 | ~~P1.5 tramo 2b~~ | ~~`mulhi` y `mullo`~~ | ✅ **hecho**: `widening_mul` no se porta, es `mul_wide`. Cruzado con 400.000 pares al azar |
-| **P1.5 tramo 2c** | **Decisión**: los 10 clones de `<algorithm>` y 8 de los 14 de `ranges` son copias literales de `std::`. Ver las tres salidas en [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md) | **Decisión, no trabajo**. Recomendada: no portarlos |
+| ~~P1.5 tramo 2c~~ | ~~Los clones de `<algorithm>`~~ | ✅ **decidido (10 sep)**: no se portan. La regla que sale: no es «`std::` frente a `nstd::`», es si `std::` **acepta o rechaza** el tipo. Los de iterador lo aceptan; los restringidos a `integral` lo rechazan, y ahí `nstd::` es la única opción |
 | ~~P1.5 tramo 2 (matriz)~~ | ~~Documento maestro de cobertura~~ | ✅ **hecho**: [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) + `scripts/check_matriz_paridad.py`. 42 capacidades × 4 celdas, **comprobadas compilando**, no a mano. Destapó **siete sitios** que P1.1 dejó con tres parámetros |
-| **P1.5 tramo 2f** | **Decisión**: las siete `checked_*` y `saturating_*` sólo aceptan operandos `wrap`. La pregunta que lo bloquea: `saturating_add` sobre un valor **ya marcado**, ¿satura y limpia la marca, satura y la conserva, o no tiene sentido? | **Decisión, no trabajo** |
+| ~~P1.5 tramo 2f~~ | ~~Las siete `checked_*` y `saturating_*` sólo con `wrap`~~ | ✅ **hecho (10 sep)**: aceptan cualquier política, y **la marca es pegajosa**. Saturar no limpia una marca previa, porque un valor marcado guarda dentro el resultado *envuelto* y saturar a partir de él no da el valor correcto |
 | **P1.5 tramo 2d** | `atomic_*` y el envoltorio atómico de `int128_param_thread_safety.hpp` | tramo 2b |
 | **P1.5 tramo 2e** | `div<D>`/`mod<D>`/`divmod_const<D>` por divisor constante. **`algorithms/div_by_const.hpp` existe pero está escrito solo para el `uint128_t` viejo**: generalizar Granlund-Montgomery a N limbos es trabajo real, no un alias. Ojo a lo medido en P2.3: el «4–7×» solo vale para divisores que no caben en un limbo | tramo 2b |
 | **P1.5 tramo 3** | **Magnitud-Signo y Exceso-K**: el de más peso, hay que generalizar el `static_assert` de la clase y revisar cada operación que hoy asume complemento a dos | tramo 2 |
@@ -132,7 +132,7 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 
 | | Qué | Por qué antes |
 |---|---|---|
-| **P2.8** | **El acantilado de `operator*`**: toda anchura > 20 que no sea potencia de dos cae al bucle y cuesta 3-4× por limbo. N=24 tarda MÁS que N=32. Ver la curva en [PERFORMANCE](docs/PERFORMANCE.md) | Decidir entre subir el tope, Karatsuba con relleno, o documentarlo y ya |
+| **P2.8** | **El acantilado de `operator*`**. ✅ **Decidido y con diseño escrito**: [PLAN_MULTIPLICACION](docs/PLAN_MULTIPLICACION.md). Dos pasos: (1) `NSTD_DESENROLLA_MAX` de 20 a **31**, medido **2,44×** en N=24; (2) Karatsuba con reparto **equilibrado** para toda N, no sólo potencias de dos | El reparto `2^n + r` se descartó: **no baja el exponente**, sigue siendo Θ(N²) con un factor que nunca pasa de ~2×, y encima necesita un producto rectangular que no existe |
 | **P2.1** | **Barrido de `operator*`**: N=3,5,7,9 frente a N=6,10,12. ¿Paridad o tamaño? | La 2.0 toca `operator*`; después no habría con qué comparar |
 | **P2.2** | Karatsuba en **Clang, MSVC e Intel** | Ídem. P0.6 lo desbloquea para Intel |
 | ~~P2.3~~ | ~~Re-medir las tablas heredadas~~ | ✅ **hecho**: y **dos de las tres no se sostenían**. «Knuth D 6,24×» mide **1,31×**; «Granlund-Montgomery 4–7×» solo vale para divisores que no caben en un limbo |
@@ -141,11 +141,13 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P2.6~~ | ~~La tercera combinación: `clang + libstdc++`~~ | ✅ **hecho**: `make.py test clang-libstdcxx`, 59/59. Destapó que la lista de compiladores estaba repetida en **siete sitios** — ahora vive solo en `toolchains.py` |
 | ~~P2.7~~ | ~~Desguace de benchmarks de algoritmo~~ | ✅ **las cuatro piezas hechas**: algoritmo/desenrollado, verosimilitud, código emitido (`scripts/bench_asm.py`) y coste teórico declarado |
 
+| **P2.9** | **Toom-3**: Θ(N^1,465) frente al 1,585 de Karatsuba. Necesita división exacta por 3 y **el umbral hay que medirlo**, no suponerlo | Después de P2.8: si el reparto equilibrado no da lo que promete la cuenta, Toom-3 tampoco |
+
 ### P3 — Lo que se abarata o desaparece esperando
 
 | | Qué | Nota |
 |---|---|---|
-| **P3.1** | Decidir si `intrinsics/compiler_detection.hpp` (29 avisos) y `algorithms/karatsuba.hpp` (3) entran en el ámbito de [ADR-014](docs/decisions/ADR-014-cobertura-de-doxygen.md) | Decisión, no trabajo |
+| ~~P3.1~~ | ~~Ámbito de Doxygen para los headers internos~~ | ✅ **decidido (10 sep)**: fuera del ámbito. Criterio: entra lo que un usuario puede incluir, o sea la raíz de `include/`; `intrinsics/` y `algorithms/` no. Desbloquea P3.2 |
 | **P3.2** | Cerrar la puerta: `WARN_AS_ERROR = YES` cuando el ámbito llegue a cero | Depende de P3.1 |
 | **P3.3** | Los 6 headers sin `API_*.md` propio que señala el armonizador | — |
 | ~~P3.4~~ | ~~`benchmark_vs_builtin` no enlaza sin GMP~~ | ✅ **hecho**: le faltaban `-lgmp`, `-lgmpxx` y `-ltommath`. Las tres bibliotecas estaban instaladas |
