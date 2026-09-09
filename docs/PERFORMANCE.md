@@ -84,40 +84,87 @@ medidos en posiciones distintas no es legítimo.
 
 ## División — Knuth D frente a división binaria
 
-*Medido con GCC −O2. Pendiente de re-medir con fecha y máquina; cifras heredadas
-de la fase 1.75.*
+**Medido el 9 September 2026**, GCC 16.2.0 (MSYS2 UCRT64) −O2, Windows 11 sobre
+x86-64, MSI. Mínimo de 4 rondas. Nueve casos, `benchmark_divmod_algorithms`.
 
-| Caso | Binaria (ns) | Knuth D (ns) | Mejora |
-|---|---:|---:|---:|
-| Potencia de 2 | ~7,0 | ~0,6 | 12× |
-| Valores de 64 bits | ~7,0 | ~1,0 | 7× |
-| Híbrido 128/64 | ~7,0 | ~1,1 | 6,4× |
-| 128/128 grande | ~7,0 | ~1,2 | 5,8× |
-| **Media** | **7,17** | **1,15** | **6,24×** |
-
-## División — frente a tipos built-in
-
-*GCC −O2, tiempo de división relativo a `uint64_t`. Mismo origen que la tabla
-anterior.*
-
-| Tipo | Tiempo relativo |
+| | cyc/op |
 |---|---:|
-| `nstd::uint128_t` | **0,47×** (más rápido que el nativo) |
-| `unsigned __int128` | 9,56× |
-| Boost `cpp_int` | ~50× |
+| `big_bin_divrem` (binaria) | 24,02 |
+| `D_knuth_divrem` | 18,40 |
+| **Knuth D frente a binaria** | **1,31×** |
 
-El 0,47× no es magia: el camino rápido de `nstd::uint128_t` para divisores de un
-limbo evita la llamada a `__udivti3` que emite el compilador para
+Por caso, Knuth D gana siempre, pero entre **1,07× y 2,50×**: lo mejor es
+«dividir por uno» (2,50×) y lo peor «128/128 grande» (1,07×).
+
+> **Esta tabla decía 6,24×, y no era cierto.** La cifra venía heredada de la fase
+> 1.75, sin fecha, compilador ni máquina — exactamente lo que la regla de arriba
+> prohíbe. Al medirla salió 1,31×. Y las de por caso eran aún más llamativas:
+> «potencia de 2, 12×» mide hoy **1,25×**; «valores de 64 bits, 7×» mide
+> **1,14×**. No se sabe de dónde salían: pueden ser de un código muy anterior o
+> de una comparación contra otra cosa. Lo único que se puede afirmar es lo que se
+> mide hoy.
+>
+> El benchmark que produce esta tabla **no registraba en el histórico**. Ese fue
+> el motivo de que la cifra sobreviviera dos fases sin que nadie la contrastara.
+
+## División — frente a tipos built-in y a otras bibliotecas
+
+**Medido el 9 September 2026**, mismas condiciones. `benchmark_vs_builtin`,
+sección «Division (/)», mínimo de 4 rondas.
+
+| Tipo | cyc/op | vs `uint64_t` |
+|---|---:|---:|
+| `uint64_t` | 4,01 | 1,00× |
+| **`nstd::uint128_t`** | **3,26** | **0,81×** |
+| `unsigned __int128` | 40,11 | 10,01× |
+| Boost `cpp_int` | 45,06 | 11,25× |
+| Boost `gmp_int` | 61,76 | 15,41× |
+| Boost `tom_int` | 727,12 | 181,49× |
+
+`nstd::uint128_t` sigue siendo **más rápido que el `uint64_t` nativo** en
+división, que es el resultado llamativo: el camino rápido para divisores de un
+limbo evita la llamada a `__udivti3` que el compilador emite para
 `unsigned __int128`.
+
+> **Dos de las tres cifras heredadas no se sostenían.** Decían `0,47×` para
+> `nstd::uint128_t` (mide **0,81×**) y `~50×` para Boost `cpp_int` (mide
+> **11,25×**). La tercera sí: `unsigned __int128` decía `9,56×` y mide **10,01×**.
+>
+> Este benchmark **no enlazaba** desde hacía meses, y por eso nadie lo había
+> comprobado. No era un problema del código: le faltaban `-lgmp`, `-lgmpxx` y
+> `-ltommath` en el enlace. Las tres bibliotecas estaban instaladas.
 
 ## División por constante — Granlund-Montgomery
 
-`div<D>()`, `mod<D>()`, `divmod_const<D>()`: **4–7× más rápido que Knuth D**
-cuando el divisor se conoce en compilación. Sigue siendo de `int128_param_t`;
-portarlo a `fixed_int_t` es parte de [ADR-006](decisions/ADR-006-migracion-int128-param-a-fixed-int.md).
+**Medido el 9 September 2026**, mismas condiciones. `benchmark_div_by_const`,
+mínimo de 4 rondas. Compara `div<D>()` con la división normal por el mismo valor.
+
+| divisor | `div<D>()` | división normal | razón |
+|---|---:|---:|---:|
+| 3 | 10,88 | 6,84 | **0,63×** |
+| 5 | 13,62 | 7,09 | **0,52×** |
+| 7 | 13,65 | 11,11 | **0,81×** |
+| 10 | 10,90 | 10,00 | **0,92×** |
+| 100 | 12,43 | 14,87 | 1,20× |
+| 10^19 | 13,48 | 76,11 | **5,65×** |
+
+**El truco solo paga con divisores grandes.** Con divisores pequeños es más
+lento que dividir normalmente, y por un margen que no es de ruido: 0,52× con el 5.
+
+La razón es que la división normal por un divisor de **un limbo** ya toma un
+camino rápido, así que no hay mucho que ganar; el 10^19 no cabe en 64 bits y ahí
+sí entra Knuth D, que es a lo que Granlund-Montgomery gana de verdad.
+
+> **Aquí decía «4–7× más rápido que Knuth D», sin matices.** Es cierto solo para
+> el divisor que no cabe en un limbo (5,65×). Para los demás, el enunciado
+> invitaba a usar `div<D>()` justo donde perjudica.
 
 `rt_mulhi_128`: 4 × MUL nativo en GCC/Clang/Intel frente a 16 × MUL de 32 bits —
-**1,8–2,2× más rápido**.
+**1,8–2,2× más rápido**. *(Sigue sin re-medir: no tiene benchmark propio.)*
+
+`div<D>()`, `mod<D>()` y `divmod_const<D>()` siguen siendo de `int128_param_t`;
+portarlos a `fixed_int_t` es parte de
+[ADR-006](decisions/ADR-006-migracion-int128-param-a-fixed-int.md).
 
 ---
 
@@ -295,6 +342,65 @@ sino la biblioteca contra un espantapájaros. Los controles existen por eso.
 
 ---
 
+## Conversión a y desde cadena — las bases 2..36
+
+**Medido el 9 September 2026**, GCC 16.2.0 (MSYS2 UCRT64) −O2, Windows 11 sobre
+x86-64, MSI. 128 operandos aleatorios, 20 000 iteraciones × 5 rondas, mínimo por
+caso. `benchmark_bases`.
+
+`to_string(base)` y `from_string(s, base)` aceptan 2..36 desde v1.90.1 y **nunca
+se habían medido**: los dos benchmarks que había cubren la 10 y la 16, que son
+justo las dos que el código trata de forma especial.
+
+| base | `to_string` N=2 | N=4 | `from_string` N=2 | N=4 | |
+|---|---:|---:|---:|---:|---|
+| 2 | 1323 | 3427 | 1025 | 7736 | potencia de dos |
+| 3 | **3433** | **7108** | 741 | 5517 | la más cara |
+| 4 | 944 | 2100 | 655 | 4613 | potencia de dos |
+| 8 | 623 | 1623 | 497 | 3171 | potencia de dos |
+| **10** | **358** | **1231** | 458 | 2753 | **la más barata** |
+| 16 | 855 | 1806 | 760 | 2787 | potencia de dos |
+| 32 | 530 | 1338 | 524 | 2040 | potencia de dos |
+| 36 | 1193 | 2676 | 483 | 2152 | |
+
+### Lo que no cuadra, dicho antes de explicarlo
+
+Lo esperado era: las potencias de dos claramente más baratas —convertir es partir
+en grupos de bits, sin dividir— y el resto parecidas entre sí, bajando despacio
+según crece la base porque salen menos dígitos.
+
+**No es lo que sale**, en dos puntos:
+
+1. **La base 10 gana a todas las potencias de dos**, incluida la 8 (358 frente a
+   623) y la 32 (358 frente a 530). Es la única base no potencia de dos que tiene
+   implementación propia: `to_string(10)` desvía a `to_string()` sin parámetro.
+2. **La base 3 cuesta 9,6× lo que la 10** (3433 frente a 358), y el camino
+   general ya trocea: divide por `base^k` con `k` el mayor exponente que cabe en
+   64 bits, así que hace ~2 divisiones grandes en los dos casos.
+
+**Conjetura, y va marcada como tal:** el camino general llama a
+`uint_fixed_t<N>::divmod` con un divisor que es un `fixed_int_t` con un solo
+limbo distinto de cero, y es posible que ahí no haya camino rápido de un limbo y
+se esté pagando Knuth D completo por cada trozo; la implementación dedicada de la
+base 10 no pasa por ahí. **No está comprobado.** Para comprobarlo hay que mirar
+si `divmod` detecta el divisor de un limbo, que es media hora de trabajo y no se
+ha hecho.
+
+Si la conjetura se confirma, las 33 bases que van por el camino general podrían
+acercarse al coste de la base 10 — un factor de entre 2× y 9× en una API pública.
+Queda anotado como tarea, no como afirmación.
+
+### Lo que sí se puede afirmar
+
+- `from_string` es mucho más plano que `to_string`: entre 458 y 1025 para N=2,
+  sin el pico de la base 3. Leer no divide; escribir sí.
+- El coste crece con la anchura más o menos como se espera: de N=2 a N=4,
+  `to_string` se multiplica por entre 2,1× y 2,6×.
+- La base 2 es la más cara de las potencias de dos, y es lo razonable: produce
+  127 dígitos frente a los 32 de la base 16.
+
+---
+
 ## Tiempo de compilación
 
 **Medido el 24 August 2026**, GCC 16.2.0 −O2, la misma máquina.
@@ -313,14 +419,15 @@ compilar toda la biblioteca con `-fconstexpr-steps=100000000`.
 
 ## Qué falta medir
 
-- Re-medir las tablas de Knuth D y de comparación con built-in **con fecha,
-  compilador y máquina**, que es lo que exige la regla de arriba.
-- **Controlar el orden dentro de la ejecución**, que hoy afecta a la medida: el
-  mismo caso da 0,86× o 1,18× según en qué posición se mida.
 - **Calibrar el umbral de aviso con más de dos ejecuciones.** El 25 % de hoy
   sale de dos, que es lo mínimo para tener un rango y muy poco para fiarse.
-- Karatsuba en Clang, MSVC e Intel: las cifras de arriba son solo de GCC.
-- Coste de las conversiones a y desde cadena, ahora que hay bases 2..36.
+- `rt_mulhi_128`: el 1,8–2,2× sigue sin re-medir porque no tiene benchmark
+  propio. Es la única cifra de este documento sin fecha.
+- Las medidas de división y de cadenas son solo de **GCC**. Con
+  `clang-libstdcxx` ya disponible son cinco configuraciones posibles, y ninguna
+  se ha cruzado.
+- **Comprobar la conjetura de la base 3**: si `divmod` no tiene camino rápido
+  para divisores de un limbo, arreglarlo abarataría 33 de las 35 bases.
 - Coste de la política de desbordamiento cuando se implemente
   ([ADR-008](decisions/ADR-008-diseno-de-la-politica-de-desbordamiento.md) dice
   que el camino `wrap` no debería cambiar, pero **hay que medirlo, no
