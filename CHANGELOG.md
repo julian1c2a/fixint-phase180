@@ -26,6 +26,108 @@ son fallos que aparecieron al ir a comprobarlo.
   especializar, y el `static_assert` de la clase separado en dos: el que es LEY
   ([ADR-011]) y el que es TAREA PENDIENTE.
 
+### Siete sitios publicos se habian quedado con TRES parametros de plantilla
+
+P1.1 anadio `overflow_policy` como cuarto parametro. Siete sitios publicos no se
+enteraron, y con un tipo `checked` **no compilaba ni `std::cout << x`**:
+
+| Sitio | Que se rompia |
+|---|---|
+| `is_unsigned_fixed_int` | `nstd::unsigned_integral<T>` falso -- y `is_signed_fixed_int` SI se habia generalizado |
+| un temporal en `to_string(base)` | `to_string(16)` no compilaba; `to_string()` si |
+| `operator<<` y `operator>>` | no compilaban |
+| `std::formatter` | no compilaba |
+| dos alias `using U = uint_fixed_t<N>` | rompian la division con signo |
+| el **constructor de conversion** | solo aceptaba origenes `wrap`; era la causa de fondo |
+
+La suite entera estaba en verde --60 ficheros, 46.800 comprobaciones
+diferenciales-- porque probaba solo la politica por defecto.
+
+Arreglados los siete. El constructor de conversion admite ahora cualquier
+politica de origen y, **si los dos extremos son `checked` y el origen esta
+marcado, el destino sale marcado**: una conversion no limpia un valor que ya era
+invalido. Al convertir a `wrap` la marca se pierde, que es lo que se esta
+pidiendo al elegir `wrap`.
+
+`test_fixed_stl_integration.cpp` gana una **seccion 6** que repite toda la
+superficie de la STL con `checked`: 115 comprobaciones, y era la que faltaba.
+
+### La matriz de paridad, para que esto no vuelva a pasar
+
+`docs/MATRIZ_DE_PARIDAD.md` y `scripts/check_matriz_paridad.py`. **42
+capacidades publicas x 4 celdas** (signo x politica), y la tabla **no esta
+escrita a mano**: el guion compila una sonda por celda con `-fsyntax-only` y
+compara con lo que cada capacidad declara esperar.
+
+Se escribio precisamente porque tres veces el mismo dia una lista escrita de
+memoria se habia separado del codigo sin que nadie lo notara: los siete sitios de
+arriba, las cuatro funciones que el inventario de [ADR-006] no listaba, y la
+lista de "funciones que fijan la politica", que tenia tres entradas cuando eran
+nueve. Ninguna tabla a mano habria cazado nada de eso.
+
+Comprueba tambien que **`saturate` y `trap` siguen sin compilar**. Estan en el
+enum desde P1.1 para no cambiar la ABI al escribirlas; el dia que se escriban,
+esa comprobacion falla y obliga a abrir dos columnas nuevas, que es lo que se
+quiere que pase.
+
+**En su primera pasada encontro dos cosas.** Una era mia: declaraba que
+construir desde un `int` negativo no debia compilar para los tipos sin signo, y
+si debe --es lo mismo que `unsigned x = -42;`, que esta definido--. La otra es
+del codigo: **las siete `checked_*` y `saturating_*` solo aceptan operandos
+`wrap`**. No esta decidido si es hueco o diseno, asi que la matriz lo declara
+como esta en vez de marcarlo roto; la pregunta que lo bloquea es que significa
+`saturating_add` sobre un valor **ya marcado**. Anotado como P1.5 tramo 2f.
+
+Integrada en `ACTUALIZA_DOC` como paso 9, condicionado a haber tocado la clase.
+
+### P1.5 tramo 2: `mulhi`/`mullo`, y la politica dejaba fuera nueve firmas
+
+**Nueve funciones libres no compilaban con un tipo `checked`.** `mul_wide` (x2),
+`pow` (x2), `sqrt`, `gcd` (x2) y `lcm` (x2) estaban escritas sobre
+`uint_fixed_t<N>` / `int_fixed_t<N>`, que **fijan la politica por defecto**, asi
+que `gcd(a, b)` sobre `uint_fixed_t<2, overflow_policy::checked>` daba «no
+matching function». Es un agujero que abrio P1.1 al anadir el cuarto parametro y
+que no se vio porque ningun test usaba esas funciones con `checked`.
+
+Ahora llevan `Policy`, **deducible del argumento** --los alias de plantilla son
+transparentes--, asi que ninguna llamada existente cambia. La politica se
+conserva en el resultado incluso cuando cambia el signo (`gcd` y `lcm` con signo
+devuelven sin signo), igual que hacen `make_signed`/`make_unsigned` por
+[ADR-008].
+
+**`mulhi` y `mullo`**, de `int128_param_arithmetic.hpp`. `mulhi` es la mitad
+alta del producto de doble anchura: lo que `operator*` tira, y que no se puede
+sacar del producto modular. Con signo se devuelve **con signo**, porque la mitad
+alta lleva la extension de signo del producto completo --`mulhi(min(), 2)` es
+`-1`, no `2^128 - 1`--; leerla sin signo es exactamente el error que tenia
+`producto_desborda` antes de P1.3.
+
+`mulhi` **no marca** con `checked` y `mullo` **si**, y no es una inconsistencia:
+en `mulhi` el resultado exacto se calcula en `2N` limbos y solo se elige que
+mitad devolver, asi que no hay nada que desbordar; `mullo` es `operator*`, que es
+modular.
+
+**`widening_mul` no se porta**: es exactamente `mul_wide`, que ya existia. Mismo
+criterio que con `power`/`pow`.
+
+Comprobado con **400.000 pares al azar** (200.000 sin signo y 200.000 con signo)
+que `(mulhi << 64N) + mullo == mul_wide`. En el caso sin signo eso cruza ademas
+`operator*` contra la mitad baja de `mul_wide`, que son dos caminos distintos.
+
+**Auditados `algorithm` y `ranges`, y sale una decision que no se toma sola.**
+Las diez funciones de `int128_param_algorithm.hpp` --`fill`, `find`, `all_of`,
+`min_element`, `accumulate`...-- son **copias literales** de `<algorithm>` y
+`<numeric>` restringidas al tipo; no aportan ni una especializacion mas rapida ni
+un comportamiento distinto. En `ranges` pasa con ocho de las catorce. Lo que si
+es propio son `range_stats`/`calculate_stats` y los tres generadores de
+secuencias.
+
+Se comprobo, y resulto **falso**, que tener `nstd::fill` junto a `std::fill`
+creara ambiguedad por ADL: gana la sobrecarga mas especializada, verificado
+compilando el caso. Asi que no hay argumento de correccion en contra de
+portarlas; el argumento es de coste. Las tres salidas y la recomendacion quedan
+escritas en [ADR-006]; hasta que se decida, las dos filas siguen en «pendiente».
+
 ### P1.5 tramo 1: `bits`, `cmath` y `numeric` pasan a `fixed_int_t`
 
 [ADR-006] retira `int128_param_t`, y para eso hay que portar antes lo que tiene

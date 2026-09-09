@@ -114,13 +114,18 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P1.4~~ | ~~`representation_traits<binnat>` y el `static_assert` al bicondicional de [ADR-011](docs/decisions/ADR-011-sin-signo-equivale-a-binnat.md)~~ | ✅ **hecho** en `c73e55a` |
 | **P1.5** | **Retirar `int128_param_t`**: portar lo que le queda a `fixed_int_t`, y al final las representaciones Magnitud-Signo y Exceso-K. Va por tramos, ver el inventario de [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md) | P1.3 |
 | ~~P1.5 tramo 1~~ | ~~`bits`, `cmath` y `numeric`~~ | ✅ **hecho**: `rotl`/`rotr`, los nombres de `<bit>`, `min`/`max`/`clamp`/`midpoint`/`abs_diff`, `ilog2`/`factorial`/`is_even`/`is_odd`, y las cuatro que el inventario del ADR no listaba (`is_power_of_2`, `sign`, `abs` y `divmod` libres). `tests/test_fixed_bits_numeric.cpp`, 60 `static_assert` |
-| **P1.5 tramo 2** | `mulhi`/`mullo`/`widening_mul`, adaptadores de `<algorithm>`, ranges, `atomic_*`, `div<D>`/`mod<D>` por divisor constante | tramo 1 |
+| ~~P1.5 tramo 2a~~ | ~~La política fijada en nueve firmas~~ | ✅ **hecho**: `mul_wide`, `pow`, `sqrt`, `gcd` y `lcm` no compilaban con un tipo `checked`. Ahora llevan `Policy` deducible |
+| ~~P1.5 tramo 2b~~ | ~~`mulhi` y `mullo`~~ | ✅ **hecho**: `widening_mul` no se porta, es `mul_wide`. Cruzado con 400.000 pares al azar |
+| **P1.5 tramo 2c** | **Decisión**: los 10 clones de `<algorithm>` y 8 de los 14 de `ranges` son copias literales de `std::`. Ver las tres salidas en [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md) | **Decisión, no trabajo**. Recomendada: no portarlos |
+| ~~P1.5 tramo 2 (matriz)~~ | ~~Documento maestro de cobertura~~ | ✅ **hecho**: [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) + `scripts/check_matriz_paridad.py`. 42 capacidades × 4 celdas, **comprobadas compilando**, no a mano. Destapó **siete sitios** que P1.1 dejó con tres parámetros |
+| **P1.5 tramo 2f** | **Decisión**: las siete `checked_*` y `saturating_*` sólo aceptan operandos `wrap`. La pregunta que lo bloquea: `saturating_add` sobre un valor **ya marcado**, ¿satura y limpia la marca, satura y la conserva, o no tiene sentido? | **Decisión, no trabajo** |
+| **P1.5 tramo 2d** | `atomic_*` y el envoltorio atómico de `int128_param_thread_safety.hpp` | tramo 2b |
+| **P1.5 tramo 2e** | `div<D>`/`mod<D>`/`divmod_const<D>` por divisor constante. **`algorithms/div_by_const.hpp` existe pero está escrito solo para el `uint128_t` viejo**: generalizar Granlund-Montgomery a N limbos es trabajo real, no un alias. Ojo a lo medido en P2.3: el «4–7×» solo vale para divisores que no caben en un limbo | tramo 2b |
 | **P1.5 tramo 3** | **Magnitud-Signo y Exceso-K**: el de más peso, hay que generalizar el `static_assert` de la clase y revisar cada operación que hoy asume complemento a dos | tramo 2 |
 | **P1.6** | Etapa 5: punto fijo | P1.5 |
 
-> **De cara al tramo 2**: las funciones libres que ya existían antes de P1.5 --`pow`, `gcd`, `lcm`-- están escritas sobre
-> `uint_fixed_t<N>` / `int_fixed_t<N>`, que **fijan la política por defecto**. Con un tipo `checked` no compilan. Las de P1.5
-> sí llevan los cuatro parámetros. Generalizar las tres es trabajo pequeño y va en el tramo 2.
+> **Resuelto en 2a**, y eran nueve firmas, no tres: `mul_wide` y `sqrt` tenían el mismo defecto. La lección se repite: una
+> lista escrita de memoria se queda corta, y hay que contarlas abriendo el fichero.
 
 ### P2 — Medir, antes de que el código cambie
 

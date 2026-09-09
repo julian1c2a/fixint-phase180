@@ -15,9 +15,10 @@
 `fixed_int_t<N, Sign, Form, Policy>` está **terminado** como entero de N × 64
 bits, **v1.90.4 está publicada**, y **el diseño de la 2.0 está cerrado sin
 cuestiones abiertas**: se está escribiendo. De P1 van cerradas P1.1 a P1.4 y
-**el tramo 1 de P1.5**; del inventario de retirada de `int128_param_t`
+**los tramos 1 y 2 de P1.5** salvo lo anotado; del inventario de retirada de
+`int128_param_t`
 ([ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md)) van
-**4 filas de 11**.
+**5 filas de 11**, y dos más esperan una decisión escrita, no trabajo.
 
 ## Verificación — 9 September 2026
 
@@ -81,7 +82,7 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 | `test_fixed_basic` | 843 |
 | `test_fixed_vs_param` | 804 |
 | `test_fixed_divmod` | 218 + 30 `static_assert` de constexpr |
-| `test_fixed_bits_numeric` | 60 `static_assert` + 8 en ejecución |
+| `test_fixed_bits_numeric` | 85 `static_assert` + 10 en ejecución, de las que 2 cruzan **400.000 pares al azar** |
 | `test_cross_operators` | 206 |
 | `test_fixed_string_io` | 104 |
 | `test_fixed_stl_integration` | 95 |

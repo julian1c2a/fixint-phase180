@@ -1733,6 +1733,7 @@ Los tres se apoyan en dos scripts que son la parte automatizable del trabajo:
 |---|---|
 | `scripts/check_docs_consistency.py` | Enlaces rotos, cifras de tests desactualizadas, correspondencia `API_*.md` ↔ headers, cabeceras SPDX, `LICENSE.txt`, avisos de Doxygen, coherencia de fechas |
 | `scripts/check_headers_selfcontained.py` | Que cada header de `include/` compile aislado y que sus guardas sean idempotentes |
+| `scripts/check_matriz_paridad.py` | Que cada capacidad pública compile en **cada combinación de parámetros de plantilla**. Ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
 
 ---
 
@@ -1813,9 +1814,22 @@ documentos vivos con el estado real del código.
 6. `PROJECT_STATUS.md`: instantánea del estado de compilación y de la suite.
 7. `README.md`: métricas y cifras de la cabecera.
 8. Invocar `PROYECTA` para los headers tocados.
-9. **Verificar la coherencia**: `python scripts/check_docs_consistency.py`.
-   Tiene que quedar en verde antes de dar la sesión por cerrada.
-10. Reportar en el chat: qué se cerró, qué ficheros se tocaron y qué queda.
+9. **Si se ha tocado `fixed_width_int_t.hpp` o cualquiera de los
+   `fixed_int_*.hpp`**: `python scripts/check_matriz_paridad.py --escribe-doc`.
+   Comprueba que cada capacidad pública sigue compilando en cada combinación
+   de parámetros de plantilla, y regenera la tabla de
+   [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md).
+10. **Verificar la coherencia**: `python scripts/check_docs_consistency.py`.
+    Tiene que quedar en verde antes de dar la sesión por cerrada.
+11. Reportar en el chat: qué se cerró, qué ficheros se tocaron y qué queda.
+
+**Regla que motivó el paso 9**: P1.1 añadió el cuarto parámetro de plantilla y
+**siete sitios públicos se quedaron con tres**, incluido `std::formatter` y los
+dos operadores de iostreams. Con un tipo `checked` no compilaba ni
+`std::cout << x`, y la suite entera —60 ficheros— estaba en verde, porque
+probaba solo la política por defecto. Un `enum` de plantilla nuevo, o un valor
+nuevo en uno existente, multiplica la superficie que hay que comprobar, y eso
+no se lleva de cabeza.
 
 **Regla que motivó este comando:** la auditoría del 23 ago 2026 encontró el
 README diciendo «42/42 tests» en la cabecera, «106/106» en una sección y
