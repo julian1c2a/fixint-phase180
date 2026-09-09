@@ -26,6 +26,88 @@ son fallos que aparecieron al ir a comprobarlo.
   especializar, y el `static_assert` de la clase separado en dos: el que es LEY
   ([ADR-011]) y el que es TAREA PENDIENTE.
 
+### P1.5 tramo 1: `bits`, `cmath` y `numeric` pasan a `fixed_int_t`
+
+[ADR-006] retira `int128_param_t`, y para eso hay que portar antes lo que tiene
+y `fixed_int_t` no. Este es el primer tramo: las tres familias mas
+independientes --no tocan el nucleo del tipo ni la representacion-- asi que se
+pueden portar y comprobar por separado.
+
+Se anaden como funciones libres, con los **cuatro** parametros de plantilla:
+
+- **Rotaciones y `<bit>`**: `rotl`, `rotr` (aceptan desplazamientos negativos y
+  toman modulo la anchura, como `std::rotl`), mas `countl_zero`, `countr_zero`,
+  `popcount` y `bit_width`, que son los nombres de `<bit>` para metodos que ya
+  existian con otro nombre. `is_power_of_2`.
+- **`<algorithm>` y `<numeric>`**: `min`, `max`, `clamp`, `midpoint`,
+  `abs_diff`, `abs`.
+- **Enteras**: `is_even`, `is_odd`, `ilog2`, `factorial`, `sign`, `divmod`.
+
+Dos decisiones que se apartan del header viejo, y por que:
+
+- **`ilog2(0)` lanza `std::domain_error`**; el viejo devolvia `-1` y lo
+  documentaba como comportamiento indefinido. El logaritmo de cero no existe:
+  devolver un numero es dar por bueno un calculo que no lo es.
+- **`divmod(a, 0)` lanza**; el viejo devolvia `{0, 0}`. Mismo motivo, y ademas
+  coincide con lo que ya hacian `/` y `%` en `fixed_int_t`.
+- **`power` no se porta**. Era un alias de `pow` "por consistencia con
+  phase166", y esa consistencia es justo la capa que [ADR-006] retira.
+
+`midpoint` se calcula como `a + (b - a) / 2`, no como `(a + b) / 2`: la segunda
+desborda precisamente cuando hace falta. `midpoint(max(), max())` da `max()`.
+
+**El inventario del ADR estaba incompleto.** Sus filas se habian escrito de
+memoria; al contrastar funcion por funcion contra los tres headers viejos
+aparecieron cuatro publicas que ninguna mencionaba (`is_power_of_2`, `sign`,
+`abs` y `divmod` libres). Se han portado tambien y se ha corregido la tabla, con
+la advertencia de que el contrato es el header viejo y hay que abrirlo antes de
+dar una fila por cerrada.
+
+`tests/test_fixed_bits_numeric.cpp`: 60 `static_assert` --gratis y no
+desactivables-- mas 8 comprobaciones en ejecucion para lo que no cabe en uno
+(lo que lanza, y el camino no-constexpr de las rotaciones). La suite pasa a **60
+ficheros**.
+
+Dos casos que el test caza y son faciles de escribir mal:
+
+- `is_power_of_2(int_fixed_t<2>::min())` es **falso** aunque su `popcount` sea
+  1: en complemento a dos el minimo tiene puesto solo el bit de signo.
+- `factorial(34)` **cabe** en 128 bits (2,95e38 frente a 3,40e38) y `factorial(35)`
+  no. El primer intento del test afirmaba que 34 ya desbordaba, y el que estaba
+  equivocado era el test.
+
+Queda anotado para el tramo 2: las libres que ya existian --`pow`, `gcd`,
+`lcm`-- estan escritas sobre `uint_fixed_t<N>`/`int_fixed_t<N>`, que fijan la
+politica por defecto, asi que **no compilan con un tipo `checked`**. Verificado.
+
+### `check_headers_selfcontained.py` informaba 0/31 headers rotos
+
+Y ninguno lo estaba. El script invocaba al compilador con el **entorno
+heredado** en vez del entorno aislado del toolchain, que es lo que ya usaban los
+guiones de construccion. Los binarios de MSYS2 cargan su runtime por PATH; si
+delante va el `bin` de otro toolchain --el mingw64 que trae Git-- el proceso
+muere al cargar con `0xC0000139` y **sin escribir nada en stderr**, devolviendo
+1. Es indistinguible de un error de compilacion, y el script imprimia solo la
+primera linea que contuviera `error:` --que no habia ninguna-- asi que salian 31
+`[FAIL]` mudos.
+
+Se ve solo desde una shell cuyo PATH no lleve delante el `bin` del compilador.
+Desde otra, el mismo script da 31/31. Es la peor forma de fallar: depende de
+quien lo llame y acusa al codigo.
+
+Tres cambios:
+
+- El subproceso recibe `CompilerEnvironment(...).get_env()`, igual que
+  `build_generic.py`.
+- **Sonda de arranque**: antes de mirar ningun header compila un `int main(){}`.
+  Si eso falla, para en seco y lo dice --incluido "sin stderr, casi seguro que
+  muere al cargar sus DLL"-- en vez de acusar a 31 ficheros.
+- Cuando un `[FAIL]` no trae linea `error:`, ahora imprime el codigo de salida y
+  cuantos bytes de stderr hubo. Cero bytes es un dato, y antes se ocultaba.
+
+Ademas admite `--compiler clang-libstdcxx`, la tercera combinacion de MinGW, que
+solo aceptaba `gcc` y `clang`. Los tres dan 31/31.
+
 ### El producto con signo se leia sin signo
 
 `producto_desborda` multiplicaba los **patrones de bits** --el producto sin

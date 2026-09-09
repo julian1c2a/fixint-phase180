@@ -5150,6 +5150,307 @@ namespace nstd
         return lcm(ua, ub);
     }
 
+    // =========================================================================
+    // P1.5, tramo 1: bits, cmath y numeric de `int128_param_t`
+    // =========================================================================
+    //
+    // Primera entrega de la paridad que pide ADR-006. Son las tres familias mas
+    // independientes: no tocan el nucleo del tipo ni la representacion, asi que
+    // se pueden portar y comprobar por separado.
+    //
+    // Lo que NO se porta, porque ya existe con otro nombre: `countl_zero` y
+    // `countr_zero` son `count_leading_zeros` y `count_trailing_zeros`;
+    // `isqrt` es `sqrt`. Se anaden los nombres de `<bit>` como alias, porque el
+    // codigo que venga de tipos del lenguaje los buscara asi.
+
+    /// @name Rotaciones y nombres de `<bit>`
+    /// @{
+
+    /// @brief Rotacion a la izquierda sobre los `64*N` bits.
+    /// @param x Valor a rotar.
+    /// @param s Numero de posiciones. Se toma modulo la anchura, y **acepta
+    ///          negativos**, que rotan al otro lado -- igual que `std::rotl`.
+    /// @return El valor rotado.
+    ///
+    /// @note Rota el patron de bits completo, sin tratar el signo de forma
+    ///       especial. Es lo que hace `std::rotl` con los enteros del lenguaje.
+    ///       El `rotl` de `int128_param_t` SI trataba el signo aparte en
+    ///       Magnitud-Signo, pero eso es propio de esa representacion y aqui no
+    ///       aplica mientras `fixed_int_t` solo admita binnat y complemento a
+    ///       dos (ADR-011).
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    rotl(const fixed_int_t<N, Sign, Form, Policy> &x, int s) noexcept
+    {
+        constexpr int ancho = static_cast<int>(64U * N);
+        int k = s % ancho;
+        if (k < 0)
+            k += ancho;
+        if (k == 0)
+            return x;
+        return (x << static_cast<unsigned>(k)) | (x >> static_cast<unsigned>(ancho - k));
+    }
+
+    /// @brief Rotacion a la derecha. Es `rotl(x, -s)`.
+    /// @param x Valor a rotar.
+    /// @param s Numero de posiciones; acepta negativos.
+    /// @return El valor rotado.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    rotr(const fixed_int_t<N, Sign, Form, Policy> &x, int s) noexcept
+    {
+        return rotl(x, -s);
+    }
+
+    /// @brief Ceros por delante. Nombre de `<bit>` para `count_leading_zeros`.
+    /// @param x Valor a examinar.
+    /// @return Cuantos bits cero hay antes del primer uno, o `64*N` si es cero.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr unsigned countl_zero(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        return x.count_leading_zeros();
+    }
+
+    /// @brief Ceros por detras. Nombre de `<bit>` para `count_trailing_zeros`.
+    /// @param x Valor a examinar.
+    /// @return Cuantos bits cero hay tras el ultimo uno, o `64*N` si es cero.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr unsigned countr_zero(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        return x.count_trailing_zeros();
+    }
+
+    /// @brief Numero de bits a uno. Nombre de `<bit>` para `popcount`.
+    /// @param x Valor a examinar.
+    /// @return Cuantos bits valen uno.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr unsigned popcount(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        return x.popcount();
+    }
+
+    /// @brief Anchura en bits del valor. Nombre de `<bit>` para `bit_width`.
+    /// @param x Valor a examinar.
+    /// @return Bits necesarios para representarlo; 0 si es cero.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr unsigned bit_width(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        return x.bit_width();
+    }
+    /// @}
+
+    /// @name Comparacion y mezcla (`<algorithm>` y `<numeric>`)
+    /// @{
+
+    /// @brief El menor de dos.
+    /// @param a Primer valor. @param b Segundo valor.
+    /// @return El menor; `a` si son iguales.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr const fixed_int_t<N, Sign, Form, Policy> &
+    min(const fixed_int_t<N, Sign, Form, Policy> &a, const fixed_int_t<N, Sign, Form, Policy> &b) noexcept
+    {
+        return (b < a) ? b : a;
+    }
+
+    /// @brief El mayor de dos.
+    /// @param a Primer valor. @param b Segundo valor.
+    /// @return El mayor; `a` si son iguales.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr const fixed_int_t<N, Sign, Form, Policy> &
+    max(const fixed_int_t<N, Sign, Form, Policy> &a, const fixed_int_t<N, Sign, Form, Policy> &b) noexcept
+    {
+        return (a < b) ? b : a;
+    }
+
+    /// @brief Encaja `x` en el intervalo `[lo, hi]`.
+    /// @param x Valor a encajar. @param lo Minimo. @param hi Maximo.
+    /// @return `lo` si `x < lo`, `hi` si `x > hi`, y `x` en otro caso.
+    /// @pre `lo <= hi`. Si no, se devuelve `hi`, igual que hace `std::clamp`
+    ///      con un intervalo invertido -- que es comportamiento indefinido
+    ///      alli, y aqui simplemente no se promete nada util.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr const fixed_int_t<N, Sign, Form, Policy> &
+    clamp(const fixed_int_t<N, Sign, Form, Policy> &x, const fixed_int_t<N, Sign, Form, Policy> &lo,
+          const fixed_int_t<N, Sign, Form, Policy> &hi) noexcept
+    {
+        return (x < lo) ? lo : ((hi < x) ? hi : x);
+    }
+
+    /// @brief Punto medio de dos valores, SIN desbordar por el camino.
+    /// @param a Primer valor. @param b Segundo valor.
+    /// @return `(a + b) / 2`, redondeado hacia `a`.
+    ///
+    /// @note No se calcula como `(a + b) / 2`, que desborda cuando la suma no
+    ///       cabe -- justo el caso en que hace falta. Se usa
+    ///       `a + (b - a) / 2` sobre la diferencia, que siempre cabe. Es la
+    ///       misma razon por la que existe `std::midpoint`.
+    template <std::size_t N, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, signedness::unsigned_type, Form, Policy>
+    midpoint(const fixed_int_t<N, signedness::unsigned_type, Form, Policy> &a,
+             const fixed_int_t<N, signedness::unsigned_type, Form, Policy> &b) noexcept
+    {
+        using U = fixed_int_t<N, signedness::unsigned_type, Form, Policy>;
+        return (a < b) ? U{a + ((b - a) >> 1U)} : U{b + ((a - b) >> 1U)};
+    }
+
+    /// @brief Diferencia en valor absoluto, sin signo y sin desbordar.
+    /// @param a Primer valor. @param b Segundo valor.
+    /// @return `|a - b|`.
+    template <std::size_t N, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, signedness::unsigned_type, Form, Policy>
+    abs_diff(const fixed_int_t<N, signedness::unsigned_type, Form, Policy> &a,
+             const fixed_int_t<N, signedness::unsigned_type, Form, Policy> &b) noexcept
+    {
+        return (a < b) ? (b - a) : (a - b);
+    }
+    /// @}
+
+    /// @name Predicados y funciones enteras
+    /// @{
+
+    /// @brief Si es par.
+    /// @param x Valor a examinar.
+    /// @return `true` si el bit mas bajo es cero.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr bool is_even(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        return (x.limb(0) & std::uint64_t{1}) == 0;
+    }
+
+    /// @brief Si es impar.
+    /// @param x Valor a examinar.
+    /// @return `true` si el bit mas bajo es uno.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr bool is_odd(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        return !is_even(x);
+    }
+
+    /// @brief Logaritmo en base dos, truncado.
+    /// @param x Valor, que **no puede ser cero**.
+    /// @return El mayor `k` con `2^k <= x`, o sea `bit_width(x) - 1`.
+    /// @throws std::domain_error si `x` es cero: `log2(0)` no existe, y
+    ///         devolver 0 o -1 seria dar un numero donde no lo hay.
+    template <std::size_t N, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr unsigned ilog2(const fixed_int_t<N, signedness::unsigned_type, Form, Policy> &x)
+    {
+        if (x.is_zero())
+            throw std::domain_error("nstd::ilog2: el logaritmo de cero no existe");
+        return x.bit_width() - 1U;
+    }
+
+    /// @brief Factorial.
+    /// @param n Cuantos factores; con `n <= 1` da uno.
+    /// @return `n!` truncado a `64*N` bits.
+    ///
+    /// @note **Desborda muy pronto**: 34! ya no cabe en 128 bits. Con la
+    ///       politica `wrap` el resultado envuelve en silencio, que es lo que
+    ///       hacen los enteros del lenguaje; con `checked` queda marcado. No se
+    ///       pone un tope artificial porque el que cabe depende de N.
+    template <std::size_t N, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, signedness::unsigned_type, Form, Policy>
+    factorial(unsigned n) noexcept
+    {
+        using U = fixed_int_t<N, signedness::unsigned_type, Form, Policy>;
+        U r{std::uint64_t{1}};
+        for (unsigned k = 2; k <= n; ++k)
+            r = r * U{static_cast<std::uint64_t>(k)};
+        return r;
+    }
+    /// @}
+
+    /// @name Lo que el inventario de ADR-006 no listaba
+    /// @{
+    //
+    // Al contrastar el tramo 1 contra los headers viejos aparecieron cuatro
+    // funciones publicas que las filas del ADR no mencionaban: `is_power_of_2`
+    // (bits), `sign` y `divmod` libres (numeric) y `abs` libre (cmath). El
+    // inventario estaba incompleto, no el codigo; se cierran aqui y se corrige
+    // la tabla.
+    //
+    // La que NO se porta es `power`, que en `int128_param_numeric.hpp` era un
+    // alias de `pow` "por consistencia con phase166". Esa consistencia es
+    // justo la capa que ADR-006 retira, asi que un segundo nombre para lo
+    // mismo seria deuda recien estrenada. `pow` se queda solo.
+
+    /// @brief Si el valor es una potencia exacta de dos.
+    /// @param x Valor a examinar.
+    /// @return `true` si tiene exactamente un bit a uno **y no es negativo**.
+    ///
+    /// @note El cero da `false`: no es potencia de dos de nada.
+    /// @note Con signo, los negativos dan `false` aunque el patron tenga un
+    ///       solo bit. El caso es real: en complemento a dos el minimo
+    ///       (`-2^(64N-1)`) tiene justo el bit de signo puesto, y `popcount`
+    ///       diria 1. No es una potencia de dos; es el numero mas negativo.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr bool is_power_of_2(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        if (x.is_zero())
+            return false;
+        if constexpr (Sign == signedness::signed_type)
+        {
+            if (x.is_negative())
+                return false;
+        }
+        return x.popcount() == 1U;
+    }
+
+    /// @brief Signo del valor.
+    /// @param x Valor a examinar.
+    /// @return `-1` si es negativo, `0` si es cero, `+1` si es positivo.
+    ///
+    /// @note Sin signo solo puede devolver `0` o `+1`.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr int sign(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        if (x.is_zero())
+            return 0;
+        if constexpr (Sign == signedness::signed_type)
+            return x.is_negative() ? -1 : 1;
+        else
+            return 1;
+    }
+
+    /// @brief Valor absoluto, como funcion libre.
+    /// @param x Valor.
+    /// @return `|x|`.
+    ///
+    /// @note **Acepta tambien sin signo**, donde es la identidad. El metodo
+    ///       `abs()` de la clase solo existe con signo, y con razon: pedirle el
+    ///       absoluto a un `uint` suele ser un error de quien escribe. Pero la
+    ///       funcion libre la llama codigo generico que vale para los dos, y
+    ///       ahi negar el caso obliga a un `if constexpr` en cada sitio que la
+    ///       use. Se resuelve una vez aqui.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    abs(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        if constexpr (Sign == signedness::signed_type)
+            return x.abs();
+        else
+            return x;
+    }
+
+    /// @brief Cociente y resto de una vez.
+    /// @param a Dividendo. @param b Divisor.
+    /// @return `{cociente, resto}`.
+    /// @throws std::domain_error si `b` es cero.
+    ///
+    /// @note Cuesta lo mismo que una sola division: el algoritmo de Knuth
+    ///       produce los dos a la vez, y pedirlos por separado con `/` y `%`
+    ///       lo ejecuta dos veces.
+    /// @note El `divmod` de `int128_param_numeric.hpp` devolvia `{0, 0}` al
+    ///       dividir por cero y lo documentaba como comportamiento indefinido.
+    ///       Aqui lanza, como el resto de la division de `fixed_int_t`:
+    ///       devolver un cero que parece un resultado es peor que parar.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr std::pair<fixed_int_t<N, Sign, Form, Policy>, fixed_int_t<N, Sign, Form, Policy>>
+    divmod(const fixed_int_t<N, Sign, Form, Policy> &a, const fixed_int_t<N, Sign, Form, Policy> &b)
+    {
+        return fixed_int_t<N, Sign, Form, Policy>::divmod(a, b);
+    }
+    /// @}
+
     /// @name Aritmetica comprobada y saturada
     ///
     /// Dos formas de no tragarse un desbordamiento en silencio, para quien no

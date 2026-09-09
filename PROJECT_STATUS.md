@@ -12,24 +12,27 @@
 
 ## En una línea
 
-`fixed_int_t<N, Sign, Form>` está **terminado** como entero de N × 64 bits,
-**v1.90.4 está publicada**, y **el diseño de la 2.0 está cerrado sin cuestiones
-abiertas**: falta escribirlo.
+`fixed_int_t<N, Sign, Form, Policy>` está **terminado** como entero de N × 64
+bits, **v1.90.4 está publicada**, y **el diseño de la 2.0 está cerrado sin
+cuestiones abiertas**: se está escribiendo. De P1 van cerradas P1.1 a P1.4 y
+**el tramo 1 de P1.5**; del inventario de retirada de `int128_param_t`
+([ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md)) van
+**4 filas de 11**.
 
 ## Verificación — 9 September 2026
 
 | Comprobación | Resultado |
 |---|---|
-| `python make.py test gcc release-O2` | **59/59 ficheros** (GCC 16.2 ucrt64, libstdc++) |
-| `python make.py test clang release-O2` | **59/59 ficheros** (clang 22.1.8 clang64, **libc++**) |
-| `python make.py test clang-libstdcxx release-O2` | **59/59 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
-| `python make.py test msvc release-O2` | **59/59 ficheros** |
-| `python make.py test intel release-O2` | **59/59 ficheros** (oneAPI 2026.1) |
+| `python make.py test gcc release-O2` | **60/60 ficheros** (GCC 16.2 ucrt64, libstdc++) |
+| `python make.py test clang release-O2` | **60/60 ficheros** (clang 22.1.8 clang64, **libc++**) |
+| `python make.py test clang-libstdcxx release-O2` | **60/60 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
+| `python make.py test msvc release-O2` | **60/60 ficheros** |
+| `python make.py test intel release-O2` | **60/60 ficheros** (oneAPI 2026.1) |
 | CI sobre `f959f53` | **24/24 jobs**, matriz completa: gcc-13/14/15/16, clang-18/19/20/21/22, ARM64, arm32, riscv64, i686 |
-| `scripts/check_headers_selfcontained.py` | **31/31** headers compilan aislados |
+| `scripts/check_headers_selfcontained.py` | **31/31** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
 | `clang-format --dry-run --Werror`, 104 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
 | `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
-| Avisos de cobertura de Doxygen desde `include/` | **505** (local, doxygen 1.18.0) · **518** (CI, doxygen 1.9.8) |
+| Avisos de cobertura de Doxygen desde `include/` | **499** (local, doxygen 1.18.0) · **518** (CI, doxygen 1.9.8) |
 
 > **La cifra de Doxygen no ha empeorado: antes no se medía.** Hasta el 25 ago el
 > `Doxyfile` tenía `EXTRACT_ALL = YES` y `WARN_IF_UNDOCUMENTED = NO`, con lo que
@@ -64,7 +67,7 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 | | |
 |---|---|
 | Headers | 31 (`include/`, con `algorithms/` e `intrinsics/`) |
-| Tests | 59 ficheros |
+| Tests | 60 ficheros |
 | Scripts vivos | 16 (llegaron a ser 47) |
 | Documentos de raíz | 12, 9.834 renglones — de los que 6.271 son el `CHANGELOG` |
 | ADR | **15**, ninguna decisión tomada sin documentar |
@@ -78,6 +81,7 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 | `test_fixed_basic` | 843 |
 | `test_fixed_vs_param` | 804 |
 | `test_fixed_divmod` | 218 + 30 `static_assert` de constexpr |
+| `test_fixed_bits_numeric` | 60 `static_assert` + 8 en ejecución |
 | `test_cross_operators` | 206 |
 | `test_fixed_string_io` | 104 |
 | `test_fixed_stl_integration` | 95 |

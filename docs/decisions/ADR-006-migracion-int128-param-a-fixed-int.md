@@ -79,6 +79,10 @@ Estado a 24 ago 2026. Es el trabajo que implica esta decisión.
 | `std::hash` | (dentro de traits) | `fixed_int_hash.hpp` |
 | `to_string`/`from_string` en bases 2..36 | en la clase | en la clase |
 | División y módulo `constexpr` | en la clase | en la clase |
+| `checked_div` y la familia `saturating_add/sub/mul` | `int128_param_safe.hpp` | en la clase (P1.3) |
+| `rotl`, `rotr`, `is_power_of_2` y los nombres de `<bit>` (`countl_zero`, `countr_zero`, `popcount`, `bit_width`) | `int128_param_bits.hpp` | `fixed_width_int_t.hpp` (P1.5) |
+| `min`, `max`, `clamp`, `midpoint`, `abs_diff`, `abs` libres | `int128_param_cmath.hpp` | `fixed_width_int_t.hpp` (P1.5) |
+| `ilog2`, `factorial`, `is_even`, `is_odd`, `sign`, `divmod` libre; `isqrt` ya existía como `sqrt` | `int128_param_numeric.hpp` | `fixed_width_int_t.hpp` (P1.5) |
 
 ### Pendiente
 
@@ -87,10 +91,6 @@ existen en `fixed_int_t` bajo otro nombre no cuentan como hueco—:
 
 | Origen | Qué falta en `fixed_int_t` |
 |---|---|
-| `int128_param_bits.hpp` | `rotl`, `rotr`. `countl_zero`/`countr_zero` existen como `count_leading_zeros`/`count_trailing_zeros`; conviene añadir los nombres de `<bit>` como alias |
-| `int128_param_cmath.hpp` | `clamp`, `midpoint`, `min`, `max` libres |
-| `int128_param_numeric.hpp` | `isqrt`, `ilog2`, `factorial`, `is_even`, `is_odd`, `abs_diff` |
-| `int128_param_safe.hpp` | `checked_div`, y toda la familia `saturating_add/sub/mul` |
 | `int128_param_arithmetic.hpp` | `mulhi`, `mullo`, `widening_mul` (`mul_wide` cubre parte) |
 | `int128_param_algorithm.hpp` | adaptadores de `<algorithm>`: `accumulate`, `find`, `min_element`… |
 | `int128_param_ranges.hpp` | soporte de ranges, generadores de secuencias, `sum`, `product`, estadísticos |
@@ -98,7 +98,21 @@ existen en `fixed_int_t` bajo otro nombre no cuentan como hueco—:
 | `int128_param_divmod.hpp` | `div<D>` / `mod<D>` / `divmod_const<D>` por divisor constante (Granlund-Montgomery) |
 | `representation.hpp` | **las representaciones MS y EK** como `representation_form` de `fixed_int_t` |
 
-El último punto es el de más peso: `fixed_int_t` tiene hoy un `static_assert`
+**La tabla de abajo se escribió de memoria y le faltaban cosas.** Al portar el
+tramo 1 se contrastó función por función contra los tres headers viejos, y
+aparecieron cuatro públicas que ninguna fila mencionaba: `is_power_of_2`,
+`sign`, `abs` libre y `divmod` libre. Se han portado también. Lo que queda
+pendiente hay que leerlo sabiendo eso: es una guía, no un contrato --el contrato
+es el header viejo, y hay que abrirlo antes de dar una fila por cerrada.
+
+La única que se decidió **no** portar es `power`, alias de `pow` que existía "por
+consistencia con phase166". Esa consistencia es justo la capa que este ADR
+retira.
+
+Van cuatro de once. Las tres que cerró P1.5 --bits, cmath y numeric-- eran las
+más independientes: no tocan el núcleo del tipo ni la representación, así que se
+podían portar y comprobar por separado. Lo que queda va de menos a más acoplado,
+y el último punto es el de más peso: `fixed_int_t` tiene hoy un `static_assert`
 que solo admite `binnat` sin signo y complemento a dos con signo. Portar MS y EK
 significa generalizarlo y revisar cada operación que hoy asume complemento a
 dos.

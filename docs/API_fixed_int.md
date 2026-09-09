@@ -38,7 +38,7 @@ template <typename T> inline constexpr bool is_unsigned_fixed_int_v = ...;
 
 ---
 
-## Class Template `fixed_int_t<N, Sign, Form>`
+## Class Template `fixed_int_t<N, Sign, Form, Policy>`
 
 ### Template Parameters
 
@@ -47,6 +47,7 @@ template <typename T> inline constexpr bool is_unsigned_fixed_int_v = ...;
 | `N` | `std::size_t` | `≥ 1` | Number of 64-bit limbs. `N=1` → 64-bit, `N=2` → 128-bit, `N=4` → 256-bit, `N=8` → 512-bit. |
 | `Sign` | `signedness` | `unsigned_type`, `signed_type` | Default = `unsigned_type`. |
 | `Form` | `representation_form` | `binnat`, `twos_complement` | Default depends on `Sign`. Currently only these two are implemented. |
+| `Policy` | `overflow_policy` | `wrap`, `checked` | Default = `wrap`. El enum declara ademas `saturate` y `trap`, que **todavia no estan escritos** y hacen fallar el `static_assert` de la clase; existen desde el principio para no cambiar la ABI de la plantilla al anadirlos. Ver [ADR-009](decisions/ADR-009-almacenamiento-de-la-marca-y-operaciones-checked.md). |
 
 ### Storage Layout
 
@@ -402,6 +403,129 @@ lo que perdia por dos sitios: los limbos altos y los bits por encima de 32.
 
 ---
 
+## Funciones libres (P1.5 tramo 1)
+
+Portadas desde `int128_param_bits.hpp`, `int128_param_cmath.hpp` y
+`int128_param_numeric.hpp` como parte de la retirada de `int128_param_t`
+([ADR-006](decisions/ADR-006-migracion-int128-param-a-fixed-int.md)). Todas
+estan en `nstd::`, son plantillas sobre **los cuatro** parametros y funcionan en
+contexto `constexpr`.
+
+En las firmas, `T` es `fixed_int_t<N, Sign, Form, Policy>` con cualquier signo, y
+`U` es la variante **sin signo**.
+
+### Rotaciones y nombres de `<bit>`
+
+| Funcion | Firma | Semantica | Coste |
+|---|---|---|---|
+| `rotl` | `(const T& x, int s) -> T` | Rotacion a la izquierda sobre los `64*N` bits. `s` se toma modulo la anchura y **admite negativos**, que rotan al otro lado, igual que `std::rotl`. | O(N) |
+| `rotr` | `(const T& x, int s) -> T` | `rotl(x, -s)`. | O(N) |
+| `countl_zero` | `(const T& x) -> unsigned` | Ceros por delante; `64*N` si `x` es cero. Alias del metodo `count_leading_zeros()`. | O(N) |
+| `countr_zero` | `(const T& x) -> unsigned` | Ceros por detras; `64*N` si `x` es cero. Alias de `count_trailing_zeros()`. | O(N) |
+| `popcount` | `(const T& x) -> unsigned` | Bits a uno. Alias del metodo homonimo. | O(N) |
+| `bit_width` | `(const T& x) -> unsigned` | Bits necesarios para representarlo; 0 si es cero. | O(N) |
+| `is_power_of_2` | `(const T& x) -> bool` | Un solo bit a uno **y no negativo**. | O(N) |
+
+`rotl` y `rotr` rotan el patron de bits completo, sin tratar el signo aparte. El
+`rotl` de `int128_param_t` si lo trataba en Magnitud-Signo, pero eso es propio de
+esa representacion y no aplica mientras `fixed_int_t` solo admita `binnat` y
+complemento a dos ([ADR-011](decisions/ADR-011-sin-signo-equivale-a-binnat.md)).
+
+> **`is_power_of_2` y el minimo con signo.** En complemento a dos,
+> `int_fixed_t<N>::min()` tiene puesto **un solo bit** --el de signo-- asi que un
+> `popcount(x) == 1` a secas diria que es potencia de dos. No lo es. De ahi la
+> condicion de no ser negativo.
+
+### Comparacion y mezcla
+
+| Funcion | Firma | Semantica | Coste |
+|---|---|---|---|
+| `min` | `(const T& a, const T& b) -> const T&` | El menor; `a` si son iguales. | O(N) |
+| `max` | `(const T& a, const T& b) -> const T&` | El mayor; `a` si son iguales. | O(N) |
+| `clamp` | `(const T& x, const T& lo, const T& hi) -> const T&` | `lo` si `x < lo`, `hi` si `x > hi`, si no `x`. **Pre:** `lo <= hi`. | O(N) |
+| `midpoint` | `(const U& a, const U& b) -> U` | `(a + b) / 2` redondeado hacia `a`, **sin desbordar**. Solo sin signo. | O(N) |
+| `abs_diff` | `(const U& a, const U& b) -> U` | Diferencia en valor absoluto. Solo sin signo. | O(N) |
+| `abs` | `(const T& x) -> T` | Valor absoluto. **Acepta tambien sin signo**, donde es la identidad. | O(N) |
+
+`min`, `max` y `clamp` devuelven **referencia**, como los de `std::`, con la
+misma trampa: no guardar el resultado de una llamada sobre temporales mas alla
+de la expresion completa.
+
+`midpoint` no calcula `(a + b) / 2` sino `a + (b - a) / 2`: la primera desborda
+precisamente cuando hace falta. Por eso `midpoint(U::max(), U::max())` da
+`U::max()` y no basura.
+
+`abs` libre acepta sin signo aunque el **metodo** `abs()` solo exista con signo.
+Pedirle el absoluto a un `uint` suele ser un error de quien escribe, pero la
+funcion libre la llama codigo generico que vale para los dos, y negar el caso
+obliga a un `if constexpr` en cada sitio que la use.
+
+### Predicados y funciones enteras
+
+| Funcion | Firma | Semantica | Coste |
+|---|---|---|---|
+| `is_even` / `is_odd` | `(const T& x) -> bool` | Bit mas bajo. | O(1) |
+| `sign` | `(const T& x) -> int` | `-1`, `0` o `+1`. Sin signo solo devuelve `0` o `+1`. | O(N) |
+| `ilog2` | `(const U& x) -> unsigned` | `bit_width(x) - 1`. **Lanza `std::domain_error` si `x` es cero.** | O(N) |
+| `factorial<N, Form, Policy>` | `(unsigned n) -> U` | `n!` truncado a `64*N` bits. | O(n) productos |
+| `divmod` | `(const T& a, const T& b) -> std::pair<T, T>` | Cociente y resto de una vez. **Lanza `std::domain_error` si `b` es cero.** | Un solo Knuth D |
+
+Dos comportamientos se apartan a proposito del header viejo:
+
+- **`ilog2(0)` lanza**; el viejo devolvia `-1` y lo documentaba como
+  comportamiento indefinido. El logaritmo de cero no existe, y devolver un
+  numero es dar por bueno un calculo que no lo es.
+- **`divmod(a, 0)` lanza**; el viejo devolvia `{0, 0}`. Ademas asi coincide con
+  lo que ya hacian `/` y `%` en `fixed_int_t`.
+
+`divmod` cuesta lo mismo que **una** division: el algoritmo de Knuth produce los
+dos resultados a la vez, y pedirlos con `/` y `%` por separado lo ejecuta dos
+veces.
+
+`factorial` desborda muy pronto: **34! cabe** en 128 bits (2,95e38 frente a
+3,40e38) y **35! ya no**. Con `wrap` envuelve en silencio, que es lo que hacen
+los enteros del lenguaje; con `checked` el resultado queda marcado y `valid()`
+devuelve `false`. No se pone un tope artificial porque el que cabe depende de N.
+
+### Ejemplo
+
+```cpp
+#include "fixed_width_int_t.hpp"
+#include <cassert>
+#include <cstdint>
+
+using U = nstd::uint_fixed_t<2>; // 128 bits
+
+int main()
+{
+    // Rotar es reversible y conserva el numero de bits a uno.
+    constexpr U x{std::uint64_t{0xDEADBEEF}};
+    static_assert(nstd::rotr(nstd::rotl(x, 37), 37) == x);
+    static_assert(nstd::popcount(nstd::rotl(x, 41)) == nstd::popcount(x));
+
+    // El caso que justifica que `midpoint` exista: (a + b) desbordaria.
+    static_assert(nstd::midpoint(U::max(), U::max()) == U::max());
+
+    // Cociente y resto de una vez, al precio de una sola division.
+    constexpr auto qr = nstd::divmod(U{std::uint64_t{1000}}, U{std::uint64_t{7}});
+    static_assert(qr.first == U{std::uint64_t{142}});
+    static_assert(qr.second == U{std::uint64_t{6}});
+
+    // Con `checked`, el desbordamiento del factorial queda marcado.
+    const auto f = nstd::factorial<2, nstd::representation_form::binnat,
+                                   nstd::overflow_policy::checked>(35);
+    assert(!f.valid());
+    return 0;
+}
+```
+
+> **Lo que todavia NO admite los cuatro parametros.** `pow`, `gcd` y `lcm` son
+> anteriores a P1.5 y estan escritas sobre `uint_fixed_t<N>` / `int_fixed_t<N>`,
+> que **fijan la politica por defecto**: con un tipo `checked` no compilan.
+> Generalizarlas esta en el tramo 2.
+
+---
+
 ## Related Headers
 
 | Header | Provides |
@@ -422,6 +546,12 @@ See [API_fixed_int_traits.md](API_fixed_int_traits.md) for the complete referenc
 
 ## Version Notes
 
+- **phase-1.80 (P1.5 tramo 1)** — 19 funciones libres portadas de
+  `int128_param_{bits,cmath,numeric}.hpp`: `rotl`/`rotr`, los nombres de
+  `<bit>`, `is_power_of_2`, `min`/`max`/`clamp`/`midpoint`/`abs_diff`/`abs`,
+  `is_even`/`is_odd`/`sign`/`ilog2`/`factorial`/`divmod`. Todas con los
+  cuatro parametros de plantilla.
+- **phase-1.80 (P1.1)** — cuarto parametro de plantilla `overflow_policy`.
 - **v1.90.1 — Auditoria** — `div`/`mod` `constexpr`; `data` privado con
   `limb()`/`set_limb()`/`limbs()`/`limbs_ref()`; `try_from_string` con deteccion
   de desbordamiento; `to_string(base)`/`from_string(base)` en bases 2..36;

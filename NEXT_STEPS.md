@@ -20,7 +20,7 @@
 | | |
 |---|---|
 | **Release** | ✅ **v1.90.4 publicada**, la primera del proyecto: tres zips (gcc, clang, msvc) |
-| **Suite local** | ✅ **59/59 en CINCO configuraciones**: GCC+libstdc++, clang+libc++, **clang+libstdc++**, MSVC e Intel |
+| **Suite local** | ✅ **60/60 en CINCO configuraciones**: GCC+libstdc++, clang+libc++, **clang+libstdc++**, MSVC e Intel |
 | **CI** | ✅ **24/24 jobs** sobre `f959f53`, ya con la matriz compilando de verdad: no había fallos tapados |
 | **Diseño de la 2.0** | ✅ cerrado. **P1.1 a P1.4 escritos**; quedan P1.5 y P1.6 |
 | **`operator*`** | ✅ **de 2× a 4,9× más rápido** (6 sep 2026): escolar desenrollado hasta N=20, Karatsuba desde N=32. Los dos umbrales, medidos |
@@ -112,8 +112,15 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P1.2~~ | ~~Propagación de la marca, `valid()`, comparación~~ | ✅ **hecho** en `5ad2bad`: `+ - * << - ++ --` y sus `op=`, orden total, `to_string` |
 | ~~P1.3~~ | ~~`checked_div` y las tres `saturating_*`~~ | ✅ **hecho** en `d684bb6`, y las `checked_*` dejan `std::optional`. Destapó el producto con signo, que se leía sin signo |
 | ~~P1.4~~ | ~~`representation_traits<binnat>` y el `static_assert` al bicondicional de [ADR-011](docs/decisions/ADR-011-sin-signo-equivale-a-binnat.md)~~ | ✅ **hecho** en `c73e55a` |
-| **P1.5** | **Portar Magnitud-Signo y Exceso-K** a `fixed_int_t` y retirar `int128_param_t` | P1.3 |
+| **P1.5** | **Retirar `int128_param_t`**: portar lo que le queda a `fixed_int_t`, y al final las representaciones Magnitud-Signo y Exceso-K. Va por tramos, ver el inventario de [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md) | P1.3 |
+| ~~P1.5 tramo 1~~ | ~~`bits`, `cmath` y `numeric`~~ | ✅ **hecho**: `rotl`/`rotr`, los nombres de `<bit>`, `min`/`max`/`clamp`/`midpoint`/`abs_diff`, `ilog2`/`factorial`/`is_even`/`is_odd`, y las cuatro que el inventario del ADR no listaba (`is_power_of_2`, `sign`, `abs` y `divmod` libres). `tests/test_fixed_bits_numeric.cpp`, 60 `static_assert` |
+| **P1.5 tramo 2** | `mulhi`/`mullo`/`widening_mul`, adaptadores de `<algorithm>`, ranges, `atomic_*`, `div<D>`/`mod<D>` por divisor constante | tramo 1 |
+| **P1.5 tramo 3** | **Magnitud-Signo y Exceso-K**: el de más peso, hay que generalizar el `static_assert` de la clase y revisar cada operación que hoy asume complemento a dos | tramo 2 |
 | **P1.6** | Etapa 5: punto fijo | P1.5 |
+
+> **De cara al tramo 2**: las funciones libres que ya existían antes de P1.5 --`pow`, `gcd`, `lcm`-- están escritas sobre
+> `uint_fixed_t<N>` / `int_fixed_t<N>`, que **fijan la política por defecto**. Con un tipo `checked` no compilan. Las de P1.5
+> sí llevan los cuatro parámetros. Generalizar las tres es trabajo pequeño y va en el tramo 2.
 
 ### P2 — Medir, antes de que el código cambie
 
@@ -136,7 +143,7 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | **P3.2** | Cerrar la puerta: `WARN_AS_ERROR = YES` cuando el ámbito llegue a cero | Depende de P3.1 |
 | **P3.3** | Los 6 headers sin `API_*.md` propio que señala el armonizador | — |
 | ~~P3.4~~ | ~~`benchmark_vs_builtin` no enlaza sin GMP~~ | ✅ **hecho**: le faltaban `-lgmp`, `-lgmpxx` y `-ltommath`. Las tres bibliotecas estaban instaladas |
-| **P3.5** | Documentar `int128_param_*` (505 avisos) | **Caduca hacia atrás**: baja sola con P1.5 |
+| **P3.5** | Documentar `int128_param_*` (499 avisos) | **Caduca hacia atrás**: baja sola con P1.5 |
 | **P3.6** | Decidir si Intel sale de la matriz de release | Se cae solo si P0.6 sale bien |
 
 ---
@@ -206,7 +213,7 @@ que no existen.
   comprobaciones; el CI hace 9. Correrlo sin él y cantar «7/7» fue lo que dejó el
   CI en rojo cinco commits sin que nadie lo viera.
 - **doxygen no cuenta igual según la versión.** 1.9.8 (CI) da 518 avisos y 1.18.0
-  (local) da 505 sobre el mismo árbol. Por eso el techo de
+  (local) da 499 sobre el mismo árbol. Por eso el techo de
   `check_docs_consistency.py` es **una cifra por versión**.
 - **clang-format: en local la 22.1.8, en el CI la 21.** El árbol es punto fijo de
   las dos, medido; la regla es que lo siga siendo. La serie 19 sí lo rompe.
