@@ -36,8 +36,6 @@
 #   TODAS      compila en las cuatro celdas
 #   SIN_SIGNO  solo en las dos sin signo (y debe FALLAR en las de con signo)
 #   CON_SIGNO  solo en las dos con signo
-#   SOLO_WRAP  solo con la politica por defecto -- hoy lo cumplen las siete
-#              `checked_*` y `saturating_*`, y esta sin decidir si debe ser asi
 #
 # Que una capacidad falle donde dice que debe fallar es tan importante como que
 # funcione donde dice: si `midpoint` empezara a aceptar tipos con signo sin que
@@ -97,7 +95,6 @@ CELDAS = [
 
 SIN_SIGNO = {"uint/wrap", "uint/checked"}
 CON_SIGNO = {"int/wrap", "int/checked"}
-SOLO_WRAP = {"uint/wrap", "int/wrap"}
 TODAS = SIN_SIGNO | CON_SIGNO
 
 # Politicas declaradas en el enum pero NO escritas. Tienen que seguir sin
@@ -225,26 +222,17 @@ CAPACIDADES = [
     dict(grupo="Aritmetica", nombre="gcd / lcm", espera=TODAS,
          cuerpo="const T a{std::uint64_t{12}}, b{std::uint64_t{18}};\n"
                 "    (void)nstd::gcd(a, b); (void)nstd::lcm(a, b);"),
-    # LAS SIETE `checked_*` Y `saturating_*` SOLO ACEPTAN OPERANDOS `wrap`.
-    #
-    # Lo encontro esta matriz en su primera pasada. NO esta decidido si es un
-    # hueco o el diseno, y por eso se declara tal como esta hoy en vez de
-    # marcarlo ROTO: la matriz dice lo que hay, no lo que a uno le gustaria.
-    #
-    # A favor de dejarlo: sobre un tipo `checked`, `a + b` YA comprueba, asi que
-    # `checked_add` no anade nada. En contra: codigo generico que llame a
-    # `saturating_add` deja de compilar en cuanto alguien cambia la politica del
-    # tipo, que es justo lo que un parametro de plantilla no deberia provocar.
-    #
-    # Y hay una pregunta de semantica sin responder: `saturating_add` sobre un
-    # valor YA MARCADO, ¿satura y limpia la marca, satura y la conserva, o no
-    # tiene sentido? Sin esa respuesta no se puede generalizar sin inventarse
-    # el contrato. Ver NEXT_STEPS (P1.5 tramo 2f).
-    dict(grupo="Aritmetica", nombre="checked_add / sub / mul", espera=SOLO_WRAP,
+    # ESTA MATRIZ LAS ENCONTRO. En su primera pasada, las siete `checked_*` y
+    # `saturating_*` solo aceptaban operandos `wrap`, asi que `checked_add(a, b)`
+    # sobre un tipo `checked` no compilaba. Generalizadas en P1.5 tramo 2f, con
+    # la marca PEGAJOSA: saturar no limpia una marca previa, porque un valor
+    # marcado guarda dentro el resultado envuelto y saturar a partir de el no da
+    # el valor saturado correcto.
+    dict(grupo="Aritmetica", nombre="checked_add / sub / mul", espera=TODAS,
          cuerpo="const T a{std::uint64_t{7}}, b{std::uint64_t{3}};\n"
                 "    (void)nstd::checked_add(a, b); (void)nstd::checked_sub(a, b);\n"
                 "    (void)nstd::checked_mul(a, b);"),
-    dict(grupo="Aritmetica", nombre="saturating_add / sub / mul", espera=SOLO_WRAP,
+    dict(grupo="Aritmetica", nombre="saturating_add / sub / mul", espera=TODAS,
          cuerpo="const T a{std::uint64_t{7}}, b{std::uint64_t{3}};\n"
                 "    (void)nstd::saturating_add(a, b); (void)nstd::saturating_sub(a, b);\n"
                 "    (void)nstd::saturating_mul(a, b);"),

@@ -138,6 +138,53 @@ int main()
         ok("invalido(x) conserva el valor dentro", C::invalido(con_comprobacion(U{42})).limb(0) == 42);
     }
 
+    // =========================================================================
+    // P1.5 tramo 2f: las siete aceptan CUALQUIER politica, y la marca es
+    // PEGAJOSA.
+    // =========================================================================
+    //
+    // Antes solo tomaban operandos `wrap`: `checked_add(a, b)` sobre un tipo
+    // `checked` no compilaba, y codigo generico se rompia en cuanto alguien
+    // cambiaba la politica del tipo. Lo destapo la matriz de paridad en su
+    // primera pasada.
+    std::printf("\n=== 2f: cualquier politica, y la marca no se limpia ===\n");
+    {
+        using CU = uint_fixed_t<4, overflow_policy::checked>;
+        using CI = int_fixed_t<4, overflow_policy::checked>;
+
+        const CU a{std::uint64_t{7}}, b{std::uint64_t{3}};
+        ok("checked_add acepta checked", checked_add(a, b) == CU{std::uint64_t{10}});
+        ok("checked_div acepta checked", checked_div(a, b) == CU{std::uint64_t{2}});
+        ok("saturating_add acepta checked", saturating_add(a, b) == CU{std::uint64_t{10}});
+        ok("saturating_add CONSERVA la politica", std::is_same_v<decltype(saturating_add(a, b)), CU>);
+        ok("y con wrap sigue devolviendo wrap", std::is_same_v<decltype(saturating_add(U{7}, U{3})), U>);
+
+        // EL CASO QUE DECIDE LA SEMANTICA. Un valor marcado guarda dentro el
+        // resultado ENVUELTO, no el verdadero: `max()+1` deja un cero. Saturar
+        // a partir de ahi NO da el valor saturado correcto, asi que limpiar la
+        // marca seria afirmar que esta bien un numero que no lo esta -- y
+        // despues no habria forma de saberlo.
+        const CU marcado = CU::max() + CU{std::uint64_t{1}};
+        ok("el operando llega marcado", !marcado.valid());
+        ok("y lo que guarda es el envuelto (cero), no max()", marcado.limb(0) == 0 && marcado.limb(3) == 0);
+
+        const CU r = saturating_add(marcado, CU{std::uint64_t{5}});
+        ok("saturating_add sobre un marcado NO limpia la marca", !r.valid());
+        ok("checked_add hereda la marca de entrada", !checked_add(marcado, CU{std::uint64_t{1}}).valid());
+        ok("checked_div hereda la marca de entrada", !checked_div(marcado, CU{std::uint64_t{2}}).valid());
+
+        // Pero saturar SIN marca previa no marca: saturar es el resultado
+        // pedido, no un error.
+        const CU sat = saturating_add(CU::max(), CU{std::uint64_t{1}});
+        ok("saturar sin marca previa NO marca", sat.valid());
+        ok("...y da max()", sat == CU::max());
+
+        // Con signo, los dos extremos.
+        ok("saturating_mul con signo y checked", saturating_mul(CI{-100}, CI{2}) == CI{-200});
+        ok("saturating_sub(min,1) satura a min con checked", saturating_sub(CI::min(), CI{1}) == CI::min());
+        ok("...y sin marcar, porque no habia marca previa", saturating_sub(CI::min(), CI{1}).valid());
+    }
+
     std::printf("\n%s  (%d fallos)\n", fallos == 0 ? "TODO BIEN" : "HAY FALLOS", fallos);
     return fallos == 0 ? 0 : 1;
 }

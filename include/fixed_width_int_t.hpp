@@ -3367,6 +3367,48 @@ namespace nstd
         return r;
     }
 
+    namespace detail
+    {
+        /// @brief Devuelve `v` con la politica `Policy`, **arrastrando la marca
+        ///        de `a` y de `b`**.
+        ///
+        /// Es la pieza que hace pegajosa la saturacion (P1.5 tramo 2f). El valor
+        /// numerico es `v` y no se toca; lo unico que se hereda es el saber si
+        /// alguno de los operandos ya era invalido.
+        ///
+        /// @note El `(a - a) + (b - b)` no es un truco gratuito: es un CERO que
+        ///       lleva la marca de los dos operandos. ADR-008 dice que la marca
+        ///       se hereda con un OR en cada operacion, asi que sumarlo conserva
+        ///       el valor y une las dos marcas. Restar un valor de si mismo no
+        ///       puede desbordar --ni siquiera en el minimo con signo-- asi que
+        ///       no introduce una marca que no estuviera ya.
+        ///
+        /// @note Con `wrap` no hay nada que heredar y se devuelve `v` tal cual.
+        ///
+        /// @param v Valor numerico del resultado, ya calculado y sin marca.
+        /// @param a Primer operando de la operacion original.
+        /// @param b Segundo operando.
+        /// @return `v` con la politica de los operandos y su marca heredada.
+        template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+        [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+        con_marca_heredada(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &v,
+                           const fixed_int_t<N, Sign, Form, Policy> &a,
+                           const fixed_int_t<N, Sign, Form, Policy> &b) noexcept
+        {
+            if constexpr (Policy == overflow_policy::wrap)
+            {
+                (void)a;
+                (void)b;
+                return v;
+            }
+            else
+            {
+                using T = fixed_int_t<N, Sign, Form, Policy>;
+                return T{v} + ((a - a) + (b - b));
+            }
+        }
+    } // namespace detail
+
     /// @brief De `wrap` a `checked`, marcando el resultado como valido.
     ///
     /// Es la direccion segura: un valor de `wrap` no lleva marca que pueda
@@ -5590,71 +5632,111 @@ namespace nstd
     /// See ADR-009.
     /// @{
 
+    // P1.5 tramo 2f (10 sep 2026): LAS SIETE ACEPTAN CUALQUIER POLITICA.
+    //
+    // Antes tomaban solo operandos `wrap`, asi que `checked_add(a, b)` sobre un
+    // `uint_fixed_t<2, checked>` no compilaba. Lo encontro la matriz de paridad
+    // en su primera pasada. Codigo generico que llamase a `saturating_add` dejaba
+    // de compilar en cuanto alguien cambiaba la politica del tipo, que es justo
+    // lo que un parametro de plantilla no deberia provocar.
+    //
+    // LA MARCA ES PEGAJOSA, y esa fue la decision de verdad. `saturating_add`
+    // sobre un valor YA MARCADO satura, pero **no limpia la marca**. El motivo
+    // es concreto y no estetico: un valor marcado guarda dentro el resultado
+    // ENVUELTO, no el verdadero --`max() + 1` con `checked` deja un cero
+    // dentro--, asi que saturar a partir de el no da el valor saturado correcto.
+    //
+    //     x = max() + 1        -> marcado, y dentro lleva 0
+    //     saturating_add(x, 5) -> 5, cuando lo saturado de verdad seria max()
+    //
+    // Devolver ese 5 SIN marca seria afirmar que esta bien un numero que no lo
+    // esta, y despues ya no habria forma de saberlo: convierte un error
+    // detectado en una respuesta equivocada indetectable. Con la marca puesta
+    // sigue siendo un 5 equivocado, pero `valid()` lo dice.
+    //
+    // La alternativa --limpiar-- SERIA correcta si el valor marcado conservara
+    // lo necesario para saturar de verdad. Con `checked` no lo conserva: guarda
+    // el envuelto mas un bit. Con la politica `saturate`, declarada y todavia
+    // sin escribir (ADR-009), el contenido SI seria el valor saturado, y ahi
+    // limpiar tendria sentido. Es una diferencia entre las dos politicas que
+    // conviene tener presente el dia que se escriba `saturate`.
+
     /// @brief Suma comprobada.
     /// @param a Primer sumando.
     /// @param b Segundo sumando.
     /// @return La suma, con politica `checked`. Si desbordo, queda marcada y
     ///         `valid()` devuelve `false`; **el valor envuelto sigue ahi**.
-    template <std::size_t N, signedness Sign, representation_form Form>
+    /// @note Acepta operandos de **cualquier** politica. Si ya venian marcados,
+    ///       el resultado hereda la marca (ADR-008).
+    template <std::size_t N, signedness Sign, representation_form Form,
+              overflow_policy Policy = overflow_policy::wrap>
     [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::checked>
-    checked_add(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
-                const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
+    checked_add(const fixed_int_t<N, Sign, Form, Policy> &a,
+                const fixed_int_t<N, Sign, Form, Policy> &b) noexcept
     {
-        return con_comprobacion(a) + con_comprobacion(b);
+        using C = fixed_int_t<N, Sign, Form, overflow_policy::checked>;
+        return C{a} + C{b};
     }
 
     /// @brief Resta comprobada.
     /// @param a Minuendo.
     /// @param b Sustraendo.
     /// @return La diferencia, con politica `checked`.
-    template <std::size_t N, signedness Sign, representation_form Form>
+    /// @note Acepta operandos de cualquier politica; la marca se hereda.
+    template <std::size_t N, signedness Sign, representation_form Form,
+              overflow_policy Policy = overflow_policy::wrap>
     [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::checked>
-    checked_sub(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
-                const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
+    checked_sub(const fixed_int_t<N, Sign, Form, Policy> &a,
+                const fixed_int_t<N, Sign, Form, Policy> &b) noexcept
     {
-        return con_comprobacion(a) - con_comprobacion(b);
+        using C = fixed_int_t<N, Sign, Form, overflow_policy::checked>;
+        return C{a} - C{b};
     }
 
     /// @brief Producto comprobado.
     /// @param a Primer factor.
     /// @param b Segundo factor.
     /// @return El producto, con politica `checked`.
-    template <std::size_t N, signedness Sign, representation_form Form>
+    /// @note Acepta operandos de cualquier politica; la marca se hereda.
+    template <std::size_t N, signedness Sign, representation_form Form,
+              overflow_policy Policy = overflow_policy::wrap>
     [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::checked>
-    checked_mul(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
-                const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
+    checked_mul(const fixed_int_t<N, Sign, Form, Policy> &a,
+                const fixed_int_t<N, Sign, Form, Policy> &b) noexcept
     {
-        return con_comprobacion(a) * con_comprobacion(b);
+        using C = fixed_int_t<N, Sign, Form, overflow_policy::checked>;
+        return C{a} * C{b};
     }
 
     /// @brief Division comprobada. **Faltaba**, y sin ella `int128_param_t` no
     ///        podia retirarse (ADR-006).
     ///
-    /// La division entera solo desborda en un caso, y solo con signo:
-    /// `min() / -1`, cuyo resultado no es representable. Pero hay un segundo
-    /// motivo para marcar que no es desbordamiento sino **ausencia de
-    /// resultado**: dividir por cero.
-    ///
     /// @param a Dividendo.
     /// @param b Divisor.
-    /// @return El cociente, con politica `checked`. Marcado si `b` es cero o si
-    ///         la division desborda.
-    /// @note **No lanza**, al reves que `operator/`. Es la diferencia entre las
-    ///       dos puertas: el operador considera la division por cero un error de
-    ///       programacion (ADR-004) y lanza `std::domain_error`; esta funcion la
-    ///       considera un resultado esperable y la marca.
-    template <std::size_t N, signedness Sign, representation_form Form>
+    /// @return El cociente, con politica `checked`.
+    /// @note Acepta operandos de cualquier politica; la marca se hereda.
+    /// @note **No lanza** aunque `b` sea cero: marca. Es la diferencia con
+    ///       `operator/`, y la razon de que exista.
+    template <std::size_t N, signedness Sign, representation_form Form,
+              overflow_policy Policy = overflow_policy::wrap>
     [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::checked>
-    checked_div(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
-                const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
+    checked_div(const fixed_int_t<N, Sign, Form, Policy> &a,
+                const fixed_int_t<N, Sign, Form, Policy> &b) noexcept
     {
         using W = fixed_int_t<N, Sign, Form, overflow_policy::wrap>;
         using C = fixed_int_t<N, Sign, Form, overflow_policy::checked>;
 
+        // El calculo se hace sin marca, para que un operando ya marcado no se
+        // confunda con un desbordamiento de ESTA division; la marca previa se
+        // vuelve a unir al final.
+        const W wa{a};
+        const W wb{b};
+        const C heredada = (C{a} - C{a}) + (C{b} - C{b}); // cero, con las marcas
+
         // Dividir por cero no desborda: NO TIENE RESULTADO. Se marca, y el valor
         // que queda dentro es cero porque cualquier otro seria igual de
         // arbitrario.
-        if (b.is_zero())
+        if (wb.is_zero())
             return C::invalido();
 
         if constexpr (Sign == signedness::signed_type)
@@ -5662,67 +5744,87 @@ namespace nstd
             // min() / -1 es el unico desbordamiento de la division entera: el
             // cociente seria -min(), que no es representable. Se marca dejando
             // dentro el valor envuelto, que es lo que ADR-009 pide conservar.
-            if (a == W::min() && b == -W::one())
-                return C::invalido(con_comprobacion(W::divmod(a, b).first));
+            if (wa == W::min() && wb == -W::one())
+                return C::invalido(con_comprobacion(W::divmod(wa, wb).first));
         }
-        return con_comprobacion(W::divmod(a, b).first);
+        return con_comprobacion(W::divmod(wa, wb).first) + heredada;
     }
 
     /// @brief Suma saturada: se pega a `max()` o a `min()` en vez de envolver.
     /// @param a Primer sumando.
     /// @param b Segundo sumando.
-    /// @return La suma, o el extremo hacia el que se desbordo.
-    template <std::size_t N, signedness Sign, representation_form Form>
-    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::wrap>
-    saturating_add(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
-                   const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
+    /// @return La suma, o el extremo hacia el que se desbordo, **con la misma
+    ///         politica que los operandos**.
+    /// @note Con `checked`, saturar **no limpia** una marca previa. Ver la nota
+    ///       larga al principio de esta seccion.
+    template <std::size_t N, signedness Sign, representation_form Form,
+              overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    saturating_add(const fixed_int_t<N, Sign, Form, Policy> &a,
+                   const fixed_int_t<N, Sign, Form, Policy> &b) noexcept
     {
         using W = fixed_int_t<N, Sign, Form, overflow_policy::wrap>;
-        const auto r = checked_add(a, b);
+        const W wa{a};
+        const W wb{b};
+        const auto r = checked_add(wa, wb);
+        W valor{};
         if (r.valid())
-            return descartar_marca(r);
-        if constexpr (Sign == signedness::unsigned_type)
-            return W::max(); // sin signo solo se puede desbordar por arriba
+            valor = descartar_marca(r);
+        else if constexpr (Sign == signedness::unsigned_type)
+            valor = W::max(); // sin signo solo se puede desbordar por arriba
         else
-            return a.is_negative() ? W::min() : W::max();
+            valor = wa.is_negative() ? W::min() : W::max();
+        return detail::con_marca_heredada(valor, a, b);
     }
 
     /// @brief Resta saturada.
     /// @param a Minuendo.
     /// @param b Sustraendo.
     /// @return La diferencia, o el extremo hacia el que se desbordo.
-    template <std::size_t N, signedness Sign, representation_form Form>
-    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::wrap>
-    saturating_sub(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
-                   const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
+    /// @note Con `checked`, saturar no limpia una marca previa.
+    template <std::size_t N, signedness Sign, representation_form Form,
+              overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    saturating_sub(const fixed_int_t<N, Sign, Form, Policy> &a,
+                   const fixed_int_t<N, Sign, Form, Policy> &b) noexcept
     {
         using W = fixed_int_t<N, Sign, Form, overflow_policy::wrap>;
-        const auto r = checked_sub(a, b);
+        const W wa{a};
+        const W wb{b};
+        const auto r = checked_sub(wa, wb);
+        W valor{};
         if (r.valid())
-            return descartar_marca(r);
-        if constexpr (Sign == signedness::unsigned_type)
-            return W{}; // sin signo solo se puede desbordar por abajo: cero
+            valor = descartar_marca(r);
+        else if constexpr (Sign == signedness::unsigned_type)
+            valor = W{}; // sin signo solo se puede desbordar por abajo: cero
         else
-            return a.is_negative() ? W::min() : W::max();
+            valor = wa.is_negative() ? W::min() : W::max();
+        return detail::con_marca_heredada(valor, a, b);
     }
 
     /// @brief Producto saturado.
     /// @param a Primer factor.
     /// @param b Segundo factor.
     /// @return El producto, o el extremo hacia el que se desbordo.
-    template <std::size_t N, signedness Sign, representation_form Form>
-    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, overflow_policy::wrap>
-    saturating_mul(const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &a,
-                   const fixed_int_t<N, Sign, Form, overflow_policy::wrap> &b) noexcept
+    /// @note Con `checked`, saturar no limpia una marca previa.
+    template <std::size_t N, signedness Sign, representation_form Form,
+              overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    saturating_mul(const fixed_int_t<N, Sign, Form, Policy> &a,
+                   const fixed_int_t<N, Sign, Form, Policy> &b) noexcept
     {
         using W = fixed_int_t<N, Sign, Form, overflow_policy::wrap>;
-        const auto r = checked_mul(a, b);
+        const W wa{a};
+        const W wb{b};
+        const auto r = checked_mul(wa, wb);
+        W valor{};
         if (r.valid())
-            return descartar_marca(r);
-        if constexpr (Sign == signedness::unsigned_type)
-            return W::max();
+            valor = descartar_marca(r);
+        else if constexpr (Sign == signedness::unsigned_type)
+            valor = W::max();
         else
-            return (a.is_negative() != b.is_negative()) ? W::min() : W::max();
+            valor = (wa.is_negative() != wb.is_negative()) ? W::min() : W::max();
+        return detail::con_marca_heredada(valor, a, b);
     }
 
     /// @}

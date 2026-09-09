@@ -206,8 +206,8 @@ Generado con `gcc` (g++.exe (Rev3, Built by MSYS2 project) 16.2.0).
 |  | `pow` | sí | sí | sí | sí |
 |  | `sqrt` | sí | sí | n/a | n/a |
 |  | `gcd / lcm` | sí | sí | sí | sí |
-|  | `checked_add / sub / mul` | sí | n/a | sí | n/a |
-|  | `saturating_add / sub / mul` | sí | n/a | sí | n/a |
+|  | `checked_add / sub / mul` | sí | sí | sí | sí |
+|  | `saturating_add / sub / mul` | sí | sí | sí | sí |
 | **Bits** | `rotl / rotr` | sí | sí | sí | sí |
 |  | `nombres de <bit>` | sí | sí | sí | sí |
 |  | `is_power_of_2` | sí | sí | sí | sí |
