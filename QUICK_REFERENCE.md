@@ -6,7 +6,7 @@ enlaza a donde se decide de verdad.
 ## Tipos
 
 ```cpp
-#include "fixed_width_int_t.hpp"          // nstd::fixed_int_t<N, Sign, Form>
+#include "fixed_width_int_t.hpp"          // nstd::fixed_int_t<N, Sign, Form, Policy>
 ```
 
 | Alias | Bits | | Alias | Bits |
@@ -17,6 +17,14 @@ enlaza a donde se decide de verdad.
 | `uint512_fixed_t` | 512 | | `int512_fixed_t` | 512 |
 
 Genéricos: `uint_fixed_t<N>` e `int_fixed_t<N>`, con N limbos de 64 bits.
+
+El cuarto parámetro es la **política de desbordamiento**: `wrap` (por defecto,
+envuelve en silencio) o `checked` (marca el valor; `valid()` lo dice). Se pone
+como segundo argumento de los alias: `uint_fixed_t<2, overflow_policy::checked>`.
+`saturate` y `trap` están declaradas pero **no escritas**, y no compilan.
+
+Qué capacidad funciona con qué combinación:
+[`docs/MATRIZ_DE_PARIDAD.md`](docs/MATRIZ_DE_PARIDAD.md).
 
 ## Operaciones
 
@@ -79,6 +87,13 @@ python scripts/check_docs_consistency.py --doxygen
 clang-format-21 --dry-run --Werror <ficheros>      # OJO: la versión 21
 ```
 
+Y si has tocado `fixed_width_int_t.hpp` o algún `fixed_int_*.hpp`, uno más
+—este no está en el CI—:
+
+```bash
+python scripts/check_matriz_paridad.py --escribe-doc
+```
+
 Detalle: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 
 ## Tres cosas que muerden
@@ -99,6 +114,7 @@ Detalle: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 | Decisiones y su porqué | [`docs/decisions/`](docs/decisions/README.md) |
 | Cómo se construye | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | API y semántica | [`docs/`](docs/) |
+| Qué funciona con qué política | [`docs/MATRIZ_DE_PARIDAD.md`](docs/MATRIZ_DE_PARIDAD.md) |
 | Rendimiento | [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) |
 | Convenciones | [`NAMING_CONVENTIONS.md`](NAMING_CONVENTIONS.md) · [`STYLE_CONVENTIONS.md`](STYLE_CONVENTIONS.md) |
 | Guía de desarrollo | [`AI-GUIDE.md`](AI-GUIDE.md) |

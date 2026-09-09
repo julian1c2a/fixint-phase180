@@ -33,6 +33,7 @@ cuestiones abiertas**: se está escribiendo. De P1 van cerradas P1.1 a P1.4 y
 | `scripts/check_headers_selfcontained.py` | **31/31** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
 | `clang-format --dry-run --Werror`, 104 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
 | `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
+| `scripts/check_matriz_paridad.py` | **170/170 celdas**, todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
 | Avisos de cobertura de Doxygen desde `include/` | **499** (local, doxygen 1.18.0) · **518** (CI, doxygen 1.9.8) |
 
 > **La cifra de Doxygen no ha empeorado: antes no se medía.** Hasta el 25 ago el

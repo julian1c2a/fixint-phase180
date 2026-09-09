@@ -68,3 +68,19 @@ representación, y `binnat` **no tiene especialización de
 El primero lo cierra [ADR-011](ADR-011-sin-signo-equivale-a-binnat.md), que al
 hacerlo deja definido el contenido del segundo. Es el argumento a favor de
 escribir los ADR viejos: no son arqueología, destapan trabajo real.
+
+### Los ADR que abren columnas en la matriz de paridad
+
+Tres de estas decisiones no solo dicen qué hace el tipo: **dicen cuántas
+combinaciones hay que comprobar**, y por tanto el tamaño de
+[`../MATRIZ_DE_PARIDAD.md`](../MATRIZ_DE_PARIDAD.md).
+
+| ADR | Qué hace con la superficie |
+|---|---|
+| [ADR-005](ADR-005-representacion-como-parametro-de-plantilla.md) | La representación es un parámetro: nace el eje `Form` |
+| [ADR-011](ADR-011-sin-signo-equivale-a-binnat.md) | **Reduce** ocho combinaciones a cuatro: ata `Form` al signo. Por eso hoy `Form` no es un eje independiente en la matriz |
+| [ADR-009](ADR-009-almacenamiento-de-la-marca-y-operaciones-checked.md) | Declara los cuatro valores de `overflow_policy` aunque solo dos estén escritos. Las dos que faltan son **dos columnas futuras**, y el guion vigila que sigan sin compilar |
+
+La regla que sale de esto: **una decisión que añade un valor a un `enum` de
+plantilla no está terminada hasta que la matriz tiene su columna**, aunque nazca
+en rojo.

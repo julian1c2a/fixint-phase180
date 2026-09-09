@@ -13,7 +13,7 @@ Para lo ya publicado, [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Dónde estamos
 
-**v1.90.1** — auditoría completa. El tipo `fixed_int_t<N, Sign, Form>` está
+**v1.90.1** — auditoría completa. El tipo `fixed_int_t<N, Sign, Form, Policy>` está
 terminado como entero de N × 64 bits: aritmética modular completa y `constexpr`
 —división y módulo incluidos—, interoperabilidad signed/unsigned al estilo de
 los enteros built-in, integración con iostreams, `std::format` y `std::hash`, y
@@ -127,3 +127,20 @@ su prioridad razonada, está en
 La regla para no repetir el desfase: **esta sección no lista tareas**. Las tareas
 viven en `NEXT_STEPS.md`, que es corto y se revisa cada sesión; aquí solo se
 apunta lo que cambia el plan a largo.
+
+### Lo que cada etapa nueva le cuesta a la matriz de paridad
+
+Sí cambia el plan a largo, y por eso está aquí: **cada parámetro de plantilla
+nuevo, o cada valor nuevo en uno existente, multiplica la superficie que hay
+que comprobar.** Hoy son 42 capacidades × 4 celdas; ver
+[`docs/MATRIZ_DE_PARIDAD.md`](docs/MATRIZ_DE_PARIDAD.md).
+
+| Lo que viene | Qué le hace a la matriz |
+|---|---|
+| Escribir `saturate` y `trap` (declaradas desde P1.1, [ADR-009](docs/decisions/ADR-009-almacenamiento-de-la-marca-y-operaciones-checked.md)) | **De 4 a 8 celdas.** El guion ya vigila que sigan sin compilar: el día que se escriban, falla y obliga a abrirlas |
+| Magnitud-Signo y Exceso-K (P1.5 tramo 3) | `Form` deja de estar atado al signo por [ADR-011](docs/decisions/ADR-011-sin-signo-equivale-a-binnat.md), y pasa a ser un eje propio |
+| Punto fijo (etapa 5, P1.6) | Tipo nuevo, matriz propia; el patrón se hereda |
+
+La cuenta no es lineal, y conviene tenerlo presente al decidir el orden de las
+etapas: escribir `saturate` y portar MS/EK a la vez no duplica el trabajo de
+comprobación, lo cuadruplica.

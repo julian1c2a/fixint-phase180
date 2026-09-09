@@ -26,6 +26,38 @@ son fallos que aparecieron al ir a comprobarlo.
   especializar, y el `static_assert` de la clase separado en dos: el que es LEY
   ([ADR-011]) y el que es TAREA PENDIENTE.
 
+### La suite dejaba 68 ficheros .obj y 29 MB en la raiz del repositorio
+
+El comando de MSVC e Intel ponia `/Fe:` --el ejecutable-- pero **no `/Fo:`**, asi
+que `cl` escribia el objeto intermedio en el directorio ACTUAL, que es la raiz.
+Una pasada de la suite dejaba ahi 68 ficheros.
+
+Se le ha escapado a todo el mundo porque `.gitignore` los cubre: `git status`
+salia limpio y el arbol parecia estar bien. Anadidos `/Fo:` y `/Fd:` --este para
+el `.pdb` de los modos debug, que si no cae como `vc140.pdb` en la raiz-- con la
+barra final que le dice a `cl` que es un directorio y no un nombre de fichero;
+sin ella todas las unidades escribirian sobre el mismo objeto.
+
+Verificado con una pasada entera de MSVC: 60/60, cero `.obj` en la raiz, y ahora
+caen en `build/build_tests/msvc/release-O2/`.
+
+### La matriz de paridad, entretejida con el resto de documentos
+
+Diez documentos apuntan ya a ella, cada uno desde donde le toca:
+
+| Documento | Que dice |
+|---|---|
+| `README` y `QUICK_REFERENCE` | Fila en el mapa de documentos; y la chuleta explica por fin el CUARTO parametro, que seguia diciendo `fixed_int_t<N, Sign, Form>` |
+| `CONTRIBUTING` | El **quinto** verificador, condicionado a haber tocado el tipo, y avisando de que **no esta en el CI** |
+| `AI-GUIDE` | Paso 9 de `ACTUALIZA_DOC` |
+| `ROADMAP` | Lo que cada etapa futura le CUESTA a la matriz: escribir `saturate` la lleva de 4 a 8 celdas, y portar MS/EK convierte `Form` en eje propio. Las dos a la vez no duplican el trabajo, lo cuadruplican |
+| `docs/decisions/README` | Los tres ADR que **abren o cierran columnas** (005, 011 y 009), con la regla de que una decision que anade un valor a un enum de plantilla no esta terminada hasta que la matriz tiene su columna |
+| `docs/API_fixed_int` | Que capacidad NO vale para las cuatro celdas, y por que |
+| `NEXT_STEPS` y `PROJECT_STATUS` | Las tablas de estado y de verificacion |
+
+Se escribe siempre **matriz de paridad**, entera: `NEXT_STEPS` ya usaba "matriz"
+para la del CI (compiladores x arquitecturas) y son cosas distintas.
+
 ### Siete sitios publicos se habian quedado con TRES parametros de plantilla
 
 P1.1 anadio `overflow_policy` como cuarto parametro. Siete sitios publicos no se

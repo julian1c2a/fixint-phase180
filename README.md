@@ -130,6 +130,7 @@ Para código nuevo, usar `fixed_int_t` y sus alias.
 | Historia de todo lo hecho | [`CHANGELOG.md`](CHANGELOG.md) |
 | Decisiones y su porqué | [`docs/decisions/`](docs/decisions/README.md) |
 | Referencia de la API | [`docs/`](docs/) — 19 documentos estilo cppreference |
+| Qué funciona con qué combinación de parámetros | [`docs/MATRIZ_DE_PARIDAD.md`](docs/MATRIZ_DE_PARIDAD.md) — generada compilando, no a mano |
 | Cifras de rendimiento | [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) |
 | Convenciones de código | [`STYLE_CONVENTIONS.md`](STYLE_CONVENTIONS.md) · [`NAMING_CONVENTIONS.md`](NAMING_CONVENTIONS.md) |
 | Guía de desarrollo completa | [`AI-GUIDE.md`](AI-GUIDE.md) |

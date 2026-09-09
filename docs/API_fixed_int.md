@@ -574,6 +574,20 @@ La politica **se conserva** en el resultado, incluso cuando cambia el signo
 
 ---
 
+## Qué funciona con qué combinación de parámetros
+
+No a mano: [`MATRIZ_DE_PARIDAD.md`](MATRIZ_DE_PARIDAD.md) la genera compilando
+una sonda por celda. 42 capacidades × 4 combinaciones de signo y política.
+
+Lo que hoy **no** vale para las cuatro:
+
+| Capacidad | Dónde vale | Por qué |
+|---|---|---|
+| `sqrt`, `midpoint`, `abs_diff`, `ilog2` | solo sin signo | Su definición es sobre naturales |
+| las siete `checked_*` y `saturating_*` | solo con `wrap` | **Sin decidir** si es hueco o diseño; ver la matriz |
+
+---
+
 ## Related Headers
 
 | Header | Provides |

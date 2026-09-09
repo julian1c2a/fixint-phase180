@@ -81,6 +81,27 @@ clang-format-21 --dry-run --Werror <ficheros>   # 4. formato
 entre versiones mayores — la 19 y la 22 reformatean este árbol de maneras
 distintas. Está explicado en la cabecera de [`.clang-format`](.clang-format).
 
+### Y un quinto, si has tocado el tipo
+
+```bash
+python scripts/check_matriz_paridad.py --escribe-doc   # 5. si tocaste la clase
+```
+
+**Este no lo ejecuta el CI**, y por eso hay que acordarse: comprueba que cada
+capacidad pública sigue compilando en **cada combinación de parámetros de
+plantilla**, no solo en la de por defecto.
+
+Correrlo cuando el cambio toque `include/fixed_width_int_t.hpp` o cualquiera de
+los `include/fixed_int_*.hpp`. Tarda unos minutos: son 170 compilaciones de
+sintaxis, en paralelo.
+
+La razón de que exista está medida: P1.1 añadió el cuarto parámetro de
+plantilla y **siete sitios públicos se quedaron con tres** —`std::formatter`,
+los dos operadores de iostreams, el constructor de conversión y tres más—. Con
+un tipo `checked` no compilaba ni `std::cout << x`, y **los cuatro
+verificadores de arriba pasaban**, porque la suite probaba solo la política por
+defecto. Ver [`docs/MATRIZ_DE_PARIDAD.md`](docs/MATRIZ_DE_PARIDAD.md).
+
 Y además:
 
 - **Ningún warning nuevo** con `-Wall -Wextra`.
