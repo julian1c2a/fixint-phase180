@@ -83,6 +83,7 @@ Estado a 24 ago 2026. Es el trabajo que implica esta decisión.
 | `rotl`, `rotr`, `is_power_of_2` y los nombres de `<bit>` (`countl_zero`, `countr_zero`, `popcount`, `bit_width`) | `int128_param_bits.hpp` | `fixed_width_int_t.hpp` (P1.5) |
 | `min`, `max`, `clamp`, `midpoint`, `abs_diff`, `abs` libres | `int128_param_cmath.hpp` | `fixed_width_int_t.hpp` (P1.5) |
 | `ilog2`, `factorial`, `is_even`, `is_odd`, `sign`, `divmod` libre; `isqrt` ya existía como `sqrt` | `int128_param_numeric.hpp` | `fixed_width_int_t.hpp` (P1.5) |
+| `mulhi` (sin signo y con signo) y `mullo`; `widening_mul` ya existía como `mul_wide` | `int128_param_arithmetic.hpp` | `fixed_width_int_t.hpp` (P1.5 tramo 2) |
 
 ### Pendiente
 
@@ -91,9 +92,8 @@ existen en `fixed_int_t` bajo otro nombre no cuentan como hueco—:
 
 | Origen | Qué falta en `fixed_int_t` |
 |---|---|
-| `int128_param_arithmetic.hpp` | `mulhi`, `mullo`, `widening_mul` (`mul_wide` cubre parte) |
-| `int128_param_algorithm.hpp` | adaptadores de `<algorithm>`: `accumulate`, `find`, `min_element`… |
-| `int128_param_ranges.hpp` | soporte de ranges, generadores de secuencias, `sum`, `product`, estadísticos |
+| `int128_param_algorithm.hpp` | **Decisión pendiente, ver abajo.** Sus 10 funciones son clones literales de `<algorithm>` restringidos al tipo |
+| `int128_param_ranges.hpp` | **Parcialmente en la misma decisión.** `range_stats`/`calculate_stats` y los tres generadores de secuencias no están en `std::`; `iota`, `transform`, `copy_if`, `count_if`, `reduce`, `sum` y `product` sí |
 | `int128_param_thread_safety.hpp` | `atomic_*` y el envoltorio atómico |
 | `int128_param_divmod.hpp` | `div<D>` / `mod<D>` / `divmod_const<D>` por divisor constante (Granlund-Montgomery) |
 | `representation.hpp` | **las representaciones MS y EK** como `representation_form` de `fixed_int_t` |
@@ -109,13 +109,53 @@ La única que se decidió **no** portar es `power`, alias de `pow` que existía 
 consistencia con phase166". Esa consistencia es justo la capa que este ADR
 retira.
 
-Van cuatro de once. Las tres que cerró P1.5 --bits, cmath y numeric-- eran las
+Van cinco de once. Las tres que cerró P1.5 --bits, cmath y numeric-- eran las
 más independientes: no tocan el núcleo del tipo ni la representación, así que se
 podían portar y comprobar por separado. Lo que queda va de menos a más acoplado,
 y el último punto es el de más peso: `fixed_int_t` tiene hoy un `static_assert`
 que solo admite `binnat` sin signo y complemento a dos con signo. Portar MS y EK
 significa generalizarlo y revisar cada operación que hoy asume complemento a
 dos.
+
+## Decisión pendiente: los clones de `<algorithm>`
+
+Auditados función por función el 9 sep 2026, al portar el tramo 2.
+
+`int128_param_algorithm.hpp` tiene diez funciones --`fill`, `fill_n`, `reverse`,
+`find`, `all_of`, `any_of`, `none_of`, `min_element`, `max_element`,
+`accumulate`-- que son **copias literales** de las de `<algorithm>` y
+`<numeric>`, restringidas al tipo por el parámetro del valor. `nstd::fill` es
+`std::fill` con el mismo cuerpo. No aportan una especialización más rápida ni un
+comportamiento distinto.
+
+En `int128_param_ranges.hpp` pasa con una parte: `iota`, `transform`, `copy_if`,
+`count_if`, `find_first_if`, `reduce`, `sum` y `product` están en `std::` o son
+un `std::reduce` con el `init` puesto. Lo que **no** está en `std::` son
+`range_stats` / `calculate_stats` (mínimo, máximo, media y recorrido de una
+pasada) y los tres generadores de secuencias --aritmética, geométrica y potencias
+de dos--.
+
+**Lo que se comprobó y resultó falso:** la sospecha de que tener
+`nstd::fill` junto a `std::fill` crearía ambigüedad al resolver por ADL. No la
+crea: la sobrecarga más especializada gana, y se verificó compilando el caso
+(`using std::fill;` y llamada sin cualificar sobre un `vector<fixed_int_t>`).
+Así que **no hay un argumento de corrección** en contra de portarlas; el
+argumento es de coste y de duplicación.
+
+Las tres salidas:
+
+| | Qué implica |
+|---|---|
+| **(a) No portar los clones** | Se retiran con el header. `std::` ya los cubre y `fixed_int_t` cumple los requisitos de iterador y de comparación que piden. Se portan solo `range_stats`, `calculate_stats` y los tres generadores. Menos código que documentar y mantener |
+| **(b) Portarlos todos** | Paridad literal: nada de lo que hoy compila contra `int128_param_t` deja de compilar al cambiar de tipo. Son ~24 funciones más que escribir, documentar y probar, que hacen lo mismo que `std::` |
+| **(c) Portarlos como alias finos** | `nstd::fill(...)` reenvía a `std::fill(...)`. Conserva el nombre sin duplicar la lógica, pero deja igualmente 24 nombres en la API |
+
+**Recomendación: (a)**, y decirlo en la guía de migración: donde había
+`nstd::fill` sobre `int128_param_t`, va `std::fill` sobre `fixed_int_t`. El
+motivo de que existieran es que `int128_param_t` es anterior a que el tipo
+cumpliera los requisitos de `std::`, y eso ya no es cierto.
+
+No está decidido. Mientras no lo esté, las dos filas siguen en «pendiente».
 
 ## Consecuencias
 

@@ -704,9 +704,21 @@ namespace nstd
         ///   enteros del lenguaje. Puede cambiar el valor, y no avisa.
         ///
         /// @param o Valor de partida.
-        template <std::size_t M, signedness S2, representation_form F2,
-                  typename = std::enable_if_t<(M != N || S2 != Sign || F2 != Form)>>
-        explicit constexpr fixed_int_t(const fixed_int_t<M, S2, F2> &o) noexcept : data{}
+        ///
+        /// @note **La politica tambien puede cambiar.** Antes de P1.5 este
+        ///       constructor tomaba `fixed_int_t<M, S2, F2>` --tres parametros--
+        ///       es decir, solo origenes con la politica por defecto. Con eso,
+        ///       `uint_fixed_t<N, checked>{int_fixed_t<N, checked>}` no
+        ///       compilaba, y con ello se caia la division con signo de un tipo
+        ///       `checked`, que la usa por dentro.
+        ///
+        /// @note Si **los dos** son `checked` y el origen esta marcado, el
+        ///       destino sale marcado: una conversion no limpia un valor que ya
+        ///       era invalido. Al convertir a `wrap` la marca se pierde, que es
+        ///       lo que se esta pidiendo al elegir `wrap`.
+        template <std::size_t M, signedness S2, representation_form F2, overflow_policy P2,
+                  typename = std::enable_if_t<(M != N || S2 != Sign || F2 != Form || P2 != Policy)>>
+        explicit constexpr fixed_int_t(const fixed_int_t<M, S2, F2, P2> &o) noexcept : data{}
         {
             constexpr std::size_t copy = M < N ? M : N;
             for (std::size_t i{0}; i < copy; ++i)
@@ -716,6 +728,12 @@ namespace nstd
             const std::uint64_t fill = src_neg ? ~std::uint64_t{0} : std::uint64_t{0};
             for (std::size_t i{M}; i < N; ++i)
                 data[i] = fill;
+
+            if constexpr (Policy == overflow_policy::checked && P2 == overflow_policy::checked)
+            {
+                if (!o.valid())
+                    estado = std::uint64_t{1};
+            }
         }
 
         // Construccion desde punto flotante.
@@ -2005,7 +2023,7 @@ namespace nstd
             {
                 const bool a_neg = a.is_negative();
                 const bool b_neg = b.is_negative();
-                using U = uint_fixed_t<N>;
+                using U = uint_fixed_t<N, Policy>;
                 const U ua = a_neg ? U{-a} : U{a};
                 const U ub = b_neg ? U{-b} : U{b};
                 const auto [uq, ur] = U::divmod(ua, ub);
@@ -2597,7 +2615,7 @@ namespace nstd
             }
 
             const uint_fixed_t<N, Policy> cb{chunk_base};
-            uint_fixed_t<N> tmp{mag};
+            uint_fixed_t<N, Policy> tmp{mag};
             std::string rev; // digitos en orden inverso
             rev.reserve(64U * N + 1U);
 
@@ -2693,7 +2711,7 @@ namespace nstd
         ///         grande se truncaba en silencio.
         [[nodiscard]] static parse_result<fixed_int_t> try_from_string(const char *s, int base = 10) noexcept
         {
-            using U = uint_fixed_t<N>;
+            using U = uint_fixed_t<N, Policy>;
 
             if (base != 0 && (base < 2 || base > 36))
                 return {parse_error::invalid_base, fixed_int_t{}, 0};
@@ -3514,8 +3532,8 @@ namespace nstd
     {
     };
 
-    template <std::size_t N, representation_form F>
-    struct is_unsigned_fixed_int<fixed_int_t<N, signedness::unsigned_type, F>> : std::true_type
+    template <std::size_t N, representation_form F, overflow_policy P>
+    struct is_unsigned_fixed_int<fixed_int_t<N, signedness::unsigned_type, F, P>> : std::true_type
     {
     };
 
@@ -4968,6 +4986,19 @@ namespace nstd
     // =========================================================================
     // Higher arithmetic — mul_wide, pow, sqrt, gcd, lcm, checked_*
     // =========================================================================
+    //
+    // P1.5 tramo 2 (2a): estas nueve firmas estaban escritas sobre
+    // `uint_fixed_t<N>` / `int_fixed_t<N>`, es decir, con la politica FIJADA a
+    // la de por defecto. Con un tipo `checked` no compilaban: `gcd(a, b)` sobre
+    // `uint_fixed_t<2, overflow_policy::checked>` daba "no matching function".
+    //
+    // Ahora llevan `Policy`, que es DEDUCIBLE del argumento --los alias de
+    // plantilla son transparentes-- asi que ninguna llamada existente cambia y
+    // el valor por defecto solo actua cuando se dan los parametros a mano.
+    //
+    // La politica se CONSERVA en el resultado, incluso cuando cambia el signo
+    // (`gcd` y `lcm` con signo devuelven sin signo), que es lo mismo que hacen
+    // `make_signed`/`make_unsigned` por ADR-008.
 
     /// @brief Producto **sin perder bits**: `N x N -> 2N` limbos.
     ///
@@ -4978,22 +5009,22 @@ namespace nstd
     /// @param a Primer factor.
     /// @param b Segundo factor.
     /// @return El producto exacto, en `uint_fixed_t<2 * N>`.
-    template <std::size_t N>
-    [[nodiscard]] constexpr uint_fixed_t<2 * N> mul_wide(const uint_fixed_t<N> &a,
-                                                         const uint_fixed_t<N> &b) noexcept
+    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr uint_fixed_t<2 * N, Policy> mul_wide(const uint_fixed_t<N, Policy> &a,
+                                                                 const uint_fixed_t<N, Policy> &b) noexcept
     {
-        return uint_fixed_t<2 * N>{a} * uint_fixed_t<2 * N>{b};
+        return uint_fixed_t<2 * N, Policy>{a} * uint_fixed_t<2 * N, Policy>{b};
     }
 
     /// @brief Producto con signo sin perder bits: `N x N -> 2N` limbos.
     /// @param a Primer factor.
     /// @param b Segundo factor.
     /// @return El producto exacto, en `int_fixed_t<2 * N>`.
-    template <std::size_t N>
-    [[nodiscard]] constexpr int_fixed_t<2 * N> mul_wide(const int_fixed_t<N> &a,
-                                                        const int_fixed_t<N> &b) noexcept
+    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr int_fixed_t<2 * N, Policy> mul_wide(const int_fixed_t<N, Policy> &a,
+                                                                const int_fixed_t<N, Policy> &b) noexcept
     {
-        return int_fixed_t<2 * N>{a} * int_fixed_t<2 * N>{b};
+        return int_fixed_t<2 * N, Policy>{a} * int_fixed_t<2 * N, Policy>{b};
     }
 
     /// @brief Potencia por cuadrados repetidos, **modular**.
@@ -5006,10 +5037,11 @@ namespace nstd
     ///
     /// `pow(x, 0)` es 1, incluido `pow(0, 0)`, que es la convencion habitual.
     /// El coste es logaritmico en el exponente, no lineal.
-    template <std::size_t N>
-    [[nodiscard]] constexpr uint_fixed_t<N> pow(uint_fixed_t<N> base, uint_fixed_t<N> exp) noexcept
+    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr uint_fixed_t<N, Policy> pow(uint_fixed_t<N, Policy> base,
+                                                        uint_fixed_t<N, Policy> exp) noexcept
     {
-        uint_fixed_t<N> result = uint_fixed_t<N>::one();
+        uint_fixed_t<N, Policy> result = uint_fixed_t<N, Policy>::one();
         while (!exp.is_zero())
         {
             if (exp.limb(0) & std::uint64_t{1})
@@ -5028,10 +5060,11 @@ namespace nstd
     /// @param base Base, que puede ser negativa.
     /// @param exp  Exponente, sin signo.
     /// @return `base^exp` modulo 2^(64N), con el signo que corresponda.
-    template <std::size_t N>
-    [[nodiscard]] constexpr int_fixed_t<N> pow(int_fixed_t<N> base, uint_fixed_t<N> exp) noexcept
+    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr int_fixed_t<N, Policy> pow(int_fixed_t<N, Policy> base,
+                                                       uint_fixed_t<N, Policy> exp) noexcept
     {
-        int_fixed_t<N> result = int_fixed_t<N>::one();
+        int_fixed_t<N, Policy> result = int_fixed_t<N, Policy>::one();
         while (!exp.is_zero())
         {
             if (exp.limb(0) & std::uint64_t{1})
@@ -5052,16 +5085,16 @@ namespace nstd
     /// @warning **No es `noexcept`**: usa `operator/`, que lanza
     ///          `std::domain_error` si el divisor es cero. No puede ocurrir con
     ///          la iteracion de aqui, pero la firma lo arrastra.
-    template <std::size_t N>
-    [[nodiscard]] constexpr uint_fixed_t<N> sqrt(const uint_fixed_t<N> &x)
+    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr uint_fixed_t<N, Policy> sqrt(const uint_fixed_t<N, Policy> &x)
     {
         if (x.is_zero())
-            return uint_fixed_t<N>{};
+            return uint_fixed_t<N, Policy>{};
         const unsigned bw = x.bit_width();
-        uint_fixed_t<N> r = uint_fixed_t<N>::one() << ((bw + 1) / 2);
+        uint_fixed_t<N, Policy> r = uint_fixed_t<N, Policy>::one() << ((bw + 1) / 2);
         for (;;)
         {
-            const uint_fixed_t<N> nr = (r + x / r) >> 1;
+            const uint_fixed_t<N, Policy> nr = (r + x / r) >> 1;
             if (nr >= r)
                 break;
             r = nr;
@@ -5078,8 +5111,9 @@ namespace nstd
     /// @param a Primer operando.
     /// @param b Segundo operando.
     /// @return `gcd(a, b)`; `gcd(x, 0)` es `x`, y `gcd(0, 0)` es 0.
-    template <std::size_t N>
-    [[nodiscard]] constexpr uint_fixed_t<N> gcd(uint_fixed_t<N> a, uint_fixed_t<N> b) noexcept
+    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr uint_fixed_t<N, Policy> gcd(uint_fixed_t<N, Policy> a,
+                                                        uint_fixed_t<N, Policy> b) noexcept
     {
         if (a.is_zero())
             return b;
@@ -5094,7 +5128,7 @@ namespace nstd
         {
             if (a < b)
             {
-                uint_fixed_t<N> t = a;
+                uint_fixed_t<N, Policy> t = a;
                 a = b;
                 b = t;
             }
@@ -5111,11 +5145,12 @@ namespace nstd
     /// @param b Segundo operando, con signo.
     /// @return `gcd(|a|, |b|)`, **sin signo**: el mcd se define sobre los valores
     ///         absolutos y siempre es no negativo.
-    template <std::size_t N>
-    [[nodiscard]] constexpr uint_fixed_t<N> gcd(const int_fixed_t<N> &a, const int_fixed_t<N> &b) noexcept
+    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr uint_fixed_t<N, Policy> gcd(const int_fixed_t<N, Policy> &a,
+                                                        const int_fixed_t<N, Policy> &b) noexcept
     {
-        return gcd(a.is_negative() ? uint_fixed_t<N>{-a} : uint_fixed_t<N>{a},
-                   b.is_negative() ? uint_fixed_t<N>{-b} : uint_fixed_t<N>{b});
+        return gcd(a.is_negative() ? uint_fixed_t<N, Policy>{-a} : uint_fixed_t<N, Policy>{a},
+                   b.is_negative() ? uint_fixed_t<N, Policy>{-b} : uint_fixed_t<N, Policy>{b});
     }
 
     /// @brief Minimo comun multiplo.
@@ -5129,11 +5164,12 @@ namespace nstd
     /// @return `lcm(a, b)`; 0 si alguno de los dos es 0. Si el resultado no cabe
     ///         en `64 * N` bits **se envuelve**, sin aviso.
     /// @warning No es `noexcept`: usa `operator/`.
-    template <std::size_t N>
-    [[nodiscard]] constexpr uint_fixed_t<N> lcm(const uint_fixed_t<N> &a, const uint_fixed_t<N> &b)
+    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr uint_fixed_t<N, Policy> lcm(const uint_fixed_t<N, Policy> &a,
+                                                        const uint_fixed_t<N, Policy> &b)
     {
         if (a.is_zero() || b.is_zero())
-            return uint_fixed_t<N>{};
+            return uint_fixed_t<N, Policy>{};
         return a / gcd(a, b) * b;
     }
 
@@ -5142,13 +5178,90 @@ namespace nstd
     /// @param b Segundo operando, con signo.
     /// @return `lcm(|a|, |b|)`, sin signo.
     /// @warning No es `noexcept`: usa `operator/`.
-    template <std::size_t N>
-    [[nodiscard]] constexpr uint_fixed_t<N> lcm(const int_fixed_t<N> &a, const int_fixed_t<N> &b)
+    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr uint_fixed_t<N, Policy> lcm(const int_fixed_t<N, Policy> &a,
+                                                        const int_fixed_t<N, Policy> &b)
     {
-        const uint_fixed_t<N> ua = a.is_negative() ? uint_fixed_t<N>{-a} : uint_fixed_t<N>{a};
-        const uint_fixed_t<N> ub = b.is_negative() ? uint_fixed_t<N>{-b} : uint_fixed_t<N>{b};
+        const uint_fixed_t<N, Policy> ua =
+            a.is_negative() ? uint_fixed_t<N, Policy>{-a} : uint_fixed_t<N, Policy>{a};
+        const uint_fixed_t<N, Policy> ub =
+            b.is_negative() ? uint_fixed_t<N, Policy>{-b} : uint_fixed_t<N, Policy>{b};
         return lcm(ua, ub);
     }
+
+    // =========================================================================
+    // P1.5, tramo 2: `int128_param_arithmetic.hpp`
+    // =========================================================================
+    //
+    // De las tres que tenia ese header solo falta UNA de verdad:
+    //
+    // - `widening_mul(a, b)` es **exactamente** `mul_wide(a, b)`, que ya existe.
+    //   No se porta el nombre, por lo mismo que no se porto `power`: un segundo
+    //   nombre para la misma operacion es deuda recien estrenada. Quien venga de
+    //   `int128_param_t` busca `mul_wide`.
+    // - `mulhi(a, b)` NO existia: es la mitad ALTA del producto de doble
+    //   anchura, y no se puede sacar de `operator*`, que da la baja. Se porta.
+    // - `mullo(a, b)` es `operator*`. El header viejo ya decia que existia "por
+    //   simetria con mulhi", y esa razon se sostiene: en codigo generico las dos
+    //   van juntas, y escribir `mulhi(a,b)` al lado de `a*b` se lee peor que
+    //   `mulhi(a,b)` al lado de `mullo(a,b)`. Se porta.
+
+    /// @name Mitades alta y baja del producto
+    /// @{
+
+    /// @brief Mitad **alta** del producto de doble anchura.
+    /// @param a Primer factor. @param b Segundo factor.
+    /// @return Los `64*N` bits altos de `a * b`, o sea `(a * b) >> (64*N)`.
+    ///
+    /// @note Es lo que `operator*` **tira**. Junto a `mullo` reconstruye el
+    ///       producto exacto sin pasar por un tipo de doble anchura.
+    /// @note No lleva marca de desbordamiento aunque la politica sea `checked`:
+    ///       no hay tal cosa que desbordar, porque el resultado exacto se
+    ///       calcula en `2N` limbos y aqui solo se elige que mitad devolver.
+    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr uint_fixed_t<N, Policy> mulhi(const uint_fixed_t<N, Policy> &a,
+                                                          const uint_fixed_t<N, Policy> &b) noexcept
+    {
+        const uint_fixed_t<2 * N, Policy> ancho = mul_wide(a, b);
+        uint_fixed_t<N, Policy> r{};
+        for (std::size_t i = 0; i < N; ++i)
+            r.set_limb(i, ancho.limb(N + i));
+        return r;
+    }
+
+    /// @brief Mitad alta del producto con signo.
+    /// @param a Primer factor. @param b Segundo factor.
+    /// @return Los `64*N` bits altos del producto exacto con signo.
+    ///
+    /// @note El resultado se devuelve **con signo**: la mitad alta de un
+    ///       producto con signo lleva la extension de signo del producto
+    ///       completo, y leerla sin signo es justo el error que tenia
+    ///       `producto_desborda` antes de P1.3.
+    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr int_fixed_t<N, Policy> mulhi(const int_fixed_t<N, Policy> &a,
+                                                         const int_fixed_t<N, Policy> &b) noexcept
+    {
+        const int_fixed_t<2 * N, Policy> ancho = mul_wide(a, b);
+        int_fixed_t<N, Policy> r{};
+        for (std::size_t i = 0; i < N; ++i)
+            r.set_limb(i, ancho.limb(N + i));
+        return r;
+    }
+
+    /// @brief Mitad **baja** del producto. Es `a * b`.
+    /// @param a Primer factor. @param b Segundo factor.
+    /// @return `a * b` modulo `2^(64*N)`.
+    ///
+    /// @note Existe por simetria con `mulhi`, no porque anada nada a
+    ///       `operator*`. Con la politica `checked`, y a diferencia de `mulhi`,
+    ///       **si marca** si el producto no cabe: es `operator*`.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    mullo(const fixed_int_t<N, Sign, Form, Policy> &a, const fixed_int_t<N, Sign, Form, Policy> &b) noexcept
+    {
+        return a * b;
+    }
+    /// @}
 
     // =========================================================================
     // P1.5, tramo 1: bits, cmath y numeric de `int128_param_t`

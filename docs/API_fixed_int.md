@@ -519,10 +519,58 @@ int main()
 }
 ```
 
-> **Lo que todavia NO admite los cuatro parametros.** `pow`, `gcd` y `lcm` son
-> anteriores a P1.5 y estan escritas sobre `uint_fixed_t<N>` / `int_fixed_t<N>`,
-> que **fijan la politica por defecto**: con un tipo `checked` no compilan.
-> Generalizarlas esta en el tramo 2.
+## Funciones libres (P1.5 tramo 2)
+
+### `mulhi` y `mullo` — las dos mitades del producto
+
+| Funcion | Firma | Semantica | Coste |
+|---|---|---|---|
+| `mulhi` | `(const U& a, const U& b) -> U` | Los `64*N` bits **altos** de `a * b`. | Un `mul_wide` |
+| `mulhi` | `(const I& a, const I& b) -> I` | Idem con signo; el resultado sale **con signo**. | Un `mul_wide` |
+| `mullo` | `(const T& a, const T& b) -> T` | Los `64*N` bits **bajos**. Es `a * b`. | Un `operator*` |
+
+`mulhi` es lo que `operator*` **tira**: no se puede sacar del producto modular,
+hace falta el de doble anchura. Junto a `mullo` reconstruye el producto exacto
+sin declarar un tipo de `2N` limbos:
+
+```cpp
+using U = nstd::uint_fixed_t<2>;
+using W = nstd::uint_fixed_t<4>;
+constexpr U a = U::max(), b = U::max();
+static_assert((W{nstd::mulhi(a, b)} << 128U) + W{nstd::mullo(a, b)} == nstd::mul_wide(a, b));
+```
+
+Con signo, la mitad alta lleva la **extension de signo** del producto completo, y
+por eso se devuelve con signo: `mulhi(min(), 2)` es `-1`, porque
+`min() * 2 == -2^(64N)` y su mitad alta es `-1`, no `2^(64N) - 1`. Leerla sin
+signo es exactamente el error que tenia `producto_desborda` antes de P1.3.
+
+`mulhi` **no marca** con la politica `checked`, y `mullo` **si**. No es una
+inconsistencia: en `mulhi` el resultado exacto se calcula en `2N` limbos y solo
+se elige que mitad devolver, asi que no hay nada que desbordar; `mullo` es
+`operator*`, que es modular y por tanto puede perder bits.
+
+> **`widening_mul` no existe aqui**: es exactamente `mul_wide`, que ya estaba.
+> Igual que con `power`/`pow`, no se anade un segundo nombre para la misma
+> operacion. Quien venga de `int128_param_t` busca `mul_wide`.
+
+### La politica ya no bloquea: `pow`, `gcd`, `lcm`, `sqrt`, `mul_wide`
+
+Estas nueve firmas estaban escritas sobre `uint_fixed_t<N>` / `int_fixed_t<N>`,
+es decir, con la politica **fijada** a la de por defecto. Sobre un tipo
+`checked` daban «no matching function». Ahora llevan `Policy`, que es
+**deducible** del argumento, asi que ninguna llamada existente cambia:
+
+```cpp
+using C = nstd::uint_fixed_t<2, nstd::overflow_policy::checked>;
+static_assert(nstd::gcd(C{12u}, C{18u}) == C{6u});          // antes no compilaba
+static_assert(std::is_same_v<decltype(nstd::gcd(C{}, C{})), C>);
+```
+
+La politica **se conserva** en el resultado, incluso cuando cambia el signo
+--`gcd` y `lcm` con signo devuelven sin signo--, que es lo mismo que hacen
+`make_signed` y `make_unsigned` por
+[ADR-008](decisions/ADR-008-diseno-de-la-politica-de-desbordamiento.md).
 
 ---
 
@@ -546,6 +594,9 @@ See [API_fixed_int_traits.md](API_fixed_int_traits.md) for the complete referenc
 
 ## Version Notes
 
+- **phase-1.80 (P1.5 tramo 2)** — `mulhi` (con y sin signo) y `mullo`; y las
+  nueve firmas de `pow`/`gcd`/`lcm`/`sqrt`/`mul_wide` generalizadas al cuarto
+  parametro, que antes fijaban la politica por defecto.
 - **phase-1.80 (P1.5 tramo 1)** — 19 funciones libres portadas de
   `int128_param_{bits,cmath,numeric}.hpp`: `rotl`/`rotr`, los nombres de
   `<bit>`, `is_power_of_2`, `min`/`max`/`clamp`/`midpoint`/`abs_diff`/`abs`,

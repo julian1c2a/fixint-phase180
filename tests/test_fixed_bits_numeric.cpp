@@ -14,7 +14,7 @@
 //
 // =============================================================================
 // @file       test_fixed_bits_numeric.cpp
-// @brief      P1.5 tramo 1: rotaciones, nombres de <bit>, cmath y numeric
+// @brief      P1.5 tramos 1 y 2: <bit>, cmath, numeric, mulhi/mullo y politica
 // @date       2026-09-09
 // =============================================================================
 //
@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <stdexcept>
+#include <type_traits>
 
 using namespace nstd;
 
@@ -190,12 +191,68 @@ static_assert(divmod(U2::max(), U2{std::uint64_t{1000003}}).first * U2{std::uint
                   divmod(U2::max(), U2{std::uint64_t{1000003}}).second ==
               U2::max());
 
+// =============================================================================
+// Tramo 2: mulhi y mullo
+// =============================================================================
+
+// mullo es operator*; el interes esta en que mulhi da lo que operator* TIRA.
+static_assert(mullo(U2{std::uint64_t{6}}, U2{std::uint64_t{7}}) == U2{std::uint64_t{42}});
+static_assert(mulhi(U2{std::uint64_t{6}}, U2{std::uint64_t{7}}) == U2{});
+
+// max * max: el producto exacto es (2^128-1)^2 = 2^256 - 2^129 + 1, cuya
+// mitad baja es 1 y cuya mitad alta es 2^128 - 2 = max - 1.
+static_assert(mullo(U2::max(), U2::max()) == U2{std::uint64_t{1}});
+static_assert(mulhi(U2::max(), U2::max()) == U2::max() - U2{std::uint64_t{1}});
+
+// 2^64 * 2^64 = 2^128: mitad baja cero, mitad alta uno.
+static_assert(mullo(U2{std::uint64_t{1}} << 64U, U2{std::uint64_t{1}} << 64U) == U2{});
+static_assert(mulhi(U2{std::uint64_t{1}} << 64U, U2{std::uint64_t{1}} << 64U) == U2{std::uint64_t{1}});
+
+// Con signo, la mitad alta lleva la EXTENSION DE SIGNO del producto entero.
+// Leerla sin signo es el error que tenia `producto_desborda` antes de P1.3.
+static_assert(mulhi(I2{-1}, I2{-1}) == I2{0}, "(-1)*(-1) = 1: arriba no hay nada");
+static_assert(mullo(I2{-1}, I2{-1}) == I2{1});
+static_assert(mulhi(I2{-1}, I2{1}) == I2{-1}, "el producto es negativo: arriba, todo unos");
+static_assert(mulhi(I2::min(), I2{2}) == I2{-1}, "min*2 = -2^128, y -2^128 >> 128 es -1");
+
+// La identidad que las une: el producto exacto es (alta << 64N) | baja.
+static_assert((U4{mulhi(U2::max(), U2::max())} << 128U) + U4{mullo(U2::max(), U2::max())} ==
+              mul_wide(U2::max(), U2::max()));
+
+// =============================================================================
+// Tramo 2 (2a): la politica se conserva y ya no bloquea
+// =============================================================================
+
+using CU = uint_fixed_t<2, overflow_policy::checked>;
+using CI = int_fixed_t<2, overflow_policy::checked>;
+
+// ANTES esto no compilaba: las nueve firmas fijaban la politica por defecto.
+static_assert(gcd(CU{std::uint64_t{12}}, CU{std::uint64_t{18}}) == CU{std::uint64_t{6}});
+static_assert(lcm(CU{std::uint64_t{12}}, CU{std::uint64_t{18}}) == CU{std::uint64_t{36}});
+static_assert(sqrt(CU{std::uint64_t{144}}) == CU{std::uint64_t{12}});
+static_assert(pow(CU{std::uint64_t{3}}, CU{std::uint64_t{5}}) == CU{std::uint64_t{243}});
+
+// Y la politica sale VIVA del resultado, incluso cuando cambia el signo:
+// `gcd` con signo devuelve sin signo, y conserva `checked`. Es lo mismo que
+// hacen `make_signed`/`make_unsigned` por ADR-008.
+static_assert(std::is_same_v<decltype(gcd(CU{}, CU{})), CU>);
+static_assert(std::is_same_v<decltype(gcd(CI{}, CI{})), CU>);
+static_assert(std::is_same_v<decltype(lcm(CI{}, CI{})), CU>);
+static_assert(std::is_same_v<decltype(sqrt(CU{})), CU>);
+static_assert(std::is_same_v<decltype(pow(CI{}, CU{})), CI>);
+static_assert(std::is_same_v<decltype(mul_wide(CU{}, CU{})), uint_fixed_t<4, overflow_policy::checked>>);
+static_assert(std::is_same_v<decltype(mulhi(CU{}, CU{})), CU>);
+
+// Y las llamadas de siempre, con `wrap`, siguen dando exactamente lo mismo.
+static_assert(std::is_same_v<decltype(gcd(U2{}, U2{})), U2>);
+static_assert(std::is_same_v<decltype(mul_wide(U2{}, U2{})), U4>);
+
 int main()
 {
-    std::printf("=== test_fixed_bits_numeric (P1.5 tramo 1) ===\n\n");
+    std::printf("=== test_fixed_bits_numeric (P1.5 tramos 1 y 2) ===\n\n");
     std::printf("Casi todo esta comprobado en COMPILACION: si este binario existe,\n"
                 "los %d static_assert de arriba pasaron.\n\n",
-                60);
+                85);
 
     std::printf("--- lo que no cabe en un static_assert ---\n");
 
@@ -250,6 +307,78 @@ int main()
             lanzo = true;
         }
         ok("divmod(a, 0) lanza en vez de devolver {0,0} como el header viejo", lanzo);
+    }
+
+    // mulhi/mullo contra mul_wide, con valores que el compilador no ve.
+    // El static_assert cubre casos elegidos a mano; esto cubre los que no se me
+    // habrian ocurrido. 200.000 pares, generador propio para no depender de
+    // como implemente <random> cada biblioteca estandar.
+    {
+        std::uint64_t sem = 0x9E3779B97F4A7C15ULL;
+        auto siguiente = [&sem]() noexcept
+        {
+            sem ^= sem << 13;
+            sem ^= sem >> 7;
+            sem ^= sem << 17;
+            return sem;
+        };
+        bool todos = true;
+        int comprobados = 0;
+        for (int i = 0; i < 200000 && todos; ++i)
+        {
+            U2 a{}, b{};
+            a.set_limb(0, siguiente());
+            a.set_limb(1, siguiente());
+            b.set_limb(0, siguiente());
+            b.set_limb(1, siguiente());
+
+            const U4 exacto = mul_wide(a, b);
+            const U4 rearmado = (U4{mulhi(a, b)} << 128U) + U4{mullo(a, b)};
+            if (rearmado != exacto)
+                todos = false;
+            ++comprobados;
+        }
+        char msg[128];
+        std::snprintf(msg, sizeof(msg), "mulhi/mullo rearman mul_wide en %d pares al azar", comprobados);
+        ok(msg, todos);
+    }
+
+    // Lo mismo con signo, que es donde es facil equivocarse.
+    {
+        std::uint64_t sem = 0xD1B54A32D192ED03ULL;
+        auto siguiente = [&sem]() noexcept
+        {
+            sem ^= sem << 13;
+            sem ^= sem >> 7;
+            sem ^= sem << 17;
+            return sem;
+        };
+        bool todos = true;
+        for (int i = 0; i < 200000 && todos; ++i)
+        {
+            I2 a{}, b{};
+            a.set_limb(0, siguiente());
+            a.set_limb(1, siguiente());
+            b.set_limb(0, siguiente());
+            b.set_limb(1, siguiente());
+
+            // Con signo, el producto exacto de 2N limbos se parte igual, pero
+            // la mitad alta se lee CON signo. La identidad que tiene que
+            // cumplirse es la misma: exacto == (alta << 128) + baja, donde la
+            // suma se hace en 2N limbos sin signo sobre los patrones de bits.
+            const auto exacto = mul_wide(a, b);
+            auto rearmado = int_fixed_t<4>{};
+            const auto alta = mulhi(a, b);
+            const auto baja = mullo(a, b);
+            for (std::size_t k = 0; k < 2; ++k)
+            {
+                rearmado.set_limb(k, baja.limb(k));
+                rearmado.set_limb(k + 2, alta.limb(k));
+            }
+            if (rearmado != exacto)
+                todos = false;
+        }
+        ok("mulhi/mullo con signo rearman mul_wide en 200.000 pares al azar", todos);
     }
 
     // Rotacion sobre valores que no son constantes de compilacion, para que el
