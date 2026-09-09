@@ -265,12 +265,49 @@ primarias estan separados en el fichero y si cada uno mirase
 `NSTD_TRAITS_PRIMARY_DEFINED` el primero la definiria y el segundo se saltaria a
 si mismo.
 
+### P2.6: la tercera combinacion, y siete copias de la misma lista
+
+`clang + libstdc++` --el clang de UCRT64-- estaba instalado desde siempre y nadie
+habia caido en que era una configuracion distinta de `clang + libc++`. Se pide
+con `make.py test clang-libstdcxx`, y `todas` la anade a los cuatro de siempre.
+
+`all` NO la incluye a proposito: es el mismo clang 22.1.8 y solo cambia la
+biblioteca, asi que en la pasada de todos los dias cuesta 59 compilaciones mas
+por poca informacion nueva. El CI la corre como job aparte.
+
+**Lo que destapo es mas grande que la tarea.** La lista de compiladores estaba
+repetida en SIETE sitios:
+
+  toolchains.py        cuatro tablas (ENV_VARS, defaults x2, fallbacks)
+  build_generic.py     cuatro ramas `if compiler in [...]` COPIADAS
+  build_generic.py     el diagnostico de que compilador se usa
+  build_generic.py     un validador `valid_compilers`
+  check_generic.py     dos listas
+  run_generic.py       una lista
+  make.py              la ayuda
+
+Las cuatro ramas copiadas de `build_generic` son exactamente de donde salio el
+falso verde de hace unos dias: clang era la unica llamada sin `skip_check=True`,
+asi que un clang ausente se contaba como SALTADO y bajo `all` la suite podia
+terminar con codigo 0 sin haberlo probado. Convertidas en un bucle sobre
+`toolchains.familias_pedidas()`, esa asimetria ya no se puede escribir sin
+querer.
+
+El validador fue el que rechazo `clang-libstdcxx` cuando ya estaba enchufada en
+las otras cinco piezas -- y fallo ruidosamente, 59 "build failed" y salida 1,
+que es como debe fallar una lista desincronizada.
+
+Verificado: 59/59 con la combinacion nueva, y 59/59 en los cuatro de siempre sin
+regresion. El test de P0.9 confirma la combinacion imprimiendo
+`clang / libstdc++ / ABI GNU`.
+
 ### Estado de la suite
 
 | Compilador | Biblioteca estandar | Resultado |
 |---|---|---|
 | GCC 16.2 (ucrt64) | libstdc++ | 59/59 |
 | clang 22.1.8 (clang64) | **libc++** | 59/59 |
+| clang 22.1.8 (ucrt64) | **libstdc++** | 59/59 |
 | MSVC 19.5x | MS STL | 59/59 |
 | Intel oneAPI 2026.1 | MS STL | 59/59 |
 

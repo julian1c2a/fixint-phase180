@@ -1,6 +1,6 @@
 # 🔮 NEXT STEPS
 
-**Last Updated:** 7 September 2026
+**Last Updated:** 9 September 2026
 **Versión:** **v1.90.4** publicada · **rama** `phase-1.80` · árbol limpio · todo en `origin`
 
 > Este documento es **el puntero y lo pendiente a corto**. No acumula historia:
@@ -15,12 +15,12 @@
 
 # 📍 POR AQUÍ VAMOS
 
-## Estado al 7 sep 2026
+## Estado al 9 sep 2026
 
 | | |
 |---|---|
 | **Release** | ✅ **v1.90.4 publicada**, la primera del proyecto: tres zips (gcc, clang, msvc) |
-| **Suite local** | ✅ **59/59 con los cuatro**: GCC (libstdc++), clang (**libc++**), MSVC e Intel |
+| **Suite local** | ✅ **59/59 en CINCO configuraciones**: GCC+libstdc++, clang+libc++, **clang+libstdc++**, MSVC e Intel |
 | **CI** | ✅ **24/24 jobs** sobre `f959f53`, ya con la matriz compilando de verdad: no había fallos tapados |
 | **Diseño de la 2.0** | ✅ cerrado. **P1.1 a P1.4 escritos**; quedan P1.5 y P1.6 |
 | **`operator*`** | ✅ **de 2× a 4,9× más rápido** (6 sep 2026): escolar desenrollado hasta N=20, Karatsuba desde N=32. Los dos umbrales, medidos |
@@ -124,7 +124,7 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | **P2.3** | **Re-medir las tablas heredadas** de Knuth D y de comparación con built-in | Hoy **incumplen la regla del propio `docs/PERFORMANCE.md`**: sin fecha, compilador ni máquina |
 | **P2.4** | Coste de las conversiones a y desde cadena, bases 2..36 | API nueva de v1.90.1, sin medir |
 | **P2.5** | **Montar el histórico de benchmarks** (ver abajo) | Da sitio donde guardar P2.1–P2.4 |
-| **P2.6** | **La tercera combinación: `clang + libstdc++`** (el clang de UCRT64). Ya está instalado y no se usaba | Barato: amplía el recubrimiento sin tocar código |
+| ~~P2.6~~ | ~~La tercera combinación: `clang + libstdc++`~~ | ✅ **hecho**: `make.py test clang-libstdcxx`, 59/59. Destapó que la lista de compiladores estaba repetida en **siete sitios** — ahora vive solo en `toolchains.py` |
 | ~~P2.7~~ | ~~Desguace de benchmarks de algoritmo~~ | ✅ **las cuatro piezas hechas**: algoritmo/desenrollado, verosimilitud, código emitido (`scripts/bench_asm.py`) y coste teórico declarado |
 
 ### P3 — Lo que se abarata o desaparece esperando

@@ -1,6 +1,6 @@
 # PROJECT STATUS
 
-**Last Updated:** 7 September 2026
+**Last Updated:** 9 September 2026
 **Versión:** v1.90.4 · **rama** `phase-1.80` · árbol limpio, todo en `origin`
 
 > Instantánea **del estado actual**, y solo eso. No acumula historia: lo ya hecho
@@ -16,12 +16,13 @@
 **v1.90.4 está publicada**, y **el diseño de la 2.0 está cerrado sin cuestiones
 abiertas**: falta escribirlo.
 
-## Verificación — 7 September 2026
+## Verificación — 9 September 2026
 
 | Comprobación | Resultado |
 |---|---|
 | `python make.py test gcc release-O2` | **59/59 ficheros** (GCC 16.2 ucrt64, libstdc++) |
 | `python make.py test clang release-O2` | **59/59 ficheros** (clang 22.1.8 clang64, **libc++**) |
+| `python make.py test clang-libstdcxx release-O2` | **59/59 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
 | `python make.py test msvc release-O2` | **59/59 ficheros** |
 | `python make.py test intel release-O2` | **59/59 ficheros** (oneAPI 2026.1) |
 | CI sobre `f959f53` | **24/24 jobs**, matriz completa: gcc-13/14/15/16, clang-18/19/20/21/22, ARM64, arm32, riscv64, i686 |
