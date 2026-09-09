@@ -141,7 +141,9 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P2.6~~ | ~~La tercera combinación: `clang + libstdc++`~~ | ✅ **hecho**: `make.py test clang-libstdcxx`, 59/59. Destapó que la lista de compiladores estaba repetida en **siete sitios** — ahora vive solo en `toolchains.py` |
 | ~~P2.7~~ | ~~Desguace de benchmarks de algoritmo~~ | ✅ **las cuatro piezas hechas**: algoritmo/desenrollado, verosimilitud, código emitido (`scripts/bench_asm.py`) y coste teórico declarado |
 
-| **P2.9** | **Toom-3**: Θ(N^1,465) frente al 1,585 de Karatsuba. Necesita división exacta por 3 y **el umbral hay que medirlo**, no suponerlo | Después de P2.8: si el reparto equilibrado no da lo que promete la cuenta, Toom-3 tampoco |
+| **P2.10** | **Möller–Granlund 3-por-2** en el bucle de Knuth D. Mejora la **constante**, así que **no tiene umbral**: gana en toda N, incluidas las pequeñas. Es el mejor cambio por línea escrita según el [estudio](docs/ESTUDIO_ALGORITMOS_RAPIDOS.md) | Independiente de P2.8 |
+| **P2.11** | **Burnikel–Ziegler**: la división pasa de Θ(N²) a Θ(M(N)·log N). Umbral esperado ~45–50 limbos | Después de P2.8: convierte la división en multiplicaciones, así que se apoya en ellas |
+| **P2.9** | **Toom-3**: Θ(N^1,465). ⚠️ **Baja de prioridad tras el estudio**: no aporta nada por debajo de N=128 y **pierde** contra Karatsuba en N=128. Gana 1,23× en N=256 | Después de P2.11 |
 
 ### P3 — Lo que se abarata o desaparece esperando
 

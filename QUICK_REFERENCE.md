@@ -116,5 +116,6 @@ Detalle: [`CONTRIBUTING.md`](CONTRIBUTING.md)
 | API y semántica | [`docs/`](docs/) |
 | Qué funciona con qué política | [`docs/MATRIZ_DE_PARIDAD.md`](docs/MATRIZ_DE_PARIDAD.md) |
 | Rendimiento | [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md) |
+| Algoritmos rápidos, estado del arte | [`docs/ESTUDIO_ALGORITMOS_RAPIDOS.md`](docs/ESTUDIO_ALGORITMOS_RAPIDOS.md) |
 | Convenciones | [`NAMING_CONVENTIONS.md`](NAMING_CONVENTIONS.md) · [`STYLE_CONVENTIONS.md`](STYLE_CONVENTIONS.md) |
 | Guía de desarrollo | [`AI-GUIDE.md`](AI-GUIDE.md) |

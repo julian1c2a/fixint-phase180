@@ -135,6 +135,13 @@ cuando N es potencia de dos, y Θ(N²) en todas las demás. El diseño de
 [PLAN_MULTIPLICACION](docs/PLAN_MULTIPLICACION.md) lo lleva a Θ(N^1,585) para
 **toda** N, y deja la puerta abierta a Θ(N^1,465) con Toom-3.
 
+El [estudio del estado del arte](docs/ESTUDIO_ALGORITMOS_RAPIDOS.md) añade el
+dato que reordena el plan: **la división está peor servida que la multiplicación
+y es más barata de arreglar**. `operator*` ya tiene Karatsuba y le falta un
+reparto; `operator/` está en el primer escalón de una escalera de cuatro, y el
+segundo —Möller–Granlund— mejora la constante, así que **no tiene umbral**: gana
+en todas las anchuras, incluidas las pequeñas, que son las que más se usan.
+
 Lo que se aprendió al escribirlo, y vale para cualquier reparto futuro: **un
 reparto que deje un término cuadrático no baja el exponente por muchos niveles
 que se le pongan encima.** El esquema «potencia de dos más el resto» parecía

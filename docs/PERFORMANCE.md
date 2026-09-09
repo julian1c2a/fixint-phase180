@@ -390,7 +390,8 @@ estaba en 16. Resultó ser más ancho: no son cuatro anchuras raras, es **la mit
 del rango por encima de 20**.
 
 Ya no está abierto: el diseño está escrito en
-[PLAN_MULTIPLICACION](PLAN_MULTIPLICACION.md), y va por dos pasos —subir el
+[PLAN_MULTIPLICACION](PLAN_MULTIPLICACION.md), y el estado del arte con el que se
+contrasta, en [ESTUDIO_ALGORITMOS_RAPIDOS](ESTUDIO_ALGORITMOS_RAPIDOS.md), y va por dos pasos —subir el
 tope de desenrollado a 31, y Karatsuba con reparto **equilibrado** para toda N
 en vez de sólo potencias de dos—.
 

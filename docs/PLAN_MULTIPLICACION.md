@@ -147,12 +147,17 @@ Lo que hay que saber antes de meterlo:
   enteros son exactas, pero la división por 3 no es un desplazamiento: hay que
   escribirla (multiplicación por el inverso modular de 3, que para 64 bits es
   `0xAAAAAAAAAAAAAAAB`).
-- **El umbral está alto.** Karatsuba, medido aquí, no gana al escolar
-  desenrollado hasta N=32. Toom-3 tiene más sumas y más pasos de interpolación
-  por cada nivel, así que su umbral estará bastante por encima. En las
-  bibliotecas de referencia suele caer en el rango de los cientos de limbos.
-  **Hay que medirlo, no suponerlo**: puede resultar que no gane en ninguna
-  anchura que la biblioteca vaya a usar de verdad.
+- **El umbral está alto, pero no tanto como se dijo aquí.** Esta línea decía
+  «en las bibliotecas de referencia suele caer en el rango de los cientos de
+  limbos», y **es falso**: la mediana que GMP mide y publica para
+  `MUL_TOOM33_THRESHOLD` es **67 limbos**, con un rango de 38 a 122. Decenas,
+  no cientos. Ver [ESTUDIO_ALGORITMOS_RAPIDOS](ESTUDIO_ALGORITMOS_RAPIDOS.md).
+- **Pero la cuenta de productos dice que aporta menos de lo que parece.**
+  Proyectado sobre el rango de esta biblioteca: **nada por debajo de N=128**,
+  y en N=128 **pierde** contra Karatsuba (7 260 productos frente a 6 912),
+  porque `⌈N/3⌉` redondea hacia arriba. Gana 1,23× en N=256 y 1,77× en
+  N=2048. Además su exponente efectivo **oscila** entre 1,2 y 1,66 según
+  dónde caiga el redondeo, mientras que el de Karatsuba es 1,585 constante.
 - **Cinco puntos de evaluación** significan cinco caminos donde equivocarse.
   Necesita el mismo trato que llevó Karatsuba: test diferencial contra el
   escolar sobre operandos al azar, y en todas las N del rango, no en una.
