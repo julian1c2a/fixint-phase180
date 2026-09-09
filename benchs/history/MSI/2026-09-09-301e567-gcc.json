@@ -1,0 +1,377 @@
+{
+  "fecha": "2026-09-09T20:23:09+00:00",
+  "commit": "301e567",
+  "arbol_limpio": false,
+  "maquina": "MSI",
+  "so": "Windows 10",
+  "cpu": "Intel64 Family 6 Model 165 Stepping 2, GenuineIntel",
+  "compilador_pedido": "gcc",
+  "compilador": "g++.exe (Rev3, Built by MSYS2 project) 16.2.0",
+  "modo": "release-O2",
+  "suites": {
+    "vs_builtin": {
+      "Addition (+) / uint64_t": {
+        "valor": 0.7857,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / nstd::uint128_t": {
+        "valor": 1.8979,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / nstd::int128_t (TC)": {
+        "valor": 1.8299,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / unsigned __int128": {
+        "valor": 1.4923,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / __int128": {
+        "valor": 1.4721,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::cpp_int u128": {
+        "valor": 4.7903,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::cpp_int i128": {
+        "valor": 3.8768,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::checked_uint128": {
+        "valor": 9.4838,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::gmp_int": {
+        "valor": 26.6057,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::gmp_int [128]": {
+        "valor": 41.558,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::tom_int": {
+        "valor": 31.4918,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::tom_int [128]": {
+        "valor": 67.2533,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / uint64_t": {
+        "valor": 0.762,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / nstd::uint128_t": {
+        "valor": 2.1902,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / nstd::int128_t (TC)": {
+        "valor": 2.2356,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / unsigned __int128": {
+        "valor": 1.756,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / __int128": {
+        "valor": 1.8263,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::cpp_int u128": {
+        "valor": 4.9856,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::cpp_int i128": {
+        "valor": 4.8394,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::checked_uint128": {
+        "valor": 4.5659,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::gmp_int": {
+        "valor": 31.6577,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::gmp_int [128]": {
+        "valor": 47.5152,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::tom_int": {
+        "valor": 220.9819,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::tom_int [128]": {
+        "valor": 68.3192,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / uint64_t": {
+        "valor": 2.223,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / nstd::uint128_t": {
+        "valor": 3.0746,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / nstd::int128_t (TC)": {
+        "valor": 3.1038,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / unsigned __int128": {
+        "valor": 3.6153,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / __int128": {
+        "valor": 3.5872,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::cpp_int u128": {
+        "valor": 6.8864,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::cpp_int i128": {
+        "valor": 6.7,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::checked_uint128(*)": {
+        "valor": 2.3638,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::gmp_int(*)": {
+        "valor": 0.9165,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::gmp_int [128]": {
+        "valor": 45.4014,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::tom_int(*)": {
+        "valor": 0.8388,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::tom_int [128]": {
+        "valor": 126.22,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / uint64_t": {
+        "valor": 4.5071,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / nstd::uint128_t": {
+        "valor": 4.1009,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / nstd::int128_t (TC)": {
+        "valor": 3.7787,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / unsigned __int128": {
+        "valor": 44.9619,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / __int128": {
+        "valor": 45.5618,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::cpp_int u128": {
+        "valor": 58.0804,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::cpp_int i128": {
+        "valor": 56.0464,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::checked_uint128": {
+        "valor": 47.9333,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::gmp_int": {
+        "valor": 76.8641,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::gmp_int [128]": {
+        "valor": 95.3469,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::tom_int": {
+        "valor": 819.9835,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::tom_int [128]": {
+        "valor": 990.9245,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / uint64_t": {
+        "valor": 0.9267,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / nstd::uint128_t": {
+        "valor": 2.9027,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / unsigned __int128": {
+        "valor": 4.8691,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / boost::cpp_int u128": {
+        "valor": 7.2187,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / boost::checked_uint128 (*)": {
+        "valor": 12.4537,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / boost::gmp_int": {
+        "valor": 60.6328,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / boost::tom_int": {
+        "valor": 575.3191,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / uint64_t": {
+        "valor": 0.9069,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / nstd::uint128_t": {
+        "valor": 1.64,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / unsigned __int128": {
+        "valor": 1.6259,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / boost::cpp_int u128": {
+        "valor": 4.9459,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / boost::checked_uint128": {
+        "valor": 4.7044,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / boost::gmp_int": {
+        "valor": 33.0788,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / boost::tom_int": {
+        "valor": 36.199,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / uint64_t": {
+        "valor": 5.6103,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / nstd::uint128_t": {
+        "valor": 2.974,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / unsigned __int128": {
+        "valor": 6.6182,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / boost::cpp_int u128": {
+        "valor": 2.5119,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / boost::checked_uint128": {
+        "valor": 2.4727,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / boost::gmp_int": {
+        "valor": 14.4785,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / boost::tom_int": {
+        "valor": 13.4816,
+        "unidad": "cyc/op"
+      }
+    },
+    "divmod_algorithms": {
+      "Power-of-2 / big_bin_divrem": {
+        "valor": 21.3422,
+        "unidad": "cyc/op"
+      },
+      "Power-of-2 / D_knuth_divrem": {
+        "valor": 19.8446,
+        "unidad": "cyc/op"
+      },
+      "64-bit values / big_bin_divrem": {
+        "valor": 36.5991,
+        "unidad": "cyc/op"
+      },
+      "64-bit values / D_knuth_divrem": {
+        "valor": 27.3893,
+        "unidad": "cyc/op"
+      },
+      "128/64 hybrid / big_bin_divrem": {
+        "valor": 27.8948,
+        "unidad": "cyc/op"
+      },
+      "128/64 hybrid / D_knuth_divrem": {
+        "valor": 17.3923,
+        "unidad": "cyc/op"
+      },
+      "Large 128/128 / big_bin_divrem": {
+        "valor": 25.987,
+        "unidad": "cyc/op"
+      },
+      "Large 128/128 / D_knuth_divrem": {
+        "valor": 22.9271,
+        "unidad": "cyc/op"
+      },
+      "Small divisor / big_bin_divrem": {
+        "valor": 41.9001,
+        "unidad": "cyc/op"
+      },
+      "Small divisor / D_knuth_divrem": {
+        "valor": 29.5525,
+        "unidad": "cyc/op"
+      },
+      "Remainder test / big_bin_divrem": {
+        "valor": 34.7954,
+        "unidad": "cyc/op"
+      },
+      "Remainder test / D_knuth_divrem": {
+        "valor": 25.387,
+        "unidad": "cyc/op"
+      },
+      "Equal values / big_bin_divrem": {
+        "valor": 18.7801,
+        "unidad": "cyc/op"
+      },
+      "Equal values / D_knuth_divrem": {
+        "valor": 15.4381,
+        "unidad": "cyc/op"
+      },
+      "Divide by one / big_bin_divrem": {
+        "valor": 13.1326,
+        "unidad": "cyc/op"
+      },
+      "Divide by one / D_knuth_divrem": {
+        "valor": 5.451,
+        "unidad": "cyc/op"
+      },
+      "Large quotient / big_bin_divrem": {
+        "valor": 25.2406,
+        "unidad": "cyc/op"
+      },
+      "Large quotient / D_knuth_divrem": {
+        "valor": 18.7314,
+        "unidad": "cyc/op"
+      },
+      "media big_bin_divrem": {
+        "valor": 27.2969,
+        "unidad": "cyc/op"
+      },
+      "media D_knuth_divrem": {
+        "valor": 20.2348,
+        "unidad": "cyc/op"
+      },
+      "media Knuth D frente a binaria": {
+        "valor": 1.349,
+        "unidad": "x"
+      }
+    }
+  }
+}
