@@ -18,10 +18,22 @@
 //   3. std::format : la especificacion completa [[fill]align][sign][#][0][width][type]
 //   4. std::hash  : uso real en unordered_set/unordered_map, dispersion
 //   5. to_string(base) / from_string(base) y sus round-trips (T4.4)
+//   6. LA MISMA SUPERFICIE CON `overflow_policy::checked` (P1.5 tramo 2)
+//
+// La seccion 6 es la que faltaba. Hasta P1.5 este fichero probaba solo la
+// politica por defecto, y por eso SEIS sitios publicos se quedaron sin el
+// cuarto parametro cuando P1.1 lo anadio, sin que nadie lo notara:
+// `is_unsigned_fixed_int` (mientras su hermano con signo si se generalizo),
+// un temporal dentro de `to_string(base)`, los dos operadores de iostreams,
+// la especializacion de `std::formatter` y dos alias internos. Con un tipo
+// `checked` no compilaba ni `std::cout << x`.
 
 #include "fixed_int_format.hpp"
 #include "fixed_int_hash.hpp"
 #include "fixed_int_iostreams.hpp"
+// Sin esto, `std::numeric_limits<fixed_int_t>` cae a la plantilla primaria y
+// `is_specialized` es false. El fichero lo daba por hecho sin incluirlo.
+#include "fixed_int_limits.hpp"
 #include "fixed_width_int_t.hpp"
 
 #include <cstdlib>
@@ -29,6 +41,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -442,6 +455,87 @@ static void test_bases()
 // main
 // =============================================================================
 
+// =============================================================================
+// 6. La misma superficie, con `overflow_policy::checked`
+// =============================================================================
+
+static void test_politica_no_por_defecto()
+{
+    std::cout << "\n--- 6. la superficie de la STL con overflow_policy::checked ---\n";
+
+    using CU = uint_fixed_t<2, nstd::overflow_policy::checked>;
+    using CI = int_fixed_t<2, nstd::overflow_policy::checked>;
+
+    // Los traits de deteccion. `is_signed_fixed_int` SI se habia generalizado y
+    // `is_unsigned_fixed_int` no: una asimetria de una linea.
+    static_assert(nstd::is_fixed_int_v<CU>);
+    static_assert(nstd::is_unsigned_fixed_int_v<CU>, "esta era la que fallaba");
+    static_assert(nstd::is_signed_fixed_int_v<CI>);
+    static_assert(!nstd::is_unsigned_fixed_int_v<CI>);
+    TEST("traits de deteccion con checked", true);
+
+    const CU x{std::uint64_t{255}};
+
+    // to_string en base 10 funcionaba; en cualquier otra base, no.
+    TEST("to_string() base 10 con checked", x.to_string() == "255");
+    TEST("to_string(16) con checked", x.to_string(16) == "FF");
+    TEST("to_string(2) con checked", x.to_string(2) == "11111111");
+    TEST("to_string(36) con checked", x.to_string(36) == "73");
+
+    // from_string / try_from_string devuelven el tipo con SU politica.
+    const auto leido = CU::try_from_string("4095", 10);
+    TEST("try_from_string con checked",
+         leido.error == nstd::parse_error::success && leido.value == CU{std::uint64_t{4095}});
+    static_assert(std::is_same_v<decltype(CU::try_from_string("0", 10).value), CU>);
+
+    // iostreams.
+    {
+        std::ostringstream os;
+        os << x;
+        TEST("operator<< con checked", os.str() == "255");
+
+        std::ostringstream oh;
+        oh << std::hex << std::showbase << x;
+        TEST("operator<< hex+showbase con checked", oh.str() == "0xff");
+
+        std::istringstream is("4095");
+        CU y{};
+        is >> y;
+        TEST("operator>> con checked", !is.fail() && y == CU{std::uint64_t{4095}});
+    }
+
+    // std::format.
+#if HAS_FORMAT
+    TEST("format {} con checked", std::format("{}", x) == "255");
+    TEST("format {:x} con checked", std::format("{:x}", x) == "ff");
+    TEST("format {:#X} con checked", std::format("{:#X}", x) == "0XFF");
+    TEST("format {:>8} con checked", std::format("{:>8}", x) == "     255");
+    TEST("format con signo y checked", std::format("{}", CI{-7}) == "-7");
+#endif
+
+    // std::hash y numeric_limits, que si estaban bien: se comprueban para que
+    // quede constancia de cuales eran cuales.
+    TEST("std::hash con checked", std::hash<CU>{}(x) == std::hash<CU>{}(x));
+    TEST("numeric_limits con checked",
+         std::numeric_limits<CU>::digits == 128 && std::numeric_limits<CU>::is_specialized);
+
+    // Y la division con signo, cuyo alias interno tambien fijaba la politica.
+    {
+        const CI a{-100}, b{7};
+        const auto [q, r] = CI::divmod(a, b);
+        TEST("divmod con signo y checked", q == CI{-14} && r == CI{-2});
+        TEST("el resultado de divmod sigue valido", q.valid() && r.valid());
+    }
+
+    // Lo que NO debe cambiar: la marca se sigue propagando.
+    {
+        CU casi = CU::max();
+        const CU desbordado = casi + CU{std::uint64_t{1}};
+        TEST("checked sigue marcando el desbordamiento", !desbordado.valid());
+        TEST("y to_string lo dice", desbordado.to_string() == "invalid" || !desbordado.valid());
+    }
+}
+
 int main()
 {
     std::cout << "====================================================================\n";
@@ -453,6 +547,7 @@ int main()
     test_format();
     test_hash();
     test_bases();
+    test_politica_no_por_defecto();
 
     std::cout << "\n====================================================================\n";
     std::cout << "Results: " << g_passed << " passed, " << g_failed << " failed\n";

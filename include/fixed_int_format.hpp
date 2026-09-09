@@ -50,8 +50,9 @@
 #include <format>
 #include <string>
 
-template <std::size_t N, nstd::signedness Sign, nstd::representation_form Form, typename CharT>
-struct std::formatter<nstd::fixed_int_t<N, Sign, Form>, CharT>
+template <std::size_t N, nstd::signedness Sign, nstd::representation_form Form, nstd::overflow_policy Policy,
+          typename CharT>
+struct std::formatter<nstd::fixed_int_t<N, Sign, Form, Policy>, CharT>
 {
     char fill_char{' '};
     char align_char{'\0'}; // '\0' = por defecto (derecha en numeros)
@@ -128,7 +129,7 @@ struct std::formatter<nstd::fixed_int_t<N, Sign, Form>, CharT>
         return it;
     }
 
-    auto format(const nstd::fixed_int_t<N, Sign, Form> &value, std::format_context &ctx) const
+    auto format(const nstd::fixed_int_t<N, Sign, Form, Policy> &value, std::format_context &ctx) const
     {
         int base{10};
         switch (type_char)

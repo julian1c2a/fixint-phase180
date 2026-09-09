@@ -55,8 +55,8 @@ namespace nstd
     // Salida
     // =========================================================================
 
-    template <std::size_t N, signedness Sign, representation_form Form>
-    std::ostream &operator<<(std::ostream &os, const fixed_int_t<N, Sign, Form> &value)
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    std::ostream &operator<<(std::ostream &os, const fixed_int_t<N, Sign, Form, Policy> &value)
     {
         const std::ios_base::fmtflags flags = os.flags();
 
@@ -75,7 +75,7 @@ namespace nstd
         }
         else
         {
-            str = uint_fixed_t<N>{value}.to_string(base);
+            str = uint_fixed_t<N, Policy>{value}.to_string(base);
         }
 
         const bool use_uppercase = (flags & std::ios_base::uppercase) != 0;
@@ -134,8 +134,8 @@ namespace nstd
     // Entrada
     // =========================================================================
 
-    template <std::size_t N, signedness Sign, representation_form Form>
-    std::istream &operator>>(std::istream &is, fixed_int_t<N, Sign, Form> &value)
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    std::istream &operator>>(std::istream &is, fixed_int_t<N, Sign, Form, Policy> &value)
     {
         const std::istream::sentry guard(is); // salta espacios si skipws
         if (!guard)
@@ -209,7 +209,7 @@ namespace nstd
             }
         }
 
-        const auto parsed = fixed_int_t<N, Sign, Form>::try_from_string(body.c_str(), base);
+        const auto parsed = fixed_int_t<N, Sign, Form, Policy>::try_from_string(body.c_str(), base);
         if (!parsed.success())
         {
             is.setstate(std::ios_base::failbit);
