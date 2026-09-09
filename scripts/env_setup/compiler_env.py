@@ -230,6 +230,11 @@ class CompilerEnvironment:
             self._env = self._get_intel_env()
         elif self.compiler_name == "gcc":
             self._env = self._get_gcc_env()
+        elif self.compiler_name == "clang-libstdcxx":
+            # La tercera combinacion: clang con libstdc++. En Windows es el clang
+            # de UCRT64, que comparte arbol con GCC, asi que su entorno es el de
+            # GCC y no el de CLANG64.
+            self._env = self._get_gcc_env()
         elif self.compiler_name == "clang":
             # ANTES compartia entorno con GCC, con el comentario "both GCC and
             # Clang live in ucrt64/bin". Es falso: toolchains.json dice desde
@@ -262,7 +267,7 @@ class CompilerEnvironment:
         entorno que montan `vcvarsall.bat` / `setvars.bat`, que es justo lo que
         gestiona esta clase.
         """
-        if self.compiler_name in ("gcc", "clang"):
+        if self.compiler_name in ("gcc", "clang", "clang-libstdcxx"):
             resuelto = _por_toolchains(self.compiler_name)
             if resuelto:
                 return resuelto

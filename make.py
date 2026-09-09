@@ -38,7 +38,9 @@ ARGUMENTOS PARA BUILD/CHECK/RUN:
     <type>      uint128 | int128 | demos
     <feature>   bits | numeric | algorithm | etc. (o <category> si type=demos)
     <target>    tests | benchs | <demo_name> (si type=demos)
-    <compiler>  gcc | clang | intel | msvc | all
+    <compiler>  gcc | clang | clang-libstdcxx | intel | msvc | all | todas
+                (`all` son los cuatro de siempre; `todas` anade la tercera
+                 combinacion, clang con libstdc++ -- ver P2.6)
     <mode>      debug | release | all
 """
 
@@ -1036,7 +1038,8 @@ Ejemplos:
     build_parser.add_argument('type', nargs='?', help='uint128 | int128 | demos')
     build_parser.add_argument('feature', nargs='?', help='bits | numeric | algorithm | <category> (si demos)')
     build_parser.add_argument('target', nargs='?', help='tests | benchs | <demo_name> (si demos)')
-    build_parser.add_argument('compiler', nargs='?', help='gcc | clang | intel | msvc | all')
+    build_parser.add_argument('compiler', nargs='?',
+                          help='gcc | clang | clang-libstdcxx | intel | msvc | all | todas')
     build_parser.add_argument('mode', nargs='?', help='debug | release | release-O1 | release-O2 | release-O3 | release-Ofast | all')
     build_parser.add_argument('-v', '--verbose', action='store_true', help='Modo verbose')
     

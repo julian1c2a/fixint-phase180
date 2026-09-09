@@ -273,7 +273,13 @@ def compile_with_compiler(
             # biblioteca vuelve a compilar con los flags por defecto. El job
             # `clang-no-flags` del CI vigila que no vuelva a hacer falta.
             
-            if needs_pthread and compiler_name in ["gcc", "clang", "intel"]:
+            # La tercera combinacion, clang con libstdc++. En Windows la
+            # eligio ya el binario --el de UCRT64-- y no hace falta bandera; en
+            # posix el binario es el mismo que el de libc++ y hay que decirselo.
+            if compiler_name == "clang-libstdcxx" and sys.platform != "win32":
+                common_flags.append("-stdlib=libstdc++")
+
+            if needs_pthread and compiler_name in ["gcc", "clang", "clang-libstdcxx", "intel"]:
                 common_flags.append("-pthread")
             
             if mode == "debug":
@@ -297,13 +303,13 @@ def compile_with_compiler(
             cmd = [compiler_cmd] + common_flags + mode_flags + [source_str, "-o", output_str]
             
             # Add linker flags after -o output
-            if needs_atomic and compiler_name in ["gcc", "clang"] and _tiene_libatomic(compiler_cmd, env):
+            if needs_atomic and compiler_name in ["gcc", "clang", "clang-libstdcxx"] and _tiene_libatomic(compiler_cmd, env):
                 cmd.append("-latomic")
             
             # Add sanitizer linker flags
-            if mode == "debug-asan" and compiler_name in ["gcc", "clang"]:
+            if mode == "debug-asan" and compiler_name in ["gcc", "clang", "clang-libstdcxx"]:
                 cmd.append("-fsanitize=address")
-            elif mode == "debug-ubsan" and compiler_name in ["gcc", "clang"]:
+            elif mode == "debug-ubsan" and compiler_name in ["gcc", "clang", "clang-libstdcxx"]:
                 cmd.append("-fsanitize=undefined")
         
         echo_info(f"  Compiling [{mode}]...")
@@ -411,10 +417,13 @@ def main():
             print("Error: TARGET debe ser 'tests' o 'benchs'")
             sys.exit(1)
     
-    # Common validation
-    valid_compilers = ["gcc", "clang", "intel", "msvc", "all"]
-    if compiler not in valid_compilers:
-        print(f"Error: COMPILER debe ser uno de: {', '.join(valid_compilers)}")
+    # Common validation. La lista de familias sale de `toolchains.py`, que es la
+    # fuente unica: aqui habia una SEXTA copia, y fue la que rechazo
+    # `clang-libstdcxx` cuando ya estaba enchufada en las otras cinco.
+    try:
+        toolchains.familias_pedidas(compiler)
+    except ValueError as e:
+        print(f"Error: {e}")
         sys.exit(1)
     
     valid_modes = ["debug", "debug-asan", "debug-ubsan", "release", "release-O1", "release-O2", "release-O3", "release-Ofast", "all"]
@@ -485,22 +494,17 @@ def main():
     # Define modes to compile
     modes_to_compile = ["debug", "debug-asan", "debug-ubsan", "release", "release-O1", "release-O2", "release-O3", "release-Ofast"] if mode == "all" else [mode]
     
-    # Get compiler commands from environment or use defaults
-    gcc_cmd = toolchains.resolve("gcc")
-    clang_cmd = toolchains.resolve("clang")
-    intel_cmd = toolchains.resolve("intel")
-    msvc_cmd = toolchains.resolve("msvc")
+    # Diagnostico: que compilador se va a usar DE VERDAD (ruta, version, target).
+    # No es adorno: durante meses la matriz del CI decia gcc-13 y compilaba con
+    # el g++ por defecto del runner.
+    for _familia in toolchains.familias_pedidas(compiler):
+        _cmd = toolchains.resolve(_familia)
+        if _familia in ("intel", "msvc"):
+            print(f"[INFO] {_familia}: {_cmd}")
+        else:
+            print(f"[INFO] {toolchains.describe(_familia, _cmd)}")
+            toolchains.warn_if_unwanted(_familia, _cmd)
 
-    # Diagnostico: que compilador se va a usar de verdad (ruta, version, target).
-    for _name, _cmd in (("gcc", gcc_cmd), ("clang", clang_cmd),
-                        ("intel", intel_cmd), ("msvc", msvc_cmd)):
-        if compiler in (_name, "all"):
-            if _name not in ("intel", "msvc"):
-                print(f"[INFO] {toolchains.describe(_name, _cmd)}")
-                toolchains.warn_if_unwanted(_name, _cmd)
-            else:
-                print(f"[INFO] {_name}: {_cmd}")
-    
     # For demos, we need to pass empty strings for type_name and feature
     # since they don't apply
     if is_demo:
@@ -510,45 +514,25 @@ def main():
         type_name_arg = type_name
         feature_arg = feature
     
-    # Compile with each compiler
+    # Compilar con cada compilador pedido.
+    #
+    # ESTO ERAN CUATRO BLOQUES COPIADOS, uno por compilador, y de ahi salio un
+    # falso verde: clang era el unico llamado sin `skip_check=True`, asi que un
+    # clang ausente se contaba como SALTADO en vez de como fallo y bajo `all` la
+    # suite podia terminar con codigo 0 sin haberlo probado. Con un bucle, una
+    # asimetria asi no se puede escribir sin querer.
+    #
+    # La lista de familias vive en `toolchains.py`, que es la fuente unica.
     total_ok = total_fallos = total_saltados = 0
-    if compiler in ["gcc", "all"]:
+    for _familia in toolchains.familias_pedidas(compiler):
         _o, _f, _s = compile_with_compiler(
-            "gcc", gcc_cmd, source_file, build_dir,
+            _familia, toolchains.resolve(_familia), source_file, build_dir,
             type_name_arg, feature_arg, output_suffix, modes_to_compile,
             print_commands, skip_check=True, project_root=project_root
         )
         total_ok += _o; total_fallos += _f; total_saltados += _s
-    
-    # clang era el UNICO de los cuatro sin `skip_check=True`. Esa asimetria le
-    # daba un camino propio: si no se encontraba el binario, se contaba como
-    # SALTADO en vez de como fallo, asi que bajo `all` la suite podia terminar
-    # con codigo 0 sin haber probado clang. Los otros tres reportan el binario
-    # ausente como fallo, con mensaje, desde el `except` de la compilacion.
-    if compiler in ["clang", "all"]:
-        _o, _f, _s = compile_with_compiler(
-            "clang", clang_cmd, source_file, build_dir,
-            type_name_arg, feature_arg, output_suffix, modes_to_compile,
-            print_commands, skip_check=True, project_root=project_root
-        )
-        total_ok += _o; total_fallos += _f; total_saltados += _s
-    
-    if compiler in ["intel", "all"]:
-        _o, _f, _s = compile_with_compiler(
-            "intel", intel_cmd, source_file, build_dir,
-            type_name_arg, feature_arg, output_suffix, modes_to_compile,
-            print_commands, skip_check=True, project_root=project_root
-        )
-        total_ok += _o; total_fallos += _f; total_saltados += _s
-    
-    if compiler in ["msvc", "all"]:
-        _o, _f, _s = compile_with_compiler(
-            "msvc", msvc_cmd, source_file, build_dir,
-            type_name_arg, feature_arg, output_suffix, modes_to_compile,
-            print_commands, skip_check=True, project_root=project_root
-        )
-        total_ok += _o; total_fallos += _f; total_saltados += _s
-    
+
+
     # Resumen. El codigo de salida es lo unico de lo que se fian make.py y los
     # workflows: si aqui se devuelve 0 con algo roto, la mentira se propaga a
     # todo lo que haya encima.

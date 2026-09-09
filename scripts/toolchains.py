@@ -41,6 +41,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 ENV_VARS = {
     "gcc": "GCC_CXX",
     "clang": "CLANG_CXX",
+    "clang-libstdcxx": "CLANG_LIBSTDCXX_CXX",
     "intel": "INTEL_CXX",
     "msvc": "MSVC_CXX",
 }
@@ -50,6 +51,10 @@ ENV_VARS = {
 DEFAULTS_WINDOWS = {
     "gcc": r"C:/msys64/ucrt64/bin/g++.exe",
     "clang": r"C:/msys64/clang64/bin/clang++.exe",
+    # La TERCERA combinacion: el mismo clang, pero con libstdc++ en vez de
+    # libc++. Es el de UCRT64, y estaba instalado desde siempre sin que nadie
+    # cayera en que era una configuracion distinta. Ver P2.6 en NEXT_STEPS.md.
+    "clang-libstdcxx": r"C:/msys64/ucrt64/bin/clang++.exe",
     "intel": "icx",
     "msvc": "cl.exe",
 }
@@ -57,6 +62,10 @@ DEFAULTS_WINDOWS = {
 DEFAULTS_POSIX = {
     "gcc": "g++",
     "clang": "clang++",
+    # En posix el mismo binario sirve para las dos: la biblioteca la elige
+    # `-stdlib=`, que pone `compiler_env`. En Windows no, porque cada una vive
+    # en un arbol distinto de MSYS2.
+    "clang-libstdcxx": "clang++",
     "intel": "icpx",
     "msvc": "cl.exe",
 }
@@ -68,7 +77,33 @@ _UNWANTED_WINDOWS_PREFIXES = (
     "/usr/bin",  # dentro de la shell MSYS
 )
 
-_FALLBACK_NAMES = {"gcc": "g++", "clang": "clang++", "intel": "icx", "msvc": "cl.exe"}
+_FALLBACK_NAMES = {"gcc": "g++", "clang": "clang++", "clang-libstdcxx": "clang++",
+                   "intel": "icx", "msvc": "cl.exe"}
+
+
+# Las familias que el proyecto sabe construir, en el orden en que se prueban.
+# ESTA LISTA ES LA UNICA: `build_generic`, `check_generic` y `make.py` la piden
+# aqui en vez de repetirla. Cuando estaba repetida en cuatro sitios, uno se
+# desincronizo y clang podia saltarse sin que la suite lo notara.
+FAMILIAS = ("gcc", "clang", "clang-libstdcxx", "intel", "msvc")
+
+
+def familias_pedidas(peticion):
+    """Familias a construir para lo que ha pedido el usuario.
+
+    `all` NO incluye `clang-libstdcxx`: es la misma version de clang que `clang`
+    y solo cambia la biblioteca estandar, asi que en la pasada de todos los dias
+    aporta poco y cuesta otra compilacion completa. Se pide por su nombre, y el
+    CI la corre como job aparte.
+    """
+    if peticion in (None, "", "all"):
+        return [f for f in FAMILIAS if f != "clang-libstdcxx"]
+    if peticion == "todas":
+        return list(FAMILIAS)
+    if peticion not in FAMILIAS:
+        raise ValueError("familia desconocida: %s (hay %s, mas 'all' y 'todas')"
+                         % (peticion, ", ".join(FAMILIAS)))
+    return [peticion]
 
 
 def _platform_key():

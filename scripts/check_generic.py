@@ -16,7 +16,8 @@ Uso:
 Argumentos:
     type     : uint128 | int128 | demos
     feature  : bits | numeric | algorithm | etc. (o <category> si type=demos)
-    compiler : gcc | clang | intel | msvc | all (default: all)
+    compiler : gcc | clang | clang-libstdcxx | intel | msvc | all | todas
+               (default: all; `todas` anade clang-libstdcxx)
     mode     : debug | release | all (default: all)
 
 Ejemplos Tests:
@@ -136,7 +137,7 @@ def check_demo_compilation(category: str, demo_file: Path, compiler: str, mode: 
         # Compiler command
         # T1.1: resolucion centralizada (ver scripts/toolchains.py)
         compiler_cmd = (toolchains.resolve(compiler)
-                        if compiler in ("gcc", "clang", "intel", "msvc")
+                        if compiler in toolchains.FAMILIAS
                         else compiler)
         
         # Flags
@@ -152,7 +153,7 @@ def check_demo_compilation(category: str, demo_file: Path, compiler: str, mode: 
                     common_flags.append("-pthread")
                 if ('<atomic>' in content or 'std::atomic' in content or 
                     'atomic_' in content or 'thread_safety.hpp' in content):
-                    if compiler in ["gcc", "clang"]:
+                    if compiler in ["gcc", "clang", "clang-libstdcxx"]:
                         link_flags.append("-latomic")
         except:
             pass
@@ -220,7 +221,7 @@ def main():
             sys.exit(1)
         
         # Determine compilers and modes
-        compilers = ["gcc", "clang", "intel", "msvc"] if compiler_arg == "all" else [compiler_arg]
+        compilers = toolchains.familias_pedidas(compiler_arg)
         modes = ["debug", "release"] if mode_arg == "all" else [mode_arg]
         
         echo_header("=" * 70)
@@ -308,7 +309,7 @@ def main():
         build_dir = project_root / "build" / "build_tests"
         
         # Determine compilers and modes to test
-        compilers = ["gcc", "clang", "intel", "msvc"] if compiler_arg == "all" else [compiler_arg]
+        compilers = toolchains.familias_pedidas(compiler_arg)
         modes = ["debug", "release"] if mode_arg == "all" else [mode_arg]
         
         echo_header("=" * 60)

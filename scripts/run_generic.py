@@ -45,6 +45,8 @@ if sys.platform == "win32":
 # Add env_setup to path
 sys.path.insert(0, str(Path(__file__).parent / "env_setup"))
 
+import toolchains  # la lista de familias vive alli, no aqui
+
 try:
     from compiler_env import CompilerEnvironment
     USE_COMPILER_ENV = True
@@ -262,7 +264,7 @@ def main():
             target_type = "tests"
         
         # Determine compilers and modes to test
-        compilers = ["gcc", "clang", "intel", "msvc"] if compiler_arg == "all" else [compiler_arg]
+        compilers = toolchains.familias_pedidas(compiler_arg)
         modes = ["debug", "release"] if mode_arg == "all" else [mode_arg]
         
         echo_header("=" * 60)
