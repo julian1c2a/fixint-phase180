@@ -182,12 +182,19 @@ namespace nstd
         /// @param a Primer factor, en limbos little-endian.
         /// @param b Segundo factor.
         /// @param r Destino. **Se pone a cero al entrar.**
-        template <std::size_t N>
+        /// @tparam Limpiar Si el nucleo debe poner `r` a cero al entrar. **Ponerlo
+        ///         a `false` cuando el destino YA es cero**, que es lo que pasa
+        ///         cuando lo llama `fixed_int_t::mul_sin_marca`: alli `r{}` ya
+        ///         value-inicializa, y volver a limpiarlo costaba entre un 8 y
+        ///         un 23 % en las anchuras pequenas -- medido en el antes/despues
+        ///         de conectar `operator*`.
+        template <std::size_t N, bool Limpiar = true>
         constexpr void mul_escolar_bucle(const std::array<std::uint64_t, N> &a,
                                          const std::array<std::uint64_t, N> &b,
                                          std::array<std::uint64_t, N> &r) noexcept
         {
-            r.fill(0);
+            if constexpr (Limpiar)
+                r.fill(0);
             for (std::size_t i{0}; i < N; ++i)
             {
                 for (std::size_t j{0}; i + j < N; ++j)
@@ -266,12 +273,19 @@ namespace nstd
         ///
         /// @param a Primer factor. @param b Segundo factor.
         /// @param r Destino. **Se pone a cero al entrar.**
-        template <std::size_t N>
+        /// @tparam Limpiar Si el nucleo debe poner `r` a cero al entrar. **Ponerlo
+        ///         a `false` cuando el destino YA es cero**, que es lo que pasa
+        ///         cuando lo llama `fixed_int_t::mul_sin_marca`: alli `r{}` ya
+        ///         value-inicializa, y volver a limpiarlo costaba entre un 8 y
+        ///         un 23 % en las anchuras pequenas -- medido en el antes/despues
+        ///         de conectar `operator*`.
+        template <std::size_t N, bool Limpiar = true>
         constexpr void mul_escolar_desenrollado(const std::array<std::uint64_t, N> &a,
                                                 const std::array<std::uint64_t, N> &b,
                                                 std::array<std::uint64_t, N> &r) noexcept
         {
-            r.fill(0);
+            if constexpr (Limpiar)
+                r.fill(0);
             detail::filas_desenrolladas<0, N>(r, a, b);
         }
 
@@ -594,6 +608,12 @@ namespace nstd
         ///
         /// @param a Primer factor. @param b Segundo factor.
         /// @param r Destino. **Se pone a cero al entrar.**
+        /// @tparam Limpiar Si el nucleo debe poner `r` a cero al entrar. **Ponerlo
+        ///         a `false` cuando el destino YA es cero**, que es lo que pasa
+        ///         cuando lo llama `fixed_int_t::mul_sin_marca`: alli `r{}` ya
+        ///         value-inicializa, y volver a limpiarlo costaba entre un 8 y
+        ///         un 23 % en las anchuras pequenas -- medido en el antes/despues
+        ///         de conectar `operator*`.
         /// @param medio Como calcular los dos productos del medio, de N/2
         ///        limbos cada uno. Se pasa como parametro a proposito: es
         ///        **otra decision de reparto**, y dejarla dentro escondia que
@@ -667,6 +687,40 @@ namespace nstd
                             std::array<std::uint64_t, H> &z) const noexcept;
         };
 
+        // Declaracion adelantada: `medio_reparto` necesita al equilibrado, y el
+        // equilibrado necesita un `medio`.
+        template <std::size_t N, std::size_t Base = 8, typename Medio = medio_escolar<26>>
+        void mul_karatsuba_equilibrado(const std::array<std::uint64_t, N> &a,
+                                       const std::array<std::uint64_t, N> &b, std::array<std::uint64_t, N> &r,
+                                       Medio medio = Medio{}) noexcept;
+
+        /// @brief El termino del medio vuelve al REPARTO COMPLETO, no al escolar.
+        ///
+        /// Es la estrategia correcta y la que usaba el Karatsuba viejo sin
+        /// decirlo: sus terminos del medio salian del `operator*` de media
+        /// anchura, que vuelve a repartir. Con `medio_escolar` a secas, un
+        /// producto del medio de 32 limbos cae al bucle aunque Karatsuba le gane
+        /// 2,4x -- medido: hacerlo asi dejaba N=64 un 11 % PEOR que antes.
+        ///
+        /// @tparam MinKaratsuba Desde donde el medio vuelve a usar Karatsuba.
+        /// @tparam TopeDesenrollado Hasta donde desenrolla el escolar.
+        template <std::size_t TopeDesenrollado, std::size_t MinKaratsuba>
+        struct medio_reparto
+        {
+            template <std::size_t H>
+            void operator()(const std::array<std::uint64_t, H> &x, const std::array<std::uint64_t, H> &y,
+                            std::array<std::uint64_t, H> &z) const noexcept
+            {
+                if constexpr (H >= MinKaratsuba && H >= 2)
+                    mul_karatsuba_equilibrado<H, 8, medio_reparto<TopeDesenrollado, MinKaratsuba>>(
+                        x, y, z, medio_reparto<TopeDesenrollado, MinKaratsuba>{});
+                else if constexpr (H <= TopeDesenrollado)
+                    mul_escolar_desenrollado<H>(x, y, z);
+                else
+                    mul_escolar_bucle<H>(x, y, z);
+            }
+        };
+
         /// @brief Lo que hace `fixed_int_t` hoy con los terminos del medio: el
         ///        `operator*` de media anchura, que con los valores por defecto
         ///        de las macros acaba en el escolar desenrollado hasta 20.
@@ -696,13 +750,19 @@ namespace nstd
         /// @tparam Base Corte de la recursion; ver `kmul_full_gen`.
         /// @param a Primer factor. @param b Segundo factor.
         /// @param r Destino. **Se pone a cero al entrar.**
+        /// @tparam Limpiar Si el nucleo debe poner `r` a cero al entrar. **Ponerlo
+        ///         a `false` cuando el destino YA es cero**, que es lo que pasa
+        ///         cuando lo llama `fixed_int_t::mul_sin_marca`: alli `r{}` ya
+        ///         value-inicializa, y volver a limpiarlo costaba entre un 8 y
+        ///         un 23 % en las anchuras pequenas -- medido en el antes/despues
+        ///         de conectar `operator*`.
         /// @param medio Como calcular los dos productos del medio. Es otra
         ///        decision de reparto, y se pasa a proposito en vez de
         ///        esconderla dentro.
-        template <std::size_t N, std::size_t Base = 8, typename Medio = medio_escolar<26>>
+        template <std::size_t N, std::size_t Base, typename Medio>
         void mul_karatsuba_equilibrado(const std::array<std::uint64_t, N> &a,
                                        const std::array<std::uint64_t, N> &b, std::array<std::uint64_t, N> &r,
-                                       Medio medio = Medio{}) noexcept
+                                       Medio medio) noexcept
         {
             static_assert(N >= 2, "mul_karatsuba_equilibrado: hacen falta al menos dos limbos");
 

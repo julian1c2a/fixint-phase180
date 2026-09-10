@@ -99,6 +99,10 @@
 #include <type_traits>
 #include <utility>
 
+// La capa de nucleos de multiplicacion. No hay ciclo: `mul_kernels.hpp` solo
+// depende de <array>, <cstdint> y los intrinsecos -- no conoce `fixed_int_t`.
+#include "algorithms/mul_kernels.hpp"
+
 #include "representation.hpp"
 
 #if __has_include("intrinsics/arithmetic_operations.hpp")
@@ -1654,62 +1658,55 @@ namespace nstd
             }
 #endif
 
-            // Karatsuba: producto bajo completo con kmul_full<N/2>, terminos del
-            // medio con el operator* de media anchura, que recurre solo.
-            // Las anchuras las fijan NSTD_KARATSUBA_MIN/MAX, ver arriba.
-            if constexpr ((N & (N - 1)) == 0 && N >= NSTD_KARATSUBA_MIN && N <= NSTD_KARATSUBA_MAX)
+            // ─────────────────────────────────────────────────────────────────
+            // EL REPARTO. Desde el 10 sep 2026 esta funcion no IMPLEMENTA nada:
+            // elige entre los nucleos de `algorithms/mul_kernels.hpp`, que son
+            // funciones libres sobre `std::array` y se pueden medir sueltas.
+            //
+            // Antes los tres caminos vivian aqui dentro, y eso hacia imposible
+            // compararlos en la misma N --habia que recompilar-- y por tanto
+            // imposible cumplir la regla de rondas entrelazadas del protocolo de
+            // medicion. Ver docs/PLAN_SESION_MEDICION.md.
+            // ─────────────────────────────────────────────────────────────────
+
+            // Karatsuba, ahora con reparto EQUILIBRADO: **ya no exige que N sea
+            // potencia de dos**. Esa exigencia era la causa del acantilado --toda
+            // anchura mayor que el tope de desenrollado que no fuera potencia de
+            // dos caia al bucle y costaba 3-4x por limbo, con N=24 tardando mas
+            // que N=32--. Medido: el equilibrado gana al bucle en TODAS las
+            // anchuras de 8 a 64, de 1,25x a 2,96x. Ver docs/PERFORMANCE.md.
+            //
+            // No es `constexpr`: en evaluacion constante se cae al escolar, que
+            // si lo es.
+            if constexpr (N >= NSTD_KARATSUBA_MIN && N <= NSTD_KARATSUBA_MAX)
             {
                 if (!std::is_constant_evaluated())
                 {
-                    constexpr std::size_t HH = N / 2;
-                    using half_t = uint_fixed_t<HH>;
-
-                    half_t a_lo{}, a_hi{}, b_lo{}, b_hi{};
-                    for (std::size_t i = 0; i < HH; ++i)
-                    {
-                        a_lo.data[i] = data[i];
-                        a_hi.data[i] = data[HH + i];
-                        b_lo.data[i] = o.data[i];
-                        b_hi.data[i] = o.data[HH + i];
-                    }
-
-                    const auto z0 = kmul_full<HH>(a_lo.data, b_lo.data);
-                    const half_t mid = a_lo * b_hi + a_hi * b_lo;
-
-                    for (std::size_t i = 0; i < N; ++i)
-                        r.data[i] = z0[i];
-                    unsigned char c = 0;
-                    for (std::size_t i = 0; i < HH; ++i)
-                        c = add_limb_carry(r.data[HH + i], mid.data[i], c);
+                    // El medio vuelve al REPARTO COMPLETO, no al escolar: un
+                    // producto del medio de 32 limbos tiene que volver a entrar
+                    // en Karatsuba, que ahi le gana 2,4x al bucle. Ponerle el
+                    // escolar dejaba N=64 un 11 % peor que antes -- medido.
+                    using medio_t = algorithms::medio_reparto<NSTD_DESENROLLA_MAX, NSTD_KARATSUBA_MIN>;
+                    algorithms::mul_karatsuba_equilibrado<N, 8, medio_t>(data, o.data, r.data, medio_t{});
                     return r;
                 }
             }
 
-            // Escolar desenrollado, para las anchuras donde compensa.
+            // Escolar desenrollado, para las anchuras donde compensa. El tope lo
+            // fija `NSTD_DESENROLLA_MAX`; ver su bloque `@def` y el barrido de
+            // docs/PERFORMANCE.md, que midio los cuatro compiladores.
             if constexpr (N <= NSTD_DESENROLLA_MAX)
             {
-                filas_desenrolladas<0>(r.data, data, o.data);
+                // `r{}` ya value-inicializa a cero, asi que el nucleo NO debe volver a
+                // limpiarlo: hacerlo costaba entre un 8 y un 23 % en las
+                // anchuras pequenas -- medido.
+                algorithms::mul_escolar_desenrollado<N, false>(data, o.data, r.data);
                 return r;
             }
 
-            // Escolar O(N^2) en bucle: por encima del tope de desenrollado, o en
-            // evaluacion constante con MSVC.
-            for (std::size_t i{0}; i < N; ++i)
-            {
-                for (std::size_t j{0}; i + j < N; ++j)
-                {
-                    std::uint64_t hi{0};
-                    const std::uint64_t lo = producto64(data[i], o.data[j], hi);
-                    unsigned char c = add_limb(r.data[i + j], lo);
-                    const std::size_t next = i + j + 1;
-                    if (next < N)
-                    {
-                        c = add_limb_carry(r.data[next], hi, c);
-                        for (std::size_t k{next + 1}; k < N && c; ++k)
-                            c = add_limb(r.data[k], std::uint64_t{c});
-                    }
-                }
-            }
+            // Escolar en bucle: por encima del tope de desenrollado y por debajo
+            // del de Karatsuba, o en evaluacion constante.
+            algorithms::mul_escolar_bucle<N, false>(data, o.data, r.data);
             return r;
         }
 

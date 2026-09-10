@@ -342,6 +342,85 @@ sino la biblioteca contra un espantapájaros. Los controles existen por eso.
 
 ---
 
+## `operator*` conectado a los núcleos: la ganancia real de la biblioteca
+
+**10 September 2026.** `mul_sin_marca` ya no implementa nada: **reparte** entre
+los núcleos de `algorithms/mul_kernels.hpp`. El único cambio de comportamiento
+es que **Karatsuba deja de exigir potencia de dos**, que era la causa del
+acantilado.
+
+```
+N == 2                → especializado con __int128 / _umul128   (sin cambio)
+evaluación constante  → escolar (los núcleos escolares sí son constexpr)
+N ≤ NSTD_DESENROLLA_MAX → escolar desenrollado
+hasta NSTD_KARATSUBA_MIN → escolar en bucle
+N ≥ NSTD_KARATSUBA_MIN  → Karatsuba EQUILIBRADO, cualquier N
+```
+
+### La ganancia, medida antes/después
+
+Mínimo de **tres rondas A/B alternadas**, mismo compilador (clang) y misma
+máquina, compilando el «antes» contra el árbol extraído de HEAD:
+
+| N | antes | después | mejora |
+|---:|---:|---:|---:|
+| 32 | 4 704 | 3 494 | **1,35×** |
+| **48** | 21 222 | 13 819 | **1,54×** |
+| 64 | 19 198 | 14 958 | **1,28×** |
+
+N=48 es el punto del acantilado: antes caía al bucle por no ser potencia de dos.
+
+### Dos regresiones que este cambio introdujo, y que sólo el antes/después vio
+
+**1. N=64 salió 0,89×, PEOR que antes.** El Karatsuba viejo calculaba su término
+del medio con el `operator*` de media anchura, que a HH=32 **volvía a entrar en
+Karatsuba**. Al conectar se puso `medio_escolar<NSTD_DESENROLLA_MAX>`, que con el
+tope en 20 manda un producto de 32 limbos al **bucle**.
+
+Es el hallazgo del barrido de Karatsuba —que el término del medio vale hasta
+1,9×— cometido en la dirección contraria. Arreglado con `medio_reparto`, que
+devuelve el medio al reparto completo: N=64 pasó de **0,89× a 1,42×**.
+
+**2. N=12..20 salían 0,77×–0,92×.** `fixed_int_t r{}` ya value-inicializa a cero
+y el núcleo **volvía a poner a cero**. Los escolares reciben ahora
+`Limpiar=false` cuando el destino ya es cero.
+
+### Y la comprobación que no depende del banco
+
+Tras los dos arreglos, N pequeño seguía oscilando entre 0,82× y 1,59× **sin
+patrón**, en una zona donde el camino es idéntico por construcción. En vez de
+discutir con el ruido se comparó el **código emitido**:
+
+| | antes | después |
+|---|---:|---:|
+| `mulq` | 148 | 148 |
+| `adcq` | 148 | 148 |
+| `addq` | 308 | 308 |
+| `movq` | 895 | 895 |
+| líneas de ensamblador | 5 473 | 5 473 |
+
+**Cero diferencias que no sean nombres de símbolo** —
+`fixed_int_t<…>::fila_desenrollada` pasó a
+`algorithms::detail::fila_desenrollada`—. El código es el mismo, luego no puede
+haber regresión: era ruido del arnés viejo, que es el que `benchmark_curva_n`
+todavía usa.
+
+> **Lección de método**: cuando dos medidas de algo que debería ser idéntico no
+> coinciden, comparar el código emitido zanja la discusión en un minuto.
+> `scripts/bench_asm.py` existe para eso.
+
+### Lo que queda abierto
+
+- **El hueco entre los dos umbrales.** Con 20 y 32, las anchuras 21..31 van al
+  bucle, y el equilibrado le gana ahí ~2,2×. Cerrarlo es bajar
+  `NSTD_KARATSUBA_MIN`, pero antes hay que medir el equilibrado **contra el
+  desenrollado** cara a cara — sólo se ha comparado contra el bucle.
+- **Código muerto en la clase.** `kmul_full`, `filas_desenrolladas` y compañía ya
+  no los usa `operator*`, pero `benchmark_karatsuba.cpp` todavía llama a
+  `kmul_full`. Retirarlos va aparte.
+
+---
+
 ## El acantilado, resuelto: Karatsuba con reparto equilibrado
 
 **Escrito y medido el 10 September 2026.** `mul_karatsuba_equilibrado` quita la
