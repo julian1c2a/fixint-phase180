@@ -342,6 +342,56 @@ sino la biblioteca contra un espantapájaros. Los controles existen por eso.
 
 ---
 
+## El acantilado, resuelto: Karatsuba con reparto equilibrado
+
+**Escrito y medido el 10 September 2026.** `mul_karatsuba_equilibrado` quita la
+limitación que causaba el acantilado: el Karatsuba de la biblioteca sólo admite
+**potencias de dos**, así que toda anchura mayor que el tope de desenrollado que
+no lo sea cae al bucle escolar y cuesta 3–4× por limbo — N=24 tardaba más que
+N=32.
+
+El equilibrado parte en dos mitades iguales cuando N es par y **rellena con un
+solo limbo** cuando es impar. No hasta la potencia de dos siguiente: eso ya se
+descartó midiendo, porque para N=48 daría el coste de N=64, que es peor que el
+del escolar.
+
+### Correcto en las 63 anchuras, no sólo en las que le convienen
+
+`tests/test_mul_kernels.cpp` lo cruza contra el escolar en **N = 2..64, todas**,
+con 60 pares al azar cada una más `max·max` —el que más acarreos encadena— y una
+potencia de dos en el limbo más alto. **63 de 63.**
+
+Lo que había que comprobar no eran las potencias de dos, que ya funcionaban, sino
+las **impares**, que llevan el camino del relleno.
+
+### El acantilado desaparece
+
+Contra el bucle escolar, clang, barrido denso de N=8 a 64:
+
+| N | clase | razón |
+|---:|---|---:|
+| 16 | pot2 | 2,93× |
+| 20 | par | 2,76× |
+| **24** | par | **2,96×** ← el punto del acantilado |
+| 32 | pot2 | 2,41× |
+| 36 | par | 1,95× |
+| **48** | par | **1,77×** ← el otro punto |
+| 52 | par | 1,59× |
+
+**La razón más baja de todo el barrido es 1,25× en N=9**: el equilibrado **no
+pierde en ninguna anchura**, que es justo lo que el reparto de hoy no puede
+decir.
+
+Y no hay dientes: **las potencias de dos ya no destacan sobre sus vecinas**. Antes
+eran las únicas que tenían Karatsuba; ahora todas lo tienen.
+
+> **Sobre esta tanda**: se midió con la máquina cargada y varias casillas salen
+> con recorridos altos, alguna por encima del 200 %. La conclusión no depende de
+> ninguna casilla suelta — se sostiene sobre 57 anchuras consecutivas, todas del
+> mismo lado— pero las cifras individuales de esta tabla no valen a dos dígitos.
+
+---
+
 ## El umbral de Karatsuba, y una segunda perilla que estaba escondida
 
 **Medido el 10 September 2026** con `benchmark_barrido_karatsuba`, en los cuatro

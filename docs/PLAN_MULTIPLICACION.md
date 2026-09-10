@@ -181,7 +181,7 @@ el equilibrado no da lo que promete la cuenta, Toom-3 tampoco lo dará.
 | # | Paso | Depende de | Cómo se sabe que está bien |
 |---|---|---|---|
 | 1 | `NSTD_DESENROLLA_MAX` de 20 a 31 | — | Ya medido: 2,44× en N=24. Vigilar tiempo de compilación de la suite entera, no sólo de un fichero |
-| 2 | Karatsuba con reparto equilibrado, para toda N | 1 | Test diferencial contra el escolar en **toda** N de 32 a 64, no sólo potencias de dos. El acantilado tiene que desaparecer de la curva |
+| ~~2~~ | ~~Karatsuba con reparto equilibrado~~ | — | ✅ **hecho el 10 sep**: `nstd::algorithms::mul_karatsuba_equilibrado`. Correcto en las **63** anchuras de 2 a 64, impares incluidas. Contra el bucle gana en **todas**, de 1,25× a 2,96×, y las potencias de dos ya no destacan: **el acantilado desaparece** |
 | 3 | Re-medir la curva completa y actualizar `PERFORMANCE.md` | 2 | `benchmark_curva_n` sin picos: la columna «por limbo» de `mul` debe crecer suavemente |
 | 4 | Medir el umbral real de Karatsuba con el reparto nuevo | 3 | Puede que baje de 32: el equilibrado no tiene el salto de las potencias de dos |
 | 5 | Toom-3 | 4 | Umbral **medido**. Si no gana por debajo de N=4096 (`NSTD_KARATSUBA_MAX`), se documenta y no se activa |

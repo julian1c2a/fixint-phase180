@@ -160,6 +160,77 @@ static bool cruza_karatsuba(std::uint64_t semilla, int vueltas)
 
 // =============================================================================
 
+// =============================================================================
+// Karatsuba con reparto EQUILIBRADO: la prueba que importa es en TODA N
+// =============================================================================
+//
+// `mul_karatsuba_pot2` solo admite potencias de dos, y por eso toda anchura
+// mayor que el tope de desenrollado que no lo sea cae al bucle escolar --el
+// acantilado de docs/PERFORMANCE.md--. El equilibrado quita esa limitacion.
+//
+// Aqui lo que hay que comprobar NO son las potencias de dos, que ya
+// funcionaban, sino las que no lo son y sobre todo **las impares**, que llevan
+// el camino del relleno de un limbo.
+
+template <std::size_t N>
+static bool cruza_equilibrado(std::uint64_t semilla, int vueltas)
+{
+    xorshift rng{semilla};
+    for (int v = 0; v < vueltas; ++v)
+    {
+        std::array<std::uint64_t, N> a{}, b{}, ref{}, eq{};
+        for (std::size_t i = 0; i < N; ++i)
+        {
+            a[i] = rng();
+            b[i] = rng();
+        }
+        // Casos que un generador no da: todo unos --el que mas acarreos
+        // encadena-- y una potencia de dos en el limbo mas alto.
+        if (v == 0)
+            for (std::size_t i = 0; i < N; ++i)
+                a[i] = b[i] = ~std::uint64_t{0};
+        if (v == 1)
+        {
+            a.fill(0);
+            b.fill(0);
+            a[N - 1] = 1;
+            b[0] = 3;
+        }
+
+        algorithms::mul_escolar_bucle<N>(a, b, ref);
+        algorithms::mul_karatsuba_equilibrado<N>(a, b, eq);
+
+        for (std::size_t i = 0; i < N; ++i)
+            if (ref[i] != eq[i])
+            {
+                std::printf("       ...N=%zu vuelta %d limbo %zu: escolar %llu, equilibrado %llu\n", N, v, i,
+                            (unsigned long long)ref[i], (unsigned long long)eq[i]);
+                return false;
+            }
+    }
+    return true;
+}
+
+template <std::size_t N, std::size_t Tope>
+static bool barre_equilibrado(std::uint64_t semilla, int vueltas)
+{
+    if constexpr (N > Tope)
+    {
+        (void)semilla;
+        (void)vueltas;
+        return true;
+    }
+    else
+    {
+        if (!cruza_equilibrado<N>(semilla + N * 2654435761ULL, vueltas))
+        {
+            std::printf("       ...la discrepancia esta en N=%zu\n", N);
+            return false;
+        }
+        return barre_equilibrado<N + 1, Tope>(semilla, vueltas);
+    }
+}
+
 int main()
 {
     std::printf("=== test_mul_kernels: los nucleos sueltos frente a la clase ===\n\n");
@@ -175,6 +246,10 @@ int main()
     ok("Karatsuba coincide con la clase en N=16", cruza_karatsuba<16>(0xD1B54A32D192ED10ULL, 200));
     ok("Karatsuba coincide con la clase en N=32", cruza_karatsuba<32>(0xD1B54A32D192ED20ULL, 200));
     ok("Karatsuba coincide con la clase en N=64", cruza_karatsuba<64>(0xD1B54A32D192ED40ULL, 100));
+
+    std::printf("\n--- Karatsuba EQUILIBRADO, en toda N: 2..64, impares incluidas ---\n");
+    ok("el equilibrado coincide con el escolar en las 63 anchuras de 2 a 64",
+       barre_equilibrado<2, 64>(0x9E3779B97F4A7C15ULL, 60));
 
     std::printf("\n--- casos que no salen de un generador al azar ---\n");
     {

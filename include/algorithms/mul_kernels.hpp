@@ -134,6 +134,41 @@ namespace nstd
                 return static_cast<unsigned char>((limb < old || (c && limb == old)) ? 1 : 0);
 #endif
             }
+            /// @brief Producto COMPLETO MxM -> 2M, escolar. Sin truncar.
+            ///
+            /// Es el caso base de `kmul_full_gen`, y se distingue de
+            /// `mul_escolar_bucle` en que aquel es MODULAR --tira lo que se sale de
+            /// N limbos-- y este conserva los 2M.
+            ///
+            /// @param a Primer factor. @param b Segundo factor.
+            /// @param r Destino de 2M limbos. **Se pone a cero al entrar.**
+            template <std::size_t M>
+            constexpr void mul_full_escolar(const std::array<std::uint64_t, M> &a,
+                                            const std::array<std::uint64_t, M> &b,
+                                            std::array<std::uint64_t, 2 * M> &r) noexcept
+            {
+                r.fill(0);
+                for (std::size_t i = 0; i < M; ++i)
+                {
+                    std::uint64_t acarreo = 0;
+                    for (std::size_t j = 0; j < M; ++j)
+                    {
+                        std::uint64_t alto = 0;
+                        const std::uint64_t bajo = mul64(a[i], b[j], alto);
+                        unsigned char c = add_limb(r[i + j], bajo);
+                        alto += c; // no puede desbordar: alto <= 2^64-2
+                        c = add_limb(r[i + j], acarreo);
+                        alto += c;
+                        acarreo = alto;
+                    }
+                    // El acarreo final entra en el limbo i+M, y puede propagarse.
+                    std::size_t k = i + M;
+                    unsigned char c = add_limb(r[k], acarreo);
+                    while (c && ++k < 2 * M)
+                        c = add_limb(r[k], std::uint64_t{c});
+                }
+            }
+
         } // namespace detail
 
         // =====================================================================
@@ -373,6 +408,178 @@ namespace nstd
                 return r;
             }
         }
+        /// @brief Producto COMPLETO MxM -> 2M por Karatsuba, para **cualquier M**.
+        ///
+        /// Es el nucleo del reparto equilibrado. Frente a `kmul_full`, que exige
+        /// potencia de dos, este parte en dos mitades iguales cuando M es par y
+        /// **rellena con un solo limbo** cuando es impar.
+        ///
+        /// @note El relleno es de UN limbo, no hasta la potencia de dos
+        ///       siguiente. Rellenar hasta la potencia de dos se midio y sale
+        ///       peor: para N=48 daria el coste de N=64, que es mayor que el del
+        ///       escolar. Un limbo cuesta un factor `(1 + 1,585/M)`, que se
+        ///       desvanece al crecer M.
+        ///
+        /// @tparam M Numero de limbos de cada factor. Cualquiera >= 1.
+        /// @tparam Base Anchura a partir de la cual se corta la recursion y se
+        ///         usa el escolar completo. Es un umbral MEDIBLE, no una
+        ///         constante magica.
+        /// @param a Primer factor. @param b Segundo factor.
+        /// @return El producto exacto, 2M limbos.
+        template <std::size_t M, std::size_t Base>
+        [[nodiscard]] inline std::array<std::uint64_t, 2 * M>
+        kmul_full_gen(const std::array<std::uint64_t, M> &a, const std::array<std::uint64_t, M> &b) noexcept
+        {
+            std::array<std::uint64_t, 2 * M> r{};
+
+            if constexpr (M <= Base)
+            {
+                // Caso base: escolar completo. El de `kmul_full` era M==1; aqui
+                // se corta antes porque por debajo de una decena de limbos la
+                // recursion cuesta mas de lo que ahorra -- medido.
+                detail::mul_full_escolar<M>(a, b, r);
+                return r;
+            }
+            else if constexpr (M % 2 == 1)
+            {
+                // ANCHURA IMPAR. Karatsuba parte por la mitad, y una mitad de un
+                // impar no existe. Se rellena con UN limbo de ceros --no se
+                // redondea a la potencia de dos siguiente, que era el error del
+                // reparto descartado-- y se recorta al salir. El coste extra es
+                // el de un limbo, no el de duplicar la anchura.
+                std::array<std::uint64_t, M + 1> ap{}, bp{};
+                for (std::size_t i = 0; i < M; ++i)
+                {
+                    ap[i] = a[i];
+                    bp[i] = b[i];
+                }
+                const auto rp = kmul_full_gen<M + 1, Base>(ap, bp);
+                for (std::size_t i = 0; i < 2 * M; ++i)
+                    r[i] = rp[i];
+                return r;
+            }
+            else if constexpr (false)
+            {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                r[0] = intrinsics::umul128(a[0], b[0], &r[1]);
+#else
+                const std::uint64_t al = a[0] & 0xFFFF'FFFFull;
+                const std::uint64_t ah = a[0] >> 32;
+                const std::uint64_t bl = b[0] & 0xFFFF'FFFFull;
+                const std::uint64_t bh = b[0] >> 32;
+                const std::uint64_t p0 = al * bl, p1 = al * bh;
+                const std::uint64_t p2 = ah * bl, p3 = ah * bh;
+                const std::uint64_t mid = (p0 >> 32) + (p1 & 0xFFFF'FFFFull) + (p2 & 0xFFFF'FFFFull);
+                r[0] = (p0 & 0xFFFF'FFFFull) | (mid << 32);
+                r[1] = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
+#endif
+                return r;
+            }
+            else
+            {
+                constexpr std::size_t HH = M / 2;
+
+                // ── Split into low/high halves ────────────────────────────────────
+                std::array<std::uint64_t, HH> a_lo{}, a_hi{}, b_lo{}, b_hi{};
+                for (std::size_t i = 0; i < HH; ++i)
+                {
+                    a_lo[i] = a[i];
+                    a_hi[i] = a[HH + i];
+                    b_lo[i] = b[i];
+                    b_hi[i] = b[HH + i];
+                }
+
+                // ── z0 = a_lo·b_lo,  z2 = a_hi·b_hi  (each 2HH limbs) ───────────
+                const auto z0 = kmul_full_gen<HH, Base>(a_lo, b_lo);
+                const auto z2 = kmul_full_gen<HH, Base>(a_hi, b_hi);
+
+                // ── sum_a = a_lo + a_hi,  sum_b = b_lo + b_hi  (+carry ca, cb) ───
+                std::array<std::uint64_t, HH> sum_a{}, sum_b{};
+                unsigned char ca = 0, cb = 0;
+                for (std::size_t i = 0; i < HH; ++i)
+                {
+                    sum_a[i] = a_hi[i];
+                    ca = detail::add_limb_carry(sum_a[i], a_lo[i], ca);
+                    sum_b[i] = b_hi[i];
+                    cb = detail::add_limb_carry(sum_b[i], b_lo[i], cb);
+                }
+
+                // ── p = (sum_a + ca·B^HH) · (sum_b + cb·B^HH)  (2HH+1 limbs) ───
+                // = sum_a·sum_b + ca·sum_b·B^HH + cb·sum_a·B^HH + ca·cb·B^(2HH)
+                std::array<std::uint64_t, 2 * HH + 1> p{};
+                {
+                    const auto pp = kmul_full_gen<HH, Base>(sum_a, sum_b);
+                    for (std::size_t i = 0; i < 2 * HH; ++i)
+                        p[i] = pp[i];
+                }
+                if (ca)
+                {
+                    unsigned char c = 0;
+                    for (std::size_t i = 0; i < HH; ++i)
+                        c = detail::add_limb_carry(p[HH + i], sum_b[i], c);
+                    p[2 * HH] += c;
+                }
+                if (cb)
+                {
+                    unsigned char c = 0;
+                    for (std::size_t i = 0; i < HH; ++i)
+                        c = detail::add_limb_carry(p[HH + i], sum_a[i], c);
+                    p[2 * HH] += c;
+                }
+                if (ca & cb)
+                    ++p[2 * HH];
+
+                // ── z1 = p − z0 − z2  (guaranteed ≥ 0, fits in 2HH+1 limbs) ─────
+                std::array<std::uint64_t, 2 * HH + 1> z1 = p;
+                {
+                    unsigned char borrow = 0;
+                    for (std::size_t i = 0; i < 2 * HH; ++i)
+                    {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                        borrow = intrinsics::subborrow_u64(borrow, z1[i], z0[i], &z1[i]);
+#else
+                        const std::uint64_t av = z1[i];
+                        z1[i] = av - z0[i] - borrow;
+                        borrow = static_cast<unsigned char>((av < z0[i]) || (borrow && av == z0[i]) ? 1 : 0);
+#endif
+                    }
+                    z1[2 * HH] -= borrow;
+                }
+                {
+                    unsigned char borrow = 0;
+                    for (std::size_t i = 0; i < 2 * HH; ++i)
+                    {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                        borrow = intrinsics::subborrow_u64(borrow, z1[i], z2[i], &z1[i]);
+#else
+                        const std::uint64_t av = z1[i];
+                        z1[i] = av - z2[i] - borrow;
+                        borrow = static_cast<unsigned char>((av < z2[i]) || (borrow && av == z2[i]) ? 1 : 0);
+#endif
+                    }
+                    z1[2 * HH] -= borrow;
+                }
+
+                // ── Combine: r = z0 + z1·B^HH + z2·B^(2HH) ─────────────────────
+                for (std::size_t i = 0; i < 2 * HH; ++i)
+                    r[i] = z0[i];
+                {
+                    unsigned char c = 0;
+                    std::size_t i = 0;
+                    for (; i <= 2 * HH; ++i)
+                        c = detail::add_limb_carry(r[HH + i], z1[i], c);
+                    for (; c && HH + i < 2 * M; ++i)
+                        c = detail::add_limb(r[HH + i], std::uint64_t{1});
+                }
+                {
+                    unsigned char c = 0;
+                    for (std::size_t i = 0; i < 2 * HH; ++i)
+                        c = detail::add_limb_carry(r[2 * HH + i], z2[i], c);
+                }
+
+                return r;
+            }
+        }
 
         /// @brief Producto modular NxN -> N por Karatsuba.
         ///
@@ -468,6 +675,78 @@ namespace nstd
         ///       tenerla escondida dentro de Karatsuba ocultaba que a N=32 el
         ///       camino real es «kmul_full<16> mas desenrollado a 16».
         using medio_como_hoy = medio_escolar<20>;
+
+        /// @brief Producto modular NxN -> N por Karatsuba, **para cualquier N**.
+        ///
+        /// Es lo que el reparto de hoy no puede hacer: `mul_karatsuba_pot2`
+        /// exige que N sea potencia de dos, y por eso toda anchura mayor que el
+        /// tope de desenrollado que no lo sea cae al bucle escolar y cuesta 3-4x
+        /// por limbo. Ver el acantilado en docs/PERFORMANCE.md.
+        ///
+        /// La mitad baja sale del producto COMPLETO de N/2 limbos, que da
+        /// exactamente N; los dos terminos del medio son productos modulares de
+        /// N/2 y se suman desplazados N/2 limbos. Lo que se sale por arriba se
+        /// descarta.
+        ///
+        /// Con N impar se rellena con **un** limbo y se recorta: el limbo alto de
+        /// los dos factores es cero, asi que los N limbos bajos del producto en
+        /// N+1 son los N limbos bajos del producto verdadero.
+        ///
+        /// @tparam N Numero de limbos. Cualquiera >= 2.
+        /// @tparam Base Corte de la recursion; ver `kmul_full_gen`.
+        /// @param a Primer factor. @param b Segundo factor.
+        /// @param r Destino. **Se pone a cero al entrar.**
+        /// @param medio Como calcular los dos productos del medio. Es otra
+        ///        decision de reparto, y se pasa a proposito en vez de
+        ///        esconderla dentro.
+        template <std::size_t N, std::size_t Base = 8, typename Medio = medio_escolar<26>>
+        void mul_karatsuba_equilibrado(const std::array<std::uint64_t, N> &a,
+                                       const std::array<std::uint64_t, N> &b, std::array<std::uint64_t, N> &r,
+                                       Medio medio = Medio{}) noexcept
+        {
+            static_assert(N >= 2, "mul_karatsuba_equilibrado: hacen falta al menos dos limbos");
+
+            if constexpr (N % 2 == 1)
+            {
+                std::array<std::uint64_t, N + 1> ap{}, bp{}, rp{};
+                for (std::size_t i = 0; i < N; ++i)
+                {
+                    ap[i] = a[i];
+                    bp[i] = b[i];
+                }
+                mul_karatsuba_equilibrado<N + 1, Base>(ap, bp, rp, medio);
+                for (std::size_t i = 0; i < N; ++i)
+                    r[i] = rp[i];
+            }
+            else
+            {
+                constexpr std::size_t HH = N / 2;
+
+                std::array<std::uint64_t, HH> a_lo{}, a_hi{}, b_lo{}, b_hi{};
+                for (std::size_t i = 0; i < HH; ++i)
+                {
+                    a_lo[i] = a[i];
+                    a_hi[i] = a[HH + i];
+                    b_lo[i] = b[i];
+                    b_hi[i] = b[HH + i];
+                }
+
+                const auto z0 = kmul_full_gen<HH, Base>(a_lo, b_lo);
+
+                std::array<std::uint64_t, HH> m1{}, m2{};
+                medio(a_lo, b_hi, m1);
+                medio(a_hi, b_lo, m2);
+                unsigned char cm = 0;
+                for (std::size_t i = 0; i < HH; ++i)
+                    cm = detail::add_limb_carry(m1[i], m2[i], cm);
+
+                for (std::size_t i = 0; i < N; ++i)
+                    r[i] = z0[i];
+                unsigned char c = 0;
+                for (std::size_t i = 0; i < HH; ++i)
+                    c = detail::add_limb_carry(r[HH + i], m1[i], c);
+            }
+        }
 
         template <std::size_t TopeDesenrollado, std::size_t MinKaratsuba>
         template <std::size_t H>
