@@ -20,7 +20,7 @@
 | | |
 |---|---|
 | **Release** | ✅ **v1.90.4 publicada**, la primera del proyecto: tres zips (gcc, clang, msvc) |
-| **Suite local** | ✅ **60/60 en CINCO configuraciones**: GCC+libstdc++, clang+libc++, **clang+libstdc++**, MSVC e Intel |
+| **Suite local** | ✅ **61/61 en CINCO configuraciones**: GCC+libstdc++, clang+libc++, **clang+libstdc++**, MSVC e Intel |
 | **CI** | ✅ **24/24 jobs** sobre `f959f53`, ya con la matriz compilando de verdad: no había fallos tapados |
 | **Diseño de la 2.0** | ✅ cerrado. **P1.1 a P1.4 escritos**; quedan P1.5 y P1.6 |
 | **`operator*`** | ✅ **de 2× a 4,9× más rápido** (6 sep 2026): escolar desenrollado hasta N=20, Karatsuba desde N=32. Los dos umbrales, medidos |
