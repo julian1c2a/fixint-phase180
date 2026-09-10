@@ -67,6 +67,91 @@ N=1024, y la rejilla entera cabe en minutos.
 Es la pieza que todas las sesiones de medición posteriores van a reutilizar, así
 que se escribe una vez y bien.
 
+### La capa de núcleos: sin ella no se puede medir bien
+
+**Hoy no se pueden comparar dos algoritmos en la misma N.** El reparto vive
+dentro de `mul_sin_marca`, en una cadena de `if constexpr` que elige **uno** en
+tiempo de compilación según N y las macros. Para medir el otro hay que
+**recompilar entero**.
+
+Eso rompe la regla 4 del protocolo —rondas entrelazadas entre las variantes que
+se comparan—, que es imposible de cumplir si sólo hay una variante en el
+binario. Y es justo la regla que protege de la deriva térmica y de la posición
+dentro de la ejecución, que en este proyecto ya se ha visto que mueven la
+medida.
+
+**Lo que hace falta: los núcleos en una cabecera aparte, como funciones libres
+sobre `std::array<std::uint64_t, N>`.**
+
+```cpp
+namespace nstd::algorithms
+{
+    template <std::size_t N>
+    constexpr void mul_escolar_bucle(const std::array<std::uint64_t, N> &a,
+                                     const std::array<std::uint64_t, N> &b,
+                                     std::array<std::uint64_t, N> &r) noexcept;
+
+    template <std::size_t N> constexpr void mul_escolar_desenrollado(...);
+    template <std::size_t N> constexpr void mul_karatsuba_pot2(...);
+    // y mas adelante: mul_karatsuba_equilibrado, mul_toom3
+}
+```
+
+`operator*` se queda como lo que debe ser: **el repartidor**, y nada más.
+
+**No hace falta `friend`, y conviene no usarlo.** `limbs()` y `limbs_ref()` ya
+son públicas y devuelven el `std::array` por referencia — el mismo acceso que
+daría la amistad, sin tocar la clase. Y `kmul_full` **ya está escrito sobre
+`std::array`**: la costura existe, sólo que no está expuesta como capa. Declarar
+amigos obligaría a editar la clase por cada experimento y a quitarlos después;
+esto no.
+
+Es además el diseño de la capa `mpn` de GMP: funciones sobre vectores de limbos,
+y los tipos por encima.
+
+Lo que se gana, y todo hace falta para esta sesión:
+
+1. **Comparables lado a lado en la misma N**, luego las rondas entrelazadas son
+   posibles.
+2. **Cada núcleo se prueba solo** contra una referencia, sin pasar por el tipo.
+3. **El reparto se ve en un sitio**, que es lo que se está ajustando.
+4. Los algoritmos nuevos entran **como hermanos**, no como otra rama de un
+   `if constexpr` de cien líneas.
+
+> **Antes de fiarse: comprobar que los accesores son gratis.** `limbs()` es un
+> `return data;` en línea y a −O2 debería costar cero, pero *debería* no es
+> *mide*. `scripts/bench_asm.py` ya cuenta instrucciones emitidas y existe justo
+> para esto. Si el accesor no fuera gratis, se estaría midiendo el accesor.
+
+### El sobre de instanciación: no todo cabe en toda N
+
+**El escolar desenrollado es O(N²) en tamaño de código.** Medido con clang −O2 el
+10 sep 2026, forzando el camino:
+
+| N | compila en | binario |
+|---:|---:|---:|
+| 32 | 3,0 s | 134 KB |
+| 64 | 10,4 s | 541 KB |
+| 96 | 23,1 s | 1 244 KB |
+| 128 | **37,0 s** | **2 250 KB** |
+
+Extrapolando: N=256 son unos 150 s y 9 MB; N=512, unos 10 minutos y 36 MB.
+**Por encima de N≈128 el desenrollado deja de ser instanciable en la práctica.**
+
+Consecuencias para la rejilla, y hay que respetarlas:
+
+| Núcleo | Instanciable en |
+|---|---|
+| escolar en bucle | **toda N** hasta `NSTD_LIMBOS_MAX` |
+| escolar desenrollado | **N ≤ 128**, y por encima de 64 ya duele |
+| Karatsuba (el de hoy) | **sólo potencias de dos**, por como está escrito |
+
+O sea: la comparación a tres bandas sólo existe en las potencias de dos ≤ 128,
+es decir **32, 64 y 128**. En el resto del rango la rejilla compara dos, o una.
+No es un defecto del plan: es el estado del código, y **es exactamente lo que el
+reparto equilibrado de [PLAN_MULTIPLICACION](PLAN_MULTIPLICACION.md) viene a
+arreglar** — que Karatsuba se pueda instanciar en cualquier N.
+
 ### Guarda de verosimilitud, ya existente
 
 `benchmark_karatsuba` y `benchmark_curva_n` ya tienen el suelo de 0,35
@@ -163,6 +248,23 @@ total. Cabe de sobra en una sesión.
 Cada tanda va a `scripts/bench_history.py` con fecha, commit y compilador, para
 que las tandas se puedan comparar entre sí. Es lo que permitirá saber, la
 próxima vez que dos cifras no coincidan, cuál de las dos era.
+
+---
+
+## 3 bis. Orden de trabajo dentro de la sesión
+
+| # | Paso | Por qué en ese sitio |
+|---|---|---|
+| 1 | La **capa de núcleos** en cabecera aparte | Sin ella no hay rondas entrelazadas, y el §0 no se puede resolver bien |
+| 2 | El **arnés de iteraciones adaptativas** | Sin él, N grande no se mide |
+| 3 | Resolver el **§0** (1,11× frente a 2,44×) | Ya con las dos variantes en el mismo binario |
+| 4 | La rejilla y los barridos | — |
+| 5 | Publicar dispersión y decidir umbrales | Con el contraste de GCC |
+
+Los pasos 1 y 2 son código, no medición, y son la mayor parte del trabajo. Vale
+la pena: los dos se reutilizan en todas las sesiones de medición siguientes, y
+el paso 1 deja además `operator*` reducido a un repartidor, que es donde tiene
+que estar la decisión que se ajusta.
 
 ---
 
