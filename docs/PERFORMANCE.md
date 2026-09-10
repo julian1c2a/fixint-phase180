@@ -342,6 +342,100 @@ sino la biblioteca contra un espantapájaros. Los controles existen por eso.
 
 ---
 
+## El umbral de Karatsuba, y una segunda perilla que estaba escondida
+
+**Medido el 10 September 2026** con `benchmark_barrido_karatsuba`, en los cuatro
+compiladores, cada uno en solitario. Dos ejes: desde qué anchura gana Karatsuba,
+y **cómo se calculan sus dos términos del medio** — que es otra decisión de
+reparto, y estaba enterrada dentro del algoritmo hasta que
+`algorithms/mul_kernels.hpp` la sacó.
+
+Sólo potencias de dos: es la limitación del Karatsuba de hoy.
+
+### Karatsuba contra el mejor escolar
+
+| N | clang | gcc | MSVC | Intel |
+|---:|---:|---:|---:|---:|
+| 4 | 1,30× | 0,62× | 0,45× | 0,71× |
+| 8 | 1,16× | 0,48× | 0,48× | 0,63× |
+| 16 | 1,21× | 0,53× | 0,62× | 0,95× |
+| **32** | 2,49× | **1,02×** | 1,35× | 1,44× |
+| 64 | 2,55× | 1,40× | 1,42× | 2,07× |
+| 128 | 2,80× | 1,57× | 1,77× | 2,48× |
+
+Las ganancias de clang en N=4, 8 y 16 **no superan el ruido de sus casillas** y
+no cuentan. Los otros tres pierden ahí de forma clara. **Karatsuba no debe bajar
+de 32.**
+
+### Los dos umbrales interactúan, y esto es lo importante
+
+En N=32 la cifra de arriba depende de con qué se compare. Contra el **bucle**,
+que es el rival real si el tope de desenrollado queda por debajo de 32:
+
+| N=32 | contra el mejor escolar | contra el **bucle** |
+|---|---:|---:|
+| clang | 2,49× | **3,25×** |
+| gcc | **1,02×** | **1,42×** |
+| MSVC | 1,35× | **1,51×** |
+| Intel | 1,44× | **2,12×** |
+
+La diferencia es enteramente el desenrollado. Con GCC, Karatsuba y el
+desenrollado **empatan** en N=32; contra el bucle, Karatsuba gana 1,42×.
+
+**El par (`NSTD_DESENROLLA_MAX` = 26, `NSTD_KARATSUBA_MIN` = 32) es coherente**:
+con el tope en 26 el desenrollado no existe en N=32, y ahí Karatsuba gana a su
+rival real en los cuatro compiladores, de 1,42× a 3,25×.
+
+Dicho al revés: **si el tope de desenrollado subiera a 32, el umbral de
+Karatsuba habría que revisarlo**, porque en GCC dejarían de estar claramente
+ordenados. Los dos números no se pueden elegir por separado.
+
+### La segunda perilla: el término del medio
+
+Karatsuba necesita dos productos de N/2 limbos. Hoy los calcula con el
+`operator*` de media anchura, que vuelve a repartir por las macros; a N=64 eso
+significa el **bucle escolar** para un producto de 32 limbos, justo donde
+Karatsuba ya gana. La alternativa es que recurra en sí mismo.
+
+Recursivo frente a escolar, que es lo de hoy:
+
+| | N=32 | N=64 | N=128 |
+|---|---:|---:|---:|
+| **clang** | **1,49×** | **1,93×** | **1,94×** |
+| **Intel** | 0,87× ⁿˢ | **1,57×** | **1,69×** |
+| gcc | 0,91× ⁿˢ | 1,22× ⁿˢ | 1,19× ⁿˢ |
+| MSVC | 0,87× ⁿˢ | 1,09× ⁿˢ | 1,23× ⁿˢ |
+
+ⁿˢ = la diferencia no supera la suma de los recorridos de sus dos casillas.
+
+> **Corrección.** Al ver sólo la columna de clang se escribió aquí que «la
+> biblioteca está dejando cerca de 2× sobre la mesa». **Eso vale para clang, y a
+> medias para Intel; no para los cuatro.** GCC y MSVC no dan una ganancia
+> demostrable, y en N=32 los tres no-clang salen levemente peor. Es el mismo
+> error que este documento lleva media semana cazando —concluir de un compilador
+> lo que hace falta medir en cuatro— cometido esta vez sobre el hallazgo propio.
+
+Lo que sí sostienen los cuatro: **de N=64 en adelante el medio recursivo no
+pierde en ninguno** (1,09× a 1,93×) y gana de forma demostrable en dos. En N=32
+no hay caso. Sería, si se adopta, un **tercer umbral**: medio recursivo desde 64.
+
+### Sobre el ruido de esta tanda, y una hipótesis mía que resultó falsa
+
+La primera pasada de gcc, MSVC e Intel salió con 30–63 % de recorrido, frente al
+8–37 % de la de clang. Se atribuyó a que los tres corrieron encadenados
+—compilar y medir seguido, con la máquina caliente— y se repitió **con 90 s de
+enfriamiento entre compilar y medir y entre compiladores**.
+
+**No cambió nada**: la segunda pasada da 45–69 %. La hipótesis era falsa; la
+dispersión de esos tres binarios es intrínseca, no térmica.
+
+Lo que sí quedó demostrado es más útil: **las razones reproducen entre las dos
+tandas independientes dentro del 5–15 %**, pese al recorrido alto de cada
+casilla. Vuelve a confirmar la regla del banco — el mínimo y las razones son
+fiables, las cifras absolutas no valen a más de dos dígitos.
+
+---
+
 ## El tope de desenrollado: barrido con dispersión
 
 **Medido el 10 September 2026** con `benchmark_barrido_desenrollado`, el primer
