@@ -342,6 +342,94 @@ sino la biblioteca contra un espantapájaros. Los controles existen por eso.
 
 ---
 
+## El tope de desenrollado: barrido con dispersión
+
+**Medido el 10 September 2026** con `benchmark_barrido_desenrollado`, el primer
+banco de este proyecto que cumple el protocolo entero: las dos variantes
+**entrelazadas con el orden rotando**, **diez repeticiones** por casilla,
+iteraciones calibradas a 200 ms, y **se publica la dispersión**. Una razón que no
+supere la suma de los recorridos de sus dos casillas se marca `(ruido)` y no
+cuenta.
+
+Lo permite `include/algorithms/mul_kernels.hpp`, que saca los núcleos a
+funciones libres: hasta entonces sólo había una variante por binario y las
+rondas entrelazadas eran imposibles.
+
+### El desenrollado tiene TRES regiones, no dos
+
+Se salió a buscar un punto de rendimientos decrecientes y hay un **cruce**:
+
+| N | clang | gcc |
+|---|---|---|
+| 1–2 | 0,94–0,99× — **no aporta nada** | ídem |
+| 3–29 | 1,36×–2,41× | 1,74×–3,27× |
+| 30–47 | se desvanece en el ruido | sigue ganando hasta 38 |
+| 48–96 | **pierde**, hasta 0,53× | **pierde** desde ~60, hasta 0,60× |
+
+En N=96 con clang, **el bucle es casi el doble de rápido que el desenrollado**.
+Es coherente con que el desenrollado sea O(N²) en *tamaño de código*: pasado
+cierto punto deja de caber en la caché de instrucciones, y el bucle, que es
+diminuto, gana.
+
+### Los dos compiladores no coinciden, y por eso hay que medir los dos
+
+| | clang | gcc |
+|---|---|---|
+| Ganancia en N=24 | 1,69× | **2,76×** |
+| Última ganancia **significativa** | **N=32** (1,22×) | **N=38** (1,33×) |
+| Cruce (razón = 1) | N≈44–48 | N≈56–60 |
+| Peor pérdida | 0,53× (N=96) | 0,60× (N=96) |
+
+El desenrollado de GCC es uniformemente mejor: gana más y cruza más tarde. La
+diferencia en N=24 es de **1,6×** entre compiladores — más que muchas de las
+decisiones que se toman mirando una sola cifra.
+
+### Lo que dicen estos dos sobre el tope
+
+`NSTD_DESENROLLA_MAX` está en **20**, y el barrido dice que **se está dejando
+ganancia sobre la mesa**: entre 21 y 32 los dos compiladores ganan de forma
+significativa (clang 1,22×–1,96×, gcc 1,52×–2,84×).
+
+El valor donde **los dos** siguen ganando es **32**. Por encima, clang ya sólo
+gana dentro del ruido.
+
+> **No se cambia todavía.** El tope actual se eligió «para valer en los cuatro
+> compiladores», y aquí sólo hay dos. MSVC e Intel faltan, y este mismo barrido
+> ya ha enseñado que la diferencia entre compiladores llega a 1,6×. Cambiar un
+> default global con dos de cuatro sería repetir el error que este documento
+> lleva media semana corrigiendo.
+
+### Y el otro coste, que no es de velocidad
+
+Subir el tope cuesta **tiempo de compilación y tamaño de binario**, y sólo lo
+paga quien instancia esas anchuras. Medido sobre la unidad del barrido, con las
+54 anchuras instanciadas:
+
+| | clang | gcc |
+|---|---:|---:|
+| Compilar | 215 s | 266 s |
+| Binario | 10,0 MB | 7,3 MB |
+
+Es un caso extremo a propósito —nadie instancia 54 anchuras— pero acota el
+techo: el desenrollado no es gratis ni en tiempo de máquina ni en el de quien
+espera a que compile.
+
+### La dispersión, publicada por primera vez
+
+Se venía diciendo «~35 % de ruido» a partir de dos ejecuciones, que no es una
+medida de nada. Lo real, con diez repeticiones por casilla:
+
+- **Dentro de una ejecución**, el recorrido `(max−min)/min` cae entre el **4 % y
+  el 50 %**, según la casilla.
+- **El mínimo entre ejecuciones distintas** es mucho más estable: **5–12 %**.
+- **Las razones entre dos variantes**, más todavía: 1,78 / 1,77 / 1,69 en tres
+  pasadas del mismo caso.
+
+De ahí la regla: **el mínimo es el estadístico que se publica, las razones son
+fiables, y las cifras absolutas no valen a más de dos dígitos.**
+
+---
+
 ## La curva: coste de cada operación frente a la anchura N
 
 **Medido el 9 September 2026**, GCC 16.2.0 (MSYS2 UCRT64) −O2, Windows 11 sobre
