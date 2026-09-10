@@ -31,9 +31,18 @@ benchmark con `NSTD_DESENROLLA_MAX=32`:
 | desenrollado | **1245** | **51,9** |
 
 **2,44×**, y cuesta 3 s más de compilación y 68 KB más de binario en esa unidad.
-La cifra de «1,11×» que circulaba en `PERFORMANCE.md` estaba mal atribuida: salía
-de la fila N=12 de otra tabla, que mide otra cosa. No existía ninguna medida del
-desenrollado en N=24 hasta ésta.
+
+> ⚠️ **Este 2,44× NO está confirmado, y contradice a otra medida.** El barrido
+> del 6 sep 2026 —anotado en el bloque `@def` de `NSTD_DESENROLLA_MAX`, dentro
+> de `fixed_width_int_t.hpp`— da **1,11×** para el mismo N=24. Difieren 2,2×,
+> muy por encima del ruido del banco.
+>
+> El 10 sep se afirmó aquí que el 1,11× «estaba mal atribuido». **Era falso**:
+> es una medida real de N=24 y está fechada en el header. El error fue no abrir
+> ese bloque antes de negar que la cifra existiera.
+>
+> **Consecuencia para este plan: el paso 1 deja de estar decidido.** Sube a la
+> sesión de medición, que empieza por reproducir las dos.
 
 > **Aviso de método.** Entre las dos compilaciones, filas que no deberían cambiar
 > varían hasta un 35 % (`add` N=16: 48,1 frente a 64,5). El 2,44× está muy fuera

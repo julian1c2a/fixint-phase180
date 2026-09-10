@@ -395,13 +395,35 @@ contrasta, en [ESTUDIO_ALGORITMOS_RAPIDOS](ESTUDIO_ALGORITMOS_RAPIDOS.md), y va 
 tope de desenrollado a 31, y Karatsuba con reparto **equilibrado** para toda N
 en vez de sólo potencias de dos—.
 
-> **Corrección (10 sep 2026).** Aquí se decía que «el desenrollado ya rendía
-> poco a partir de 24 (1,11× frente al bucle)». **Esa cifra estaba mal
-> atribuida**: el 1,11× sale de la fila N=12 de la tabla del barrido de
-> paridad, que mide otra cosa. No existía ninguna medida del desenrollado en
-> N=24. Medido el 10 sep con `NSTD_DESENROLLA_MAX=32`: **3035 → 1245 cyc/op,
-> un 2,44×**. La conclusión que se sacaba de la cifra falsa —que subir el tope
-> no compensaba— era la contraria de la verdadera.
+> **Dos medidas de lo mismo que no coinciden, y sigue sin resolverse.**
+>
+> Del desenrollado frente al bucle en **N=24** hay dos cifras, tomadas con
+> cuatro días de diferencia y en la misma máquina:
+>
+> | Cuándo | Cómo | Razón |
+> |---|---|---:|
+> | 6 sep 2026 | barrido de `NSTD_DESENROLLA_MAX`, anotado en el bloque `@def` de la macro en `fixed_width_int_t.hpp` | **1,11×** |
+> | 10 sep 2026 | `benchmark_curva_n` compilado dos veces, con `NSTD_DESENROLLA_MAX=20` y `=32` | **2,44×** (3035 → 1245 cyc/op) |
+>
+> Difieren **2,2×**, muy por encima del ruido de este banco (~35 % entre
+> ejecuciones). Una de las dos está mal y **no se sabe cuál**.
+>
+> **Corrección de una corrección.** El 10 sep se escribió aquí que el 1,11×
+> «estaba mal atribuido», que salía de la fila N=12 de la tabla del barrido de
+> paridad. **Eso era falso**: el 1,11× es una medida real de N=24, y está en el
+> header con su fecha. El error fue mío al no abrir el bloque `@def` de la
+> macro antes de afirmar que la cifra no existía — exactamente el fallo que
+> este proyecto lleva toda la semana persiguiendo, y esta vez cometido al
+> corregirlo.
+>
+> Hipótesis para la diferencia, ninguna comprobada: bancos distintos
+> (`benchmark_karatsuba` frente a `benchmark_curva_n`), operandos distintos, o
+> **la posición dentro de la ejecución**, que en este proyecto ya se ha visto
+> que cambia la medida. Resolverlo es el punto de partida de la sesión de
+> medición: ver [PLAN_SESION_MEDICION](PLAN_SESION_MEDICION.md).
+>
+> Mientras no se resuelva, **el 2,44× no se da por bueno** y el tope de
+> desenrollado no se sube.
 
 ### Lo que confirma
 

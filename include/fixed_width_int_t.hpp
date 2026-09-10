@@ -264,10 +264,49 @@ namespace nstd
 #endif
 
 /// @def NSTD_KARATSUBA_MAX
-/// @brief Anchura maxima con Karatsuba. Existe para poder acotar el barrido;
-///        en la practica no estorba.
+/// @brief Anchura maxima con Karatsuba. Existe para poder acotar el barrido.
+///
+/// @warning **Hace tambien de guarda de pila, aunque no se pusiera para eso.**
+///          Karatsuba es recursivo; el escolar es un bucle y no gasta pila. Por
+///          encima de este tope las multiplicaciones caen al bucle, asi que
+///          `uint_fixed_t<16384>` no revienta hoy -- medido. Levantarlo mirando
+///          solo la velocidad mueve tambien el limite de N que la pila aguanta.
 #ifndef NSTD_KARATSUBA_MAX
 #define NSTD_KARATSUBA_MAX 4096
+#endif
+
+/// @def NSTD_LIMBOS_MAX
+/// @brief Numero maximo de limbos admitido, por consumo de PILA.
+///
+/// **114 bytes de pila por limbo**, medido el 10 sep 2026 con GCC 16.2 -O2
+/// sobre `c = a * b` con los tres locales, buscando por biseccion la reserva
+/// minima de un hilo que sobrevive (cada intento en su propio proceso: un
+/// desbordamiento de pila en Windows se lleva el proceso entero):
+///
+///     N=512    72 KB   ( 7,0 % de 1 MB)
+///     N=1024  136 KB   (13,3 %)
+///     N=2048  200 KB   (19,5 %)
+///     N=4096  456 KB   (44,5 %)   <-- el tope
+///     N=8192  903 KB   (88,2 %)   <-- sin margen para quien llama
+///
+/// La pila de los binarios de este proyecto en Windows es **1 MB**, leido del
+/// PE (`SizeOfStackReserve = 0x100000`), no supuesto. El techo absoluto cae en
+/// unos 9 200 limbos; 4096 deja mas de media pila libre, que es el margen que
+/// necesita el codigo que llama.
+///
+/// @note En Linux la pila por defecto son 8 MB y esta cota sobra. Se puede
+///       subir con `-DNSTD_LIMBOS_MAX=...`, **pero entonces hay que subir
+///       tambien la reserva del enlazado en Windows** (`-Wl,--stack,N` con GCC
+///       y clang, `/STACK:N` con MSVC): si no, el fallo aparece en ejecucion y
+///       sin diagnostico.
+///
+/// @note No se estimo: dos modelos previos daban 56 y 80 bytes por limbo, y los
+///       dos estaban mal. Sumar los marcos de `-fstack-usage` a lo largo de la
+///       recursion da de menos y de mas a la vez: el compilador mete la
+///       recursion en linea a -O2 y reutiliza huecos, y en cambio no aparecen
+///       ni la sobrecarga del hilo ni las paginas de guarda.
+#ifndef NSTD_LIMBOS_MAX
+#define NSTD_LIMBOS_MAX 4096
 #endif
 
 /// @def NSTD_DESENROLLA_MAX
@@ -378,6 +417,17 @@ namespace nstd
     class fixed_int_t
     {
         static_assert(N >= 1, "fixed_int_t requires at least 1 limb");
+
+        // La cota de arriba es de PILA, no de aritmetica: 114 bytes por limbo
+        // medidos para `c = a * b`, sobre 1 MB de pila en Windows. Sin esto,
+        // `uint_fixed_t<20000>` compila sin rechistar y revienta en ejecucion
+        // sin decir por que. Ver el bloque @def de NSTD_LIMBOS_MAX.
+        static_assert(N <= NSTD_LIMBOS_MAX, "fixed_int_t: demasiados limbos. El limite es de PILA, no de "
+                                            "aritmetica: multiplicar cuesta ~114 bytes de pila por limbo "
+                                            "(medido, GCC -O2), y en Windows la pila son 1 MB. Con N=4096 se "
+                                            "usa el 44% y con N=8192 el 88%, que ya no deja margen a quien "
+                                            "llama. Si de verdad hace falta mas, sube NSTD_LIMBOS_MAX Y la "
+                                            "reserva del enlazado: -Wl,--stack con GCC y clang.");
         // Dos condiciones, y son de naturaleza distinta. Antes iban en un solo
         // `static_assert` que las mezclaba, y asi no se veia cual era una ley y
         // cual una tarea pendiente.
