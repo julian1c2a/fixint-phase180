@@ -237,11 +237,21 @@ def compile_with_compiler(
         # Set compiler-specific flags
         if compiler_name == "msvc" or intel_windows:
             # MSVC / Intel-clang-cl flags
+            # /bigobj: el formato COFF limita el numero de SECCIONES de un
+            # fichero objeto, y una unidad que instancie muchas anchuras con el
+            # escolar desenrollado lo revienta -- medido el 10 sep 2026 con la
+            # unidad del barrido, que MSVC rechaza con "fatal error C1128: el
+            # numero de secciones supero el limite de formato de archivo
+            # objeto". GCC y clang no tienen ese limite.
+            #
+            # El fallo aparece como un error de compilacion incomprensible en el
+            # codigo de quien usa la biblioteca, no aqui, y la bandera no cuesta
+            # nada: solo permite mas secciones.
             if intel_windows:
-                common_flags = ["/Qstd:c++20", "/W4", "/EHsc", "/I./include",
+                common_flags = ["/Qstd:c++20", "/W4", "/EHsc", "/bigobj", "/I./include",
                                 "/constexpr:steps100000000"]
             else:
-                common_flags = ["/std:c++20", "/W4", "/EHsc", "/I./include",
+                common_flags = ["/std:c++20", "/W4", "/EHsc", "/bigobj", "/I./include",
                                 "/constexpr:steps100000000"]
             
             if mode == "debug":

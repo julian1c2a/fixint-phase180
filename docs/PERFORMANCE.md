@@ -371,33 +371,83 @@ Es coherente con que el desenrollado sea O(N²) en *tamaño de código*: pasado
 cierto punto deja de caber en la caché de instrucciones, y el bucle, que es
 diminuto, gana.
 
-### Los dos compiladores no coinciden, y por eso hay que medir los dos
+### Los CUATRO compiladores, y no coinciden
 
-| | clang | gcc |
-|---|---|---|
-| Ganancia en N=24 | 1,69× | **2,76×** |
-| Última ganancia **significativa** | **N=32** (1,22×) | **N=38** (1,33×) |
-| Cruce (razón = 1) | N≈44–48 | N≈56–60 |
-| Peor pérdida | 0,53× (N=96) | 0,60× (N=96) |
+| | MSVC | clang | Intel | gcc |
+|---|---|---|---|---|
+| Ganancia en N=24 | 1,63× | 1,69× | 2,12× | **2,76×** |
+| Última ganancia **significativa** | **N=26** | N=32 | N=36 | **N=38** |
+| Cruce (razón = 1) | N≈33 | N≈44–48 | fuera de rango | N≈56–60 |
+| Anchuras donde **pierde** | 5 | 7 | **0** | 6 |
+| Peor pérdida | 0,86× (N=34) | 0,53× (N=96) | — | 0,60× (N=96) |
 
-El desenrollado de GCC es uniformemente mejor: gana más y cruza más tarde. La
-diferencia en N=24 es de **1,6×** entre compiladores — más que muchas de las
-decisiones que se toman mirando una sola cifra.
+El desenrollado de Intel es el mejor de los cuatro: **no pierde en ninguna
+anchura del barrido**. El de MSVC es el peor, y cruza casi veinte limbos antes
+que el de GCC.
 
-### Lo que dicen estos dos sobre el tope
+La diferencia en N=24 va de 1,63× a 2,76× — **1,7× entre compiladores**, más que
+muchas de las decisiones que se toman mirando una sola cifra.
+
+### Por qué esto justifica medir los cuatro, y no dos
+
+Con clang y GCC —los dos que la sesión iba a usar— el tope habría salido **32**.
+Con MSVC en la mesa, no: su razón en N=32 es **1,02×**, plenamente dentro del
+ruido. **La decisión con dos de cuatro habría sido la equivocada**, y es
+exactamente el escenario contra el que avisaba
+[PLAN_SESION_MEDICION](PLAN_SESION_MEDICION.md).
+
+### Un matiz que hay que leer bien: «no significativo» no es «pierde»
+
+MSVC entre N=27 y N=32 da 1,21× · 1,25× · 1,22× · 1,04× · 1,11× · 1,02×.
+Ninguna supera su propio ruido, así que ninguna cuenta por separado. Pero **las
+seis están por encima de 1**, y seis de seis del mismo lado no es casualidad:
+como signo, es evidencia aunque cada celda no lo sea.
+
+Lo mismo pasa con clang entre 33 y 40. El patrón real no es «gana hasta X y
+luego pierde», sino **una caída suave que cruza el 1 en un sitio distinto para
+cada compilador**: MSVC hacia 33, clang hacia 46, GCC hacia 58, e Intel más allá
+del final del barrido.
+
+Por eso el criterio conservador —la última anchura donde **los cuatro** ganan de
+forma demostrable— da **26**, y el criterio permisivo —donde ninguno pierde
+todavía— daría 32.
+
+### El tercer coste del desenrollado: rompe MSVC
+
+No es lentitud ni tamaño. Es un límite duro del formato COFF:
+
+```
+fatal error C1128: el numero de secciones supero el limite de
+formato de archivo objeto: compile con /bigobj
+```
+
+La unidad del barrido, con 54 anchuras desenrolladas instanciadas, **no compila
+con MSVC** sin `/bigobj`. GCC y clang no tienen ese límite.
+
+El proyecto no pasaba esa bandera; **ahora sí** (`scripts/build_generic.py`, para
+MSVC e Intel-Windows). No cuesta nada —sólo permite más secciones— y sin ella el
+fallo aparecería como un error incomprensible en el código de quien usa la
+biblioteca, no aquí.
+
+Pesa en la decisión del tope: subirlo acerca ese muro a todo el que instancie
+varias anchuras.
+
+### Lo que dicen los cuatro sobre el tope
 
 `NSTD_DESENROLLA_MAX` está en **20**, y el barrido dice que **se está dejando
-ganancia sobre la mesa**: entre 21 y 32 los dos compiladores ganan de forma
-significativa (clang 1,22×–1,96×, gcc 1,52×–2,84×).
+ganancia sobre la mesa**: entre 21 y 26 los cuatro compiladores ganan de forma
+demostrable.
 
-El valor donde **los dos** siguen ganando es **32**. Por encima, clang ya sólo
-gana dentro del ruido.
+| Candidato | Argumento a favor | Argumento en contra |
+|---|---|---|
+| **26** | La última anchura donde **los cuatro** ganan de forma demostrable. En N=26: MSVC 1,30×, clang 1,51×, Intel 1,87×, GCC 2,44× | Deja sin aprovechar 27..32, donde tres de los cuatro siguen ganando claramente |
+| **32** | Nadie pierde todavía (MSVC 1,02×, clang 1,22×, Intel 1,73×, GCC 1,52×), y tres ganan de forma clara | La ganancia de MSVC ahí no es demostrable, y está a un paso de su cruce (~33). Más secciones de objeto, con el muro de `/bigobj` más cerca |
+| 20 (hoy) | Nada que cambiar | Deja ganancia medida sobre la mesa en 21..26, **en los cuatro** |
 
-> **No se cambia todavía.** El tope actual se eligió «para valer en los cuatro
-> compiladores», y aquí sólo hay dos. MSVC e Intel faltan, y este mismo barrido
-> ya ha enseñado que la diferencia entre compiladores llega a 1,6×. Cambiar un
-> default global con dos de cuatro sería repetir el error que este documento
-> lleva media semana corrigiendo.
+> **Una advertencia sobre generalizar**: esto es **una máquina**. Los umbrales de
+> este tipo varían con la CPU — GMP publica un rango de 16 a 46 limbos para su
+> umbral de Karatsuba entre modelos. Un tope elegido aquí es un default
+> razonable, no una verdad.
 
 ### Y el otro coste, que no es de velocidad
 
