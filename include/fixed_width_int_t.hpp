@@ -101,6 +101,7 @@
 
 // La capa de nucleos de multiplicacion. No hay ciclo: `mul_kernels.hpp` solo
 // depende de <array>, <cstdint> y los intrinsecos -- no conoce `fixed_int_t`.
+#include "algorithms/div_kernels.hpp"
 #include "algorithms/mul_kernels.hpp"
 
 #include "representation.hpp"
@@ -1906,7 +1907,7 @@ namespace nstd
                     return {q, r};
                 }
 #else
-                // MSVC e ICX-Windows: 128/64 en dos pasos. div_128_64 usa el
+                // MSVC e ICX-Windows: 128/64 en dos pasos. El nucleo usa el
                 // intrinseco (_udiv128) o el asm `divq` en ejecucion, y la version
                 // portable en contexto constante (T3.1).
                 if constexpr (N == 2)
@@ -1917,7 +1918,8 @@ namespace nstd
                         const std::uint64_t q_hi = a.data[1] / d;
                         const std::uint64_t r_hi = a.data[1] % d;
                         std::uint64_t rem = 0;
-                        const std::uint64_t q_lo = div_128_64(r_hi, a.data[0], d, rem);
+                        const std::uint64_t q_lo =
+                            algorithms::detail::div_128_64_hi_menor_que_d(r_hi, a.data[0], d, rem);
                         fixed_int_t q{};
                         q.data[0] = q_lo;
                         q.data[1] = q_hi;
@@ -1953,177 +1955,43 @@ namespace nstd
 
                     if (single_limb_b)
                     {
-                        const std::uint64_t d = b.data[0];
                         fixed_int_t q{};
-                        std::uint64_t rem = 0;
-                        for (std::size_t i = N; i-- > 0;)
-                        {
-                            // rem < d es invariante del bucle, asi que esto es una
-                            // sola instruccion DIV en hardware. div_128_64 encapsula
-                            // intrinseco (ejecucion) vs. portable (constexpr) -- T3.1.
-                            q.data[i] = div_128_64(rem, a.data[i], d, rem);
-                        }
+                        const std::uint64_t rem = algorithms::div_un_limbo<N>(a.data, b.data[0], q.data);
                         return {q, fixed_int_t{rem}};
                     }
                 }
 
                 // ─────────────────────────────────────────────────────────────────
-                // Knuth Algorithm D — general N-limb ÷ M-limb (M ≥ 2)
-                // TAOCP Vol. 2 §4.3.1. Base B = 2^64.
-                // Reached only when b has ≥ 2 significant limbs.
+                // Knuth D — el caso general, N limbos entre M >= 2.
+                //
+                // Desde el 17 sep 2026 esta funcion NO lo implementa: lo delega en
+                // `algorithms/div_kernels.hpp`. Las 90 lineas que habia aqui hacian
+                // imposible medir dos variantes entrelazadas --habria que
+                // recompilar entre una y otra-- y el protocolo de
+                // docs/PLAN_SESION_MEDICION.md lo exige. Es lo mismo que se hizo
+                // con `operator*`.
+                //
+                // La ESTIMACION del digito del cociente (paso D3) es un parametro
+                // del nucleo, no algo escondido dentro: es el bucle interno de toda
+                // la division y es justo lo que Moller-Granlund sustituye (P2.10).
                 // ─────────────────────────────────────────────────────────────────
+                //
+                // El `if constexpr` NO es una comprobacion de ejecucion: con N==1
+                // este punto es inalcanzable --un divisor de un solo limbo lo
+                // resuelve el camino de arriba-- pero la rama SE INSTANCIA igual, y
+                // el nucleo exige N>=2 porque Knuth D mira `v[n-2]`. El codigo
+                // viejo no lo notaba porque tenia el indice escrito en linea sobre
+                // un `std::array<,1>`: no es error de compilacion, solo codigo
+                // muerto. Al sacarlo a un nucleo con su precondicion escrita, la
+                // precondicion se comprueba -- que es justamente para lo que sirve.
+                if constexpr (N >= 2)
                 {
-                    // Count significant limbs of b (guaranteed ≥ 2 here)
-                    std::size_t n = N;
-                    while (b.data[n - 1] == 0)
-                        --n;
-
-                    const std::size_t m_quot = N - n; // quotient digits: q.data[0..m_quot]
-
-                    // D1. Normalize: find shift s so that v[n-1] has its MSB set.
-#if __has_include("intrinsics/bit_operations.hpp")
-                    const int s = intrinsics::clz64(b.data[n - 1]);
-#else
-                    int s = 0;
-                    {
-                        std::uint64_t tmp = b.data[n - 1];
-                        while ((tmp & (std::uint64_t{1} << 63)) == 0)
-                        {
-                            ++s;
-                            tmp <<= 1;
-                        }
-                    }
-#endif
-
-                    std::array<std::uint64_t, N> v{};     // normalized divisor  [0..n-1]
-                    std::array<std::uint64_t, N + 1> u{}; // normalized dividend [0..N]
-
-                    if (s == 0)
-                    {
-                        for (std::size_t i = 0; i < n; ++i)
-                            v[i] = b.data[i];
-                        for (std::size_t i = 0; i < N; ++i)
-                            u[i] = a.data[i];
-                        // u[N] stays 0
-                    }
-                    else
-                    {
-                        for (std::size_t i = n - 1; i > 0; --i)
-                            v[i] = (b.data[i] << s) | (b.data[i - 1] >> (64 - s));
-                        v[0] = b.data[0] << s;
-                        u[N] = a.data[N - 1] >> (64 - s);
-                        for (std::size_t i = N - 1; i > 0; --i)
-                            u[i] = (a.data[i] << s) | (a.data[i - 1] >> (64 - s));
-                        u[0] = a.data[0] << s;
-                    }
-
-                    const std::uint64_t v1 = v[n - 1];
-                    const std::uint64_t v2 = v[n - 2]; // safe: n ≥ 2
-
-                    fixed_int_t q{};
-
-                    // D2–D7. Main loop: j = m_quot down to 0
-                    for (std::size_t j = m_quot + 1; j-- > 0;)
-                    {
-                        const std::uint64_t u0 = u[j + n];     // top window limb
-                        const std::uint64_t u1 = u[j + n - 1]; // next limb
-                        const std::uint64_t u2 = u[j + n - 2]; // limb below (n≥2,j≥0)
-
-                        // D3. Estimate trial quotient q̂
-                        std::uint64_t q_hat, r_hat = 0;
-                        bool skip_refine = false;
-
-                        if (u0 > v1)
-                        {
-                            // r̂ ≥ B for sure — skip refinement entirely
-                            q_hat = ~std::uint64_t{0};
-                            skip_refine = true;
-                        }
-                        else if (u0 == v1)
-                        {
-                            q_hat = ~std::uint64_t{0};
-                            r_hat = u1 + v1;
-                            skip_refine = (r_hat < u1); // overflow ⟹ r̂ ≥ B
-                        }
-                        else
-                        {
-                            // 0 <= u0 < v1: division 128/64 exacta (T3.1).
-                            q_hat = div_128_64(u0, u1, v1, r_hat);
-                        }
-
-                        // D3. Refinement: while q̂·v2 > r̂·B + u2, do q̂--, r̂ += v1
-                        if (!skip_refine)
-                        {
-                            while (true)
-                            {
-                                // Comparacion exacta q_hat*v2 <= r_hat*B + u2.
-                                // Antes, en plataformas sin __int128 ni _umul128 se
-                                // hacia `break` sin comparar y se dejaba que el
-                                // add-back de D5 corrigiese; con mul_64x64 la
-                                // comparacion es exacta en todas (T3.1).
-                                std::uint64_t lhs_hi = 0;
-                                const std::uint64_t lhs_lo = mul_64x64(q_hat, v2, lhs_hi);
-                                if (lhs_hi < r_hat || (lhs_hi == r_hat && lhs_lo <= u2))
-                                    break;
-                                --q_hat;
-                                const std::uint64_t r_new = r_hat + v1;
-                                if (r_new < r_hat)
-                                    break; // r̂ overflowed B
-                                r_hat = r_new;
-                            }
-                        }
-
-                        // D4. Multiply-subtract: u[j..j+n] -= q̂ × v[0..n-1]
-                        std::uint64_t borrow = 0;
-                        for (std::size_t i = 0; i < n; ++i)
-                        {
-                            std::uint64_t prod_hi = 0;
-                            const std::uint64_t prod_lo = mul_64x64(q_hat, v[i], prod_hi);
-                            const std::uint64_t sub = prod_lo + borrow;
-                            borrow = prod_hi + (sub < prod_lo ? 1U : 0U);
-                            if (u[j + i] < sub)
-                                ++borrow;
-                            u[j + i] -= sub;
-                        }
-
-                        // D5. Add-back if underflow (happens with prob ~2/B per step)
-                        if (u[j + n] < borrow)
-                        {
-                            u[j + n] -= borrow; // intentional wrap
-                            std::uint64_t carry = 0;
-                            for (std::size_t i = 0; i < n; ++i)
-                            {
-                                const std::uint64_t s1 = u[j + i] + v[i];
-                                const std::uint64_t s2 = s1 + carry;
-                                carry = (s1 < u[j + i]) + (s2 < s1);
-                                u[j + i] = s2;
-                            }
-                            u[j + n] += carry;
-                            --q_hat;
-                        }
-                        else
-                        {
-                            u[j + n] -= borrow;
-                        }
-
-                        // D6. Store quotient digit
-                        q.data[j] = q_hat;
-                    }
-
-                    // D8. Unnormalize: remainder is u[0..n-1] right-shifted by s
-                    fixed_int_t r{};
-                    if (s == 0)
-                    {
-                        for (std::size_t i = 0; i < n; ++i)
-                            r.data[i] = u[i];
-                    }
-                    else
-                    {
-                        for (std::size_t i = 0; i < n - 1; ++i)
-                            r.data[i] = (u[i] >> s) | (u[i + 1] << (64 - s));
-                        r.data[n - 1] = u[n - 1] >> s;
-                    }
-
+                    // `q{}` y `r{}` ya value-inicializan a cero, asi que el nucleo
+                    // NO debe volver a limpiarlos: hacerlo costaba 345 lineas de
+                    // ensamblador de mas, medido contra el arbol de HEAD. Es la
+                    // misma regresion que aparecio al conectar los escolares.
+                    fixed_int_t q{}, r{};
+                    algorithms::div_knuth_d<N, false>(a.data, b.data, q.data, r.data);
                     return {q, r};
                 }
 
@@ -2990,88 +2858,16 @@ namespace nstd
         //     division bit a bit que habia repartidas por divmod.
         // =========================================================================
 
-        // Producto completo x*y: devuelve los 64 bits bajos y deja los altos en hi.
-        [[nodiscard]] static constexpr std::uint64_t mul_64x64(std::uint64_t x, std::uint64_t y,
-                                                               std::uint64_t &hi) noexcept
-        {
-#if defined(__SIZEOF_INT128__)
-            // Constexpr-friendly en GCC/Clang/ICX-Linux: sin rama.
-            const unsigned __int128 p = static_cast<unsigned __int128>(x) * y;
-            hi = static_cast<std::uint64_t>(p >> 64);
-            return static_cast<std::uint64_t>(p);
-#else
-            if (!std::is_constant_evaluated())
-            {
-#if defined(_MSC_VER) && defined(_M_X64)
-                return _umul128(x, y, &hi);
-#endif
-            }
-            // Portable: escuela 32x32 -> 64.
-            const std::uint64_t xl = x & 0xFFFFFFFFU;
-            const std::uint64_t xh = x >> 32;
-            const std::uint64_t yl = y & 0xFFFFFFFFU;
-            const std::uint64_t yh = y >> 32;
+        // `mul_64x64` y `div_128_64_hi_menor_que_d` SE MUDARON a
+        // el 17 sep 2026, a `nstd::algorithms::detail`.
+        //
+        // Estaban aqui como miembros estaticos y **solo las usaba `divmod`**
+        // --comprobado sobre include/, tests/, benchs/ y demos/--, asi que se van
+        // con ella. La forma en que estan escritas no cambia ni un caracter:
+        // intrinseco bajo `is_constant_evaluated` y version portable siempre
+        // presente, que es lo que permite que `divmod`, `/` y `%` sean `constexpr`
+        // tambien en MSVC e ICX-Windows. Ver la auditoria T3.1 del 23 ago 2026.
 
-            const std::uint64_t p0 = xl * yl;
-            const std::uint64_t p1 = xl * yh;
-            const std::uint64_t p2 = xh * yl;
-            const std::uint64_t p3 = xh * yh;
-
-            const std::uint64_t mid = (p0 >> 32) + (p1 & 0xFFFFFFFFU) + (p2 & 0xFFFFFFFFU);
-            hi = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
-            return (p0 & 0xFFFFFFFFU) | (mid << 32);
-#endif
-        }
-
-        // Division (hi:lo) / d con hi < d (precondicion del llamante).
-        // Devuelve el cociente de 64 bits y deja el resto en rem.
-        [[nodiscard]] static constexpr std::uint64_t div_128_64(std::uint64_t hi, std::uint64_t lo,
-                                                                std::uint64_t d, std::uint64_t &rem) noexcept
-        {
-#if defined(__SIZEOF_INT128__) && !(defined(__INTEL_LLVM_COMPILER) && (defined(_WIN32) || defined(_WIN64)))
-            // GCC/Clang/ICX-Linux: __udivti3 detecta hi < d y emite un solo divq.
-            // Constexpr-friendly, sin rama.
-            const unsigned __int128 u = (static_cast<unsigned __int128>(hi) << 64) | lo;
-            rem = static_cast<std::uint64_t>(u % d);
-            return static_cast<std::uint64_t>(u / d);
-#else
-            if (!std::is_constant_evaluated())
-            {
-#if defined(__INTEL_LLVM_COMPILER) && (defined(_WIN32) || defined(_WIN64)) && defined(_M_X64)
-                // ICX en Windows define __SIZEOF_INT128__ pero su runtime no trae
-                // __udivti3/__umodti3: enlazaria mal. Usa asm estilo GCC (frontend
-                // Clang/LLVM).
-                std::uint64_t q, r;
-                __asm__("divq %4" : "=a"(q), "=d"(r) : "0"(lo), "1"(hi), "rm"(d));
-                rem = r;
-                return q;
-#elif defined(_MSC_VER) && defined(_M_X64)
-                return _udiv128(hi, lo, d, &rem);
-#endif
-            }
-
-            // Portable. Caso rapido hi == 0 y, si no, division larga bit a bit.
-            if (hi == 0)
-            {
-                rem = lo % d;
-                return lo / d;
-            }
-            std::uint64_t r = hi;
-            std::uint64_t q = 0;
-            for (int bit = 63; bit >= 0; --bit)
-            {
-                const bool ovf = (r >> 63) != 0;
-                r = (r << 1) | ((lo >> bit) & 1U);
-                if (ovf || r >= d)
-                {
-                    r -= d;
-                    q |= std::uint64_t{1} << bit;
-                }
-            }
-            rem = r;
-            return q;
-#endif
-        }
         /// @brief Producto 64x64 -> 128. La parte baja se devuelve, la alta va a
         ///        `hi`. Estaba copiado dentro del bucle escolar; ahora lo usan
         ///        el bucle y la version desenrollada, para que no puedan
