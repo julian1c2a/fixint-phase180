@@ -193,8 +193,29 @@ static_assert(INTRINSICS_IS_CONSTANT_EVALUATED(),
 static_assert(NSTD_DESENROLLA_MAX < NSTD_KARATSUBA_MIN,
               "los umbrales se solapan: habria anchuras con dos caminos");
 static_assert(NSTD_KARATSUBA_MIN <= NSTD_KARATSUBA_MAX, "el rango de Karatsuba esta al reves");
-static_assert((NSTD_KARATSUBA_MIN & (NSTD_KARATSUBA_MIN - 1)) == 0,
-              "Karatsuba parte por la mitad: su umbral tiene que ser potencia de dos");
+// ESTA COMPROBACION SE RETIRO EL 16 SEP 2026, y merece explicacion porque era
+// correcta cuando se escribio. Decia:
+//
+//     static_assert((NSTD_KARATSUBA_MIN & (NSTD_KARATSUBA_MIN - 1)) == 0,
+//                   "Karatsuba parte por la mitad: su umbral tiene que ser
+//                    potencia de dos");
+//
+// Era cierto del Karatsuba de entonces, que solo admitia potencias de dos --y
+// esa limitacion era la causa del acantilado de `operator*`--. El reparto
+// EQUILIBRADO de `algorithms/mul_kernels.hpp` la quito: parte en mitades
+// iguales cuando N es par y rellena con un limbo cuando es impar, asi que vale
+// para cualquier anchura. El umbral esta hoy en 22, que no es potencia de dos.
+//
+// Se deja escrito en vez de borrarlo a secas: una guarda que se retira sin
+// decir por que vuelve a aparecer en la siguiente auditoria.
+
+// Los dos umbrales son LA MISMA FRONTERA desde el 16 sep 2026: por debajo el
+// escolar desenrollado, por encima Karatsuba, y el bucle ya no se elige en
+// ninguna anchura del rango. Si dejaran de ser consecutivos reapareceria el
+// hueco que costaba un 34 % de media.
+static_assert(NSTD_DESENROLLA_MAX + 1 == NSTD_KARATSUBA_MIN,
+              "los umbrales dejaron de ser una sola frontera: reaparece el hueco "
+              "donde caia el escolar en bucle, que no gana en ninguna anchura medida");
 
 // =============================================================================
 // 3. Lo que existe, existe en TODAS las combinaciones

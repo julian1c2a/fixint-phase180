@@ -257,14 +257,47 @@ namespace nstd
 /// llegar a 1.
 /// @{
 /// @def NSTD_KARATSUBA_MIN
-/// @brief Anchura minima, en limbos, a partir de la cual `operator*` toma el
-///        camino de Karatsuba. Por defecto 32.
+/// @brief Anchura a partir de la cual se multiplica con Karatsuba.
 ///
-/// Medido el 6 sep 2026: por debajo de 32, un escolar desenrollado es mas
-/// rapido que Karatsuba en los cuatro compiladores. A partir de 32, Karatsuba
-/// gana en los cuatro.
+/// **Es LA frontera, no una de dos.** Por debajo va el escolar desenrollado;
+/// por encima, Karatsuba con reparto equilibrado. El escolar EN BUCLE ya no se
+/// elige en ninguna anchura de este rango: solo queda para N por encima de
+/// `NSTD_KARATSUBA_MAX` y para la evaluacion constante.
+///
+/// ### De donde sale el 22
+///
+/// Barrido del 16 sep 2026, las TRES variantes entrelazadas, rejilla densa de
+/// N=4 a 64, diez repeticiones por casilla, en los CUATRO compiladores. Primero
+/// el dato que lo ordena todo:
+///
+///     EL BUCLE NO GANA NI UNA VEZ en 244 casillas (61 anchuras x 4
+///     compiladores). Por eso los dos umbrales que habia se funden en uno.
+///
+/// El cruce entre el desenrollado y el equilibrado no cae en el mismo sitio en
+/// todos, porque el desenrollado de GCC es mucho mas fuerte que el de clang:
+///
+///     clang  N=14      intel  N=18      msvc  N=22      gcc  N=28
+///
+/// Con una sola macro hay que elegir un numero. Se eligio MIDIENDO: para cada
+/// candidato se calculo cuanto se pierde frente a escoger el mejor camino en
+/// cada N, promediado sobre las 61 anchuras y los cuatro compiladores.
+///
+///     configuracion                              perdida media   peor
+///     HOY (desen<=20, BUCLE 21..31, equil>=32)       1,340       1,440
+///     cerrar el hueco con desenrollado (T=32)        1,087       1,139
+///     T=26                                           1,028       1,065
+///     T=22                                           1,018       1,033   <--
+///     siempre equilibrado (T=4)                      1,106       1,194
+///
+/// **22 es el optimo por los dos criterios a la vez**, media y peor caso. La
+/// configuracion anterior perdia un 34 % de media, y un 44 % con Intel: ese era
+/// el coste del hueco 21..31, donde caia el bucle.
+///
+/// @note Esto es UNA maquina. Umbrales de este tipo varian con la CPU -- GMP
+///       publica un rango de 16 a 46 limbos para el suyo entre modelos. Es un
+///       default razonable, no una verdad.
 #ifndef NSTD_KARATSUBA_MIN
-#define NSTD_KARATSUBA_MIN 32
+#define NSTD_KARATSUBA_MIN 22
 #endif
 
 /// @def NSTD_KARATSUBA_MAX
@@ -315,29 +348,38 @@ namespace nstd
 
 /// @def NSTD_DESENROLLA_MAX
 /// @brief Anchura maxima que se multiplica con el escolar DESENROLLADO por
-///        construccion. Por encima se usa el bucle. Por defecto 20.
+///        construccion.
 ///
-/// Barrido del 6 sep 2026, GCC 16.2, minimo de 5 rondas, bucle frente a
-/// desenrollado:
+/// **Es la otra cara de `NSTD_KARATSUBA_MIN`**: los dos numeros son la misma
+/// frontera, y por eso vale `NSTD_KARATSUBA_MIN - 1`. Si se cambia uno hay que
+/// cambiar el otro, o reaparece un hueco -- que es exactamente lo que habia
+/// hasta el 16 sep 2026, con 20 y 32, y costaba un 34 % de media.
 ///
-///     N=12  3,50x    N=18  1,40x    N=24  1,11x
-///     N=14  4,58x    N=20  1,48x    N=28  1,07x
-///     N=16  2,11x    N=22  1,25x
+/// ### Por que ya no hay hueco
 ///
-/// El coste por producto se dispara pasado N=16 --de 4,4 a 7,0 ciclos, que es
-/// presion de registros-- pero la ganancia no se agota hasta cerca de N=24. El
-/// tope se pone en 20, el ultimo punto con ganancia clara.
+/// Antes las anchuras entre los dos topes caian al escolar EN BUCLE. El barrido
+/// del 16 sep, con las tres variantes entrelazadas y rejilla densa de 4 a 64 en
+/// los cuatro compiladores, dejo claro que **el bucle no gana en ninguna de las
+/// 244 casillas**. No habia razon para que fuera el elegido en ninguna banda.
 ///
-/// El tope se puso primero en 16, comparando N=16 con N=32 y sin mirar nada en
-/// medio. Eso dejaba a N=17..31 --y a N=20 en particular-- con el camino MAS
-/// LENTO de los tres: no son potencia de dos, asi que Karatsuba no les aplica,
-/// y quedaban por encima del tope. Lo señalo el autor el 6 sep 2026.
+/// ### El coste que tiene subirlo
 ///
-/// Subirlo mas cuesta tiempo de compilacion --son N(N+1)/2 productos en linea
-/// recta-- pero solo lo paga quien INSTANCIA esa anchura: para los tipos que
-/// nadie usa, el coste es cero.
+/// El desenrollado es O(N^2) en TAMANO DE CODIGO, no solo en operaciones.
+/// Medido con clang -O2:
+///
+///     N= 32 ->  3,0 s y  134 KB      N= 96 -> 23,1 s y 1244 KB
+///     N= 64 -> 10,4 s y  541 KB      N=128 -> 37,0 s y 2250 KB
+///
+/// Por encima de N~128 deja de ser instanciable en la practica. Y en MSVC hay un
+/// limite duro antes: el formato COFF se queda sin secciones (`C1128`) si una
+/// unidad instancia muchas anchuras desenrolladas. Por eso el proyecto compila
+/// con `/bigobj`.
+///
+/// Ademas el desenrollado **pasa a perder** en N grande --hasta 0,53x frente al
+/// bucle con clang en N=96-- porque deja de caber en la cache de instrucciones.
+/// Ver docs/PERFORMANCE.md.
 #ifndef NSTD_DESENROLLA_MAX
-#define NSTD_DESENROLLA_MAX 20
+#define NSTD_DESENROLLA_MAX 21
 #endif
     /// @}
 
@@ -488,6 +530,18 @@ namespace nstd
         ///        lleva el limbo de estado. Falso con `wrap`, que es el caso por
         ///        defecto y no paga nada (ADR-009).
         static constexpr bool comprueba_desbordamiento{Policy == overflow_policy::checked};
+
+        // =========================================================================
+        // Los ayudantes de multiplicacion se fueron a `algorithms/mul_kernels.hpp`
+        // =========================================================================
+        //
+        // Aqui vivian `producto64`, `propaga_desde`, `fila_desenrollada`,
+        // `filas_desenrolladas` y `kmul_full`. Desde que `operator*` reparte en
+        // vez de implementar, sus copias vivas son las de `nstd::algorithms`, y
+        // `tests/test_mul_kernels.cpp` garantiza bit a bit que son las mismas.
+        //
+        // `add_limb` y `add_limb_carry` NO se fueron: los usan la suma, la resta
+        // y las operaciones comprobadas.
 
         // =========================================================================
         // Acceso a los limbos
@@ -1668,6 +1722,30 @@ namespace nstd
             // imposible cumplir la regla de rondas entrelazadas del protocolo de
             // medicion. Ver docs/PLAN_SESION_MEDICION.md.
             // ─────────────────────────────────────────────────────────────────
+
+            // EL CUADRADO ES UN CASO PROPIO, y se detecta por DIRECCION.
+            //
+            // `a * a` tiene la mitad de trabajo que `a * b`: en Karatsuba los
+            // dos terminos del medio --`a_lo*a_hi` y `a_hi*a_lo`-- son el mismo,
+            // asi que se calcula uno y se suma dos veces.
+            //
+            // Medido el 16 sep 2026 con clang, barrido de N=4 a 64: gana en las
+            // dieciseis anchuras, de 1,17x a 2,47x, mediana 1,5x.
+            //
+            // @note Se detecta comparando PUNTEROS, no valores. `x * x` con la
+            //       misma variable entra; `a * b` con dos objetos que resulten
+            //       iguales, no. Comparar valores costaria N comparaciones para
+            //       ahorrar en un caso raro, y detectar la variable repetida
+            //       --que es lo que hace `pow` con `base *= base`-- cuesta una.
+            if constexpr (N >= 4 && N <= NSTD_KARATSUBA_MAX)
+            {
+                if (!std::is_constant_evaluated() && this == &o)
+                {
+                    using medio_t = algorithms::medio_reparto<NSTD_DESENROLLA_MAX, NSTD_KARATSUBA_MIN>;
+                    algorithms::sqr_karatsuba_equilibrado<N, 8, medio_t>(data, r.data, medio_t{});
+                    return r;
+                }
+            }
 
             // Karatsuba, ahora con reparto EQUILIBRADO: **ya no exige que N sea
             // potencia de dos**. Esa exigencia era la causa del acantilado --toda
@@ -2994,98 +3072,11 @@ namespace nstd
             return q;
 #endif
         }
-
-        // Add v to limb, return carry (0 or 1)
-        // =====================================================================
-        // Escolar desenrollado POR CONSTRUCCION
-        // =====================================================================
-        //
-        // Mismo algoritmo y mismas primitivas que el bucle de mas abajo. Lo
-        // unico que cambia es que los indices son de compilacion, asi que no
-        // depende de que el compilador se anime a desenrollar.
-        //
-        // POR QUE. Medido el 6 sep 2026 sobre el ensamblador de GCC 16.2 en N=4,
-        // el bucle salia con 61 instrucciones y UN `mul` --o sea, rodando-- y
-        // Karatsuba con 119 y NUEVE. Escrito asi, el escolar pasa de 79,8 a
-        // 26,7 cyc/op en GCC: 3x. Y no es un caso aislado, va de 1,5x a 3,8x en
-        // los cuatro compiladores. Es la mejora mas grande que ha aparecido
-        // midiendo, y afecta a TODAS las anchuras, no solo a las de Karatsuba.
-        //
-        // El tope es NSTD_DESENROLLA_MAX: desenrollar cuesta codigo --N(N+1)/2
-        // productos en linea recta-- y por encima de cierta anchura deja de
-        // compensar por presion de registros y cache de instrucciones. Por
-        // encima del tope se sigue usando el bucle.
-
-        /// @brief Propaga el acarreo desde el limbo K. Conserva la salida
-        ///        temprana del bucle original, que aqui es un `if`.
-        template <std::size_t K>
-        static constexpr void propaga_desde(std::array<std::uint64_t, N> &r, unsigned char c) noexcept
-        {
-            if constexpr (K < N)
-            {
-                if (c)
-                    propaga_desde<K + 1>(r, add_limb(r[K], std::uint64_t{c}));
-            }
-        }
-
-        /// @brief Una fila del escolar: los productos x[I]*y[J] con J creciente.
-        template <std::size_t I, std::size_t J>
-        static constexpr void fila_desenrollada(std::array<std::uint64_t, N> &r,
-                                                const std::array<std::uint64_t, N> &x,
-                                                const std::array<std::uint64_t, N> &y) noexcept
-        {
-            if constexpr (I + J < N)
-            {
-                std::uint64_t hi{0};
-                const std::uint64_t lo = producto64(x[I], y[J], hi);
-                unsigned char c = add_limb(r[I + J], lo);
-                if constexpr (I + J + 1 < N)
-                {
-                    c = add_limb_carry(r[I + J + 1], hi, c);
-                    propaga_desde<I + J + 2>(r, c);
-                }
-                fila_desenrollada<I, J + 1>(r, x, y);
-            }
-        }
-
-        /// @brief Todas las filas.
-        template <std::size_t I>
-        static constexpr void filas_desenrolladas(std::array<std::uint64_t, N> &r,
-                                                  const std::array<std::uint64_t, N> &x,
-                                                  const std::array<std::uint64_t, N> &y) noexcept
-        {
-            if constexpr (I < N)
-            {
-                fila_desenrollada<I, 0>(r, x, y);
-                filas_desenrolladas<I + 1>(r, x, y);
-            }
-        }
-
         /// @brief Producto 64x64 -> 128. La parte baja se devuelve, la alta va a
         ///        `hi`. Estaba copiado dentro del bucle escolar; ahora lo usan
         ///        el bucle y la version desenrollada, para que no puedan
         ///        separarse por descuido.
-        [[nodiscard]] static constexpr std::uint64_t producto64(std::uint64_t a, std::uint64_t b,
-                                                                std::uint64_t &hi) noexcept
-        {
-#if __has_include("intrinsics/arithmetic_operations.hpp")
-            return intrinsics::umul128(a, b, &hi);
-#else
-            const std::uint64_t a_lo = a & 0xFFFFFFFFULL;
-            const std::uint64_t a_hi = a >> 32;
-            const std::uint64_t b_lo = b & 0xFFFFFFFFULL;
-            const std::uint64_t b_hi = b >> 32;
-            const std::uint64_t p0 = a_lo * b_lo;
-            const std::uint64_t p1 = a_lo * b_hi;
-            const std::uint64_t p2 = a_hi * b_lo;
-            const std::uint64_t p3 = a_hi * b_hi;
-            const std::uint64_t mid = (p0 >> 32) + (p1 & 0xFFFFFFFFULL) + (p2 & 0xFFFFFFFFULL);
-            hi = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
-            return (p0 & 0xFFFFFFFFULL) | (mid << 32);
-#endif
-        }
-
-        static constexpr unsigned char add_limb(std::uint64_t &limb, std::uint64_t v) noexcept
+        [[nodiscard]] static constexpr unsigned char add_limb(std::uint64_t &limb, std::uint64_t v) noexcept
         {
 #if __has_include("intrinsics/arithmetic_operations.hpp")
             return intrinsics::addcarry_u64(0, limb, v, &limb);
@@ -3107,141 +3098,6 @@ namespace nstd
             limb += v + c;
             return static_cast<unsigned char>((limb < old || (c && limb == old)) ? 1 : 0);
 #endif
-        }
-
-        // =========================================================================
-        // Karatsuba full multiply: M×M → 2M limb product (unsigned, limb arrays).
-        // Recurrence T(1)=1, T(M)=3·T(M/2)+O(M):  T(2)=3, T(4)=9 umul128 calls.
-        // =========================================================================
-
-        template <std::size_t M>
-        [[nodiscard]] static std::array<std::uint64_t, 2 * M>
-        kmul_full(const std::array<std::uint64_t, M> &a, const std::array<std::uint64_t, M> &b) noexcept
-        {
-            std::array<std::uint64_t, 2 * M> r{};
-
-            if constexpr (M == 1)
-            {
-#if __has_include("intrinsics/arithmetic_operations.hpp")
-                r[0] = intrinsics::umul128(a[0], b[0], &r[1]);
-#else
-                const std::uint64_t al = a[0] & 0xFFFF'FFFFull;
-                const std::uint64_t ah = a[0] >> 32;
-                const std::uint64_t bl = b[0] & 0xFFFF'FFFFull;
-                const std::uint64_t bh = b[0] >> 32;
-                const std::uint64_t p0 = al * bl, p1 = al * bh;
-                const std::uint64_t p2 = ah * bl, p3 = ah * bh;
-                const std::uint64_t mid = (p0 >> 32) + (p1 & 0xFFFF'FFFFull) + (p2 & 0xFFFF'FFFFull);
-                r[0] = (p0 & 0xFFFF'FFFFull) | (mid << 32);
-                r[1] = p3 + (p1 >> 32) + (p2 >> 32) + (mid >> 32);
-#endif
-                return r;
-            }
-            else
-            {
-                static_assert(M % 2 == 0, "kmul_full: M must be even");
-                constexpr std::size_t HH = M / 2;
-
-                // ── Split into low/high halves ────────────────────────────────────
-                std::array<std::uint64_t, HH> a_lo{}, a_hi{}, b_lo{}, b_hi{};
-                for (std::size_t i = 0; i < HH; ++i)
-                {
-                    a_lo[i] = a[i];
-                    a_hi[i] = a[HH + i];
-                    b_lo[i] = b[i];
-                    b_hi[i] = b[HH + i];
-                }
-
-                // ── z0 = a_lo·b_lo,  z2 = a_hi·b_hi  (each 2HH limbs) ───────────
-                const auto z0 = kmul_full<HH>(a_lo, b_lo);
-                const auto z2 = kmul_full<HH>(a_hi, b_hi);
-
-                // ── sum_a = a_lo + a_hi,  sum_b = b_lo + b_hi  (+carry ca, cb) ───
-                std::array<std::uint64_t, HH> sum_a{}, sum_b{};
-                unsigned char ca = 0, cb = 0;
-                for (std::size_t i = 0; i < HH; ++i)
-                {
-                    sum_a[i] = a_hi[i];
-                    ca = add_limb_carry(sum_a[i], a_lo[i], ca);
-                    sum_b[i] = b_hi[i];
-                    cb = add_limb_carry(sum_b[i], b_lo[i], cb);
-                }
-
-                // ── p = (sum_a + ca·B^HH) · (sum_b + cb·B^HH)  (2HH+1 limbs) ───
-                // = sum_a·sum_b + ca·sum_b·B^HH + cb·sum_a·B^HH + ca·cb·B^(2HH)
-                std::array<std::uint64_t, 2 * HH + 1> p{};
-                {
-                    const auto pp = kmul_full<HH>(sum_a, sum_b);
-                    for (std::size_t i = 0; i < 2 * HH; ++i)
-                        p[i] = pp[i];
-                }
-                if (ca)
-                {
-                    unsigned char c = 0;
-                    for (std::size_t i = 0; i < HH; ++i)
-                        c = add_limb_carry(p[HH + i], sum_b[i], c);
-                    p[2 * HH] += c;
-                }
-                if (cb)
-                {
-                    unsigned char c = 0;
-                    for (std::size_t i = 0; i < HH; ++i)
-                        c = add_limb_carry(p[HH + i], sum_a[i], c);
-                    p[2 * HH] += c;
-                }
-                if (ca & cb)
-                    ++p[2 * HH];
-
-                // ── z1 = p − z0 − z2  (guaranteed ≥ 0, fits in 2HH+1 limbs) ─────
-                std::array<std::uint64_t, 2 * HH + 1> z1 = p;
-                {
-                    unsigned char borrow = 0;
-                    for (std::size_t i = 0; i < 2 * HH; ++i)
-                    {
-#if __has_include("intrinsics/arithmetic_operations.hpp")
-                        borrow = intrinsics::subborrow_u64(borrow, z1[i], z0[i], &z1[i]);
-#else
-                        const std::uint64_t av = z1[i];
-                        z1[i] = av - z0[i] - borrow;
-                        borrow = static_cast<unsigned char>((av < z0[i]) || (borrow && av == z0[i]) ? 1 : 0);
-#endif
-                    }
-                    z1[2 * HH] -= borrow;
-                }
-                {
-                    unsigned char borrow = 0;
-                    for (std::size_t i = 0; i < 2 * HH; ++i)
-                    {
-#if __has_include("intrinsics/arithmetic_operations.hpp")
-                        borrow = intrinsics::subborrow_u64(borrow, z1[i], z2[i], &z1[i]);
-#else
-                        const std::uint64_t av = z1[i];
-                        z1[i] = av - z2[i] - borrow;
-                        borrow = static_cast<unsigned char>((av < z2[i]) || (borrow && av == z2[i]) ? 1 : 0);
-#endif
-                    }
-                    z1[2 * HH] -= borrow;
-                }
-
-                // ── Combine: r = z0 + z1·B^HH + z2·B^(2HH) ─────────────────────
-                for (std::size_t i = 0; i < 2 * HH; ++i)
-                    r[i] = z0[i];
-                {
-                    unsigned char c = 0;
-                    std::size_t i = 0;
-                    for (; i <= 2 * HH; ++i)
-                        c = add_limb_carry(r[HH + i], z1[i], c);
-                    for (; c && HH + i < 2 * M; ++i)
-                        c = add_limb(r[HH + i], std::uint64_t{1});
-                }
-                {
-                    unsigned char c = 0;
-                    for (std::size_t i = 0; i < 2 * HH; ++i)
-                        c = add_limb_carry(r[2 * HH + i], z2[i], c);
-                }
-
-                return r;
-            }
         }
 
         // Two-digit lookup: "00", "01", ..., "99"

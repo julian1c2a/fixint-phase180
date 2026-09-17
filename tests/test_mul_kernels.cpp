@@ -231,6 +231,205 @@ static bool barre_equilibrado(std::uint64_t semilla, int vueltas)
     }
 }
 
+// =============================================================================
+// El CUADRADO: a*a tiene la mitad de trabajo, y ahora tiene camino propio
+// =============================================================================
+//
+// Un cuadrado mal escrito falla justo donde la simetria se rompe: al doblar los
+// productos cruzados y al sumar la diagonal, que NO se dobla. Por eso se prueba
+// en todas las anchuras y no en unas cuantas, y con `max` --el valor que mas
+// acarreos encadena al doblar-- en cada una.
+
+template <std::size_t N>
+static bool cruza_cuadrado(std::uint64_t semilla, int vueltas)
+{
+    xorshift rng{semilla};
+    for (int v = 0; v < vueltas; ++v)
+    {
+        std::array<std::uint64_t, N> a{}, ref{}, sq{};
+        for (std::size_t i = 0; i < N; ++i)
+            a[i] = rng();
+        if (v == 0)
+            a.fill(~std::uint64_t{0}); // todo unos
+        if (v == 1)
+        {
+            a.fill(0);
+            a[N - 1] = 1; // una potencia de dos en el limbo mas alto
+        }
+
+        algorithms::mul_escolar_bucle<N>(a, a, ref);
+        algorithms::sqr_karatsuba_equilibrado<N>(a, sq);
+        for (std::size_t i = 0; i < N; ++i)
+            if (ref[i] != sq[i])
+            {
+                std::printf("       ...modular N=%zu v=%d limbo %zu: a*a %llu, sqr %llu\n", N, v, i,
+                            (unsigned long long)ref[i], (unsigned long long)sq[i]);
+                return false;
+            }
+
+        // Y el cuadrado COMPLETO, contra el producto completo.
+        std::array<std::uint64_t, 2 * N> anchoRef{};
+        algorithms::detail::mul_full_escolar<N>(a, a, anchoRef);
+        const auto anchoSqr = algorithms::sqr_full_gen<N, 8>(a);
+        for (std::size_t i = 0; i < 2 * N; ++i)
+            if (anchoRef[i] != anchoSqr[i])
+            {
+                std::printf("       ...completo N=%zu v=%d limbo %zu: a*a %llu, sqr %llu\n", N, v, i,
+                            (unsigned long long)anchoRef[i], (unsigned long long)anchoSqr[i]);
+                return false;
+            }
+    }
+    return true;
+}
+
+template <std::size_t N, std::size_t Tope>
+static bool barre_cuadrado(std::uint64_t semilla, int vueltas)
+{
+    if constexpr (N > Tope)
+    {
+        (void)semilla;
+        (void)vueltas;
+        return true;
+    }
+    else
+    {
+        if (!cruza_cuadrado<N>(semilla + N * 2654435761ULL, vueltas))
+        {
+            std::printf("       ...la discrepancia esta en N=%zu\n", N);
+            return false;
+        }
+        return barre_cuadrado<N + 1, Tope>(semilla, vueltas);
+    }
+}
+
+// =============================================================================
+// TOOM-3: donde el signo se rompe
+// =============================================================================
+//
+// Toom-3 evalua en x = -1, asi que calcula `a0 - a1 + a2`, que puede ser
+// NEGATIVO sobre arrays de limbos sin signo. Ahi es donde falla un Toom-3 mal
+// escrito, y no con operandos al azar uniformes: hace falta que a1 domine a
+// a0+a2, cosa que el azar da pocas veces. Por eso se fuerzan los casos:
+//
+//   v=0  todo unos               (el que mas acarreos encadena)
+//   v=1  a2 = 1 y el resto cero
+//   v=2  a1 = max, a0 = a2 = 0   ->  el punto -1 muy negativo EN LOS DOS
+//   v=3  a0 = a2 = max, a1 = 0
+//   v=4  SIGNOS MEZCLADOS: un factor negativo en -1 y el otro no
+//
+// El v=4 es el que distingue un Toom-3 correcto de uno que "parece funcionar":
+// si falta la correccion de signo del producto de doble anchura, la mitad baja
+// del resultado sigue saliendo bien y solo se estropea la alta.
+
+template <std::size_t M>
+static bool cruza_toom3(int vueltas)
+{
+    constexpr std::size_t k = (M + 2) / 3;
+    constexpr std::uint64_t MAXL = ~std::uint64_t{0};
+    xorshift rng{0x700333ULL + M * 2654435761ULL};
+
+    for (int v = 0; v < vueltas; ++v)
+    {
+        std::array<std::uint64_t, M> a{}, b{};
+        for (std::size_t i = 0; i < M; ++i)
+        {
+            a[i] = rng();
+            b[i] = rng();
+        }
+        if (v == 0)
+        {
+            a.fill(MAXL);
+            b.fill(MAXL);
+        }
+        else if (v == 1)
+        {
+            a.fill(0);
+            b.fill(0);
+            a[M - 1] = 1;
+            b[M - 1] = 1;
+        }
+        else if (v == 2)
+        {
+            a.fill(0);
+            b.fill(0);
+            for (std::size_t i = 0; i < k && k + i < M; ++i)
+            {
+                a[k + i] = MAXL;
+                b[k + i] = MAXL;
+            }
+        }
+        else if (v == 3)
+        {
+            a.fill(MAXL);
+            b.fill(MAXL);
+            for (std::size_t i = 0; i < k && k + i < M; ++i)
+            {
+                a[k + i] = 0;
+                b[k + i] = 0;
+            }
+        }
+        else if (v == 4)
+        {
+            a.fill(0);
+            b.fill(MAXL);
+            for (std::size_t i = 0; i < k && k + i < M; ++i)
+            {
+                a[k + i] = MAXL;
+                b[k + i] = 0;
+            }
+        }
+
+        std::array<std::uint64_t, 2 * M> ref{};
+        algorithms::detail::mul_full_escolar<M>(a, b, ref);
+
+        // (a) Toom-3 directo, recurriendo HASTA EL FONDO: la prueba mas dura,
+        //     porque encadena todos los niveles y los errores de signo se
+        //     acumulan en vez de cancelarse.
+        const auto hondo = algorithms::toom3_full<M, 8, 3>(a, b);
+
+        // (b) Por la puerta de arriba: `kmul_full_gen` con el umbral bajado a
+        //     mano. Es EL MISMO camino que toma la biblioteca en M >= 1024,
+        //     pero en anchuras que no tardan un minuto en instanciar.
+        const auto porArriba = algorithms::kmul_full_gen<M, 8, 24>(a, b);
+
+        for (std::size_t i = 0; i < 2 * M; ++i)
+        {
+            if (ref[i] != hondo[i])
+            {
+                std::printf("       ...toom3 hondo M=%zu v=%d limbo %zu: ref %llu, got %llu\n", M, v, i,
+                            (unsigned long long)ref[i], (unsigned long long)hondo[i]);
+                return false;
+            }
+            if (ref[i] != porArriba[i])
+            {
+                std::printf("       ...kmul->toom3 M=%zu v=%d limbo %zu: ref %llu, got %llu\n", M, v, i,
+                            (unsigned long long)ref[i], (unsigned long long)porArriba[i]);
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+template <std::size_t M, std::size_t Tope>
+static bool barre_toom3(int vueltas)
+{
+    if constexpr (M > Tope)
+    {
+        (void)vueltas;
+        return true;
+    }
+    else
+    {
+        if (!cruza_toom3<M>(vueltas))
+        {
+            std::printf("       ...la discrepancia esta en M=%zu\n", M);
+            return false;
+        }
+        return barre_toom3<M + 1, Tope>(vueltas);
+    }
+}
+
 int main()
 {
     std::printf("=== test_mul_kernels: los nucleos sueltos frente a la clase ===\n\n");
@@ -250,6 +449,31 @@ int main()
     std::printf("\n--- Karatsuba EQUILIBRADO, en toda N: 2..64, impares incluidas ---\n");
     ok("el equilibrado coincide con el escolar en las 63 anchuras de 2 a 64",
        barre_equilibrado<2, 64>(0x9E3779B97F4A7C15ULL, 60));
+
+    std::printf("\n--- el CUADRADO, modular y completo, en N = 2..48 ---\n");
+    ok("el cuadrado coincide con a*a en las 47 anchuras de 2 a 48", barre_cuadrado<2, 48>(0xC0FFEEULL, 50));
+
+    // Y por la puerta de arriba: `operator*` tiene que desviar `x * x` al
+    // cuadrado y seguir dando lo mismo. Se comprueba con el TIPO, no con los
+    // nucleos, porque la deteccion es por direccion y vive en `operator*`.
+    {
+        using U = uint_fixed_t<8>;
+        xorshift rng{0x5EED5EEDULL};
+        bool bien = true;
+        for (int v = 0; v < 500 && bien; ++v)
+        {
+            U x{};
+            for (std::size_t i = 0; i < 8; ++i)
+                x.set_limb(i, rng());
+            const U copia = x; // otro objeto, mismo valor
+            bien = (x * x) == (x * copia);
+        }
+        ok("operator* desvia x*x al cuadrado y da lo mismo que x*copia", bien);
+    }
+
+    std::printf("\n--- TOOM-3, contra el escolar completo, en M = 24..64 ---\n");
+    ok("toom3 y kmul_full_gen->toom3 coinciden con el escolar en las 41 anchuras de 24 a 64",
+       barre_toom3<24, 64>(40));
 
     std::printf("\n--- casos que no salen de un generador al azar ---\n");
     {

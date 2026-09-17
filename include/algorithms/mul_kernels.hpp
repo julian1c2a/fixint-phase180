@@ -80,6 +80,63 @@
 #include "intrinsics/arithmetic_operations.hpp"
 #endif
 
+/// @def NSTD_TOOM3_MIN
+/// @brief Anchura desde la que el producto COMPLETO ENTRA en Toom-3.
+///
+/// Toom-3 hace cinco productos de M/3 donde Karatsuba hace tres de M/2:
+/// exponente log5/log3 = 1,465 frente a log3/log2 = 1,585. Gana por arriba y
+/// pierde por abajo.
+///
+/// **Medido el 17 sep 2026 con clang**, productos completos M x M -> 2M, cinco
+/// variantes entrelazadas, minimo de 20 repeticiones, dos vueltas. Razones
+/// Karatsuba/Toom-3 segun donde se corte la recursion:
+///
+///     M        Toom>=96   Toom>=256   Toom>=512   Toom>=1024
+///     512      0,92 0,95  0,94 0,98   0,96 0,97   (no entra)
+///     1024     1,05 1,00  1,02 1,02   1,00 0,98   0,98 1,00
+///     2048     1,13 1,10  1,07 1,03   1,05 1,01   1,02 1,00
+///     4096     1,12 1,13  1,17 1,20   1,04 1,07   1,08 1,06
+///
+/// De ahi salen los DOS umbrales, y por que son dos:
+///
+///   - En M=512 Toom-3 PIERDE con cualquier corte. Entrar por debajo de 1024
+///     meteria una regresion del 5-8 % en las anchuras medias.
+///   - Pero la ganancia viene de REPETIR el reparto: con la recursion cortada en
+///     1024, M=4096 solo da 1,06-1,08x; bajandola a 96 sube a 1,12-1,13x.
+///
+/// Con un solo umbral no se pueden tener las dos cosas, porque el mismo M
+/// aparece como producto de arriba y como subproducto de dentro. Por eso este
+/// fija la ENTRADA y `NSTD_TOOM3_REC` fija la RECURSION.
+///
+/// @note La casilla M=512 con corte en 1024 sale a 0,99x-1,01x, o sea igual que
+///       Karatsuba puro: es la comprobacion de que el banco mide lo que dice.
+///
+/// @note Esto es UNA maquina, como pasa con `NSTD_KARATSUBA_MIN`. GMP publica
+///       para su `MUL_TOOM33_THRESHOLD` un rango de 38 a 122 limbos entre
+///       modelos; el nuestro sale mucho mas alto porque nuestro Karatsuba y
+///       nuestro Toom-3 no estan optimizados al mismo nivel que los suyos.
+#ifndef NSTD_TOOM3_MIN
+#define NSTD_TOOM3_MIN 1024
+#endif
+
+/// @def NSTD_TOOM3_REC
+/// @brief Anchura hasta la que se sigue repartiendo en tres UNA VEZ DENTRO.
+///
+/// Es mas bajo que `NSTD_TOOM3_MIN` a proposito: entrar en Toom-3 con 512
+/// limbos pierde, pero un subproducto de 512 limbos DENTRO de un producto de
+/// 4096 sale mejor con Toom-3 que con Karatsuba. La explicacion mas probable es
+/// la cache: a esa altura ya no queda nada util en L2, y los subproblemas de
+/// Toom-3 son de M/3 mientras que los de Karatsuba son de M/2.
+///
+/// 96 y no 256: el 256 mide mejor en M=4096 concreto (1,17-1,20x frente a
+/// 1,12-1,13x), pero el 96 gana en M=2048 (1,10-1,13x frente a 1,03-1,07x) y
+/// gana de media y en el peor caso. Las dos opciones reproducen en las dos
+/// vueltas, asi que la diferencia es real y no ruido: es que el optimo se mueve
+/// con M y hay que elegir uno.
+#ifndef NSTD_TOOM3_REC
+#define NSTD_TOOM3_REC 96
+#endif
+
 namespace nstd
 {
     namespace algorithms
@@ -166,6 +223,118 @@ namespace nstd
                     unsigned char c = add_limb(r[k], acarreo);
                     while (c && ++k < 2 * M)
                         c = add_limb(r[k], std::uint64_t{c});
+                }
+            }
+
+            // =================================================================
+            // Aritmetica de ANILLO, para Toom-3
+            // =================================================================
+            //
+            // Toom-3 evalua en x = -1, asi que trabaja con valores NEGATIVOS
+            // sobre arrays de limbos sin signo. En vez de arrastrar un bit de
+            // signo por todo el algoritmo, se trabaja en complemento a dos
+            // dentro de Z/2^(64W): sumar y restar son entonces las operaciones
+            // de siempre, sin ramas.
+            //
+            // Lo que NO se salva solo es el producto de doble anchura; eso se
+            // corrige en `toom3_full`, donde se explica.
+
+            /// @brief `limbo -= v + p`, devolviendo el prestamo.
+            constexpr unsigned char sub_limb_borrow(std::uint64_t &limbo, std::uint64_t v,
+                                                    unsigned char p) noexcept
+            {
+#if __has_include("intrinsics/arithmetic_operations.hpp")
+                return intrinsics::subborrow_u64(p, limbo, v, &limbo);
+#else
+                const std::uint64_t viejo{limbo};
+                limbo = viejo - v - p;
+                return static_cast<unsigned char>((viejo < v || (p && viejo == v)) ? 1 : 0);
+#endif
+            }
+
+            /// @brief `dst += src` en el anillo de W limbos. Lo que se sale, se tira.
+            template <std::size_t W>
+            constexpr void suma_anillo(std::array<std::uint64_t, W> &dst,
+                                       const std::array<std::uint64_t, W> &src) noexcept
+            {
+                unsigned char c = 0;
+                for (std::size_t i = 0; i < W; ++i)
+                    c = add_limb_carry(dst[i], src[i], c);
+            }
+
+            /// @brief `dst -= src` en el anillo de W limbos.
+            template <std::size_t W>
+            constexpr void resta_anillo(std::array<std::uint64_t, W> &dst,
+                                        const std::array<std::uint64_t, W> &src) noexcept
+            {
+                unsigned char p = 0;
+                for (std::size_t i = 0; i < W; ++i)
+                    p = sub_limb_borrow(dst[i], src[i], p);
+            }
+
+            /// @brief `x <<= s` con s < 64, en el anillo de W limbos.
+            template <std::size_t W>
+            constexpr void desplaza_izq(std::array<std::uint64_t, W> &x, unsigned s) noexcept
+            {
+                if (s == 0)
+                    return;
+                for (std::size_t i = W; i-- > 1;)
+                    x[i] = (x[i] << s) | (x[i - 1] >> (64 - s));
+                x[0] <<= s;
+            }
+
+            /// @brief `x /= 2`, exacta y CON SIGNO: desplazamiento aritmetico.
+            ///
+            /// Tiene que ser aritmetico. Con desplazamiento logico un valor
+            /// negativo par da un positivo enorme, y el error no aparece hasta
+            /// que el punto x = -1 sale negativo de verdad -- que con operandos
+            /// al azar uniformes pasa pocas veces.
+            template <std::size_t W>
+            constexpr void mitad_exacta(std::array<std::uint64_t, W> &x) noexcept
+            {
+                const std::uint64_t signo = x[W - 1] >> 63;
+                for (std::size_t i = 0; i + 1 < W; ++i)
+                    x[i] = (x[i] >> 1) | (x[i + 1] << 63);
+                x[W - 1] = (x[W - 1] >> 1) | (signo << 63);
+            }
+
+            /// El inverso de 3 modulo **2^64**: 3 * 0xAAAAAAAAAAAAAAAB = 2^65 + 1.
+            inline constexpr std::uint64_t INV3 = 0xAAAA'AAAA'AAAA'AAABull;
+
+            /// @brief `x /= 3`, exacta, en el anillo de W limbos.
+            ///
+            /// NO VALE MULTIPLICAR POR `INV3` LIMBO A LIMBO, y es un error que
+            /// parece razonable: `INV3` invierte a 3 modulo 2^64, no modulo
+            /// 2^(64W). El producto `3 * INV3` vale 2^65 + 1, que truncado a un
+            /// limbo es 1 pero sobre el anillo entero deja 2^65 de residuo, y
+            /// ese residuo contamina los limbos altos. Comprobado el 16 sep 2026
+            /// con M=3 y todo unos: 6q^2 daba [2, 0, ...fa, 3] en vez de
+            /// [2, ...fc, 1, 0].
+            ///
+            /// Lo correcto es la cadena de division exacta de Jebelean, que
+            /// cuesta lo mismo --una multiplicacion por limbo-- y si calcula
+            /// `x * 3^-1` en todo el anillo: en cada paso elige el limbo del
+            /// cociente que anula el limbo actual y pasa al siguiente lo que se
+            /// lleva.
+            ///
+            /// Vale tambien para valores negativos en complemento a dos. No
+            /// porque su representacion sea divisible por 3 --no lo es, ya que
+            /// 2^(64W) = 1 mod 3-- sino porque lo que calcula la cadena es el
+            /// producto por el inverso en el anillo, y ahi 3 es una unidad.
+            template <std::size_t W>
+            constexpr void entre_tres(std::array<std::uint64_t, W> &x) noexcept
+            {
+                std::uint64_t acarreo = 0;
+                for (std::size_t i = 0; i < W; ++i)
+                {
+                    const std::uint64_t l = x[i];
+                    const std::uint64_t d = l - acarreo;
+                    const std::uint64_t prestamo = (d > l) ? 1ull : 0ull;
+                    const std::uint64_t q = d * INV3;
+                    x[i] = q;
+                    std::uint64_t alto = 0;
+                    (void)mul64(q, 3ull, alto); // lo que q*3 se lleva al siguiente
+                    acarreo = prestamo + alto;  // <= 3: no desborda
                 }
             }
 
@@ -434,13 +603,24 @@ namespace nstd
         ///       escolar. Un limbo cuesta un factor `(1 + 1,585/M)`, que se
         ///       desvanece al crecer M.
         ///
+        // Declaracion adelantada: por encima del umbral el producto completo se
+        // va a Toom-3, y Toom-3 vuelve a llamar aqui para sus cinco
+        // subproductos. La recursion es mutua.
+        template <std::size_t M, std::size_t Base, std::size_t ToomMin = NSTD_TOOM3_REC>
+        [[nodiscard]] inline std::array<std::uint64_t, 2 * M>
+        toom3_full(const std::array<std::uint64_t, M> &a, const std::array<std::uint64_t, M> &b) noexcept;
+
         /// @tparam M Numero de limbos de cada factor. Cualquiera >= 1.
         /// @tparam Base Anchura a partir de la cual se corta la recursion y se
         ///         usa el escolar completo. Es un umbral MEDIBLE, no una
         ///         constante magica.
+        /// @tparam ToomMin Anchura a partir de la cual se usa Toom-3 en vez de
+        ///         Karatsuba. Por defecto `NSTD_TOOM3_MIN`, que es el umbral de
+        ///         ENTRADA; cuando la llamada viene de dentro de `toom3_full`
+        ///         vale `NSTD_TOOM3_REC`, que es mas bajo. Ver los dos @def.
         /// @param a Primer factor. @param b Segundo factor.
         /// @return El producto exacto, 2M limbos.
-        template <std::size_t M, std::size_t Base>
+        template <std::size_t M, std::size_t Base, std::size_t ToomMin = NSTD_TOOM3_MIN>
         [[nodiscard]] inline std::array<std::uint64_t, 2 * M>
         kmul_full_gen(const std::array<std::uint64_t, M> &a, const std::array<std::uint64_t, M> &b) noexcept
         {
@@ -453,6 +633,18 @@ namespace nstd
                 // recursion cuesta mas de lo que ahorra -- medido.
                 detail::mul_full_escolar<M>(a, b, r);
                 return r;
+            }
+            else if constexpr (M >= ToomMin && M >= 3)
+            {
+                // TOOM-3. Cinco productos de M/3 donde Karatsuba hace tres de
+                // M/2. Va ANTES de la rama de impares a proposito: Toom-3 parte
+                // en tercios y no necesita que M sea par, asi que rellenar un
+                // limbo antes de llegar aqui seria trabajo tirado.
+                //
+                // A partir de aqui el umbral pasa a ser `NSTD_TOOM3_REC`: una
+                // vez dentro se sigue repartiendo mas abajo de lo que se habria
+                // entrado desde fuera. Ver los @def de las dos macros.
+                return toom3_full<M, Base, NSTD_TOOM3_REC>(a, b);
             }
             else if constexpr (M % 2 == 1)
             {
@@ -467,7 +659,7 @@ namespace nstd
                     ap[i] = a[i];
                     bp[i] = b[i];
                 }
-                const auto rp = kmul_full_gen<M + 1, Base>(ap, bp);
+                const auto rp = kmul_full_gen<M + 1, Base, ToomMin>(ap, bp);
                 for (std::size_t i = 0; i < 2 * M; ++i)
                     r[i] = rp[i];
                 return r;
@@ -504,8 +696,8 @@ namespace nstd
                 }
 
                 // ── z0 = a_lo·b_lo,  z2 = a_hi·b_hi  (each 2HH limbs) ───────────
-                const auto z0 = kmul_full_gen<HH, Base>(a_lo, b_lo);
-                const auto z2 = kmul_full_gen<HH, Base>(a_hi, b_hi);
+                const auto z0 = kmul_full_gen<HH, Base, ToomMin>(a_lo, b_lo);
+                const auto z2 = kmul_full_gen<HH, Base, ToomMin>(a_hi, b_hi);
 
                 // ── sum_a = a_lo + a_hi,  sum_b = b_lo + b_hi  (+carry ca, cb) ───
                 std::array<std::uint64_t, HH> sum_a{}, sum_b{};
@@ -522,7 +714,7 @@ namespace nstd
                 // = sum_a·sum_b + ca·sum_b·B^HH + cb·sum_a·B^HH + ca·cb·B^(2HH)
                 std::array<std::uint64_t, 2 * HH + 1> p{};
                 {
-                    const auto pp = kmul_full_gen<HH, Base>(sum_a, sum_b);
+                    const auto pp = kmul_full_gen<HH, Base, ToomMin>(sum_a, sum_b);
                     for (std::size_t i = 0; i < 2 * HH; ++i)
                         p[i] = pp[i];
                 }
@@ -593,6 +785,190 @@ namespace nstd
 
                 return r;
             }
+        }
+
+        // =====================================================================
+        // 3 bis. Toom-3
+        // =====================================================================
+
+        /// @brief Producto COMPLETO MxM -> 2M por Toom-3, para cualquier M >= 3.
+        ///
+        /// Parte cada factor en TRES trozos de k = techo(M/3) limbos, evalua el
+        /// polinomio en cinco puntos, multiplica, e interpola. Cinco productos
+        /// de M/3 donde Karatsuba hace tres de M/2.
+        ///
+        /// LO QUE HACE DIFICIL A TOOM-3, Y QUE NO APARECE EN KARATSUBA
+        /// ----------------------------------------------------------
+        ///
+        /// 1. HAY VALORES NEGATIVOS. El punto x = -1 obliga a evaluar
+        ///    `a0 - a1 + a2`, que puede ser negativo, sobre arrays de limbos sin
+        ///    signo. Se trabaja en complemento a dos dentro de Z/2^(64W), con
+        ///    los ayudantes de `detail`.
+        ///
+        /// 2. PERO EL PRODUCTO DE DOBLE ANCHURA NO SE SALVA SOLO. Multiplicar
+        ///    sin signo dos representaciones en complemento a dos acierta los
+        ///    limbos BAJOS y nada mas: si X = x + 2^(64E) porque x < 0, entonces
+        ///
+        ///        X*Y = x*y + y*2^(64E)    (mod 2^(128E))
+        ///
+        ///    y la mitad alta sale mal. La correccion es restar Y de la mitad
+        ///    alta cuando X es negativo, y X cuando lo es Y: dos restas de E
+        ///    limbos. Olvidarla da un resultado que parece correcto en las
+        ///    anchuras pequenas y falla en cuanto el punto -1 se vuelve negativo
+        ///    de verdad. Solo `v(-1)` la necesita: `a0+a1+a2` y `a0+2a1+4a2` son
+        ///    sumas de no negativos y ademas caben con el bit alto a cero, ya
+        ///    que 7*2^(64k) < 2^(64k+3).
+        ///
+        /// 3. LA INTERPOLACION DIVIDE. Por 2 --desplazamiento ARITMETICO-- y por
+        ///    3 --cadena de Jebelean--. Ver `detail::entre_tres`.
+        ///
+        /// LA INTERPOLACION, ESCRITA
+        /// -------------------------
+        ///   C(x) = c0 + c1 x + c2 x^2 + c3 x^3 + c4 x^4, en 0, 1, -1, 2, inf
+        ///
+        ///   c0 = v0                        c4 = vinf
+        ///   A  = (v1 + vm1)/2 = c0+c2+c4   ->  c2 = A - c0 - c4
+        ///   S  = (v1 - vm1)/2 = c1 + c3
+        ///   D  = (v2 - c0 - 4c2 - 16c4)/2 = c1 + 4c3
+        ///   c3 = (D - S)/3                 c1 = S - c3
+        ///
+        /// Las dos divisiones son exactas por construccion: `v2 - c0 - 4c2 -
+        /// 16c4` vale `2c1 + 8c3`, y `D - S` vale `3c3`.
+        ///
+        /// @tparam M Numero de limbos de cada factor. >= 3.
+        /// @tparam Base Corte de la recursion de Karatsuba; ver `kmul_full_gen`.
+        /// @tparam ToomMin Hasta donde se sigue repartiendo en tres. Los cinco
+        ///         subproductos vuelven a entrar por `kmul_full_gen` con este
+        ///         mismo umbral, asi que la recursion se reparte sola.
+        /// @param a Primer factor. @param b Segundo factor.
+        /// @return El producto exacto, 2M limbos.
+        template <std::size_t M, std::size_t Base, std::size_t ToomMin>
+        [[nodiscard]] inline std::array<std::uint64_t, 2 * M>
+        toom3_full(const std::array<std::uint64_t, M> &a, const std::array<std::uint64_t, M> &b) noexcept
+        {
+            static_assert(M >= 3, "toom3_full: hacen falta al menos tres limbos");
+
+            constexpr std::size_t k = (M + 2) / 3; // techo de M/3
+            constexpr std::size_t E = k + 1;       // anchura de los cinco valores
+            constexpr std::size_t P = 2 * E;       // anchura de los cinco productos
+
+            using vec_e = std::array<std::uint64_t, E>;
+            using vec_p = std::array<std::uint64_t, P>;
+
+            // ── el reparto en tres, rellenando con ceros hasta 3k ────────────
+            // Se rellena en vez de arrastrar una tercera anchura: el trozo alto
+            // tiene M-2k limbos, que puede ser menor que k, y llevar esa anchura
+            // por todo el algoritmo no compra nada.
+            vec_e A0{}, A1{}, A2{}, B0{}, B1{}, B2{};
+            for (std::size_t i = 0; i < k; ++i)
+            {
+                A0[i] = a[i];
+                B0[i] = b[i];
+                A1[i] = (k + i < M) ? a[k + i] : 0;
+                B1[i] = (k + i < M) ? b[k + i] : 0;
+                A2[i] = (2 * k + i < M) ? a[2 * k + i] : 0;
+                B2[i] = (2 * k + i < M) ? b[2 * k + i] : 0;
+            }
+
+            // ── los cinco puntos: 0, 1, -1, 2, infinito ──────────────────────
+            vec_e pa1 = A0, pb1 = B0;
+            detail::suma_anillo<E>(pa1, A1);
+            detail::suma_anillo<E>(pa1, A2); // a0 + a1 + a2
+            detail::suma_anillo<E>(pb1, B1);
+            detail::suma_anillo<E>(pb1, B2);
+
+            vec_e pam1 = A0, pbm1 = B0;
+            detail::resta_anillo<E>(pam1, A1);
+            detail::suma_anillo<E>(pam1, A2); // a0 - a1 + a2  <-- PUEDE SER NEGATIVO
+            detail::resta_anillo<E>(pbm1, B1);
+            detail::suma_anillo<E>(pbm1, B2);
+
+            // a0 + 2a1 + 4a2, por Horner: ((2*a2) + a1)*2 + a0
+            vec_e pa2 = A2, pb2 = B2;
+            detail::desplaza_izq<E>(pa2, 1);
+            detail::suma_anillo<E>(pa2, A1);
+            detail::desplaza_izq<E>(pa2, 1);
+            detail::suma_anillo<E>(pa2, A0);
+            detail::desplaza_izq<E>(pb2, 1);
+            detail::suma_anillo<E>(pb2, B1);
+            detail::desplaza_izq<E>(pb2, 1);
+            detail::suma_anillo<E>(pb2, B0);
+
+            // ── los cinco productos ──────────────────────────────────────────
+            const vec_p v0 = kmul_full_gen<E, Base, ToomMin>(A0, B0);
+            const vec_p v1 = kmul_full_gen<E, Base, ToomMin>(pa1, pb1);
+            const vec_p v2 = kmul_full_gen<E, Base, ToomMin>(pa2, pb2);
+            const vec_p vinf = kmul_full_gen<E, Base, ToomMin>(A2, B2);
+
+            vec_p vm1 = kmul_full_gen<E, Base, ToomMin>(pam1, pbm1);
+            // EL ARREGLO DEL SIGNO. Ver el punto 2 de la cabecera: el producto
+            // sin signo solo acierta la mitad baja cuando un factor es negativo.
+            if (pam1[E - 1] >> 63)
+            {
+                unsigned char p = 0;
+                for (std::size_t i = 0; i < E; ++i)
+                    p = detail::sub_limb_borrow(vm1[E + i], pbm1[i], p);
+            }
+            if (pbm1[E - 1] >> 63)
+            {
+                unsigned char p = 0;
+                for (std::size_t i = 0; i < E; ++i)
+                    p = detail::sub_limb_borrow(vm1[E + i], pam1[i], p);
+            }
+
+            // ── la interpolacion ─────────────────────────────────────────────
+            const vec_p &c0 = v0;
+            const vec_p &c4 = vinf;
+
+            vec_p c2 = v1; // A = (v1 + vm1)/2 = c0 + c2 + c4
+            detail::suma_anillo<P>(c2, vm1);
+            detail::mitad_exacta<P>(c2);
+            detail::resta_anillo<P>(c2, c0);
+            detail::resta_anillo<P>(c2, c4);
+
+            vec_p sum = v1; // S = (v1 - vm1)/2 = c1 + c3
+            detail::resta_anillo<P>(sum, vm1);
+            detail::mitad_exacta<P>(sum);
+
+            vec_p d = v2; // D = (v2 - c0 - 4c2 - 16c4)/2 = c1 + 4c3
+            detail::resta_anillo<P>(d, c0);
+            {
+                vec_p t = c2;
+                detail::desplaza_izq<P>(t, 2);
+                detail::resta_anillo<P>(d, t);
+            }
+            {
+                vec_p t = c4;
+                detail::desplaza_izq<P>(t, 4);
+                detail::resta_anillo<P>(d, t);
+            }
+            detail::mitad_exacta<P>(d);
+
+            vec_p c3 = d; // c3 = (D - S)/3
+            detail::resta_anillo<P>(c3, sum);
+            detail::entre_tres<P>(c3);
+
+            vec_p c1 = sum; // c1 = S - c3
+            detail::resta_anillo<P>(c1, c3);
+
+            // ── el montaje: r = c0 + c1 B + c2 B^2 + c3 B^3 + c4 B^4 ─────────
+            // Los cinco coeficientes son NO NEGATIVOS y caben, asi que los
+            // limbos que se salen de 2M son cero y se pueden ignorar.
+            std::array<std::uint64_t, 2 * M> r{};
+            const vec_p *cs[5] = {&c0, &c1, &c2, &c3, &c4};
+            for (std::size_t t = 0; t < 5; ++t)
+            {
+                const std::size_t base = t * k;
+                if (base >= 2 * M)
+                    break;
+                unsigned char c = 0;
+                std::size_t j = 0;
+                for (; j < P && base + j < 2 * M; ++j)
+                    c = detail::add_limb_carry(r[base + j], (*cs[t])[j], c);
+                for (std::size_t q = base + j; c && q < 2 * M; ++q)
+                    c = detail::add_limb(r[q], std::uint64_t{c});
+            }
+            return r;
         }
 
         /// @brief Producto modular NxN -> N por Karatsuba.
@@ -704,7 +1080,14 @@ namespace nstd
         ///
         /// @tparam MinKaratsuba Desde donde el medio vuelve a usar Karatsuba.
         /// @tparam TopeDesenrollado Hasta donde desenrolla el escolar.
-        template <std::size_t TopeDesenrollado, std::size_t MinKaratsuba>
+        /// @tparam Base Corte de la recursion, que se ARRASTRA hacia abajo.
+        ///
+        /// @note `Base` esta aqui porque antes no estaba: el medio llamaba a
+        ///       `mul_karatsuba_equilibrado<H, 8, ...>` con el 8 escrito a mano,
+        ///       asi que cambiar `Base` en la llamada de arriba no cambiaba nada
+        ///       por debajo del primer nivel. Cualquier barrido de `Base` hecho
+        ///       sin esto mide una mezcla y no un corte.
+        template <std::size_t TopeDesenrollado, std::size_t MinKaratsuba, std::size_t Base = 8>
         struct medio_reparto
         {
             template <std::size_t H>
@@ -712,8 +1095,8 @@ namespace nstd
                             std::array<std::uint64_t, H> &z) const noexcept
             {
                 if constexpr (H >= MinKaratsuba && H >= 2)
-                    mul_karatsuba_equilibrado<H, 8, medio_reparto<TopeDesenrollado, MinKaratsuba>>(
-                        x, y, z, medio_reparto<TopeDesenrollado, MinKaratsuba>{});
+                    mul_karatsuba_equilibrado<H, Base, medio_reparto<TopeDesenrollado, MinKaratsuba, Base>>(
+                        x, y, z, medio_reparto<TopeDesenrollado, MinKaratsuba, Base>{});
                 else if constexpr (H <= TopeDesenrollado)
                     mul_escolar_desenrollado<H>(x, y, z);
                 else
@@ -805,6 +1188,210 @@ namespace nstd
                 unsigned char c = 0;
                 for (std::size_t i = 0; i < HH; ++i)
                     c = detail::add_limb_carry(r[HH + i], m1[i], c);
+            }
+        }
+
+        // =====================================================================
+        // 2 bis. El CUADRADO, que no es un producto cualquiera
+        // =====================================================================
+        //
+        // `a * a` tiene la mitad de trabajo que `a * b`, y la biblioteca no lo
+        // aprovechaba: pasaba por `operator*` como si los dos factores fueran
+        // distintos.
+        //
+        // EN EL ESCOLAR: los productos cruzados `a[i]*a[j]` con i != j aparecen
+        // DOS VECES --una como (i,j) y otra como (j,i)-- y son iguales. Se
+        // calcula la mitad de arriba de la tabla, se dobla, y se suman aparte
+        // los N terminos de la diagonal `a[i]*a[i]`. De N^2 productos se pasa a
+        // N(N+1)/2, que tiende a la mitad.
+        //
+        // EN KARATSUBA: los dos terminos del medio son `a_lo*a_hi` y
+        // `a_hi*a_lo`, que son EL MISMO. Se calcula uno y se suma dos veces. De
+        // tres productos de media anchura se pasa a dos.
+        //
+        // GMP mantiene umbrales separados para el cuadrado por esto mismo; su
+        // `SQR_TOOM2_THRESHOLD` suele ser cerca del doble del de multiplicar.
+
+        /// @brief Cuadrado COMPLETO MxM -> 2M, escolar, aprovechando la simetria.
+        ///
+        /// @param a Valor a elevar al cuadrado.
+        /// @param r Destino de 2M limbos. **Se pone a cero al entrar.**
+        template <std::size_t M>
+        constexpr void sqr_full_escolar(const std::array<std::uint64_t, M> &a,
+                                        std::array<std::uint64_t, 2 * M> &r) noexcept
+        {
+            r.fill(0);
+
+            // Mitad estricta de arriba: los cruzados, una sola vez.
+            for (std::size_t i = 0; i < M; ++i)
+            {
+                for (std::size_t j = i + 1; j < M; ++j)
+                {
+                    std::uint64_t alto = 0;
+                    const std::uint64_t bajo = detail::mul64(a[i], a[j], alto);
+                    unsigned char c = detail::add_limb(r[i + j], bajo);
+                    std::size_t k = i + j + 1;
+                    c = detail::add_limb_carry(r[k], alto, c);
+                    while (c && ++k < 2 * M)
+                        c = detail::add_limb(r[k], std::uint64_t{c});
+                }
+            }
+
+            // Doblar: todo lo acumulado son cruzados, y cada uno cuenta dos
+            // veces. Un desplazamiento de un bit sobre los 2M limbos.
+            unsigned char acarreo = 0;
+            for (std::size_t i = 0; i < 2 * M; ++i)
+            {
+                const unsigned char siguiente = static_cast<unsigned char>(r[i] >> 63);
+                r[i] = (r[i] << 1) | acarreo;
+                acarreo = siguiente;
+            }
+
+            // Y ahora la diagonal, que NO se dobla.
+            for (std::size_t i = 0; i < M; ++i)
+            {
+                std::uint64_t alto = 0;
+                const std::uint64_t bajo = detail::mul64(a[i], a[i], alto);
+                unsigned char c = detail::add_limb(r[2 * i], bajo);
+                std::size_t k = 2 * i + 1;
+                if (k < 2 * M)
+                {
+                    c = detail::add_limb_carry(r[k], alto, c);
+                    while (c && ++k < 2 * M)
+                        c = detail::add_limb(r[k], std::uint64_t{c});
+                }
+            }
+        }
+
+        // NO HAY `sqr_escolar_bucle`, Y ES A PROPOSITO.
+        //
+        // Se escribio el 16 sep 2026 y se retiro el mismo dia, medido: perdia
+        // contra el producto normal en las dieciseis anchuras del barrido, de
+        // 0,35x a 0,80x. La razon es de diseno, no de aritmetica: se implemento
+        // calculando el cuadrado COMPLETO de 2N limbos y truncando a N, porque
+        // doblar los cruzados sin perder acarreos es mas comodo asi.
+        //
+        // Pero eso cuesta exactamente lo que la simetria ahorra --el doble de
+        // trabajo para ahorrar la mitad-- y encima deja la sobrecarga del array
+        // intermedio. Un cuadrado escolar modular que valiera la pena tendria
+        // que doblar sobre N limbos, arrastrando el acarreo que se sale.
+        //
+        // No se ha escrito porque no hace falta: `sqr_karatsuba_equilibrado`
+        // gana desde N=4 (2,47x medido), asi que no queda banda para el.
+
+        /// @brief Cuadrado COMPLETO MxM -> 2M por Karatsuba, cualquier M.
+        ///
+        /// Tres cuadrados de media anchura en vez de tres productos: `z0 =
+        /// a_lo^2`, `z2 = a_hi^2` y `z1 = (a_lo+a_hi)^2 - z0 - z2`.
+        ///
+        /// @tparam Base Corte de la recursion; ver `kmul_full_gen`.
+        template <std::size_t M, std::size_t Base>
+        [[nodiscard]] inline std::array<std::uint64_t, 2 * M>
+        sqr_full_gen(const std::array<std::uint64_t, M> &a) noexcept
+        {
+            std::array<std::uint64_t, 2 * M> r{};
+
+            if constexpr (M <= Base)
+            {
+                sqr_full_escolar<M>(a, r);
+                return r;
+            }
+            else if constexpr (M % 2 == 1)
+            {
+                std::array<std::uint64_t, M + 1> ap{};
+                for (std::size_t i = 0; i < M; ++i)
+                    ap[i] = a[i];
+                const auto rp = sqr_full_gen<M + 1, Base>(ap);
+                for (std::size_t i = 0; i < 2 * M; ++i)
+                    r[i] = rp[i];
+                return r;
+            }
+            else
+            {
+                // El cuadrado completo por Karatsuba tiene el mismo esqueleto
+                // que el producto, pero con `a` en los dos sitios. Se apoya en
+                // `kmul_full_gen` para el termino cruzado, que es el unico que
+                // no es un cuadrado.
+                constexpr std::size_t HH = M / 2;
+                std::array<std::uint64_t, HH> a_lo{}, a_hi{};
+                for (std::size_t i = 0; i < HH; ++i)
+                {
+                    a_lo[i] = a[i];
+                    a_hi[i] = a[HH + i];
+                }
+
+                const auto z0 = sqr_full_gen<HH, Base>(a_lo);        // a_lo^2
+                const auto z2 = sqr_full_gen<HH, Base>(a_hi);        // a_hi^2
+                const auto z1 = kmul_full_gen<HH, Base>(a_lo, a_hi); // a_lo*a_hi
+
+                // r = z0 + 2*z1*B^HH + z2*B^(2HH)
+                for (std::size_t i = 0; i < 2 * HH; ++i)
+                    r[i] = z0[i];
+                for (std::size_t i = 0; i < 2 * HH; ++i)
+                    r[2 * HH + i] = z2[i];
+
+                // El cruzado se suma DOS veces, desplazado HH limbos.
+                for (int vez = 0; vez < 2; ++vez)
+                {
+                    unsigned char c = 0;
+                    std::size_t i = 0;
+                    for (; i < 2 * HH; ++i)
+                        c = detail::add_limb_carry(r[HH + i], z1[i], c);
+                    for (std::size_t k = HH + i; c && k < 2 * M; ++k)
+                        c = detail::add_limb(r[k], std::uint64_t{c});
+                }
+                return r;
+            }
+        }
+
+        /// @brief Cuadrado modular NxN -> N por Karatsuba equilibrado.
+        ///
+        /// Frente a `mul_karatsuba_equilibrado(a, a, r)`, se ahorra **uno de los
+        /// dos productos del medio**: `a_lo*a_hi` y `a_hi*a_lo` son el mismo.
+        ///
+        /// @param a Valor. @param r Destino.
+        /// @param medio Como calcular el unico termino del medio.
+        template <std::size_t N, std::size_t Base = 8, typename Medio = medio_escolar<21>>
+        void sqr_karatsuba_equilibrado(const std::array<std::uint64_t, N> &a, std::array<std::uint64_t, N> &r,
+                                       Medio medio = Medio{}) noexcept
+        {
+            static_assert(N >= 2, "sqr_karatsuba_equilibrado: hacen falta al menos dos limbos");
+
+            if constexpr (N % 2 == 1)
+            {
+                std::array<std::uint64_t, N + 1> ap{}, rp{};
+                for (std::size_t i = 0; i < N; ++i)
+                    ap[i] = a[i];
+                sqr_karatsuba_equilibrado<N + 1, Base>(ap, rp, medio);
+                for (std::size_t i = 0; i < N; ++i)
+                    r[i] = rp[i];
+            }
+            else
+            {
+                constexpr std::size_t HH = N / 2;
+                std::array<std::uint64_t, HH> a_lo{}, a_hi{};
+                for (std::size_t i = 0; i < HH; ++i)
+                {
+                    a_lo[i] = a[i];
+                    a_hi[i] = a[HH + i];
+                }
+
+                const auto z0 = sqr_full_gen<HH, Base>(a_lo);
+
+                // UN SOLO producto del medio, no dos.
+                std::array<std::uint64_t, HH> m{};
+                medio(a_lo, a_hi, m);
+
+                for (std::size_t i = 0; i < N; ++i)
+                    r[i] = z0[i];
+
+                // Se suma dos veces, que es lo mismo que doblarlo.
+                for (int vez = 0; vez < 2; ++vez)
+                {
+                    unsigned char c = 0;
+                    for (std::size_t i = 0; i < HH; ++i)
+                        c = detail::add_limb_carry(r[HH + i], m[i], c);
+                }
             }
         }
 
