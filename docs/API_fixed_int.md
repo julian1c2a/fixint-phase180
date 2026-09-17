@@ -156,33 +156,63 @@ medido, no supuesto — ver [PERFORMANCE.md](PERFORMANCE.md).
 | anchura | camino | por qué |
 |---|---|---|
 | `N = 2` | especializado de 128 bits | `__int128` o `_umul128`, tres productos |
-| `N = 3 … 20` | escolar **desenrollado por construcción** | de 1,4× a 4,9× más rápido que el bucle |
-| `N` potencia de dos, `≥ 32` | **Karatsuba** | ahí sí gana: `N^1.585` vence a su constante |
-| resto | escolar en bucle | desenrollar deja de pagar |
+| `x * x`, `N ≥ 4` | **cuadrado** (`sqr_karatsuba_equilibrado`) | los dos términos del medio son el mismo: de 1,17× a 2,47×, mediana 1,5× |
+| `N ≥ 22` | **Karatsuba con reparto equilibrado**, *cualquier* N | ya no exige potencia de dos, que era la causa del acantilado |
+| `N = 3 … 21` | escolar **desenrollado por construcción** | de 1,4× a 4,9× más rápido que el bucle |
+| evaluación constante | escolar en bucle | es el único camino `constexpr` |
 
-Los tres umbrales son macros y se pueden redefinir **antes** de incluir el
-header, o desde la línea de órdenes con `-D`:
+**`x * x` se detecta comparando punteros, no valores.** `x * x` con la misma
+variable entra en el camino del cuadrado; `a * b` con dos objetos que resulten
+iguales, no. Comparar valores costaría N comparaciones para ganar en un caso
+raro, mientras que detectar la variable repetida —que es lo que hace `pow` con
+`base *= base`— cuesta una.
+
+Por debajo, en los productos **completos** que Karatsuba usa internamente, hay un
+cuarto algoritmo: **Toom-3**, que hace cinco productos de M/3 donde Karatsuba
+hace tres de M/2 (exponente 1,465 frente a 1,585). Entra a partir de 1024 limbos
+y da un 13–15 % en la parte alta del rango.
+
+Los umbrales son macros y se pueden redefinir **antes** de incluir el header, o
+desde la línea de órdenes con `-D`:
 
 ```cpp
-#define NSTD_DESENROLLA_MAX 24   // desenrollar hasta N=24 (por defecto 20)
-#define NSTD_KARATSUBA_MIN  16   // Karatsuba desde N=16   (por defecto 32)
+#define NSTD_DESENROLLA_MAX 15   // desenrollar hasta N=15 (por defecto 21)
+#define NSTD_KARATSUBA_MIN  16   // Karatsuba desde N=16   (por defecto 22)
 #include "fixed_width_int_t.hpp"
 ```
 
 | macro | por defecto | qué hace |
 |---|---|---|
-| `NSTD_DESENROLLA_MAX` | 20 | anchura máxima con el escolar desenrollado |
-| `NSTD_KARATSUBA_MIN` | 32 | anchura mínima con Karatsuba (solo potencias de dos) |
+| `NSTD_DESENROLLA_MAX` | 21 | anchura máxima con el escolar desenrollado |
+| `NSTD_KARATSUBA_MIN` | 22 | anchura mínima con Karatsuba, **sea o no potencia de dos** |
 | `NSTD_KARATSUBA_MAX` | 4096 | anchura máxima con Karatsuba |
+| `NSTD_LIMBOS_MAX` | 4096 | tope de N que la plantilla acepta; es una **guarda de pila** |
+| `NSTD_TOOM3_MIN` | 1024 | anchura desde la que el producto completo **entra** en Toom-3 |
+| `NSTD_TOOM3_REC` | 96 | hasta dónde se sigue repartiendo en tres **una vez dentro** |
+
+**Los dos primeros son una sola frontera, no dos.** Con
+`NSTD_DESENROLLA_MAX + 1 == NSTD_KARATSUBA_MIN` no queda ninguna anchura para el
+escolar en bucle, y eso es deliberado: el bucle **no gana en ninguna de las 244
+casillas medidas**. Si dejaran de ser consecutivos reaparecería el hueco que
+costaba un 34 % de media y un 44 % con Intel. La suite lo comprueba con un
+`static_assert` en `tests/test_config_macros.cpp`.
+
+**Los dos de Toom-3 son dos a propósito.** El mismo M se comporta distinto según
+el papel: entrar en Toom-3 con 512 limbos **pierde** un 5–8 %, pero un
+subproducto de ~512 limbos *dentro* de uno de 4096 sale mejor con Toom-3 que con
+Karatsuba. Con un solo umbral no se pueden tener las dos cosas.
 
 **Subir `NSTD_DESENROLLA_MAX` cuesta tiempo de compilación** —son `N(N+1)/2`
 productos en línea recta— pero solo lo paga quien **instancia** esa anchura.
-Bajarlo no acelera nada: solo renuncia a la ganancia.
+Bajarlo no acelera nada: solo renuncia a la ganancia. Con MSVC, además, pasar de
+31 rompe el límite de secciones de COFF (`C1128`) y obliga a `/bigobj`.
 
-Los valores por defecto salen de un barrido en los cuatro compiladores; si se
-cambian, conviene rehacerlo con `python scripts/bench_asm.py` y el benchmark de
-`karatsuba`, que publica la razón medida junto a la esperada por la cuenta de
-productos.
+Todos los valores por defecto salen de barridos publicados en
+[PERFORMANCE.md](PERFORMANCE.md), y los bancos que los producen están en el
+árbol: `benchmark_barrido_desenrollado`, `benchmark_barrido_karatsuba`,
+`benchmark_rango_alto` y `benchmark_toom3`. Si se cambian, conviene rehacerlos —y
+tener presente que **son de una máquina**: GMP publica para su umbral equivalente
+de Karatsuba un rango de 16 a 46 limbos entre modelos.
 
 ### Bitwise (same type)
 

@@ -60,10 +60,13 @@ piezas de un `float`. El porqué está en
   incluidas: `i<N>::min() > u<N>{0}` da `true`, igual que en C++.
 - **Anchuras mezcladas**: `uint_fixed_t<4> + uint_fixed_t<8>` compila y gana la
   anchura mayor, sin perder bits.
-- **Algoritmos**: división por Knuth D, multiplicación de Karatsuba en N=4 y N=8
-  (1,5×–1,7× sobre el método escolar,
-  [medido](docs/PERFORMANCE.md#multiplicación--karatsuba-frente-al-método-escolar)),
-  división por constante Granlund-Montgomery.
+- **Algoritmos**: división por Knuth D, división por constante
+  Granlund-Montgomery, y **cuatro caminos de multiplicación con cada umbral
+  medido** ([PERFORMANCE.md](docs/PERFORMANCE.md)) — escolar desenrollado hasta
+  N=21, **Karatsuba con reparto equilibrado** desde N=22 para *cualquier* N,
+  **cuadrado** propio para `x * x` (1,17×–2,47×) y **Toom-3** desde N=1024
+  (1,13×–1,15×). Frente al escolar en bucle, el equilibrado va de 3,3× en N=64 a
+  **12,4× en N=4096**.
 - **Integración con la STL**: `iostreams`, `std::format`, `std::hash`,
   `std::numeric_limits`, `<=>`.
 - **Cadenas en bases 2..36**, con `try_from_string()` que no lanza.
@@ -140,7 +143,7 @@ Para código nuevo, usar `fixed_int_t` y sus alias.
 ## Estructura
 
 ```
-include/          31 cabeceras; fixed_width_int_t.hpp es el tipo insignia
+include/          32 cabeceras; fixed_width_int_t.hpp es el tipo insignia
 tests/            61 ficheros de test
 benchs/           benchmarks (RDTSC, rondas intercaladas, minimo)
 demos/            ejemplos de uso

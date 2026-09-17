@@ -167,6 +167,26 @@ Lo que hay que saber antes de meterlo:
   porque `⌈N/3⌉` redondea hacia arriba. Gana 1,23× en N=256 y 1,77× en
   N=2048. Además su exponente efectivo **oscila** entre 1,2 y 1,66 según
   dónde caiga el redondeo, mientras que el de Karatsuba es 1,585 constante.
+
+> **⚠️ MEDIDO EL 17 SEP 2026, Y ESTA PROYECCIÓN SE QUEDÓ CORTA POR UN FACTOR DE
+> 4 A 8.** No es que Toom-3 aporte *menos* de lo que dice el párrafo de arriba:
+> es que el cruce está mucho más arriba. **Pierde en N=256 (0,87×) y en N=512
+> (0,96×), y no cruza hasta ~1024.** El «gana 1,23× en N=256» es falso.
+>
+> El fallo no está en el exponente —1,465 es correcto— sino en la **constante de
+> la interpolación**, que aquí se estimó implícitamente en 2,5×–3× y **es 4,6×**:
+> un cruce en 1024 implica exactamente `1024^(1,687−1,465) = 4,6`. Contar
+> productos de limbo ignora las ~20 pasadas de suma, resta y desplazamiento sobre
+> arrays de 2M/3 limbos que cuesta interpolar.
+>
+> Y hacen falta **dos** umbrales, cosa que no se previó aquí: entrar en Toom-3
+> con 512 limbos pierde, pero un subproducto de 512 *dentro* de uno de 4096 gana.
+> Ver [PERFORMANCE](PERFORMANCE.md) y los `@def` de `NSTD_TOOM3_MIN` y
+> `NSTD_TOOM3_REC`.
+>
+> Se deja el párrafo original en pie, tachado por esta nota y no borrado: es el
+> mejor ejemplo que tiene el proyecto de que **una proyección teórica sirve para
+> ordenar el trabajo, no para decidirlo**.
 - **Cinco puntos de evaluación** significan cinco caminos donde equivocarse.
   Necesita el mismo trato que llevó Karatsuba: test diferencial contra el
   escolar sobre operandos al azar, y en todas las N del rango, no en una.
@@ -180,13 +200,18 @@ el equilibrado no da lo que promete la cuenta, Toom-3 tampoco lo dará.
 
 | # | Paso | Depende de | Cómo se sabe que está bien |
 |---|---|---|---|
-| 1 | `NSTD_DESENROLLA_MAX` de 20 a 31 | — | Ya medido: 2,44× en N=24. Vigilar tiempo de compilación de la suite entera, no sólo de un fichero |
+| ~~1~~ | ~~`NSTD_DESENROLLA_MAX` de 20 a 31~~ | — | ✅ **hecho, y el 31 no era el número**: el barrido en los cuatro compiladores lo dejó en **21**, porque `NSTD_KARATSUBA_MIN` bajó a 22 y los dos umbrales pasaron a ser **una sola frontera**. Con MSVC, además, pasar de 31 rompe el límite de secciones de COFF (`C1128`) |
 | ~~2~~ | ~~Karatsuba con reparto equilibrado~~ | — | ✅ **hecho el 10 sep**: `nstd::algorithms::mul_karatsuba_equilibrado`. Correcto en las **63** anchuras de 2 a 64, impares incluidas. Contra el bucle gana en **todas**, de 1,25× a 2,96×, y las potencias de dos ya no destacan: **el acantilado desaparece** |
-| 3 | Re-medir la curva completa y actualizar `PERFORMANCE.md` | 2 | `benchmark_curva_n` sin picos: la columna «por limbo» de `mul` debe crecer suavemente |
-| 4 | Medir el umbral real de Karatsuba con el reparto nuevo | 3 | Puede que baje de 32: el equilibrado no tiene el salto de las potencias de dos |
-| 5 | Toom-3 | 4 | Umbral **medido**. Si no gana por debajo de N=4096 (`NSTD_KARATSUBA_MAX`), se documenta y no se activa |
+| ~~3~~ | ~~Re-medir la curva completa~~ | 2 | ✅ **hecho el 16 sep**, y se extendió a donde nunca se había medido: `benchmark_rango_alto`, N=64..4096. Exponente ajustado **1,687** frente al 1,993 del bucle, y la razón crece de 3,31× a **12,43×** |
+| ~~4~~ | ~~Medir el umbral real de Karatsuba con el reparto nuevo~~ | 3 | ✅ **hecho**: bajó de 32 a **22**, medido en los cuatro compiladores. Y **no coinciden entre sí** — el cruce está en 14 (clang), 18 (Intel), 22 (MSVC) y 28 (gcc); 22 minimiza la pérdida media *y* la del peor caso |
+| ~~5~~ | ~~Toom-3~~ | 4 | ✅ **hecho el 17 sep**, con el umbral medido: entra en **1024** y la recursión sigue hasta **96**. Da 1,13× en 2048 y 1,14×–1,15× en 4096. Ver el aviso de arriba: la proyección de este plan se equivocó por un factor de 4 a 8 |
+| **6** | **El cuadrado** (`x * x`), que este plan no previó | 2 | ✅ **hecho el 16 sep**: 1,17×–2,47×, mediana 1,5×, en las dieciséis anchuras de 4 a 64 |
 
-Los pasos 1 y 2 cierran P2.8. Del 3 al 5 son trabajo nuevo que sale de él.
+Los pasos 1 y 2 cierran P2.8; del 3 al 6, **el frente de la multiplicación queda
+cerrado**. Lo que sale de aquí y sigue abierto es `mul_wide` (P2.12): calcula el
+producto completo con una multiplicación **modular** de 2N×2N, o sea hasta 4× de
+trabajo tirado, y ahora existe `kmul_full_gen`, que ya da productos completos de
+N×N → 2N. La pieza que falta ya está escrita.
 
 ---
 

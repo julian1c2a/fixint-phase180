@@ -1,6 +1,6 @@
 # 🔮 NEXT STEPS
 
-**Last Updated:** 9 September 2026
+**Last Updated:** 17 September 2026
 **Versión:** **v1.90.4** publicada · **rama** `phase-1.80` · árbol limpio · todo en `origin`
 
 > Este documento es **el puntero y lo pendiente a corto**. No acumula historia:
@@ -15,7 +15,7 @@
 
 # 📍 POR AQUÍ VAMOS
 
-## Estado al 9 sep 2026
+## Estado al 17 sep 2026
 
 | | |
 |---|---|
@@ -23,7 +23,8 @@
 | **Suite local** | ✅ **61/61 en CINCO configuraciones**: GCC+libstdc++, clang+libc++, **clang+libstdc++**, MSVC e Intel |
 | **CI** | ✅ **24/24 jobs** sobre `f959f53`, ya con la matriz compilando de verdad: no había fallos tapados |
 | **Diseño de la 2.0** | ✅ cerrado. **P1.1 a P1.4 escritos**; quedan P1.5 y P1.6 |
-| **`operator*`** | ✅ **de 2× a 4,9× más rápido** (6 sep 2026): escolar desenrollado hasta N=20, Karatsuba desde N=32. Los dos umbrales, medidos |
+| **`operator*`** | ✅ **el frente de la multiplicación, cerrado** (17 sep 2026). Cuatro algoritmos reunidos en `algorithms/mul_kernels.hpp`, cada umbral medido: escolar desenrollado ≤ 21, **Karatsuba equilibrado** ≥ 22 para *cualquier* N, **cuadrado** propio para `x*x`, y **Toom-3** ≥ 1024 |
+| **La división** | ⬜ **intacta**. Es el frente grande que queda: P2.10 (Möller–Granlund, sin umbral) y P2.11 (Burnikel–Ziegler) |
 | **Paridad de parámetros** | ✅ **170/170 celdas** en la [matriz de paridad](docs/MATRIZ_DE_PARIDAD.md): 42 capacidades × 4 combinaciones de signo y política, comprobadas **compilando** |
 | **ADR** | 15 registros, ninguna decisión sin documentar |
 
@@ -132,9 +133,9 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 
 | | Qué | Por qué antes |
 |---|---|---|
-| **P2.8** | **El acantilado de `operator*`**. ✅ **Decidido y con diseño escrito**: [PLAN_MULTIPLICACION](docs/PLAN_MULTIPLICACION.md). Dos pasos: (1) `NSTD_DESENROLLA_MAX` de 20 a **31**, medido **2,44×** en N=24; (2) Karatsuba con reparto **equilibrado** para toda N, no sólo potencias de dos | El reparto `2^n + r` se descartó: **no baja el exponente**, sigue siendo Θ(N²) con un factor que nunca pasa de ~2×, y encima necesita un producto rectangular que no existe |
-| **P2.1** | **Barrido de `operator*`**: N=3,5,7,9 frente a N=6,10,12. ¿Paridad o tamaño? | La 2.0 toca `operator*`; después no habría con qué comparar |
-| **P2.2** | Karatsuba en **Clang, MSVC e Intel** | Ídem. P0.6 lo desbloquea para Intel |
+| ~~P2.8~~ | ~~**El acantilado de `operator*`**~~ | ✅ **hecho** en `54ce3b6`, `a8ef36e` y `97523f3`. Karatsuba con reparto **equilibrado** para toda N; el acantilado desaparece (N=48: 1,54×). Los umbrales quedaron en **21 y 22**, o sea **una sola frontera**: el escolar en bucle no gana en ninguna de las 244 casillas medidas, así que dejó de elegirse. El reparto `2^n + r` se descartó: **no baja el exponente** |
+| ~~P2.1~~ | ~~**Barrido de `operator*`**: ¿paridad o tamaño?~~ | ✅ **respondido, y la pregunta estaba mal planteada**: no era la paridad de N sino **si N era potencia de dos**, porque el Karatsuba viejo sólo admitía esas. Con el reparto equilibrado la distinción desaparece: verificado en las **63 anchuras** de 2 a 64, impares incluidas |
+| ~~P2.2~~ | ~~Karatsuba en **Clang, MSVC e Intel**~~ | ✅ **hecho** en `6cc0d26`: el barrido de `NSTD_KARATSUBA_MIN` en los cuatro. **No coinciden** — el cruce está en 14 (clang), 18 (Intel), 22 (MSVC) y 28 (gcc), y 22 es el óptimo por media y por peor caso |
 | ~~P2.3~~ | ~~Re-medir las tablas heredadas~~ | ✅ **hecho**: y **dos de las tres no se sostenían**. «Knuth D 6,24×» mide **1,31×**; «Granlund-Montgomery 4–7×» solo vale para divisores que no caben en un limbo |
 | ~~P2.4~~ | ~~Coste de las conversiones a y desde cadena, bases 2..36~~ | ✅ **hecho**: `benchmark_bases`. La base 10 gana a todas las potencias de dos, y la 3 cuesta 9,6× lo que la 10 |
 | **P2.5** | **Montar el histórico de benchmarks** (ver abajo) | Da sitio donde guardar P2.1–P2.4 |
@@ -143,7 +144,16 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 
 | **P2.10** | **Möller–Granlund 3-por-2** en el bucle de Knuth D. Mejora la **constante**, así que **no tiene umbral**: gana en toda N, incluidas las pequeñas. Es el mejor cambio por línea escrita según el [estudio](docs/ESTUDIO_ALGORITMOS_RAPIDOS.md) | Independiente de P2.8 |
 | **P2.11** | **Burnikel–Ziegler**: la división pasa de Θ(N²) a Θ(M(N)·log N). Umbral esperado ~45–50 limbos | Después de P2.8: convierte la división en multiplicaciones, así que se apoya en ellas |
-| **P2.9** | **Toom-3**: Θ(N^1,465). ⚠️ **Baja de prioridad tras el estudio**: no aporta nada por debajo de N=128 y **pierde** contra Karatsuba en N=128. Gana 1,23× en N=256 | Después de P2.11 |
+| ~~P2.9~~ | ~~**Toom-3**: Θ(N^1,465)~~ | ✅ **hecho** en `97523f3`, **y la proyección del estudio era falsa en un orden de magnitud**. Decía «gana 1,23× en N=256»: lo medido es que **pierde** en 256 (0,87×) y en 512 (0,96×), y **no cruza hasta ~1024**. Entra con `NSTD_TOOM3_MIN` = 1024 y da **1,13× en 2048 y 1,14×–1,15× en 4096** |
+| **P2.12** | **`mul_wide` calcula el producto completo con una multiplicación modular de 2N×2N**: hasta **4× de trabajo tirado**, y arrastra a `mulhi`, `checked_mul` y `saturating_mul`. Descubierto el 16 sep 2026 al conectar los núcleos | Sale de P2.8: ahora hay `kmul_full_gen`, que ya calcula productos **completos** de N×N → 2N. La pieza que falta ya existe |
+
+> **La lección de P2.9, que vale para todo lo que queda.** El
+> [estudio](docs/ESTUDIO_ALGORITMOS_RAPIDOS.md) proyectó el cruce de Toom-3 en
+> N=128–256 y está en ~1024: se equivocó por un factor de 4 a 8. No porque la
+> teoría falle —el exponente 1,465 es correcto— sino porque **la constante de la
+> interpolación se estimó en 2,5×–3× y es 4,6×**. Las proyecciones teóricas
+> sirven para ordenar el trabajo, no para decidirlo: P2.10 y P2.11 traen cifras
+> del mismo estudio y **hay que medirlas igual antes de creerlas**.
 
 ### P3 — Lo que se abarata o desaparece esperando
 

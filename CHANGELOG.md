@@ -1,3 +1,95 @@
+## [sin publicar] - 2026-09-17 - El frente de la multiplicacion, cerrado: cuadrado, Toom-3 y todos los umbrales medidos
+
+Cierra P2.8, P2.1, P2.2 y P2.9. `operator*` pasa de tener tres caminos elegidos
+por analogia a tener **cuatro algoritmos con cada umbral medido**, y la mitad
+alta del rango admitido (N = 64..4096), que nunca se habia medido, queda cubierta.
+
+### El cuadrado tiene camino propio
+
+`operator*` detecta `x * x` **comparando punteros** y lo desvia a
+`sqr_karatsuba_equilibrado`: en Karatsuba los dos terminos del medio de `a*a` son
+el mismo, asi que se calcula uno y se suma dos veces. Medido de N=4 a 64: gana en
+las **dieciseis** anchuras, de **1,17x a 2,47x**, mediana 1,5x.
+
+Se detecta por direccion y no por valor porque el caso que importa es `pow`, que
+hace `base *= base`; comparar valores costaria N comparaciones para ganar en un
+caso raro.
+
+Se escribio tambien `sqr_escolar_bucle` y **se retiro el mismo dia**: perdia de
+0,35x a 0,80x en las dieciseis anchuras. El fallo era de diseno --calculaba el
+cuadrado completo y truncaba, que cuesta justo lo que la simetria ahorra--. El
+motivo queda escrito en el hueco donde estaba el codigo.
+
+### Toom-3, y una proyeccion teorica que se equivoco por un factor de 4 a 8
+
+`NSTD_TOOM3_MIN` = 1024 y `NSTD_TOOM3_REC` = 96. Cinco productos de M/3 donde
+Karatsuba hace tres de M/2: exponente 1,465 frente a 1,585. Da **1,13x en M=2048
+y 1,14x-1,15x en M=4096**, reproducido en dos vueltas de 30 repeticiones con los
+minimos dentro del 1 %.
+
+**El estudio proyectaba el cruce en N=128-256 y esta en ~1024.** Pierde en 256
+(0,87x) y en 512 (0,96x). No falla el exponente, falla la **constante de la
+interpolacion**: se estimo en 2,5x-3x y es 4,6x.
+
+**Hacen falta dos umbrales, no uno**, porque el mismo M se comporta distinto
+segun el papel: entrar en Toom-3 con 512 limbos **pierde** un 5-8 %, pero un
+subproducto de ~512 limbos *dentro* de uno de 4096 **gana**. Lo mas probable es
+la cache: ahi ya no queda nada util en L2, y los subproblemas de Toom-3 son de
+M/3 frente a los M/2 de Karatsuba. Asi no hay regresion en ninguna anchura.
+
+Dos trampas aritmeticas quedan documentadas con su contraejemplo, porque las dos
+parecen razonables y se volverian a cometer:
+
+- **El producto de doble anchura no se salva solo.** Multiplicar sin signo dos
+  representaciones en complemento a dos acierta los limbos BAJOS y nada mas. Sin
+  la correccion, el resultado parece correcto en las anchuras pequenas y falla en
+  cuanto el punto x = -1 sale negativo de verdad.
+- **La division por 3 no es multiplicar por `0xAAAAAAAAAAAAAAAB`.** Ese es el
+  inverso de 3 modulo 2^64, no modulo 2^(64W): `3 * 0xAAAA...AAAB` vale 2^65 + 1.
+  Hay que usar la cadena de division exacta de Jebelean.
+
+### El rango 64..4096, medido por primera vez
+
+Trece anchuras, con un punto intermedio entre cada par de potencias de dos
+--mirar solo potencias de dos es lo que escondio el acantilado durante meses--.
+La razon del equilibrado sobre el bucle crece de **3,31x en N=64 a 12,43x en
+N=4096**, y el ajuste log-log da exponente **1,687** frente al **1,993** del
+bucle. Por tramos, los tres ultimos dan 1,675 -> 1,617 -> 1,594: **converge hacia
+el 1,585 teorico en vez de alejarse hacia 2**, o sea que a N=4096 la cache
+todavia no manda.
+
+### `medio_reparto` gana el parametro `Base`, y asi se puede medir
+
+Llamaba a `mul_karatsuba_equilibrado<H, 8, ...>` con el **8 escrito a mano**, asi
+que cambiar `Base` arriba no cambiaba nada por debajo del primer nivel: cualquier
+barrido medía una mezcla y habria dicho "8 es el mejor" por construccion. Con el
+parametro puesto, el barrido dice que **el 8 es el mejor o esta empatado** en
+N=128, 512 y 2048, y ninguna diferencia supera el ruido. La curva si es real:
+Base=4 cuesta un 10-16 % mas y Base=64 un 16-30 %.
+
+Resultado negativo, y por eso mismo util: no habia ganancia gratis, y ahora el 8
+esta medido en vez de supuesto.
+
+### Los bancos entran al arbol
+
+`benchmark_cuadrado`, `benchmark_hueco`, `benchmark_rango_alto` y
+`benchmark_toom3`. Si un umbral no se puede volver a medir desde el arbol, deja
+de ser una medida y vuelve a ser una constante magica. Los cuatro se compilaron
+**y ejecutaron sin flags de pila**, para que `python make.py bench` no reviente:
+Windows da 1 MB de `SizeOfStackReserve` y `build_generic.py` no pide mas.
+
+### Lo que queda anotado como pendiente
+
+- **El criterio de "casilla ruidosa" del banco esta mal planteado**: compara la
+  razon contra la SUMA DE RECORRIDOS, que con un 27 % por casilla pone el liston
+  en el 55 % y no marca nunca nada. El estadistico que se usa es el minimo, y el
+  minimo reproduce al 1 %.
+- **`mul_wide` calcula el producto completo con una multiplicacion modular de
+  2Nx2N** --hasta 4x de trabajo tirado--, y arrastra a `mulhi`, `checked_mul` y
+  `saturating_mul`. Ahora existe `kmul_full_gen`, que ya da productos completos.
+
+---
+
 ## [sin publicar] - 2026-09-06 - La politica de desbordamiento, clang con las dos bibliotecas, y `operator*` hasta 4,9x mas rapido
 
 Todo lo que hay en `phase-1.80` desde v1.90.4. La cabecera del cambio es

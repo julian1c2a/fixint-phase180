@@ -565,6 +565,180 @@ fiables, las cifras absolutas no valen a más de dos dígitos.
 
 ---
 
+## El cuadrado: `x * x` no es `a * b` (16 sep 2026)
+
+En Karatsuba los dos términos del medio de `a · a` —`a_lo·a_hi` y `a_hi·a_lo`—
+**son el mismo**: se calcula uno y se suma dos veces. `benchmark_cuadrado`, clang,
+barrido de N=4 a 64:
+
+> **Gana en las dieciséis anchuras, de 1,17× a 2,47×, mediana 1,5×.**
+
+`operator*` lo detecta **comparando punteros, no valores**. El caso que importa
+es `pow`, que hace `base *= base`; comparar valores costaría N comparaciones para
+ganar en un caso raro, mientras que detectar la variable repetida cuesta una.
+
+### Y un cuadrado que se escribió y se tiró el mismo día
+
+Se escribió también `sqr_escolar_bucle`, para las anchuras por debajo de
+Karatsuba. **Perdía en las dieciséis, de 0,35× a 0,80×**, y se retiró.
+
+El fallo era de **diseño, no de aritmética**: se implementó calculando el
+cuadrado *completo* de 2N limbos y truncando a N, porque doblar los cruzados sin
+perder acarreos es más cómodo así. Pero eso cuesta exactamente lo que la simetría
+ahorra —el doble de trabajo para ahorrar la mitad—, y encima deja la sobrecarga
+del array intermedio. Queda anotado en el header, en el hueco donde estaba.
+
+---
+
+## El rango 64..4096, que nunca se había medido (16 sep 2026)
+
+Todo lo anterior llegaba a N=64 y `NSTD_LIMBOS_MAX` es 4096: la **mitad alta del
+rango admitido estaba sin mirar**. `benchmark_rango_alto`, clang, trece anchuras
+con un punto intermedio entre cada par de potencias de dos —mirar sólo potencias
+de dos es lo que escondió el acantilado durante meses—.
+
+| N | bucle | equilibrado | razón |
+|---:|---:|---:|---:|
+| 64 | 20 990 | 6 346 | 3,31× |
+| 128 | 83 710 | 20 864 | 4,01× |
+| 256 | 388 501 | 89 157 | 4,36× |
+| 512 | 1 342 145 | 239 049 | 5,61× |
+| 1024 | 5 408 039 | 763 134 | 7,09× |
+| 2048 | 21 437 766 | 2 340 489 | 9,16× |
+| 4096 | 87 813 680 | 7 063 876 | **12,43×** |
+
+*(la tabla completa lleva además 96, 192, 384, 768, 1536 y 3072; ninguna casilla
+salió marcada como ruidosa)*
+
+**La caché no manda, y la pregunta se responde al revés de como se planteó.**
+El ajuste log-log sobre los trece puntos da:
+
+| | exponente | peor residuo |
+|---|---:|---:|
+| bucle escolar | **1,993** | 14,6 % |
+| Karatsuba equilibrado | **1,687** | 20,3 % |
+
+El bucle es un N² de libro. Y el equilibrado, por tramos de potencias de dos, da
+1,675 → 1,617 → **1,594** en los tres últimos: **converge hacia el 1,585 teórico
+en vez de alejarse hacia 2**. A N=4096 —donde un operando son 32 KB y los dos no
+caben en L2— la caché todavía no ha entrado.
+
+### La perilla `Base`, que estaba sin medir
+
+`kmul_full_gen` corta la recursión en `Base` limbos y baja al escolar completo.
+Estaba en 8 **porque se escribió así**. Barrido de `Base` ∈ {4, 8, 16, 32, 64},
+las cinco entrelazadas:
+
+| N | Base=4 | Base=8 | Base=16 | Base=32 | Base=64 | mejor |
+|---:|---:|---:|---:|---:|---:|---:|
+| 128 | 23 092 | **20 968** | 21 187 | 22 963 | 24 381 | 8 |
+| 512 | 270 360 | 248 596 | **239 399** | 291 029 | 296 643 | 16 |
+| 2048 | 2 665 125 | **2 297 369** | 2 341 794 | 2 704 597 | 2 983 698 | 8 |
+
+**Resultado negativo, y por eso mismo útil**: ninguna diferencia sobre el 8 supera
+el ruido, así que **no había ganancia gratis**. La curva sí es real —Base=4 cuesta
+un 10–16 % más y Base=64 un 16–30 %— con el fondo plano entre 8 y 16. El 8 se
+queda, ahora **medido en vez de supuesto**.
+
+Antes de poder medirlo hubo que arreglar el banco: `medio_reparto` llamaba a
+`mul_karatsuba_equilibrado<H, 8, …>` con el **8 escrito a mano**, así que cambiar
+`Base` arriba no cambiaba nada por debajo del primer nivel. Un barrido hecho sin
+eso mide una mezcla y no un corte — y habría dicho «8 es el mejor» por
+construcción.
+
+---
+
+## Toom-3: dónde cruza de verdad (17 sep 2026)
+
+Toom-3 hace cinco productos de M/3 donde Karatsuba hace tres de M/2: exponente
+log5/log3 = **1,465** frente a log3/log2 = 1,585.
+
+> ### La proyección teórica se equivocó por un factor de 4 a 8
+>
+> El [estudio](ESTUDIO_ALGORITMOS_RAPIDOS.md) situaba el cruce en N=128–256 y
+> decía «gana 1,23× en N=256». **Lo medido: pierde en 256 (0,87×), pierde en 512
+> (0,96×) y no cruza hasta ~1024.**
+>
+> No falla la teoría: el exponente 1,465 es correcto. Falla **la constante**, que
+> se estimó en 2,5×–3× del término líder y es **4,6×**. Un cruce en 1024 implica
+> exactamente `1024^(1,687−1,465) = 4,6`.
+
+### Y hacen falta dos umbrales, no uno
+
+El mismo M se comporta distinto según el papel que juegue:
+
+| M | Toom≥96 | Toom≥256 | Toom≥512 | Toom≥1024 |
+|---:|---:|---:|---:|---:|
+| 512 | 0,92× | 0,94× | 0,96× | *(no entra)* |
+| 1024 | 1,05× | 1,02× | 1,00× | 0,98× |
+| 2048 | **1,13×** | 1,07× | 1,05× | 1,02× |
+| 4096 | 1,12× | **1,17×** | 1,04× | 1,08× |
+
+- **Entrar** en Toom-3 con 512 limbos **pierde un 5–8 %**.
+- Pero un subproducto de ~512 limbos **dentro** de uno de 4096 sale **mejor** con
+  Toom-3 que con Karatsuba. Lo más probable es la caché: a esa altura ya no queda
+  nada útil en L2, y los subproblemas de Toom-3 son de M/3 frente a los M/2 de
+  Karatsuba.
+
+Con un solo umbral no se pueden tener las dos cosas, porque el mismo M aparece en
+los dos papeles. De ahí `NSTD_TOOM3_MIN` = **1024** (entrada, alto: **no hay
+regresión en ninguna anchura**) y `NSTD_TOOM3_REC` = **96** (recursión, bajo: es
+de donde sale la ganancia).
+
+### La confirmación, y por qué hizo falta
+
+La primera tanda dejó **las seis casillas marcadas como ruidosas**, y la serie
+hermana —Toom-3 de un solo nivel— salía errática (0,76 · 0,91 · 0,85 · 1,02 ·
+0,79 · 0,99), que es justo el aspecto que tiene el ruido. Se repitió sólo K contra
+TR, con **30 repeticiones** y **dos vueltas**:
+
+| M | K | recorrido | TR | recorrido | K/TR |
+|---:|---:|---:|---:|---:|---:|
+| 2048 | 2 368 751 | 27,6 % | 2 098 900 | 26,9 % | 1,129× |
+| 3072 | 4 418 347 | 26,5 % | 3 910 735 | 26,1 % | 1,130× |
+| 4096 | 7 160 572 | 28,6 % | 6 277 795 | 27,4 % | 1,141× |
+| 2048 *(2ª)* | 2 379 857 | 27,3 % | 2 096 911 | 32,8 % | 1,135× |
+| 3072 *(2ª)* | 4 448 038 | 26,4 % | 3 891 633 | 27,2 % | 1,143× |
+| 4096 *(2ª)* | 7 232 276 | 29,5 % | 6 270 654 | 27,6 % | 1,153× |
+
+**Los mínimos reproducen dentro del 0,09–1,00 % y las razones dentro del
+0,5–1,2 %.** Seis medidas independientes entre 1,129× y 1,153×.
+
+> ### El criterio de «casilla ruidosa» del banco está mal planteado
+>
+> Compara la razón contra la **suma de recorridos** de las dos casillas. Con un
+> 27 % por casilla el listón queda en el 55 %, y así **no marcaría nunca nada**.
+>
+> Pero el estadístico que el banco usa **es el mínimo**, y el mínimo reproduce al
+> 1 %. El recorrido mide la dispersión de las repeticiones —cada interrupción del
+> planificador entra ahí—, no la incertidumbre del mínimo. **Hay que contrastar
+> contra la reproducibilidad del mínimo entre tandas, no contra el recorrido
+> dentro de una.** Queda pendiente arreglarlo en `bench_adaptativo.hpp`.
+>
+> Corolario práctico: una marca de ruido mal calibrada **cuesta una tanda entera**,
+> porque obliga a repetir para poder concluir algo que ya estaba medido.
+
+### La trampa aritmética que casi pasa desapercibida
+
+Toom-3 evalúa en x = −1, o sea `a0 − a1 + a2`, que puede ser **negativo** sobre
+arrays de limbos sin signo. Se trabaja en complemento a dos sobre Z/2^(64W), con
+lo que sumar y restar son las operaciones de siempre. Dos cosas no se salvan
+solas:
+
+1. **El producto de doble anchura.** Multiplicar sin signo dos representaciones en
+   complemento a dos acierta los limbos **bajos** y nada más. Sin la corrección
+   —restar Y de la mitad alta si X es negativo, y X si lo es Y— el resultado
+   *parece* correcto en las anchuras pequeñas y falla en cuanto el punto −1 sale
+   negativo de verdad.
+2. **La división por 3 no es multiplicar por `0xAAAAAAAAAAAAAAAB`.** Ese es el
+   inverso de 3 módulo 2⁶⁴, **no** módulo 2^(64W): `3 · 0xAAAA…AAAB` vale 2⁶⁵ + 1,
+   que truncado a un limbo es 1 pero sobre el anillo entero deja 2⁶⁵ de residuo.
+   Hay que usar la cadena de división exacta de Jebelean. El contraejemplo —M=3,
+   todo unos: 6q² daba `[2, 0, …fa, 3]` en vez de `[2, …fc, 1, 0]`— está escrito
+   en el código, porque el error parece razonable y se volvería a cometer.
+
+---
+
 ## El tope de desenrollado: barrido con dispersión
 
 **Medido el 10 September 2026** con `benchmark_barrido_desenrollado`, el primer
