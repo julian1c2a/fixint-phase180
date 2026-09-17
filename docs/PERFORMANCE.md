@@ -739,6 +739,143 @@ solas:
 
 ---
 
+## La división: la línea base, y un comentario que mentía (17 sep 2026)
+
+Primer paso del frente de la división, y va **antes** de tocar ningún algoritmo:
+una cifra tomada después de reescribir el código no se puede comparar con las de
+hoy.
+
+### Lo primero: sacar Knuth D de dentro de `divmod`
+
+Hasta hoy el algoritmo D vivía **dentro** de `fixed_int_t::divmod`, unas 300
+líneas con los casos especiales, las ramas `#if` por compilador y el bucle
+principal mezclados. Con el algoritmo dentro del método **no se pueden medir dos
+variantes entrelazadas**: habría que recompilar entre una y otra, y el protocolo
+de [PLAN_SESION_MEDICION](PLAN_SESION_MEDICION.md) exige rondas alternas en el
+mismo proceso.
+
+Ahora está en `include/algorithms/div_kernels.hpp`, y **la estimación del dígito
+del cociente —el paso D3— es un parámetro de plantilla**, no código escondido
+dentro. Es el bucle interno de toda la división y es exactamente lo que sustituye
+Möller–Granlund: con la perilla fuera, comparar las dos estimaciones será cambiar
+un tipo. Es la lección de `medio_reparto` en Karatsuba, aplicada antes de
+necesitarla.
+
+**La extracción salió gratis**: A/B contra el árbol de `HEAD`, tres rondas
+alternas, razones entre 0,94× y 1,07× repartidas a los dos lados del 1,00.
+
+> **Y aquí la comparación de ensamblador NO zanjó la cuestión**, al revés que con
+> `operator*`. El código emitido cambió de forma: **2–3× más pequeño** en N=4, 8 y
+> 16 (459→172, 597→290, 654→286 instrucciones) y **2,5× más grande** en N=32
+> (840→2087), porque clang decidió desenrollar. Un cambio de forma no es una
+> regresión ni una mejora: hay que medirlo. La regla «asm idéntico ⟹ sin
+> regresión» sirve cuando sale idéntico; cuando no, no dice nada.
+
+### Lo que hay que medir no es una curva, es una superficie
+
+La multiplicación depende de una variable. La división depende de **dos**, y
+quien no lo tenga en cuenta medirá la casilla equivocada:
+
+- **N**, la anchura de los operandos;
+- **n**, los limbos **significativos del divisor**.
+
+El coste de Knuth D es `(N − n + 1)` pasadas de `O(n)` cada una, o sea
+`O((N−n)·n)`: máximo en `n = N/2` y **se desploma en los dos extremos**. Con
+`n = 1` entra el camino rápido de un limbo; con `n = N` hay una sola pasada.
+
+**El detalle que importa: si divides dos números al azar de N limbos, casi
+siempre te sale `n = N`, que es el caso BARATO.** Un banco escrito sin pensarlo
+mediría justo la casilla que no duele.
+
+Ciclos por `divmod`, las cuatro formas entrelazadas (`benchmark_division`):
+
+| N | n = 1 | n = 2 | n = N/2 | n = N |
+|---:|---:|---:|---:|---:|
+| 4 | 320 | 333 | 345 | 81 |
+| 8 | 694 | 814 | 652 | 77 |
+| 16 | 1 436 | 1 735 | 1 321 | 219 |
+| 32 | 3 064 | 3 473 | 3 025 | 287 |
+| 64 | 6 152 | 7 108 | 8 897 | 537 |
+| 128 | 12 236 | 14 357 | 27 524 | 370 |
+| 256 | 24 985 | 29 243 | **88 789** | 2 944 |
+
+**El máximo se mueve con N.** Hasta N=32 el peor caso es `n=2`; desde N=64 lo es
+`n=N/2`. Es el cruce entre el término lineal `2(N−2)` y el cuadrático `N²/4`,
+sólo que cae en **N≈48** y no en N=8 como diría la cuenta a secas — señal de que
+**el coste por dígito de cociente domina sobre el coste por limbo**.
+
+### El hallazgo: `__udivti3` no emite un `divq`, emite una llamada
+
+El código afirmaba, sobre el camino rápido de divisor de un limbo:
+
+> *«With `rem < d`, libgcc's `__udivti3` / `_udiv128` emit a SINGLE divq. Total
+> cost: N divq instructions instead of 64N² bit-loop iterations.»*
+
+**Es falso.** En la unidad de traducción de prueba hay **16 llamadas a
+`__udivti3` y sólo 4 instrucciones `divq`**. Clang no puede saber que `hi < d`
+—es una precondición escrita en la documentación, no en el tipo— así que llama a
+la rutina general de 128/128. La línea base lo corrobora: la columna `n = 1`
+costaba **~118 ciclos por limbo**, constante de N=4 a N=256.
+
+El arreglo ya estaba escrito **en el propio fichero**: la rama de ICX-Windows usa
+`__asm__("divq %4" ...)` porque allí `__udivti3` ni siquiera existe en el
+runtime. Extendida a GCC y Clang en x86-64, bajo `!is_constant_evaluated()`:
+
+| N | `__udivti3` | por limbo | `divq` | por limbo | razón |
+|---:|---:|---:|---:|---:|---:|
+| 4 | 384 | 95,9 | 290 | 72,5 | 1,32× |
+| 16 | 1 926 | 120,4 | 1 335 | 83,4 | **1,44×** |
+| 64 | 7 300 | 114,1 | 5 506 | 86,0 | 1,33× |
+| 256 | 30 506 | 119,2 | 22 541 | 88,0 | 1,35× |
+
+**No son 3×, y la razón está en los números**: de esos ~115 ciclos por limbo,
+unos **30 son la llamada** y los **~85 restantes son la latencia del propio
+`divq`**. La cadena es serial —cada división espera al resto de la anterior— así
+que no hay nada que solapar.
+
+De punta a punta sobre `divmod` real, A/B contra `HEAD`:
+
+| N | n=1 | n=2 | n=N/2 | n=N |
+|---:|---:|---:|---:|---:|
+| 4 | 1,311× | 1,315× | 1,254× | 1,133× |
+| 16 | 1,284× | 1,389× | 1,171× | 1,034× |
+| 64 | 1,340× | 1,334× | 1,048× | 1,035× |
+| 256 | 1,364× | 1,326× | 1,040× | 1,031× |
+
+**1,28×–1,39× en `n=1` y `n=2`, en las siete anchuras, sin una excepción.** Y el
+patrón se sostiene solo: en `n=N/2` la ganancia decae con N (1,25× → 1,04×)
+porque ahí el bucle de multiplicar-y-restar se come la fracción del `divq`.
+
+### El precio: cambia el modo de fallo, y qué se hizo al respecto
+
+`divq` lanza `#DE` si el cociente no cabe en 64 bits, o sea si `hi ≥ d`. Antes,
+violar la precondición daba un **valor equivocado en silencio**; ahora mata el
+proceso con `STATUS_INTEGER_OVERFLOW` (0xC0000095 — que, comprobado, describe
+exactamente lo que pasó y no miente diciendo «división por cero»).
+
+Para un `detail::` no alcanzable desde fuera, violar la precondición es **un bug
+nuestro**, y para un bug propio ruidoso es mejor que callado. Así que no se
+restauró el silencio; se subió el listón por dos vías:
+
+1. **La precondición está en el nombre**: `div_128_64_hi_menor_que_d`. Un
+   llamante futuro puede no leer el `@pre` del Doxygen; no puede no leer lo que
+   teclea.
+2. **Y se comprueba a máquina**: con `NSTD_DIV_COMPRUEBA_PRECONDICIONES` la
+   función verifica `hi < d` en cada llamada y aborta nombrando la condición.
+   `scripts/check_precondiciones_div.py` compila y ejecuta **los 61 ficheros de
+   la suite** con la macro encendida: ninguno la rompe. En evaluación constante
+   la violación se vuelve **error de compilación**, porque el abortador no es
+   `constexpr` a propósito.
+
+> **Y el verificador se valida a sí mismo en cada ejecución.** Antes de mirar los
+> 61 ficheros compila una sonda que **rompe la precondición a propósito** y exige
+> que aborte diciéndolo; si no salta, se declara no fiable y no ejecuta la suite.
+> Un verde que no puede ponerse en rojo es peor que no tener comprobación, y este
+> proyecto ya pagó una: el «0 avisos de Doxygen» cuando la comprobación estaba
+> apagada.
+
+---
+
 ## El tope de desenrollado: barrido con dispersión
 
 **Medido el 10 September 2026** con `benchmark_barrido_desenrollado`, el primer

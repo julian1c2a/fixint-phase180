@@ -60,7 +60,8 @@ piezas de un `float`. El porqué está en
   incluidas: `i<N>::min() > u<N>{0}` da `true`, igual que en C++.
 - **Anchuras mezcladas**: `uint_fixed_t<4> + uint_fixed_t<8>` compila y gana la
   anchura mayor, sin perder bits.
-- **Algoritmos**: división por Knuth D, división por constante
+- **Algoritmos**: división por **Knuth D** (con `divq` en x86-64: 1,28×–1,39× en
+  divisores cortos), división por constante
   Granlund-Montgomery, y **cuatro caminos de multiplicación con cada umbral
   medido** ([PERFORMANCE.md](docs/PERFORMANCE.md)) — escolar desenrollado hasta
   N=21, **Karatsuba con reparto equilibrado** desde N=22 para *cualquier* N,
@@ -143,7 +144,7 @@ Para código nuevo, usar `fixed_int_t` y sus alias.
 ## Estructura
 
 ```
-include/          32 cabeceras; fixed_width_int_t.hpp es el tipo insignia
+include/          33 cabeceras; fixed_width_int_t.hpp es el tipo insignia
 tests/            61 ficheros de test
 benchs/           benchmarks (RDTSC, rondas intercaladas, minimo)
 demos/            ejemplos de uso

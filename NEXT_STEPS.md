@@ -24,7 +24,7 @@
 | **CI** | ✅ **24/24 jobs** sobre `f959f53`, ya con la matriz compilando de verdad: no había fallos tapados |
 | **Diseño de la 2.0** | ✅ cerrado. **P1.1 a P1.4 escritos**; quedan P1.5 y P1.6 |
 | **`operator*`** | ✅ **el frente de la multiplicación, cerrado** (17 sep 2026). Cuatro algoritmos reunidos en `algorithms/mul_kernels.hpp`, cada umbral medido: escolar desenrollado ≤ 21, **Karatsuba equilibrado** ≥ 22 para *cualquier* N, **cuadrado** propio para `x*x`, y **Toom-3** ≥ 1024 |
-| **La división** | ⬜ **intacta**. Es el frente grande que queda: P2.10 (Möller–Granlund, sin umbral) y P2.11 (Burnikel–Ziegler) |
+| **La división** | 🔸 **abierta**. Knuth D ya está en su capa medible (`div_kernels.hpp`), con la estimación de q̂ como perilla, y el `divq` en línea da **1,28×–1,39×** en divisores cortos. Quedan **P2.10** (Möller–Granlund, sin umbral) y **P2.11** (Burnikel–Ziegler) |
 | **Paridad de parámetros** | ✅ **170/170 celdas** en la [matriz de paridad](docs/MATRIZ_DE_PARIDAD.md): 42 capacidades × 4 combinaciones de signo y política, comprobadas **compilando** |
 | **ADR** | 15 registros, ninguna decisión sin documentar |
 
@@ -142,10 +142,12 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P2.6~~ | ~~La tercera combinación: `clang + libstdc++`~~ | ✅ **hecho**: `make.py test clang-libstdcxx`, 59/59. Destapó que la lista de compiladores estaba repetida en **siete sitios** — ahora vive solo en `toolchains.py` |
 | ~~P2.7~~ | ~~Desguace de benchmarks de algoritmo~~ | ✅ **las cuatro piezas hechas**: algoritmo/desenrollado, verosimilitud, código emitido (`scripts/bench_asm.py`) y coste teórico declarado |
 
-| **P2.10** | **Möller–Granlund 3-por-2** en el bucle de Knuth D. Mejora la **constante**, así que **no tiene umbral**: gana en toda N, incluidas las pequeñas. Es el mejor cambio por línea escrita según el [estudio](docs/ESTUDIO_ALGORITMOS_RAPIDOS.md) | Independiente de P2.8 |
+| **P2.10** | **Möller–Granlund** en la división. Mejora la **constante**, así que **no tiene umbral**: gana en toda N. Tras medir la línea base tiene **dos sitios donde enchufarse, no uno**: la **2/1** quita el `divq` de `div_un_limbo` (columna `n=1`, hoy ~85 ciclos por limbo de pura latencia) y la **3/2** sustituye la estimación de q̂ dentro de Knuth D (columnas del medio) | Listo para empezar: P2.13 dejó la estimación como parámetro de plantilla |
 | **P2.11** | **Burnikel–Ziegler**: la división pasa de Θ(N²) a Θ(M(N)·log N). Umbral esperado ~45–50 limbos | Después de P2.8: convierte la división en multiplicaciones, así que se apoya en ellas |
 | ~~P2.9~~ | ~~**Toom-3**: Θ(N^1,465)~~ | ✅ **hecho** en `97523f3`, **y la proyección del estudio era falsa en un orden de magnitud**. Decía «gana 1,23× en N=256»: lo medido es que **pierde** en 256 (0,87×) y en 512 (0,96×), y **no cruza hasta ~1024**. Entra con `NSTD_TOOM3_MIN` = 1024 y da **1,13× en 2048 y 1,14×–1,15× en 4096** |
 | **P2.12** | **`mul_wide` calcula el producto completo con una multiplicación modular de 2N×2N**: hasta **4× de trabajo tirado**, y arrastra a `mulhi`, `checked_mul` y `saturating_mul`. Descubierto el 16 sep 2026 al conectar los núcleos | Sale de P2.8: ahora hay `kmul_full_gen`, que ya calcula productos **completos** de N×N → 2N. La pieza que falta ya existe |
+| ~~P2.13~~ | ~~**Sacar Knuth D de dentro de `divmod`** a una capa medible~~ | ✅ **hecho el 17 sep 2026**: `include/algorithms/div_kernels.hpp`. La extracción sale **gratis** (A/B contra HEAD: 0,94×–1,07×, ruido a los dos lados) y deja **la estimación de q̂ como parámetro de plantilla**, que es donde enchufa P2.10. `fixed_width_int_t.hpp` baja de 5 737 a 5 518 líneas |
+| ~~P2.14~~ | ~~**`__udivti3` no emite un `divq`: emite una llamada**~~ | ✅ **hecho el 17 sep 2026**, y era un **comentario que mentía**. Decía «con `rem < d` se emite un solo `divq`»; en el binario había **16 llamadas a `__udivti3` y 4 `divq`**. Con `divq` en línea para GCC/Clang en x86-64: **1,28×–1,39× de punta a punta** en `n=1` y `n=2`, las siete anchuras. Trae consigo `check_precondiciones_div.py` |
 
 > **La lección de P2.9, que vale para todo lo que queda.** El
 > [estudio](docs/ESTUDIO_ALGORITMOS_RAPIDOS.md) proyectó el cruce de Toom-3 en

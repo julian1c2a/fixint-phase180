@@ -1,3 +1,90 @@
+## [sin publicar] - 2026-09-17 - Se abre el frente de la division: Knuth D sale a su capa, y un comentario que mentia
+
+Primer tramo de P2 sobre la division. Cierra P2.13 y P2.14; P2.10
+(Moller-Granlund) y P2.11 (Burnikel-Ziegler) siguen abiertos.
+
+### Knuth D sale de dentro de `divmod`
+
+`include/algorithms/div_kernels.hpp`, con `div_un_limbo` y `div_knuth_d`. Hasta
+hoy el algoritmo vivia DENTRO del metodo, unas 300 lineas con los casos
+especiales, las ramas `#if` por compilador y el bucle principal mezclados; asi no
+se pueden medir dos variantes entrelazadas, que es lo que exige el protocolo.
+`fixed_width_int_t.hpp` baja de 5 737 a 5 518 lineas.
+
+**La estimacion del digito del cociente --el paso D3-- es un parametro de
+plantilla**, no codigo escondido dentro. Es el bucle interno de toda la division
+y es justo lo que sustituye Moller-Granlund: comparar las dos estimaciones sera
+cambiar un tipo. Es la leccion de `medio_reparto` en Karatsuba, aplicada antes de
+necesitarla.
+
+`mul_64x64` y `div_128_64` se mudan con ella: eran miembros estaticos y **solo
+las usaba `divmod`**. Su forma no cambia ni un caracter --intrinseco bajo
+`is_constant_evaluated`, portable siempre presente--, que es lo que mantiene
+`divmod`, `/` y `%` como `constexpr` tambien en MSVC e ICX-Windows.
+
+La extraccion sale **gratis**: A/B contra HEAD con rondas alternas, razones de
+0,94x a 1,07x repartidas a los dos lados del 1,00.
+
+### `__udivti3` no emite un `divq`: emite una llamada
+
+El codigo afirmaba que «con `rem < d`, `__udivti3` emite un solo `divq`». **Es
+falso**: en la unidad de prueba hay **16 llamadas a `__udivti3` y 4 `divq`**.
+Clang no puede saber que `hi < d` --es una precondicion escrita en la
+documentacion, no en el tipo-- asi que llama a la rutina general de 128/128.
+
+El arreglo ya estaba escrito en el propio fichero: la rama de ICX-Windows usa
+`__asm__("divq %4" ...)`. Extendida a GCC y Clang en x86-64, bajo
+`!is_constant_evaluated()` y guardada por `__x86_64__`:
+
+**1,28x-1,39x de punta a punta en `divmod`**, en las columnas de divisor corto
+(`n=1` y `n=2`) y en las **siete** anchuras medidas, sin una excepcion. No son 3x
+porque de los ~115 ciclos por limbo solo ~30 eran la llamada; los ~85 restantes
+son la latencia del propio `divq` en una cadena serial.
+
+### La precondicion `hi < d` deja de ser un comentario
+
+`divq` lanza `#DE` si `hi >= d`, asi que la precondicion pasa de documental a
+critica. **No se restauro el silencio anterior** --para un `detail::` no
+alcanzable desde fuera, violarla es un bug nuestro, y ruidoso es mejor que
+callado-- sino que se subio el liston:
+
+- **Esta en el nombre**: `div_128_64_hi_menor_que_d`. Un llamante futuro puede no
+  leer el `@pre`; no puede no leer lo que teclea.
+- **Y se comprueba a maquina**: con `NSTD_DIV_COMPRUEBA_PRECONDICIONES` la
+  funcion la verifica en cada llamada y aborta nombrandola.
+  `scripts/check_precondiciones_div.py` compila y ejecuta **los 61 ficheros de la
+  suite** con la macro encendida; ninguno la rompe. En evaluacion constante la
+  violacion se vuelve **error de compilacion**.
+- **Y el verificador se valida a si mismo**: antes de mirar los 61 ficheros
+  compila una sonda que rompe la precondicion A PROPOSITO y exige que aborte. Si
+  no salta, se declara no fiable y no ejecuta la suite. Un verde que no puede
+  ponerse en rojo es peor que no tener comprobacion.
+
+### La linea base: la division es una superficie, no una curva
+
+`benchs/benchmark_division.cpp`. El coste de Knuth D es `O((N-n)*n)` con `n` los
+limbos SIGNIFICATIVOS del divisor: maximo en `n = N/2` y se desploma en los dos
+extremos. **Si se dividen dos numeros al azar de N limbos casi siempre sale
+`n = N`, que es el caso BARATO**, asi que un banco ingenuo mide la casilla que no
+duele. Se barren cuatro formas de divisor entrelazadas.
+
+El maximo **se mueve con N**: hasta N=32 el peor caso es `n=2` y desde N=64 es
+`n=N/2`. El cruce cae en N~48 y no en N=8 como diria la cuenta a secas, senal de
+que el coste por digito de cociente domina sobre el coste por limbo.
+
+### Notas de metodo
+
+- **La comparacion de ensamblador no siempre zanja.** Con `operator*` salio
+  identica y eso cerro la discusion; aqui el codigo emitido cambio de FORMA --2-3x
+  mas pequeno en N=4..16 y 2,5x mas grande en N=32, por desenrollado de clang--, y
+  un cambio de forma no es una regresion ni una mejora: hay que medirlo.
+- **`check_headers_selfcontained` ve una dimension que la suite no.** Cazo un
+  `<cstdio>` que faltaba y que sobrevivio a 61 tests x 5 compiladores, porque
+  dentro de `fixed_width_int_t.hpp` llegaba por via transitiva y solo falla cuando
+  la cabecera se compila SOLA.
+
+---
+
 ## [sin publicar] - 2026-09-17 - El frente de la multiplicacion, cerrado: cuadrado, Toom-3 y todos los umbrales medidos
 
 Cierra P2.8, P2.1, P2.2 y P2.9. `operator*` pasa de tener tres caminos elegidos

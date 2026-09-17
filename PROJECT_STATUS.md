@@ -20,11 +20,15 @@ cuestiones abiertas**: se está escribiendo. De P1 van cerradas P1.1 a P1.4 y
 ([ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md)) van
 **5 filas de 11**, y dos más esperan una decisión escrita, no trabajo.
 
+**El frente de la división está abierto** (17 sep 2026): Knuth D vive ya en su
+propia capa medible, con la estimación del dígito del cociente como perilla, y la
+división por divisores cortos gana **1,28×–1,39×**. Quedan Möller–Granlund y
+Burnikel–Ziegler.
+
 **El frente de la multiplicación está cerrado** (17 sep 2026): cuatro algoritmos
 en `include/algorithms/mul_kernels.hpp` —escolar desenrollado, Karatsuba con
 reparto equilibrado, cuadrado y Toom-3— **con cada umbral medido**, y la mitad
-alta del rango admitido (N = 64…4096) cubierta por primera vez. **El de la
-división sigue intacto**, y es el grande que queda.
+alta del rango admitido (N = 64…4096) cubierta por primera vez.
 
 ## Verificación — 17 September 2026
 
@@ -36,7 +40,7 @@ división sigue intacto**, y es el grande que queda.
 | `python make.py test msvc release-O2` | **61/61 ficheros** |
 | `python make.py test intel release-O2` | **61/61 ficheros** (oneAPI 2026.1) |
 | CI sobre `f959f53` | **24/24 jobs**, matriz completa: gcc-13/14/15/16, clang-18/19/20/21/22, ARM64, arm32, riscv64, i686 |
-| `scripts/check_headers_selfcontained.py` | **32/32** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
+| `scripts/check_headers_selfcontained.py` | **33/33** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
 | `clang-format --dry-run --Werror`, 104 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
 | `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
 | `scripts/check_matriz_paridad.py` | **170/170 celdas**, todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
@@ -74,9 +78,9 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 
 | | |
 |---|---|
-| Headers | 32 (`include/`, con `algorithms/` e `intrinsics/`) |
+| Headers | 33 (`include/`, con `algorithms/` e `intrinsics/`) |
 | Tests | 61 ficheros |
-| Scripts vivos | 16 (llegaron a ser 47) |
+| Scripts vivos | 20 (llegaron a ser 47) |
 | Documentos de raíz | 12, 9.834 renglones — de los que 6.271 son el `CHANGELOG` |
 | ADR | **15**, ninguna decisión tomada sin documentar |
 

@@ -512,6 +512,37 @@ Dos comportamientos se apartan a proposito del header viejo:
 dos resultados a la vez, y pedirlos con `/` y `%` por separado lo ejecuta dos
 veces.
 
+#### Cómo divide `divmod`, y qué determina su coste
+
+| caso | camino |
+|---|---|
+| divisor de **un limbo** | N divisiones de hardware encadenadas |
+| divisor de **≥ 2 limbos** | **Knuth D** (TAOCP vol. 2 §4.3.1) |
+| `N = 2` | especializado de 128 bits |
+| evaluación constante | los mismos, en su versión portable |
+
+**El coste no depende sólo de N: depende también de cuántos limbos
+*significativos* tiene el divisor.** Knuth D hace `(N − n + 1)` pasadas de `O(n)`
+trabajo cada una, o sea `O((N−n)·n)`, donde `n` son los limbos no nulos de `b`.
+Eso tiene su **máximo en `n = N/2`** y se desploma en los dos extremos: con `n=1`
+entra el camino rápido y con `n=N` hay una sola pasada.
+
+En la práctica: **dividir por un número «grande» de anchura parecida al dividendo
+es barato; dividir por uno de la mitad de ancho es lo caro.** Las cifras, en
+[PERFORMANCE.md](PERFORMANCE.md).
+
+| macro | por defecto | qué hace |
+|---|---|---|
+| `NSTD_DIV_COMPRUEBA_PRECONDICIONES` | apagada | comprueba en cada llamada las precondiciones internas de la división y aborta nombrando la que se rompa |
+
+La macro **no es para producción**: cuesta una comparación por división. Existe
+porque en x86-64 la división de 128/64 usa una instrucción `divq`, que exige que
+el cociente quepa en 64 bits; si un cambio futuro rompiera esa garantía, el
+procesador aborta el proceso (`STATUS_INTEGER_OVERFLOW`) en vez de dar un
+resultado equivocado. Con la macro encendida, el aborto **dice cuál precondición
+se rompió**, y en evaluación constante se convierte en error de compilación.
+`scripts/check_precondiciones_div.py` compila y ejecuta la suite entera así.
+
 `factorial` desborda muy pronto: **34! cabe** en 128 bits (2,95e38 frente a
 3,40e38) y **35! ya no**. Con `wrap` envuelve en silencio, que es lo que hacen
 los enteros del lenguaje; con `checked` el resultado queda marcado y `valid()`
