@@ -1070,6 +1070,128 @@ desplazamientos, y las primitivas ya lo eran.
 
 ---
 
+## Möller–Granlund 3/2: la estimación de q̂ (18 sep 2026)
+
+El paso D3 de Knuth —estimar el dígito del cociente— es el bucle interno de toda
+la división. `div_knuth_d` lo tiene como **parámetro de plantilla**, así que las
+tres variantes existen a la vez en un binario y se pueden entrelazar.
+
+**Medido con clang, las tres entrelazadas, 20 repeticiones, mínimo.** `n` son los
+limbos significativos del divisor; los dígitos de cociente son `N - n + 1`.
+`auto` es lo que usa la biblioteca por omisión.
+
+| N | divisor | dígitos | knuth | MG 3/2 | razón | `auto` | razón |
+|---:|:---|---:|---:|---:|---:|---:|---:|
+| 2 | n=N | 1 | 59 | 111 | **0,53×** | 61 | 0,97× |
+| 3 | n=2 | 2 | 137 | 127 | 1,08× | 136 | 1,00× |
+| 3 | n=N | 1 | 67 | 112 | **0,60×** | 64 | 1,06× |
+| 4 | n=2 | 3 | 198 | 143 | 1,38× | 149 | 1,33× |
+| 4 | n=N | 1 | 65 | 117 | **0,56×** | 70 | 0,93× |
+| 5 | n=N | 1 | 92 | 129 | 0,71× | 100 | 0,91× |
+| 6 | n=N/2 | 4 | 301 | 178 | 1,69× | 185 | 1,63× |
+| 6 | n=N | 1 | 113 | 134 | 0,84× | 117 | 0,96× |
+| 7 | n=N | 1 | 106 | 138 | 0,77× | 113 | 0,94× |
+| 8 | n=2 | 7 | 511 | 222 | 2,30× | 231 | 2,21× |
+| 8 | n=N/2 | 5 | 381 | 221 | 1,72× | 237 | 1,61× |
+| 8 | n=N | 1 | 115 | 143 | 0,81× | 120 | 0,96× |
+| 16 | n=2 | 15 | 1 114 | 404 | 2,76× | 411 | 2,71× |
+| 16 | n=N/2 | 9 | 800 | 451 | 1,77× | 462 | 1,73× |
+| 16 | n=N | 1 | 139 | 180 | 0,77× | 141 | 0,98× |
+| 32 | n=2 | 31 | 2 299 | 751 | 3,06× | 799 | 2,88× |
+| 32 | n=N/2 | 17 | 1 902 | 1 141 | 1,67× | 1 156 | 1,65× |
+| 32 | n=N | 1 | 221 | 254 | 0,87× | 225 | 0,98× |
+| 64 | n=2 | 63 | 4 770 | 1 585 | 3,01× | 1 493 | **3,19×** |
+| 64 | n=N/2 | 33 | 5 116 | 3 517 | 1,45× | 3 455 | 1,48× |
+| 64 | n=N | 1 | 435 | 466 | 0,93× | 438 | 0,99× |
+| 128 | n=2 | 127 | 9 586 | 2 878 | **3,33×** | 3 048 | 3,14× |
+| 128 | n=N/2 | 65 | 16 479 | 12 408 | 1,33× | 12 416 | 1,33× |
+| 128 | n=N | 1 | 667 | 683 | 0,98× | 677 | 0,99× |
+
+`benchs/benchmark_estimador.cpp`.
+
+### La columna que no estaba, y que lo cambiaba todo
+
+Si esta tabla sólo cruzara `n = 2` y `n = N/2` —que es como se midió la primera
+vez— iría de **1,33× a 3,33× sin una sola casilla mala**, y la 3/2 pura se habría
+integrado tal cual.
+
+La columna que lo desmiente es **`n = N`**: el divisor de la anchura entera. Ahí
+hay **un solo dígito de cociente**, el inverso no tiene sobre qué amortizarse, y
+la 3/2 pura **pierde hasta el 47%**. Y no es un caso de laboratorio: es lo que dan
+dos operandos aleatorios de la misma anchura, o sea **el caso más frecuente de
+todos**.
+
+Es la tercera vez que un barrido cómodo tapa el borde. Va al lado del acantilado
+de Karatsuba y del `N=1` de la 2/1.
+
+### El umbral se mide en dígitos, no en anchura
+
+El inverso se paga **una vez por llamada** y ahorra **por dígito**. Lo que decide
+no es `N`:
+
+| dígitos | N=16 knuth | MG | razón | N=64 knuth | MG | razón |
+|---:|---:|---:|---:|---:|---:|---:|
+| 1 | 140 | 180 | **0,78×** | 434 | 476 | **0,91×** |
+| 2 | 214 | 208 | 1,03× | 576 | 588 | 0,98× |
+| 3 | 339 | 264 | 1,28× | 833 | 753 | 1,11× |
+| 4 | 419 | 302 | 1,39× | 1 078 | 955 | 1,13× |
+| 5 | 522 | 354 | 1,48× | 1 289 | 1 118 | 1,15× |
+| 7–9 | 658 | 409 | 1,61× | 2 184 | 1 709 | 1,28× |
+
+`NSTD_MG_3POR2_MIN` está en **3** y no en 2 porque la casilla de dos dígitos
+**empata dentro del ruido**: 0,96×, 0,98×, 1,02× y 1,03× en cuatro tandas. Un
+cambio que no se distingue del ruido no se integra.
+
+### La decisión va dentro del estimador, y eso también se midió
+
+`n` no se conoce hasta ejecución, así que la elección no puede ser un parámetro
+de plantilla. Hay dos formas de resolverlo, y se midieron las dos:
+
+| | velocidad | código objeto (N = 2..64) |
+|---|---|---|
+| **híbrido**: una rama por dígito, un solo bucle | referencia | 202 786 B (**1,01×**) |
+| **rama fuera**: dos bucles, cero ramas | empata dentro del ruido | 339 473 B (**1,69×**) |
+
+La rama la predice el procesador siempre bien, porque no cambia dentro de una
+llamada. Como no gana un ciclo y cuesta **un 69% más de código** en una
+biblioteca que se instancia por cada `N` del cliente, va el híbrido.
+
+> La primera medida de «rama fuera» salía peor de lo que debía, y el sesgo era
+> mío: el envoltorio llamaba a `limbos_significativos` **dos veces**, o sea un
+> recorrido de N limbos de más, justo en el eje donde se la quería comparar. La
+> forma del error lo delató (0,99× en N=2 y 0,88× en N=64, creciendo con N). Se
+> arregló antes de decidir.
+
+Y donde la anchura es tan pequeña que MG **no podría usarse nunca** —con `n ≥ 2`
+siempre, los dígitos no pasan de `N - 1`— el `if constexpr` de
+`estimador_auto<N>` lo quita en compilación: para `N ≤ 3` el tipo queda vacío y la
+división corta se queda exactamente como estaba, sin rama ni estado.
+
+Queda un residuo de **3–9% en `N = 4..7` con un solo dígito**: es el precio del
+despacho en ejecución, y se paga a cambio de 1,3×–3,2× en el resto.
+
+### Corrección: 37 776 casos, y por qué los aleatorios no bastaban
+
+Los tres estimadores comparados contra `estimador_knuth` en clang y gcc:
+aleatorios de `N = 2..40` y **esquinas** de `N = 2..12`. Cero fallos.
+
+Las esquinas no son adorno. Con **9 300 casos aleatorios la 3/2 pasó limpia**; el
+primer barrido de esquinas la tumbó en **9 anchuras de 11**. El fallo era real:
+
+- La 3/2 exige `(u0,u1) < (v1,v2)`, y **Knuth D no lo garantiza**. Su invariante
+  es sobre la ventana entera de `n+1` limbos, y los dos limbos altos pueden
+  empatar si los de abajo compensan.
+- Cuando eso pasa, el dígito es `B-1` **exactamente**, no estimado: con `v1`
+  normalizado sale `U/V > B - 2/B`, y el invariante da `q ≤ B-1`. Es la misma
+  rama que lleva GMP en `mpn_sbpi1_div_qr`.
+
+Con entrada uniforme esa rama tiene probabilidad del orden de `2⁻⁶⁴`. Ningún
+número razonable de aleatorios la toca. Lo que la encontró fue construir los
+limbos del divisor de `{0, 1, 2, 2⁶³±1, 2⁶³, 2⁶⁴-2, 2⁶⁴-1}` y cruzarlos con seis
+formas del dividendo (`a = b`, `a = b - 1`, todo unos, pegado al techo…).
+
+---
+
 ## El tope de desenrollado: barrido con dispersión
 
 **Medido el 10 September 2026** con `benchmark_barrido_desenrollado`, el primer

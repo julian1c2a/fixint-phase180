@@ -24,7 +24,7 @@
 | **CI** | ✅ **24/24 jobs** sobre `f959f53`, ya con la matriz compilando de verdad: no había fallos tapados |
 | **Diseño de la 2.0** | ✅ cerrado. **P1.1 a P1.4 escritos**; quedan P1.5 y P1.6 |
 | **`operator*`** | ✅ **el frente de la multiplicación, cerrado** (17 sep 2026). Cuatro algoritmos reunidos en `algorithms/mul_kernels.hpp`, cada umbral medido: escolar desenrollado ≤ 21, **Karatsuba equilibrado** ≥ 22 para *cualquier* N, **cuadrado** propio para `x*x`, y **Toom-3** ≥ 1024 |
-| **La división** | 🔸 **abierta**. Knuth D ya está en su capa medible (`div_kernels.hpp`), con la estimación de q̂ como perilla, y el `divq` en línea da **1,28×–1,39×** en divisores cortos. Quedan **P2.10** (Möller–Granlund, sin umbral) y **P2.11** (Burnikel–Ziegler) |
+| **La división** | 🔸 **abierta, pero P2.10 cerrada**. Knuth D en su capa medible (`div_kernels.hpp`), `divq` en línea **1,28×–1,39×**, Möller–Granlund **2/1** (~84 → ~17 ciclos/limbo) y **3/2** (hasta **3,3×** con divisor corto). Queda **P2.11** (Burnikel–Ziegler) |
 | **Paridad de parámetros** | ✅ **170/170 celdas** en la [matriz de paridad](docs/MATRIZ_DE_PARIDAD.md): 42 capacidades × 4 combinaciones de signo y política, comprobadas **compilando** |
 | **ADR** | 15 registros, ninguna decisión sin documentar |
 
@@ -143,13 +143,26 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P2.7~~ | ~~Desguace de benchmarks de algoritmo~~ | ✅ **las cuatro piezas hechas**: algoritmo/desenrollado, verosimilitud, código emitido (`scripts/bench_asm.py`) y coste teórico declarado |
 
 | ~~P2.10 (2/1)~~ | ~~**Möller–Granlund 2/1** para `div_un_limbo`~~ | ✅ **hecho** en `e216c1b`: el coste por limbo cae de **~84 a ~17 ciclos**, hasta **4,97×**. Y **sí tiene umbral**, contra lo que se creía: calcular el inverso cuesta un `divq`, así que en N=1 es **0,23×** y en N=2 **0,91×**. `NSTD_MG_2POR1_MIN = 3` |
-| **P2.10 (3/2)** | **Möller–Granlund 3/2** para la estimación de q̂ dentro de Knuth D. Ataca las columnas `n=2` y `n=N/2` de la superficie, que es donde vive el coste con divisores de varios limbos | Listo: la perilla `Estimador` está puesta desde `1d0d20c`. **Esperar menos que el 5× de la 2/1**: el bucle de Knuth D tiene además el multiplicar-y-restar de O(n) por dígito, que la 3/2 no toca |
+| ~~P2.10 (3/2)~~ | ~~**Möller–Granlund 3/2** para la estimación de q̂ dentro de Knuth D~~ | ✅ **hecho**: **3,3×** con divisor corto, **1,3×–1,8×** con `n = N/2`. El umbral **no se mide en anchura sino en dígitos de cociente** (`N - n + 1`), y está en 3: con uno solo, la 3/2 pura **pierde el 47%**. `NSTD_MG_3POR2_MIN = 3` |
 
-> **«Mejora la constante, así que no tiene umbral» era falso.** Se escribió aquí
-> antes de medir, y la 2/1 lo desmintió: en N=1 pierde 4×, porque el inverso
-> cuesta una división que con un solo limbo no se amortiza. Un barrido que
-> empezaba en N=4 lo tapaba por completo. **Cuando un barrido sale perfecto,
-> sospechar de dónde empieza.**
+> **«Mejora la constante, así que no tiene umbral» era falso, y lo fue dos
+> veces.** Se escribió aquí antes de medir. La **2/1** lo desmintió: en N=1
+> pierde 4×, porque el inverso cuesta una división que con un solo limbo no se
+> amortiza; un barrido que empezaba en N=4 lo tapaba entero. La **3/2** lo
+> desmintió otra vez, y por el mismo motivo con otra cara: el inverso se paga
+> **por llamada** y ahorra **por dígito de cociente**, así que con un solo
+> dígito —que es lo que dan dos operandos aleatorios de la misma anchura— es
+> coste puro. El barrido que lo tapaba cruzaba `n=2` y `n=N/2`, pero **no
+> `n=N`**.
+>
+> **Cuando un barrido sale perfecto, mirar dónde empieza y qué eje no se cruzó.**
+> Van tres: el acantilado de Karatsuba, la 2/1 y la 3/2.
+>
+> Y el hermano de esa regla, en corrección: **9 300 casos aleatorios pasaron
+> limpios y el primer barrido de esquinas tumbó la 3/2 en 9 anchuras de 11**. El
+> fallo era real —Knuth D no garantiza la precondición de la 3/2— y ningún
+> número razonable de aleatorios lo habría encontrado, porque esa rama tiene
+> probabilidad ~2⁻⁶⁴ con entrada uniforme.
 | **P2.11** | **Burnikel–Ziegler**: la división pasa de Θ(N²) a Θ(M(N)·log N). Umbral esperado ~45–50 limbos | Después de P2.8: convierte la división en multiplicaciones, así que se apoya en ellas |
 | ~~P2.9~~ | ~~**Toom-3**: Θ(N^1,465)~~ | ✅ **hecho** en `97523f3`, **y la proyección del estudio era falsa en un orden de magnitud**. Decía «gana 1,23× en N=256»: lo medido es que **pierde** en 256 (0,87×) y en 512 (0,96×), y **no cruza hasta ~1024**. Entra con `NSTD_TOOM3_MIN` = 1024 y da **1,13× en 2048 y 1,14×–1,15× en 4096** |
 | ~~P2.12~~ | ~~**`mul_wide` calcula el producto completo con una multiplicación modular de 2N×2N**~~ | ✅ **hecho** en `5f834b5`: **2,3×–2,8×**. Y lo heredó **sólo `mulhi`** — `checked_mul` y `saturating_mul` salieron planos porque **no usaban `mul_wide`**, lo que destapó P2.15 |

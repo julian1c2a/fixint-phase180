@@ -43,6 +43,12 @@
 // leccion de `medio_reparto` en Karatsuba: una decision escondida dentro de un
 // algoritmo no se puede medir, y lo que no se mide se decide por analogia. Con
 // la perilla fuera, comparar las dos estimaciones es cambiar un tipo.
+//
+// Y sirvio: el 18 sep 2026, con las dos entrelazadas en un proceso, se vio que
+// Moller-Granlund **gana hasta 3,33x con divisores cortos y PIERDE hasta un 47%
+// cuando el divisor ocupa toda la anchura**, que es lo que dan dos operandos
+// aleatorios. Sin la perilla ese segundo dato no se habria visto, y el primero
+// habria bastado para integrarla. El resultado es `estimador_auto`.
 // =============================================================================
 
 #ifndef NSTD_ALGORITHMS_DIV_KERNELS_HPP
@@ -349,6 +355,97 @@ namespace nstd
                 return q1;
             }
 
+            /// @brief El inverso de un divisor NORMALIZADO de **dos** limbos, para
+            ///        la division 3/2. Algoritmo 6 de Moller-Granlund.
+            ///
+            /// @pre `d1` **normalizado**: su bit mas alto a uno.
+            /// @param d1 Limbo alto del divisor. @param d0 El bajo.
+            ///
+            /// @warning **Cuesta una division de hardware**, la de `inverso_2por1`,
+            ///          mas cuatro multiplicaciones. Se paga una vez por llamada a
+            ///          `div_knuth_d`, no una vez por digito: por eso el umbral se
+            ///          mide en **digitos de cociente**. Ver `NSTD_MG_3POR2_MIN`.
+            [[nodiscard]] constexpr std::uint64_t inverso_3por2(std::uint64_t d1, std::uint64_t d0) noexcept
+            {
+                std::uint64_t v = inverso_2por1(d1);
+
+                std::uint64_t p = d1 * v; // solo la parte baja, a proposito
+                p += d0;
+                if (p < d0)
+                {
+                    --v;
+                    if (p >= d1)
+                    {
+                        --v;
+                        p -= d1;
+                    }
+                    p -= d1;
+                }
+
+                std::uint64_t t1 = 0;
+                const std::uint64_t t0 = mul_64x64(v, d0, t1);
+                p += t1;
+                if (p < t1)
+                {
+                    --v;
+                    if (p > d1 || (p == d1 && t0 >= d0))
+                        --v;
+                }
+                return v;
+            }
+
+            /// @brief Divide tres limbos entre dos, **sin dividir**. Algoritmo 5 de
+            ///        Moller-Granlund.
+            ///
+            /// @pre `d1` **normalizado** y `(u2,u1) < (d1,d0)`. La segunda no la
+            ///      garantiza Knuth D: ver `estimador_moller_granlund`, que la
+            ///      comprueba antes de llamar aqui.
+            /// @param u2 Limbo alto del dividendo. @param u1 El medio. @param u0 El
+            ///        bajo. @param d1 Limbo alto del divisor. @param d0 El bajo.
+            /// @param v El inverso de `(d1,d0)`, de `inverso_3por2`.
+            /// @return El cociente **exacto** del subproblema, que cabe en un limbo.
+            [[nodiscard]] constexpr std::uint64_t div_3por2_preinv(std::uint64_t u2, std::uint64_t u1,
+                                                                   std::uint64_t u0, std::uint64_t d1,
+                                                                   std::uint64_t d0, std::uint64_t v) noexcept
+            {
+                std::uint64_t q1 = 0;
+                std::uint64_t q0 = mul_64x64(v, u2, q1);
+                q0 += u1;
+                if (q0 < u1)
+                    ++q1;
+                q1 += u2;
+
+                std::uint64_t r1 = u1 - q1 * d1;
+
+                std::uint64_t t1 = 0;
+                const std::uint64_t t0 = mul_64x64(d0, q1, t1);
+
+                // (r1:u0) - (t1:t0) - (d1:d0), en 128 bits
+                std::uint64_t r0 = u0 - t0;
+                std::uint64_t prestamo = (u0 < t0) ? 1u : 0u;
+                r1 = r1 - t1 - prestamo;
+
+                const std::uint64_t r0_menos_d0 = r0 - d0;
+                prestamo = (r0 < d0) ? 1u : 0u;
+                r1 = r1 - d1 - prestamo;
+                r0 = r0_menos_d0;
+
+                ++q1;
+
+                // Las dos correcciones del final, de probabilidad muy baja.
+                if (r1 >= q0)
+                {
+                    --q1;
+                    const std::uint64_t suma = r0 + d0;
+                    r1 = r1 + d1 + ((suma < r0) ? 1u : 0u);
+                    r0 = suma;
+                }
+                if (r1 > d1 || (r1 == d1 && r0 >= d0))
+                    ++q1;
+
+                return q1;
+            }
+
         } // namespace detail
 
         // =====================================================================
@@ -456,6 +553,13 @@ namespace nstd
         ///       plantilla. Ese es justo el punto de tenerlo fuera.
         struct estimador_knuth
         {
+            /// @brief No necesita preparacion. Existe porque el nucleo se la pide a
+            ///        todos: es donde `estimador_moller_granlund` calcula su inverso.
+            constexpr void prepara(std::uint64_t /*v1*/, std::uint64_t /*v2*/,
+                                   std::size_t /*digitos*/) noexcept
+            {
+            }
+
             /// @param u0 Limbo alto de la ventana. @param u1 El siguiente.
             /// @param u2 El de debajo. @param v1 Limbo alto del divisor.
             /// @param v2 El siguiente del divisor.
@@ -504,6 +608,149 @@ namespace nstd
             }
         };
 
+        /// @def NSTD_MG_3POR2_MIN
+        /// @brief Digitos de cociente desde los que compensa la estimacion 3/2.
+        ///
+        /// **No es una anchura, son digitos de cociente**, que son `N - n + 1` con
+        /// `n` los limbos significativos del divisor. La 3/2 ahorra por digito, pero
+        /// su inverso se paga **una vez por llamada**: con un solo digito no hay
+        /// sobre que amortizarlo.
+        ///
+        /// Y el caso de un digito no es raro: es `n == N`, justo lo que dan dos
+        /// operandos aleatorios de la misma anchura.
+        ///
+        /// **Medido el 18 sep 2026 con clang**, las variantes entrelazadas en un
+        /// mismo proceso, 20 repeticiones, Knuth D entero:
+        ///
+        ///     digitos    N=16            N=64
+        ///        1       0,78x           0,91x     <-- pierde
+        ///        2       1,03x           0,98x     <-- empata: no compensa
+        ///        3       1,28x           1,11x     <-- desde aqui gana
+        ///        4       1,39x           1,13x
+        ///        5       1,48x           1,15x
+        ///        7-9     1,61x           1,28x
+        ///
+        /// Con `n = 2` --el divisor corto, donde el coste por digito manda-- la
+        /// ganancia llega a **3,33x** en N=128.
+        ///
+        /// El umbral esta en 3 y no en 2 porque la casilla de dos digitos **empata
+        /// dentro del ruido**: 0,96x, 0,98x, 1,02x y 1,03x en cuatro tandas. Un
+        /// cambio que no se distingue del ruido no se integra.
+        ///
+        /// @warning Bajarla a 1 hace **perder hasta un 45%** en el caso mas comun,
+        ///          que es el divisor de la anchura entera.
+#ifndef NSTD_MG_3POR2_MIN
+#define NSTD_MG_3POR2_MIN 3
+#endif
+
+        /// @brief La estimacion de q̂ por Moller-Granlund 3/2, **pura**: sin umbral.
+        ///
+        /// Esta sirve para medir contra `estimador_knuth`. La que usa el nucleo por
+        /// omision es `estimador_auto`, que elige entre las dos.
+        ///
+        /// @note Devuelve el cociente **exacto** del subproblema de tres limbos entre
+        ///       dos, que como estimacion es a lo sumo uno mayor que el digito
+        ///       verdadero: la misma garantia que da la estimacion refinada de Knuth,
+        ///       asi que los pasos D4 y D5 valen sin tocarlos.
+        struct estimador_moller_granlund
+        {
+            std::uint64_t inverso{0};
+
+            constexpr void prepara(std::uint64_t v1, std::uint64_t v2, std::size_t /*digitos*/) noexcept
+            {
+                inverso = detail::inverso_3por2(v1, v2);
+            }
+
+            [[nodiscard]] constexpr std::uint64_t operator()(std::uint64_t u0, std::uint64_t u1,
+                                                             std::uint64_t u2, std::uint64_t v1,
+                                                             std::uint64_t v2) const noexcept
+            {
+                // La 3/2 exige (u0,u1) < (v1,v2), y **Knuth D no lo garantiza**: su
+                // invariante es que la ventana entera de n+1 limbos vale menos que el
+                // divisor por B, y los dos limbos altos pueden empatar si los de
+                // abajo compensan.
+                //
+                // Cuando eso pasa el digito es B-1 **exactamente**, no estimado: con
+                // v1 normalizado sale U/V > B - 2/B, y el invariante da q <= B-1.
+                //
+                // Esta rama no la encontro ningun operando aleatorio: 9300 casos
+                // pasaron limpios. La encontro el primer barrido de esquinas.
+                if (u0 > v1 || (u0 == v1 && u1 >= v2))
+                    return ~std::uint64_t{0};
+
+                return detail::div_3por2_preinv(u0, u1, u2, v1, v2, inverso);
+            }
+        };
+
+        /// @brief El estimador por omision: Knuth cuando hay pocos digitos de
+        ///        cociente, Moller-Granlund cuando hay con que amortizar el inverso.
+        ///
+        /// La decision **no puede ser un parametro de plantilla**: depende de `n`,
+        /// que no se conoce hasta ejecucion. Asi que vive aqui dentro, y la rama por
+        /// digito la predice el procesador siempre bien, porque no cambia dentro de
+        /// una llamada.
+        ///
+        /// @note Se midio tambien la alternativa sin rama --sacar la decision fuera y
+        ///       tener dos bucles-- y **empata en velocidad dentro del ruido**,
+        ///       pero cuesta **1,69x de codigo objeto** (339 KB frente a 201 KB,
+        ///       instanciando N = 2..64). Por eso el nucleo se instancia una sola vez.
+        ///
+        /// @tparam N La anchura, que hace falta para una razon: con `n >= 2` siempre,
+        ///         los digitos de cociente nunca pasan de `N - 1`. Si eso ya es menor
+        ///         que el umbral, **Moller-Granlund no puede usarse nunca en esta
+        ///         anchura**, y entonces no se compila: el `if constexpr` deja el
+        ///         tipo vacio y la division corta se queda exactamente como estaba,
+        ///         sin rama ni estado que arrastrar.
+        template <std::size_t N>
+        struct estimador_auto
+        {
+            /// Si en esta anchura MG no cabe, ni se instancia.
+            static constexpr bool alcanzable = (N >= NSTD_MG_3POR2_MIN + 1);
+
+            struct vacio
+            {
+            };
+            struct con_inverso
+            {
+                std::uint64_t inverso{0};
+                bool usa_mg{false};
+            };
+
+            [[no_unique_address]] std::conditional_t<alcanzable, con_inverso, vacio> est{};
+
+            constexpr void prepara(std::uint64_t v1, std::uint64_t v2, std::size_t digitos) noexcept
+            {
+                if constexpr (alcanzable)
+                {
+                    est.usa_mg = (digitos >= NSTD_MG_3POR2_MIN);
+                    // Si no se va a usar, **ni siquiera se calcula**: es una division.
+                    est.inverso = est.usa_mg ? detail::inverso_3por2(v1, v2) : 0;
+                }
+                else
+                {
+                    (void)v1;
+                    (void)v2;
+                    (void)digitos;
+                }
+            }
+
+            [[nodiscard]] constexpr std::uint64_t operator()(std::uint64_t u0, std::uint64_t u1,
+                                                             std::uint64_t u2, std::uint64_t v1,
+                                                             std::uint64_t v2) const noexcept
+            {
+                if constexpr (alcanzable)
+                {
+                    if (est.usa_mg)
+                    {
+                        if (u0 > v1 || (u0 == v1 && u1 >= v2))
+                            return ~std::uint64_t{0};
+                        return detail::div_3por2_preinv(u0, u1, u2, v1, v2, est.inverso);
+                    }
+                }
+                return estimador_knuth{}(u0, u1, u2, v1, v2);
+            }
+        };
+
         // =====================================================================
         // 3. Knuth D, el caso general
         // =====================================================================
@@ -516,8 +763,12 @@ namespace nstd
         ///      de cero lo rechaza el llamante.
         ///
         /// @tparam N Numero de limbos de los operandos.
-        /// @tparam Estimador Como se calcula el digito del cociente. Ver
-        ///         `estimador_knuth` y la nota de la cabecera del fichero.
+        /// @tparam Estimador Como se calcula el digito del cociente. Por omision
+        ///         `estimador_auto`, que elige en ejecucion; las dos puras son
+        ///         `estimador_knuth` y `estimador_moller_granlund`, y estan ahi para
+        ///         poder medirlas. Ver la nota de la cabecera del fichero.
+        ///         El nucleo le pide `prepara(v1, v2, digitos)` **una vez** antes del
+        ///         bucle, y luego `operator()` por cada digito.
         /// @param a Dividendo. @param b Divisor.
         /// @param q Destino del cociente. **Se pone a cero al entrar.**
         /// @param r Destino del resto. **Se pone a cero al entrar.**
@@ -528,7 +779,7 @@ namespace nstd
         ///         costaba 345 lineas de ensamblador de mas -- medido comparando
         ///         el codigo emitido contra el arbol de HEAD.
         /// @param est La estimacion a usar.
-        template <std::size_t N, bool Limpiar = true, typename Estimador = estimador_knuth>
+        template <std::size_t N, bool Limpiar = true, typename Estimador = estimador_auto<N>>
         constexpr void div_knuth_d(const std::array<std::uint64_t, N> &a,
                                    const std::array<std::uint64_t, N> &b, std::array<std::uint64_t, N> &q,
                                    std::array<std::uint64_t, N> &r, Estimador est = Estimador{}) noexcept
@@ -571,6 +822,11 @@ namespace nstd
 
             const std::uint64_t v1 = v[n - 1];
             const std::uint64_t v2 = v[n - 2]; // seguro: n >= 2
+
+            // Lo que el estimador necesite calcular UNA vez por llamada. Se le dan
+            // los digitos de cociente porque es sobre ellos sobre lo que se amortiza
+            // ese calculo: ver `NSTD_MG_3POR2_MIN`.
+            est.prepara(v1, v2, m_quot + 1);
 
             // D2-D7. El bucle principal, de j = m_quot hacia abajo.
             for (std::size_t j = m_quot + 1; j-- > 0;)

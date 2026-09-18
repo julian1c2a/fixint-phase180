@@ -86,6 +86,19 @@ una multiplicación**, sea cual sea N. Hoy, con Knuth D, esa razón crece con N.
   con **una `umul` y una `umullo`**, usando una aproximación precalculada del
   recíproco. Es la base del `divrem` interno de GMP y del `div_qr_1`. No cambia
   el exponente: mejora la constante del bucle interno de Knuth D.
+
+  **Corregido el 18 sep 2026, después de medirlo.** Este documento decía que
+  «no tiene umbral: gana en toda N». Es falso en las dos mitades:
+
+  - La **2/1** pierde **4×** en `N = 1`, porque calcular el recíproco cuesta
+    una división y ahí no hay sobre qué amortizarla. Umbral: `N ≥ 3`.
+  - La **3/2** pierde hasta un **47%** cuando el divisor ocupa la anchura
+    entera, que es lo que dan dos operandos aleatorios. Lo que decide no es `N`
+    sino los **dígitos de cociente** `N - n + 1`, y el umbral está en 3.
+
+  El patrón es el mismo en las dos: el recíproco es un **coste fijo por
+  llamada** y el ahorro es **por iteración**. Sin iteraciones sobre las que
+  repartirlo, es coste puro. Ver `PERFORMANCE.md`.
 - **Burnikel–Ziegler** (1998) baja a Θ(M(N)·log N). El umbral publicado es
   **~860 bits** (≈14 limbos) en su artículo; GMP sitúa `DC_DIV_QR_THRESHOLD`
   «algo por encima del doble de `MUL_TOOM22_THRESHOLD`», o sea ~45–50 limbos.
@@ -236,7 +249,7 @@ Sugerencia de reordenación, para decidir:
 ```
 P2.8  Karatsuba equilibrado         (ya decidido)
   ↓
-P2.10 Möller-Granlund 3-por-2       (nuevo: barato, sin umbral, toda N)
+P2.10 Möller-Granlund 3-por-2       (HECHO; y SI tiene umbral: ver abajo)
   ↓
 P2.11 Burnikel-Ziegler              (nuevo: el salto de exponente en division)
   ↓

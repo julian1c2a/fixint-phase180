@@ -564,15 +564,31 @@ la división por hardware, y el coste **cae de ~84 a ~17 ciclos por limbo** —h
 **4,97×**—. No se aplica por debajo de tres limbos: calcular el inverso cuesta
 una división, y con uno o dos no se amortiza.
 
+Con divisores de **dos limbos o más** el mismo truco entra en la estimación del
+dígito de cociente de Knuth (la división 3-por-2), y ahí da hasta **3,3×** con
+divisores cortos.
+
 | macro | por defecto | qué hace |
 |---|---|---|
-| `NSTD_MG_2POR1_MIN` | 3 | anchura desde la que la división por un limbo usa Möller–Granlund |
+| `NSTD_MG_2POR1_MIN` | 3 | **anchura** desde la que la división por un limbo usa Möller–Granlund |
+| `NSTD_MG_3POR2_MIN` | 3 | **dígitos de cociente** desde los que la estimación de q̂ usa Möller–Granlund |
 | `NSTD_DIV_COMPRUEBA_PRECONDICIONES` | apagada | comprueba en cada llamada las precondiciones internas de la división y aborta nombrando la que se rompa |
 
-**`NSTD_MG_2POR1_MIN` no es cosmética.** Bajarla a 1 hace la división de
-`uint64_fixed_t` **más de cuatro veces más lenta**, porque paga dos divisiones de
-hardware donde basta una. La tabla completa, con las dos casillas perdedoras,
-está en su bloque `@def` y en [PERFORMANCE.md](PERFORMANCE.md).
+**Ninguna de las dos es cosmética, y las dos duelen hacia abajo.**
+
+- Bajar `NSTD_MG_2POR1_MIN` a 1 hace la división de `uint64_fixed_t` **más de
+  cuatro veces más lenta**, porque paga dos divisiones de hardware donde basta
+  una.
+- Bajar `NSTD_MG_3POR2_MIN` a 1 hace perder **hasta el 47%** en el caso más
+  frecuente de todos: el divisor de la anchura entera, que es lo que dan dos
+  operandos aleatorios. Ahí sólo hay un dígito de cociente y el inverso no tiene
+  sobre qué amortizarse.
+
+**Ojo a la unidad: una se mide en limbos y la otra en dígitos de cociente**, que
+son `N - n + 1` con `n` los limbos significativos del divisor. No son lo mismo y
+confundirlas al ajustar da justo el valor malo. Las tablas completas, con las
+casillas perdedoras, están en sus bloques `@def` y en
+[PERFORMANCE.md](PERFORMANCE.md).
 
 La macro **no es para producción**: cuesta una comparación por división. Existe
 porque en x86-64 la división de 128/64 usa una instrucción `divq`, que exige que

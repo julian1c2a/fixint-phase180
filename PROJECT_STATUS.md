@@ -20,11 +20,19 @@ cuestiones abiertas**: se está escribiendo. De P1 van cerradas P1.1 a P1.4 y
 ([ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md)) van
 **5 filas de 11**, y dos más esperan una decisión escrita, no trabajo.
 
-**El frente de la división está abierto**: Knuth D vive ya en su propia capa
-medible, con la estimación del dígito del cociente como perilla. La división por
-un divisor de un limbo usa **Möller–Granlund 2/1** desde el 18 sep y su coste por
-limbo cae de **~84 a ~17 ciclos** (hasta 4,97×). Quedan la **3/2** para la
-estimación de q̂ dentro de Knuth D, y Burnikel–Ziegler.
+**El frente de la división está abierto, pero Möller–Granlund queda cerrado**
+(P2.10, 18 sep). Knuth D vive en su propia capa medible, con la estimación del
+dígito del cociente como perilla. La **2/1** hace que el coste por limbo del
+divisor de un limbo caiga de **~84 a ~17 ciclos** (hasta 4,97×); la **3/2** da
+hasta **3,33×** en la estimación de q̂ con divisores cortos. Queda
+**Burnikel–Ziegler**.
+
+Las dos mitades trajeron el mismo aviso, y el proyecto lo tenía escrito al revés:
+Möller–Granlund **sí tiene umbral**, porque el recíproco es un coste fijo por
+llamada y el ahorro es por iteración. Sin iteraciones sobre las que repartirlo es
+coste puro: la 2/1 pierde 4× en `N=1`, y la 3/2 pierde el 47% cuando el divisor
+ocupa la anchura entera —que es justo lo que dan dos operandos aleatorios—.
+**Los dos casos malos vivían fuera del barrido que se había hecho.**
 
 **Y el 18 sep se recogieron dos ganancias que no eran algoritmos**: `mul_wide`
 ensanchaba antes de multiplicar (**2,3×–2,8×**) y `checked_mul` multiplicaba dos

@@ -1,3 +1,112 @@
+## [sin publicar] - 2026-09-18 - Moller-Granlund 3/2: la estimacion de q^
+
+Segunda mitad de P2.10, y con ella **P2.10 queda cerrada**. El paso D3 de Knuth
+--estimar el digito del cociente-- deja de ser una division de hardware mas dos
+refinamientos y pasa a ser la division 3-por-2 de Moller-Granlund con un inverso
+precalculado.
+
+**Hasta 3,33x** con divisores cortos (`n = 2`), **1,3x-1,8x** con `n = N/2`.
+
+### La columna que faltaba, y que habria dejado pasar una regresion del 47%
+
+El primer barrido cruzaba `n = 2` y `n = N/2` para N de 8 a 128. Iba de **1,33x a
+3,33x sin una sola casilla mala**.
+
+La columna que no estaba es **`n = N`**: el divisor de la anchura entera. Ahi hay
+**un solo digito de cociente**, el inverso no tiene sobre que amortizarse, y la
+3/2 pura **pierde hasta el 47%**:
+
+    N=2  0,53x     N=3  0,60x     N=4  0,56x     N=8  0,81x     N=16  0,77x
+
+Y no es un caso de laboratorio: `n = N` es lo que dan **dos operandos aleatorios
+de la misma anchura**, o sea el caso mas frecuente que se va a ver.
+
+Van tres veces con el mismo patron --el acantilado de Karatsuba, el N=1 de la
+2/1 y esto--: **cuando un barrido sale perfecto, mirar donde empieza y que eje no
+se cruzo.**
+
+### El umbral se mide en digitos de cociente, no en anchura
+
+El inverso se paga **una vez por llamada** y ahorra **por digito**. Lo que decide
+no es N sino los `N - n + 1` digitos:
+
+    digitos   1       2       3       4       5      7-9
+    N=16    0,78x   1,03x   1,28x   1,39x   1,48x   1,61x
+    N=64    0,91x   0,98x   1,11x   1,13x   1,15x   1,28x
+
+`NSTD_MG_3POR2_MIN = 3` y no 2 porque la casilla de dos digitos **empata dentro
+del ruido**: 0,96x, 0,98x, 1,02x y 1,03x en cuatro tandas. Un cambio que no se
+distingue del ruido no se integra.
+
+### La correccion la salvaron las esquinas, no los aleatorios
+
+**9 300 casos aleatorios pasaron limpios.** El primer barrido de esquinas tumbo
+la 3/2 en **9 anchuras de 11**.
+
+El fallo era real y de libro: la 3/2 exige `(u0,u1) < (v1,v2)`, y **Knuth D no lo
+garantiza** --su invariante es sobre la ventana entera de `n+1` limbos, y los dos
+altos pueden empatar si los de abajo compensan--. Cuando pasa, el digito es `B-1`
+**exactamente**, no estimado: con `v1` normalizado sale `U/V > B - 2/B` y el
+invariante da `q <= B-1`. Es la misma rama que lleva GMP en `mpn_sbpi1_div_qr`.
+
+Con entrada uniforme esa rama tiene probabilidad del orden de `2^-64`. Ningun
+numero razonable de aleatorios la toca. Lo que la encontro fue construir los
+limbos del divisor de `{0, 1, 2, 2^63+-1, 2^63, 2^64-2, 2^64-1}` y cruzarlos con
+seis formas del dividendo.
+
+Verificado despues: **37 776 casos** (aleatorios N=2..40, esquinas N=2..12) en
+clang y gcc, cero fallos.
+
+### Donde vive la decision, y por que ahi
+
+`n` no se conoce hasta ejecucion, asi que la eleccion no puede ser un parametro
+de plantilla. Se midieron las dos formas:
+
+| | velocidad | codigo objeto (N = 2..64) |
+|---|---|---|
+| hibrido: una rama por digito, un bucle | referencia | 202 786 B (**1,01x**) |
+| rama fuera: dos bucles, cero ramas | empata dentro del ruido | 339 473 B (**1,69x**) |
+
+Va el hibrido: no gana un ciclo y cuesta un 69% mas de codigo en una biblioteca
+que se instancia por cada N del cliente.
+
+La primera medida de «rama fuera» salia peor de lo que debia y **el sesgo era
+mio**: el envoltorio llamaba a `limbos_significativos` dos veces. La forma del
+error lo delato --0,99x en N=2 y 0,88x en N=64, creciendo con N-- y se arreglo
+antes de decidir.
+
+Donde la anchura es tan pequena que MG no podria usarse nunca (`N <= 3`, porque
+con `n >= 2` los digitos no pasan de `N - 1`), el `if constexpr` de
+`estimador_auto<N>` lo quita en compilacion: el tipo queda vacio y la division
+corta se queda exactamente como estaba.
+
+Queda un residuo de **3-9% en N = 4..7 con un solo digito**, que es el precio del
+despacho en ejecucion.
+
+### Anadido
+
+- `detail::inverso_3por2` y `detail::div_3por2_preinv` (algoritmos 5 y 6 de
+  Moller-Granlund) en `algorithms/div_kernels.hpp`.
+- `estimador_moller_granlund` (pura) y `estimador_auto<N>` (la de por omision),
+  junto a la `estimador_knuth` de siempre. Las tres cumplen el mismo contrato:
+  `prepara(v1, v2, digitos)` una vez, `operator()` por digito.
+- `NSTD_MG_3POR2_MIN`, documentada como configuracion publica en
+  `docs/API_fixed_int.md` **con la direccion en que duele**.
+- `benchs/benchmark_estimador.cpp`: las tres variantes entrelazadas, los dos ejes
+  cruzados y el borde de abajo medido en serio.
+
+### Corregido en la documentacion
+
+`docs/ESTUDIO_ALGORITMOS_RAPIDOS.md` y `NEXT_STEPS.md` decian que
+Moller-Granlund «mejora la constante, asi que no tiene umbral: gana en toda N».
+Es falso en las dos mitades, y ya lo era desde la 2/1. Quedaban dos apariciones
+sin corregir del commit anterior.
+
+Verificado: **61/61 en las cinco configuraciones** (GCC, clang+libc++,
+clang+libstdc++, MSVC, Intel), 33/33 cabeceras aisladas, 170/170 celdas de la
+matriz de paridad, 9/9 en el armonizador con `--doxygen`, 61 ficheros sin romper
+la precondicion de la division, y clang-format limpio.
+
 ## [sin publicar] - 2026-09-18 - Moller-Granlund 2/1: dividir sin dividir
 
 Primera mitad de P2.10. La division por divisor de un limbo deja de usar `divq` y
