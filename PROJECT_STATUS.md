@@ -56,7 +56,7 @@ alta del rango admitido (N = 64…4096) cubierta por primera vez.
 | `scripts/check_headers_selfcontained.py` | **34/34** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
 | `clang-format --dry-run --Werror`, 104 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
 | `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
-| `scripts/check_matriz_paridad.py` | **190/190 celdas**, todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
+| `scripts/check_matriz_paridad.py` | **192/192 celdas**, todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
 | Avisos de cobertura de Doxygen desde `include/` | **499** (local, doxygen 1.18.0) · **518** (CI, doxygen 1.9.8) |
 
 > **La cifra de Doxygen no ha empeorado: antes no se medía.** Hasta el 25 ago el
@@ -95,7 +95,7 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 | Tests | 64 ficheros |
 | Scripts vivos | 20 (llegaron a ser 47) |
 | Documentos de raíz | 12, 9.834 renglones — de los que 6.271 son el `CHANGELOG` |
-| ADR | **16**, ninguna decisión tomada sin documentar |
+| ADR | **17**, ninguna decisión tomada sin documentar |
 
 ## Cifras de la suite
 

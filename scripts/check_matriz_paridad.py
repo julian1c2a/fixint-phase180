@@ -102,6 +102,21 @@ TODAS = SIN_SIGNO | CON_SIGNO
 RESERVADAS = [
     ("uint/saturate", "nstd::uint_fixed_t<2, nstd::overflow_policy::saturate>"),
     ("uint/trap", "nstd::uint_fixed_t<2, nstd::overflow_policy::trap>"),
+    # Las dos REPRESENTACIONES que faltan, en la misma situacion que las dos
+    # politicas de arriba: declaradas en el enumerado, rechazadas por el
+    # `static_assert` de la clase, y pendientes de P1.5 tramo 3.
+    #
+    # Estaban sin vigilar, y eso era un hueco: el dia que se relaje el
+    # `static_assert` sin abrir sus columnas, la matriz seguiria diciendo
+    # «190/190, todas como declaran» mientras dos representaciones enteras
+    # quedaban sin comprobar en ninguna capacidad. Ahora esta comprobacion
+    # **falla en cuanto se implementen**, y obliga a abrirlas.
+    ("int/magnitude_sign",
+     "nstd::fixed_int_t<2, nstd::signedness::signed_type, "
+     "nstd::representation_form::magnitude_sign>"),
+    ("int/excess_k",
+     "nstd::fixed_int_t<2, nstd::signedness::signed_type, "
+     "nstd::representation_form::excess_k>"),
 ]
 
 BASE = ['#include "fixed_width_int_t.hpp"']

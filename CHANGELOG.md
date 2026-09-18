@@ -1,3 +1,40 @@
+## [sin publicar] - 2026-09-18 - ADR-017 y la vigilancia de MS/EK
+
+### El diseno del tramo 3, escrito antes de escribir el codigo
+
+[ADR-017](docs/decisions/ADR-017-magnitud-signo-y-exceso-k-como-codificaciones.md)
+fija cinco cosas, y **deja tres abiertas a proposito**.
+
+Lo decidido: MS y EK son **codificaciones, no aritmeticas** --se decodifica, se
+opera con el codigo que ya existe, se recodifica--; el sesgo de Exceso-K es
+`2^(64N-1)`; el minimo de complemento a dos satura en MS; y los dos ceros de MS
+se comportan como uno, o sea `+0 == -0` es `true`.
+
+Lo que NO se decide, porque adivinarlo seria peor que dejarlo escrito: que hacen
+`<<`, `>>`, `&`, `|`, `^` y `~` en MS y EK. En complemento a dos el
+desplazamiento es multiplicar por potencias de dos; en MS eso lo hace desplazar
+la MAGNITUD, no la representacion. Hay que elegir, y la eleccion cambia que
+significa el tipo.
+
+La regla que sale: **antes de escribir una capa nueva, preguntarse si es una capa
+o una codificacion.** Una codificacion se resuelve con dos funciones y no toca el
+resto; una capa se paga en cada operacion para siempre. Aqui la diferencia entre
+las dos lecturas eran 41 puntos de decision contra 2.
+
+### Un hueco de vigilancia, tapado
+
+`check_matriz_paridad.py` vigilaba que `saturate` y `trap` **siguieran sin
+compilar**, pero no hacia lo mismo con `magnitude_sign` ni `excess_k`, que estan
+en la misma situacion: declaradas en el enumerado y rechazadas por el
+`static_assert`.
+
+Eso era un hueco real: el dia que se relajara el `static_assert` sin abrir sus
+columnas, la matriz habria seguido diciendo «todas como declaran» mientras dos
+representaciones enteras quedaban sin comprobar en ninguna capacidad. Ahora esa
+comprobacion **falla en cuanto se implementen**, y obliga a abrirlas.
+
+**190 celdas -> 192.**
+
 ## [sin publicar] - 2026-09-18 - P1.5 tramo 3, primera pieza: las conversiones por N
 
 Magnitud-Signo y Exceso-K **son codificaciones, no aritmeticas**. Sumar dos

@@ -26,8 +26,8 @@
 | **`operator*`** | ✅ **el frente de la multiplicación, cerrado** (17 sep 2026). Cuatro algoritmos reunidos en `algorithms/mul_kernels.hpp`, cada umbral medido: escolar desenrollado ≤ 21, **Karatsuba equilibrado** ≥ 22 para *cualquier* N, **cuadrado** propio para `x*x`, y **Toom-3** ≥ 1024 |
 | **La división** | ✅ **cerrada por ahora**. Knuth D en su capa medible (`div_kernels.hpp`), `divq` en línea **1,28×–1,39×**, Möller–Granlund **2/1** (~84 → ~17 ciclos/limbo) y **3/2** (hasta **3,3×**). **P2.11 aparcado con medida** ([ADR-016](docs/decisions/ADR-016-burnikel-ziegler-aparcado-por-medida.md)): hasta N=1024 la división ya está dentro del techo de 2–4× que publica GMP |
 | **Lo siguiente** | 🔸 **el camino crítico de la 2.0**. Los tramos **2d** (atómico) y **2e** (divisor constante) cerrados el 18 sep; queda **P1.5 tramo 3** —Magnitud-Signo y Exceso-K, el de más peso— y luego **P1.6** (punto fijo). Lo fija [ADR-007](docs/decisions/ADR-007-politica-de-desbordamiento-como-parametro.md) y hacerlo al revés significa portar la API dos veces |
-| **Paridad de parámetros** | ✅ **190/190 celdas** en la [matriz de paridad](docs/MATRIZ_DE_PARIDAD.md): 47 capacidades × 4 combinaciones de signo y política, comprobadas **compilando** |
-| **ADR** | 16 registros, ninguna decisión sin documentar |
+| **Paridad de parámetros** | ✅ **192/192 celdas** en la [matriz de paridad](docs/MATRIZ_DE_PARIDAD.md): 47 capacidades × 4 combinaciones de signo y política, comprobadas **compilando** |
+| **ADR** | 17 registros, ninguna decisión sin documentar |
 
 **Lo primero al retomar: `python scripts/check_docs_consistency.py --doxygen`.**
 Con `--doxygen`, que es la orden que corre el CI; sin el flag son 7
