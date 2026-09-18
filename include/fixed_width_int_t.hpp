@@ -3106,6 +3106,34 @@ namespace nstd
                 return T{v} + ((a - a) + (b - b));
             }
         }
+
+        /// @brief Pega al resultado ANCHO la marca pegajosa de los dos factores.
+        ///
+        /// Hermano de `con_marca_heredada`, para cuando el resultado NO tiene la
+        /// anchura de los operandos: `mul_wide` devuelve 2N a partir de dos de N.
+        ///
+        /// Hace falta porque el camino rapido de `mul_wide` construye el
+        /// resultado desde limbos crudos, y asi se saltaria la marca. El camino
+        /// viejo la propagaba sin querer --el constructor de ensanchado la
+        /// arrastra-- y perderla habria sido una regresion silenciosa justo en la
+        /// politica que existe para que no las haya.
+        ///
+        /// Con `wrap` no hay marca y esto se compila a nada.
+        template <std::size_t N, overflow_policy Policy, typename Ancho, typename Estrecho>
+        [[nodiscard]] constexpr Ancho marca_de_los_factores(const Ancho &v, const Estrecho &a,
+                                                            const Estrecho &b) noexcept
+        {
+            if constexpr (Policy == overflow_policy::wrap)
+            {
+                (void)a;
+                (void)b;
+                return v;
+            }
+            else
+            {
+                return v + ((Ancho{a} - Ancho{a}) + (Ancho{b} - Ancho{b}));
+            }
+        }
     } // namespace detail
 
     /// @brief De `wrap` a `checked`, marcando el resultado como valido.
@@ -4745,19 +4773,85 @@ namespace nstd
     ///
     /// A diferencia de `operator*`, que es modular respecto a 2^(64N), aqui el
     /// resultado tiene el doble de anchura y **nunca desborda**. Es la operacion
-    /// sobre la que se construyen `checked_mul()` y la division por constante.
+    /// sobre la que se construyen `mulhi()` y la division por constante.
+    ///
+    /// @note Aqui ponia que tambien `checked_mul()`, y **es falso**: esa es
+    ///       `C{a} * C{b}` y detecta el desbordamiento por la marca. Se vio
+    ///       midiendo (17 sep 2026): al acelerar `mul_wide` un 2,3x-2,8x,
+    ///       `checked_mul` no se movio ni un 6 %.
     ///
     /// @param a Primer factor.
     /// @param b Segundo factor.
     /// @return El producto exacto, en `uint_fixed_t<2 * N>`.
+    /// @note **No ensancha antes de multiplicar.** Hasta el 17 sep 2026 esto era
+    ///       `uint_fixed_t<2N>{a} * uint_fixed_t<2N>{b}`: ensanchar los dos
+    ///       operandos --con los N limbos altos a CERO-- y multiplicar de forma
+    ///       MODULAR 2N x 2N. `operator*` no mira los valores, asi que repartia
+    ///       en dos mitades de N y calculaba **los dos terminos del medio
+    ///       igualmente**, aunque valieran cero. Tres productos de N donde hacia
+    ///       falta uno.
+    ///
+    ///       `kmul_full_gen<N>` da directamente el producto COMPLETO N x N -> 2N,
+    ///       que es justo lo que se pide. Medido con las dos variantes
+    ///       entrelazadas en el mismo proceso, 20 repeticiones:
+    ///
+    ///           N      viejo     nuevo   razon        N      viejo     nuevo   razon
+    ///           2         74        16   4,61x        32     10 428     4 391   2,37x
+    ///           8      1 142       501   2,28x        64     38 027    15 560   2,44x
+    ///           16     3 034     1 226   2,47x       128    136 608    49 615   2,75x
+    ///
+    ///       **2,3x-2,8x en todo el rango.**
+    ///
+    /// @note **Quien lo hereda, y quien NO.** Al escribir esto se dijo que lo
+    ///       heredaban `mulhi`, `checked_mul` y `saturating_mul`. Medido: solo
+    ///       `mulhi`, y entero (1,75x-2,75x). `checked_mul` y `saturating_mul`
+    ///       salen PLANOS --0,92x a 1,06x-- porque **no llaman a `mul_wide`**:
+    ///       son `C{a} * C{b}`, un producto modular de N x N con politica
+    ///       `checked`, y detectan el desbordamiento por la marca, no por la
+    ///       mitad alta.
+    ///
+    ///       Lo delata la aritmetica sin necesidad de leer el codigo: a N=64
+    ///       `checked_mul` cuesta 28 304 ciclos y el `mul_wide` VIEJO costaba
+    ///       ~36 000. Si lo llamara no podria ser mas barato que el.
     template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
     [[nodiscard]] constexpr uint_fixed_t<2 * N, Policy> mul_wide(const uint_fixed_t<N, Policy> &a,
                                                                  const uint_fixed_t<N, Policy> &b) noexcept
     {
+        if (!std::is_constant_evaluated())
+        {
+            std::array<std::uint64_t, N> x{}, y{};
+            for (std::size_t i = 0; i < N; ++i)
+            {
+                x[i] = a.limb(i);
+                y[i] = b.limb(i);
+            }
+            const auto p = algorithms::kmul_full_gen<N, 8>(x, y);
+            uint_fixed_t<2 * N, Policy> r{};
+            for (std::size_t i = 0; i < 2 * N; ++i)
+                r.set_limb(i, p[i]);
+            return detail::marca_de_los_factores<N, Policy>(r, a, b);
+        }
+        // En evaluacion constante se queda el camino de siempre: los nucleos de
+        // `mul_kernels.hpp` no son `constexpr`, y hacerlos constexpr metaria
+        // Karatsuba y Toom-3 en el evaluador de constantes de cinco
+        // compiladores, con sus limites de pasos. Es una mejora aparte, medible
+        // por su cuenta.
         return uint_fixed_t<2 * N, Policy>{a} * uint_fixed_t<2 * N, Policy>{b};
     }
 
     /// @brief Producto con signo sin perder bits: `N x N -> 2N` limbos.
+    ///
+    /// @note El nucleo es SIN SIGNO, y eso no se salva solo: multiplicar sin
+    ///       signo dos representaciones en complemento a dos acierta los limbos
+    ///       BAJOS y nada mas. Si `A = a + 2^(64N)` porque `a < 0`, entonces
+    ///       `A*B = a*b + b*2^(64N)` (mod 2^(128N)). La correccion es restar `B`
+    ///       de la mitad alta cuando `A` es negativo, y `A` cuando lo es `B`.
+    ///
+    ///       Sin ella el resultado **parece correcto mientras los dos operandos
+    ///       son positivos**, que es lo que da un generador al azar la mayoria de
+    ///       las veces. Es la misma trampa que aparece en Toom-3 al evaluar en
+    ///       x = -1; ver `algorithms/mul_kernels.hpp`.
+    ///
     /// @param a Primer factor.
     /// @param b Segundo factor.
     /// @return El producto exacto, en `int_fixed_t<2 * N>`.
@@ -4765,6 +4859,35 @@ namespace nstd
     [[nodiscard]] constexpr int_fixed_t<2 * N, Policy> mul_wide(const int_fixed_t<N, Policy> &a,
                                                                 const int_fixed_t<N, Policy> &b) noexcept
     {
+        if (!std::is_constant_evaluated())
+        {
+            std::array<std::uint64_t, N> x{}, y{};
+            for (std::size_t i = 0; i < N; ++i)
+            {
+                x[i] = a.limb(i);
+                y[i] = b.limb(i);
+            }
+            auto p = algorithms::kmul_full_gen<N, 8>(x, y);
+
+            // LA CORRECCION DE SIGNO. Ver la nota de arriba.
+            if ((x[N - 1] >> 63) != 0)
+            {
+                unsigned char pr = 0;
+                for (std::size_t i = 0; i < N; ++i)
+                    pr = algorithms::detail::sub_limb_borrow(p[N + i], y[i], pr);
+            }
+            if ((y[N - 1] >> 63) != 0)
+            {
+                unsigned char pr = 0;
+                for (std::size_t i = 0; i < N; ++i)
+                    pr = algorithms::detail::sub_limb_borrow(p[N + i], x[i], pr);
+            }
+
+            int_fixed_t<2 * N, Policy> r{};
+            for (std::size_t i = 0; i < 2 * N; ++i)
+                r.set_limb(i, p[i]);
+            return detail::marca_de_los_factores<N, Policy>(r, a, b);
+        }
         return int_fixed_t<2 * N, Policy>{a} * int_fixed_t<2 * N, Policy>{b};
     }
 
