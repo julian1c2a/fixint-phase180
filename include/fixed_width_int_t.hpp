@@ -642,37 +642,39 @@ namespace nstd
         /// @note **Cuesta un producto de doble anchura.** Es el precio de
         ///       `checked`, y solo lo paga `checked`: con `wrap` esta funcion no
         ///       se llama nunca porque el `if constexpr` la descarta.
-        [[nodiscard]] static constexpr bool producto_desborda(const fixed_int_t &a,
-                                                              const fixed_int_t &b) noexcept
+        /// @brief El producto ANCHO y si desborda, **de una sola pasada**.
+        ///
+        /// @param a Primer factor. @param b Segundo factor.
+        /// @param bajo Destino de los N limbos bajos, o sea del producto modular.
+        /// @return `true` si el producto exacto no cabe en N limbos.
+        ///
+        /// @note **Antes esto multiplicaba DOS VECES, y la primera con el peor
+        ///       algoritmo.** Hacia un escolar cuadratico completo N x N -> 2N
+        ///       solo para mirar la mitad alta, y a continuacion `operator*`
+        ///       volvia a multiplicar por el camino rapido para obtener el valor.
+        ///       Medido el 18 sep 2026: `checked_mul` costaba ~2x lo que cuesta un
+        ///       producto ancho entero.
+        ///
+        ///       Ahora se multiplica **una vez** y con el reparto de siempre
+        ///       --Karatsuba, Toom-3 y lo que venga--: la mitad baja es el
+        ///       resultado y la alta dice si desbordo. La deteccion deja ademas de
+        ///       ser cuadratica, asi que la mejora crece con N.
+        ///
+        /// @note En evaluacion constante se queda el escolar, que es el unico
+        ///       `constexpr`. Ver la nota de `mul_wide`.
+        [[nodiscard]] static constexpr bool producto_desborda(const fixed_int_t &a, const fixed_int_t &b,
+                                                              fixed_int_t &bajo) noexcept
         {
-            // Producto escolar sobre 2N limbos, sin truncar.
             std::array<std::uint64_t, 2 * N> p{};
+            if (!std::is_constant_evaluated())
+                p = algorithms::kmul_full_gen<N, 8>(a.data, b.data);
+            else
+                algorithms::detail::mul_full_escolar<N>(a.data, b.data, p);
+
+            // La mitad baja es el producto modular, y la correccion de signo de
+            // mas abajo solo toca la alta: se puede copiar ya.
             for (std::size_t i{0}; i < N; ++i)
-            {
-                std::uint64_t acarreo{0};
-                for (std::size_t j{0}; j < N; ++j)
-                {
-                    std::uint64_t hi{0};
-#if __has_include("intrinsics/arithmetic_operations.hpp")
-                    const std::uint64_t lo = intrinsics::umul128(a.data[i], b.data[j], &hi);
-#else
-                    const std::uint64_t x0 = a.data[i] & 0xFFFFFFFFULL, x1 = a.data[i] >> 32;
-                    const std::uint64_t y0 = b.data[j] & 0xFFFFFFFFULL, y1 = b.data[j] >> 32;
-                    const std::uint64_t p00 = x0 * y0, p01 = x0 * y1, p10 = x1 * y0, p11 = x1 * y1;
-                    const std::uint64_t medio = (p00 >> 32) + (p01 & 0xFFFFFFFFULL) + (p10 & 0xFFFFFFFFULL);
-                    const std::uint64_t lo = (p00 & 0xFFFFFFFFULL) | (medio << 32);
-                    hi = p11 + (p01 >> 32) + (p10 >> 32) + (medio >> 32);
-#endif
-                    std::uint64_t v = p[i + j];
-                    std::uint64_t suma = v + lo;
-                    std::uint64_t c1 = (suma < v) ? 1u : 0u;
-                    v = suma + acarreo;
-                    c1 += (v < suma) ? 1u : 0u;
-                    p[i + j] = v;
-                    acarreo = hi + c1;
-                }
-                p[i + N] += acarreo;
-            }
+                bajo.data[i] = p[i];
 
             if constexpr (is_signed)
             {
@@ -1671,8 +1673,12 @@ namespace nstd
             // alguno se quede sin marcar al tocarlo en el futuro.
             if constexpr (detecta)
             {
-                const bool desbordo = producto_desborda(*this, o);
-                fixed_int_t r = this->mul_sin_marca(o);
+                // UN SOLO PRODUCTO. Antes se multiplicaba dos veces: un escolar
+                // cuadratico completo para detectar, y luego `mul_sin_marca` para
+                // el valor. Ahora `producto_desborda` devuelve las dos cosas de
+                // una pasada, y con el reparto rapido. Ver su nota.
+                fixed_int_t r{};
+                const bool desbordo = producto_desborda(*this, o, r);
                 r.marcar(*this, o, desbordo);
                 return r;
             }
