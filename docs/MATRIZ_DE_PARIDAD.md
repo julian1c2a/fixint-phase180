@@ -218,6 +218,8 @@ Generado con `gcc` (g++.exe (Rev3, Built by MSYS2 project) 16.2.0).
 |  | `ilog2` | sí | sí | n/a | n/a |
 |  | `divmod (libre)` | sí | sí | sí | sí |
 | **Politica** | `valid()` | sí | sí | sí | sí |
+| **Divisor constante** | `div<D> / mod<D>` | sí | sí | n/a | n/a |
+|  | `divmod_const<D>` | sí | sí | n/a | n/a |
 | **Atomico** | `atomic_fixed_int_t (load/store)` | sí | sí | sí | sí |
 |  | `atomic fetch_add / CAS` | sí | sí | sí | sí |
 |  | `is_lock_free / sin_bloqueo` | sí | sí | sí | sí |

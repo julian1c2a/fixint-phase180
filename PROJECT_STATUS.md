@@ -18,7 +18,7 @@ cuestiones abiertas**: se está escribiendo. De P1 van cerradas P1.1 a P1.4 y
 **los tramos 1 y 2 de P1.5** salvo lo anotado; del inventario de retirada de
 `int128_param_t`
 ([ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md)) van
-**6 filas de 11**, y dos más esperan una decisión escrita, no trabajo.
+**7 filas de 11**, y dos más esperan una decisión escrita, no trabajo.
 
 **El frente de la división está abierto, pero Möller–Granlund queda cerrado**
 (P2.10, 18 sep). Knuth D vive en su propia capa medible, con la estimación del
@@ -47,16 +47,16 @@ alta del rango admitido (N = 64…4096) cubierta por primera vez.
 
 | Comprobación | Resultado |
 |---|---|
-| `python make.py test gcc release-O2` | **62/62 ficheros** (GCC 16.2 ucrt64, libstdc++) |
-| `python make.py test clang release-O2` | **62/62 ficheros** (clang 22.1.8 clang64, **libc++**) |
-| `python make.py test clang-libstdcxx release-O2` | **62/62 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
-| `python make.py test msvc release-O2` | **62/62 ficheros** |
-| `python make.py test intel release-O2` | **62/62 ficheros** (oneAPI 2026.1) |
+| `python make.py test gcc release-O2` | **63/63 ficheros** (GCC 16.2 ucrt64, libstdc++) |
+| `python make.py test clang release-O2` | **63/63 ficheros** (clang 22.1.8 clang64, **libc++**) |
+| `python make.py test clang-libstdcxx release-O2` | **63/63 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
+| `python make.py test msvc release-O2` | **63/63 ficheros** |
+| `python make.py test intel release-O2` | **63/63 ficheros** (oneAPI 2026.1) |
 | CI sobre `f959f53` | **24/24 jobs**, matriz completa: gcc-13/14/15/16, clang-18/19/20/21/22, ARM64, arm32, riscv64, i686 |
 | `scripts/check_headers_selfcontained.py` | **34/34** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
 | `clang-format --dry-run --Werror`, 104 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
 | `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
-| `scripts/check_matriz_paridad.py` | **182/182 celdas**, todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
+| `scripts/check_matriz_paridad.py` | **190/190 celdas**, todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
 | Avisos de cobertura de Doxygen desde `include/` | **499** (local, doxygen 1.18.0) · **518** (CI, doxygen 1.9.8) |
 
 > **La cifra de Doxygen no ha empeorado: antes no se medía.** Hasta el 25 ago el
@@ -92,7 +92,7 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 | | |
 |---|---|
 | Headers | 34 (`include/`, con `algorithms/` e `intrinsics/`) |
-| Tests | 62 ficheros |
+| Tests | 63 ficheros |
 | Scripts vivos | 20 (llegaron a ser 47) |
 | Documentos de raíz | 12, 9.834 renglones — de los que 6.271 son el `CHANGELOG` |
 | ADR | **16**, ninguna decisión tomada sin documentar |

@@ -148,16 +148,57 @@ mínimo de 4 rondas. Compara `div<D>()` con la división normal por el mismo val
 | 100 | 12,43 | 14,87 | 1,20× |
 | 10^19 | 13,48 | 76,11 | **5,65×** |
 
-**El truco solo paga con divisores grandes.** Con divisores pequeños es más
-lento que dividir normalmente, y por un margen que no es de ruido: 0,52× con el 5.
+> ### ⚠️ Esta tabla está caducada, y su explicación era falsa (18 sep 2026)
+>
+> Decía: *«El truco solo paga con divisores grandes. Con divisores pequeños es
+> más lento… el 10^19 no cabe en 64 bits y ahí sí entra Knuth D»*.
+>
+> **Las dos mitades están mal.**
+>
+> 1. **`10^19` sí cabe en 64 bits**: `10^19 = 1,00e19` y `2^64 = 1,84e19`. Nunca
+>    entró Knuth D por ahí, así que la explicación del 5,65× no era la buena.
+> 2. **El eje era el equivocado.** Se midió el tamaño del *divisor* con `N` fijo
+>    en 2. Lo que manda es `N`, porque lo que se ahorra es un **coste fijo por
+>    llamada** contra un bucle que crece.
+>
+> Y además **su rival ha cambiado dos veces** desde el 9 sep: Möller–Granlund 2/1
+> (hasta 4,97×) y el `divq` en línea (1,28×–1,39×). *Un umbral es relativo a su
+> rival.*
+>
+> La reimplementación sobre el núcleo de hoy (P1.5 tramo 2e) está medida abajo, y
+> **no pierde en ninguna casilla**.
 
-La razón es que la división normal por un divisor de **un limbo** ya toma un
-camino rápido, así que no hay mucho que ganar; el 10^19 no cabe en 64 bits y ahí
-sí entra Knuth D, que es a lo que Granlund-Montgomery gana de verdad.
+### `div<D>()` sobre el núcleo de hoy (18 sep 2026, P1.5 tramo 2e)
 
-> **Aquí decía «4–7× más rápido que Knuth D», sin matices.** Es cierto solo para
-> el divisor que no cabe en un limbo (5,65×). Para los demás, el enunciado
-> invitaba a usar `div<D>()` justo donde perjudica.
+No es Granlund-Montgomery portado: es **el mismo bucle de `div_un_limbo` con el
+preámbulo resuelto en compilación**. Normalizar el divisor y calcular su
+recíproco cuestan un `divq`; con `D` constante de plantilla son constantes, y
+`normalizacion` e `inverso_2por1` ya eran `constexpr`.
+
+**Medido con clang, entrelazadas, 20 repeticiones** (`benchmark_div_const_fixed`):
+
+| N | 1 | 2 | 3 | 4 | 8 | 16 | 32 | 64 | 128 |
+|---|---|---|---|---|---|---|---|---|---|
+| `operator/` | 20 | 120 | 124 | 138 | 209 | 329 | 584 | 1 047 | 2 156 |
+| `div<D>()` | 7 | 15 | 22 | 45 | 109 | 237 | 532 | 985 | 2 091 |
+| razón | 3,03× | **8,13×** | 5,73× | 3,07× | 1,92× | 1,39× | 1,10× | 1,06× | 1,03× |
+
+Y moviendo el divisor con `N = 4`: 3,13× (D=3), 3,07× (D=7), 3,18× (D=10⁹+7),
+5,29× (D=10¹⁹), 6,98× (D=2⁶³), 3,74× (D=2⁶⁴−1). **Nunca pierde.**
+
+**La ganancia está en `N` pequeña y se agota hacia `N = 32`**, donde la
+diferencia baja al 3–10%. Es el mismo patrón que `NSTD_MG_3POR2_MIN`: coste fijo
+contra ahorro por iteración.
+
+> **Una medida previa se llamó «el techo» y era el suelo.** Pasando `s`, `dn` y
+> `v` como parámetros de *ejecución* salía 2,12×–3,63×. Con `D` constante de
+> plantilla son constantes de *compilación*, y el compilador especializa el
+> desplazamiento y la multiplicación por el recíproco: el 3,63× de `N=2` acabó
+> siendo **8,13×**.
+
+Correcto contra `operator/` y `operator%` en **2 760 casos** cruzados —esquinas
+del dividendo, diez divisores con y sin bit alto, y aleatorios— en clang y gcc,
+más `static_assert` de que vale en evaluación constante.
 
 `rt_mulhi_128`: 4 × MUL nativo en GCC/Clang/Intel frente a 16 × MUL de 32 bits —
 **1,8–2,2× más rápido**. *(Sigue sin re-medir: no tiene benchmark propio.)*

@@ -95,7 +95,7 @@ existen en `fixed_int_t` bajo otro nombre no cuentan como hueco—:
 | `int128_param_algorithm.hpp` | **Decisión pendiente, ver abajo.** Sus 10 funciones son clones literales de `<algorithm>` restringidos al tipo |
 | `int128_param_ranges.hpp` | **Parcialmente en la misma decisión.** `range_stats`/`calculate_stats` y los tres generadores de secuencias no están en `std::`; `iota`, `transform`, `copy_if`, `count_if`, `reduce`, `sum` y `product` sí |
 | ~~`int128_param_thread_safety.hpp`~~ | ✅ **portado (18 sep 2026)**: `include/fixed_int_atomic.hpp`. No es copia: el viejo usaba mutex siempre, éste va sin bloqueo donde `is_always_lock_free` lo garantiza — que es la condición exacta para no arrastrar `-latomic` |
-| `int128_param_divmod.hpp` | `div<D>` / `mod<D>` / `divmod_const<D>` por divisor constante (Granlund-Montgomery) |
+| ~~`int128_param_divmod.hpp`~~ | ✅ **portado (18 sep 2026)**, y sin Granlund-Montgomery: `div<D>`/`mod<D>`/`divmod_const<D>` son el bucle de `div_un_limbo` con el preámbulo resuelto en compilación. 8,13× en N=2 |
 | `representation.hpp` | **las representaciones MS y EK** como `representation_form` de `fixed_int_t` |
 
 **La tabla de abajo se escribió de memoria y le faltaban cosas.** Al portar el
@@ -109,7 +109,7 @@ La única que se decidió **no** portar es `power`, alias de `pow` que existía 
 consistencia con phase166". Esa consistencia es justo la capa que este ADR
 retira.
 
-Van seis de once. Las tres que cerró P1.5 --bits, cmath y numeric-- eran las
+Van siete de once. Las tres que cerró P1.5 --bits, cmath y numeric-- eran las
 más independientes: no tocan el núcleo del tipo ni la representación, así que se
 podían portar y comprobar por separado. Lo que queda va de menos a más acoplado,
 y el último punto es el de más peso: `fixed_int_t` tiene hoy un `static_assert`

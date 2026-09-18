@@ -2067,6 +2067,62 @@ namespace nstd
             }
         }
 
+        /// @brief `*this / D` con `D` constante de plantilla, de un limbo.
+        ///
+        /// Tramo 2e de P1.5. **No hace nada que `operator/` no haga**: usa el
+        /// mismo bucle. Lo que ahorra es el preambulo --normalizar el divisor y
+        /// calcular su reciproco, que cuesta un `divq`--, porque con `D`
+        /// constante se resuelve en compilacion.
+        ///
+        /// **Medido el 18 sep 2026**, divisor de un limbo:
+        ///
+        ///     N        1     2     3     4     8    16    32    64   128
+        ///     razon  3,03  8,13  5,73  3,07  1,92  1,39  1,10  1,06  1,03
+        ///
+        /// Y con N=4 moviendo el divisor va de 3,07x a 6,98x: **nunca pierde**.
+        ///
+        /// @warning **Se agota hacia N=32**: el preambulo es coste fijo y el bucle
+        ///          crece con N. De N=32 en adelante la diferencia es del 3% al
+        ///          10%, o sea casi ruido. Donde paga de verdad es en N <= 8.
+        ///
+        /// @tparam D El divisor. Cero se rechaza **en compilacion**, que es
+        ///         justamente lo que se gana al tenerlo como parametro.
+        /// @return El cociente.
+        template <std::uint64_t D>
+        [[nodiscard]] constexpr fixed_int_t div() const noexcept
+            requires(Sign == signedness::unsigned_type)
+        {
+            fixed_int_t q{};
+            (void)algorithms::div_por_constante<D, N>(data, q.data);
+            return q;
+        }
+
+        /// @brief `*this % D` con `D` constante de plantilla, de un limbo.
+        /// @tparam D El divisor, distinto de cero. Ver `div<D>()`.
+        /// @return El resto, en el mismo tipo.
+        template <std::uint64_t D>
+        [[nodiscard]] constexpr fixed_int_t mod() const noexcept
+            requires(Sign == signedness::unsigned_type)
+        {
+            return fixed_int_t{algorithms::mod_por_constante<D, N>(data)};
+        }
+
+        /// @brief Cociente y resto a la vez, con `D` constante de plantilla.
+        ///
+        /// @note Es lo que conviene usar cuando se quieren los dos: el bucle es
+        ///       el mismo y el resto sale de arrastre, asi que pedirlos por
+        ///       separado lo recorre dos veces.
+        /// @tparam D El divisor, distinto de cero. Ver `div<D>()`.
+        /// @return `{cociente, resto}`.
+        template <std::uint64_t D>
+        [[nodiscard]] constexpr std::pair<fixed_int_t, fixed_int_t> divmod_const() const noexcept
+            requires(Sign == signedness::unsigned_type)
+        {
+            fixed_int_t q{};
+            const std::uint64_t r = algorithms::div_por_constante<D, N>(data, q.data);
+            return {q, fixed_int_t{r}};
+        }
+
         constexpr fixed_int_t operator/(const fixed_int_t &o) const { return divmod(*this, o).first; }
 
         constexpr fixed_int_t operator%(const fixed_int_t &o) const { return divmod(*this, o).second; }

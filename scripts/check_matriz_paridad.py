@@ -268,6 +268,18 @@ CAPACIDADES = [
     dict(grupo="Politica", nombre="valid()", espera=TODAS,
          cuerpo="(void)T{std::uint64_t{1}}.valid();"),
 
+    # --- divisor constante (P1.5 tramo 2e) ---------------------------------
+    #
+    # SIN_SIGNO porque `div<D>` lleva `requires(Sign == unsigned_type)`: con
+    # signo hay que decidir el redondeo (hacia cero o hacia -inf) y eso no esta
+    # decidido. Si algun dia se anade, esta celda lo dira al fallar donde declara.
+    dict(grupo="Divisor constante", nombre="div<D> / mod<D>", espera=SIN_SIGNO,
+         cuerpo="const T x{std::uint64_t{1000}};\n"
+                "    (void)x.template div<7>(); (void)x.template mod<7>();"),
+    dict(grupo="Divisor constante", nombre="divmod_const<D>", espera=SIN_SIGNO,
+         cuerpo="const T x{std::uint64_t{1000}};\n"
+                "    (void)x.template divmod_const<10>().first;"),
+
     # --- acceso atomico (P1.5 tramo 2d) ------------------------------------
     #
     # Se prueba con `T` dentro para que la celda falle si alguna combinacion de

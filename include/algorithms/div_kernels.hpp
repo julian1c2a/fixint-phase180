@@ -752,6 +752,112 @@ namespace nstd
         };
 
         // =====================================================================
+        // 2b. Divisor de un limbo CONOCIDO EN COMPILACION
+        // =====================================================================
+
+        /// @brief `a / D` y `a % D` con `D` constante de plantilla, de un limbo.
+        ///
+        /// Es el tramo 2e de P1.5, y **no es Granlund-Montgomery portado**: es
+        /// `div_un_limbo` con el preambulo evaluado en compilacion.
+        ///
+        /// POR QUE ASI, Y NO PORTANDO EL ALGORITMO VIEJO
+        /// ---------------------------------------------
+        /// `div_un_limbo` hace tres cosas antes del bucle --normalizar, desplazar
+        /// el divisor y calcular su inverso, que cuesta un `divq`-- y luego una
+        /// pasada de `div_2por1_preinv` por limbo. Con `D` constante, las tres
+        /// primeras **son constantes**, y `normalizacion` e `inverso_2por1` ya
+        /// eran `constexpr`, asi que el compilador las resuelve sin que haya que
+        /// escribir un algoritmo nuevo.
+        ///
+        /// CUANTO GANA, MEDIDO
+        /// -------------------
+        /// **El 18 sep 2026 con clang**, `div<D>()` contra `operator/` con el
+        /// mismo divisor, entrelazadas, 20 repeticiones:
+        ///
+        ///     N        1     2     3     4     8    16    32    64   128
+        ///     razon  3,03  8,13  5,73  3,07  1,92  1,39  1,10  1,06  1,03
+        ///
+        /// Y con N=4, moviendo el divisor: 3,07x (D=7), 3,18x (D=1e9+7), 5,29x
+        /// (D=1e19), 6,98x (D=2^63) y 3,74x (D=2^64-1). **Nunca pierde.**
+        ///
+        /// **La ganancia esta en N pequena y se agota hacia N=32**, porque el
+        /// preambulo es un coste fijo y el bucle crece con N. Es el mismo patron
+        /// que en `NSTD_MG_3POR2_MIN`: coste fijo contra ahorro por iteracion.
+        ///
+        /// @note Una primera medida, pasando `s`, `dn` y `v` como parametros de
+        ///       EJECUCION, daba 2,12x-3,63x y se llamo «el techo». Era al reves:
+        ///       resulto ser el suelo. Con `D` constante de plantilla las tres
+        ///       son constantes de compilacion, y el compilador especializa el
+        ///       desplazamiento y la multiplicacion por el reciproco. De ahi que
+        ///       el 3,63x de N=2 acabara siendo 8,13x.
+        ///
+        /// @warning `PERFORMANCE.md` decia que este truco «solo paga con divisores
+        ///          grandes» y que con los pequenos es mas lento. Eso se midio el
+        ///          9 sep 2026 sobre la implementacion vieja de `int128_param_t`
+        ///          y **con el eje equivocado**: lo que manda no es el tamano del
+        ///          divisor sino `N`. Ademas su rival ha cambiado dos veces desde
+        ///          entonces (Moller-Granlund 2/1 y el `divq` en linea).
+        ///
+        /// @tparam D El divisor. **No puede ser cero**, y se comprueba en
+        ///         compilacion, que es la ventaja de tenerlo como parametro.
+        /// @tparam N Numero de limbos.
+        /// @param a Dividendo. @param q Destino del cociente.
+        /// @return El resto, que cabe en un limbo.
+        template <std::uint64_t D, std::size_t N>
+        [[nodiscard]] constexpr std::uint64_t div_por_constante(const std::array<std::uint64_t, N> &a,
+                                                                std::array<std::uint64_t, N> &q) noexcept
+        {
+            static_assert(D != 0, "division por cero, y aqui se ve en compilacion");
+
+            // Las tres lineas del preambulo, ahora constantes.
+            constexpr int s = detail::normalizacion(D);
+            constexpr std::uint64_t dn = D << s;
+            constexpr std::uint64_t v = detail::inverso_2por1(dn);
+
+            std::uint64_t resto = 0;
+
+            if constexpr (s == 0)
+            {
+                for (std::size_t i = N; i-- > 0;)
+                    q[i] = detail::div_2por1_preinv(resto, a[i], dn, v, resto);
+                return resto;
+            }
+            else if constexpr (N == 1)
+            {
+                // Con un solo limbo no hay arrastre que encadenar.
+                q[0] = detail::div_2por1_preinv(a[0] >> (64 - s), a[0] << s, dn, v, resto);
+                return resto >> s;
+            }
+            else
+            {
+                resto = a[N - 1] >> (64 - s);
+                std::uint64_t arrastre = a[N - 1] << s;
+                for (std::size_t i = N - 1; i-- > 0;)
+                {
+                    const std::uint64_t trozo = arrastre | (a[i] >> (64 - s));
+                    q[i + 1] = detail::div_2por1_preinv(resto, trozo, dn, v, resto);
+                    arrastre = a[i] << s;
+                }
+                q[0] = detail::div_2por1_preinv(resto, arrastre, dn, v, resto);
+                return resto >> s;
+            }
+        }
+
+        /// @brief Solo el resto de `a % D`, sin escribir el cociente.
+        ///
+        /// @note No ahorra el bucle --el resto se obtiene arrastrandolo limbo a
+        ///       limbo, asi que hay que recorrerlos todos igual--, pero si ahorra
+        ///       las N escrituras del cociente y deja al compilador tirar los
+        ///       calculos que solo servian para el.
+        template <std::uint64_t D, std::size_t N>
+        [[nodiscard]] constexpr std::uint64_t
+        mod_por_constante(const std::array<std::uint64_t, N> &a) noexcept
+        {
+            std::array<std::uint64_t, N> tirar{};
+            return div_por_constante<D, N>(a, tirar);
+        }
+
+        // =====================================================================
         // 3. Knuth D, el caso general
         // =====================================================================
 

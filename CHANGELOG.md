@@ -1,3 +1,78 @@
+## [sin publicar] - 2026-09-18 - Divisor constante: P1.5 tramo 2e
+
+`div<D>()`, `mod<D>()` y `divmod_const<D>()` en `fixed_int_t`. **8,13x en N=2**, y
+nunca pierde.
+
+### No hubo que portar Granlund-Montgomery
+
+El inventario de ADR-006 pedia portar `int128_param_divmod.hpp`, y NEXT_STEPS
+avisaba de que «generalizar Granlund-Montgomery a N limbos es trabajo real, no un
+alias». Resulto que no hacia falta ninguna de las dos cosas.
+
+`div_un_limbo` hace tres cosas antes del bucle --normalizar el divisor,
+desplazarlo y calcular su reciproco, que cuesta un `divq`-- y luego una pasada de
+`div_2por1_preinv` por limbo. **Con `D` constante de plantilla las tres primeras
+son constantes**, y `normalizacion` e `inverso_2por1` ya eran `constexpr`. El
+algoritmo nuevo es el mismo bucle con el preambulo resuelto en compilacion.
+
+### Lo medido
+
+`div<D>()` contra `operator/` con el mismo divisor, entrelazadas, 20 repeticiones:
+
+    N          1     2     3     4     8    16    32    64   128
+    operator/ 20   120   124   138   209   329   584  1047  2156
+    div<D>()   7    15    22    45   109   237   532   985  2091
+    razon    3,03  8,13  5,73  3,07  1,92  1,39  1,10  1,06  1,03
+
+Y con N=4, moviendo el divisor: 3,13x (D=3), 3,07x (D=7), 3,18x (D=1e9+7), 5,29x
+(D=1e19), 6,98x (D=2^63), 3,74x (D=2^64-1). **Nunca pierde.**
+
+La ganancia esta en N pequena y se agota hacia N=32: el preambulo es coste fijo y
+el bucle crece con N. Mismo patron que `NSTD_MG_3POR2_MIN`.
+
+### Dos afirmaciones del proyecto, desmentidas
+
+`PERFORMANCE.md` traia una tabla del 9 sep 2026 que decia:
+
+> «El truco solo paga con divisores grandes. Con divisores pequenos es mas lento…
+> el 10^19 no cabe en 64 bits y ahi si entra Knuth D.»
+
+Las dos mitades estaban mal:
+
+1. **`10^19` SI cabe en 64 bits**: `10^19 = 1,00e19` y `2^64 = 1,84e19`. Nunca
+   entro Knuth D por ahi, asi que la explicacion del 5,65x no era la buena.
+2. **El eje era el equivocado**: se midio el tamano del DIVISOR con N fijo en 2.
+   Lo que manda es N, porque lo que se ahorra es un coste fijo por llamada contra
+   un bucle que crece.
+
+Y ademas su rival habia cambiado dos veces desde entonces (Moller-Granlund 2/1 y
+el `divq` en linea). **Un umbral es relativo a su rival.**
+
+### Un «techo» que era el suelo
+
+La primera medida pasaba `s`, `dn` y `v` como parametros de EJECUCION y daba
+2,12x-3,63x; se llamo «el techo de lo que `div<D>` puede ganar». Era al reves:
+con `D` constante de plantilla son constantes de COMPILACION, y el compilador
+especializa el desplazamiento y la multiplicacion por el reciproco. El 3,63x de
+N=2 acabo siendo **8,13x**.
+
+### Anadido
+
+- `algorithms/div_kernels.hpp`: `div_por_constante<D, N>` y `mod_por_constante<D, N>`.
+- `fixed_int_t::div<D>()`, `mod<D>()` y `divmod_const<D>()`, `constexpr` y
+  restringidas a tipos sin signo --con signo hay que decidir el redondeo y eso no
+  esta decidido--. **`D == 0` se rechaza en compilacion**, que es justo lo que se
+  gana al tenerlo como parametro.
+- `tests/test_fixed_div_const.cpp`: **2 760 casos** cruzados contra `/` y `%`
+  --esquinas del dividendo, diez divisores con y sin bit alto, y aleatorios-- mas
+  `static_assert` de que vale en evaluacion constante.
+- `benchs/benchmark_div_const_fixed.cpp`, que cruza los DOS ejes.
+- Dos capacidades mas en la matriz de paridad: **182 celdas -> 190**.
+
+Verificado: **63/63 en las cinco configuraciones**, 34/34 cabeceras aisladas,
+190/190 celdas, 9/9 en el armonizador con --doxygen (**sin subir el techo de
+avisos**), 63 ficheros sin romper la precondicion, clang-format limpio.
+
 ## [sin publicar] - 2026-09-18 - Acceso atomico: P1.5 tramo 2d
 
 `include/fixed_int_atomic.hpp` sustituye a `atomic_int128_param_t`. No es una
