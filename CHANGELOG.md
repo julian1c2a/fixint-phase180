@@ -1,3 +1,100 @@
+## [sin publicar] - 2026-09-18 - Acceso atomico: P1.5 tramo 2d
+
+`include/fixed_int_atomic.hpp` sustituye a `atomic_int128_param_t`. No es una
+copia del viejo con otro nombre: el tipo nuevo permite cosas que el viejo no.
+
+### Lo que el viejo hacia, y por que ya no vale
+
+`atomic_int128_param_t` usaba **un mutex siempre** y declaraba
+`is_always_lock_free() == false` fijo. Para un tipo de 128 bits escrito a mano
+eso era honesto. Con `fixed_int_t` deja de serlo: es **trivialmente copiable en
+las cuatro combinaciones** y `fixed_int_t<1, ..., wrap>` mide 8 bytes, lo mismo
+que un `std::uint64_t`. Cobrarle un mutex a eso es tirar rendimiento.
+
+Tambien hacia `(void)order;` en cada operacion: el `memory_order` se aceptaba y
+se descartaba. Aqui se respeta.
+
+### La condicion para ir sin bloqueo NO es el tamano
+
+La tentacion es «si cabe en 16 bytes, `std::atomic` y listo». Es falso, y falla
+justo donde mas duele: **en el enlazado**. Compilando SIN `-latomic`:
+
+    gcc,   <1,checked> 16B ... NO ENLAZA: __atomic_load_16
+    gcc,   <2,wrap>    16B ... NO ENLAZA: __atomic_compare_exchange_16
+    gcc,   <4,wrap>    32B ... NO ENLAZA: __atomic_load
+    clang, los mismos      ... enlaza (libc++ lleva su propia tabla)
+
+`std::atomic<T>` de gcc llama a libatomic en cuanto T pasa de 8 bytes. Esta
+biblioteca es de solo cabeceras y no exige enlazar nada: adquirir esa dependencia
+sin darse cuenta seria romper su contrato, y el error saldria en el enlazador del
+USUARIO.
+
+Lo que si se cumple en todos es la implicacion que hace falta:
+
+    is_always_lock_free == true  ==>  enlaza sin libatomic
+
+Y por eso **esa, y no el tamano, es la condicion**: `std::atomic<value_type>`
+cuando lo garantiza, mutex propio cuando no. Fiarse de que clang enlaza los casos
+con bloqueo habria colado un fallo que solo aparece en gcc.
+
+**Y la tabla depende de las BANDERAS, no solo del compilador**: con `-march=native`
+clang pasa a decir que si en las dos filas de 16 bytes. Por eso el codigo no
+tabula ningun tamano: **pregunta**, y se adapta solo a como compile el usuario.
+
+Con las banderas del proyecto, `is_always_lock_free` en los cuatro compiladores:
+
+    tipo                  bytes   gcc   clang   intel   msvc
+    <1,u,binnat,wrap>       8     SI    SI      SI      SI
+    <1,s,c2,wrap>           8     SI    SI      SI      SI
+    <1,u,binnat,checked>   16     no    no      no      no
+    <2,u,binnat,wrap>      16     no    no      no      no
+
+### El relleno no rompe el CAS, y se comprobo
+
+`fixed_int_t<1, ..., checked>` mide 16 bytes: 8 de limbo, 1 de marca y **7 de
+relleno**. `compare_exchange` compara la representacion de objeto, asi que con
+relleno indeterminado un bucle CAS podria no terminar nunca.
+
+C++20 (P0528) dice que el relleno no participa. Un cuelgue no se arregla citando
+el estandar, asi que se midio: cuatro hilos, 50 000 `fetch_add` por CAS cada uno.
+**Todos terminan y suman bien**, con 1,0 a 2,7 reintentos por exito, el mismo
+orden que los tipos sin relleno.
+
+### Un test que pasaba por suerte
+
+El caso concurrente de «sumas y restas vuelven a cero» **fallaba en clang y
+pasaba en gcc**, y la diferencia no era el CAS: con `checked`, una resta que
+cruza el cero es un desbordamiento legitimo y deja la marca, que es pegajosa. Que
+el test pasara dependia de si el entrelazado bajaba de cero o no.
+
+Se diagnostico antes de tocar nada --el mismo calculo sin atomico da lo mismo--,
+se hizo determinista arrancando de un valor alto, y **se anadio el test positivo
+que faltaba**: que la marca de `checked` viaja a traves del atomico y sigue
+siendo pegajosa. Un test que pasa por suerte es peor que uno que falla.
+
+### Y el reemplazo corre donde el viejo no
+
+`test_param_thread_safety` lleva una excepcion: no se ejecuta en MSVC ni Intel.
+**`test_fixed_atomic` no la necesita**: 8/8, cuatro compiladores por dos modos.
+
+### Anadido
+
+- `include/fixed_int_atomic.hpp`: `atomic_fixed_int_t<N, Sign, Form, Policy>` con
+  load/store/exchange/CAS, `fetch_add|sub|and|or|xor`, los operadores compuestos
+  y las funciones libres al estilo de `<atomic>`. Mas los alias
+  `atomic_uint64_fixed_t`, `atomic_int64_fixed_t`, `atomic_uint128_fixed_t` y
+  `atomic_int128_fixed_t`.
+- `fixed_int_t::num_limbs`. **Faltaba**: el tipo publicaba `sign`, `form` y
+  `policy` «para codigo generico sin repetir la lista de parametros» y se dejaba
+  fuera el primero de los cuatro, que es justo el que hace falta para
+  reconstruir el tipo. Lo destapo el envoltorio atomico al necesitar los cuatro.
+- `tests/test_fixed_atomic.cpp`: 219 comprobaciones.
+- Tres capacidades nuevas en la matriz de paridad: **170 celdas -> 182**.
+
+Verificado: 62/62 en las cinco configuraciones, 34/34 cabeceras aisladas,
+182/182 celdas de la matriz, 9/9 en el armonizador con --doxygen, clang-format
+limpio.
+
 ## [sin publicar] - 2026-09-18 - Moller-Granlund 3/2: la estimacion de q^
 
 Segunda mitad de P2.10, y con ella **P2.10 queda cerrada**. El paso D3 de Knuth

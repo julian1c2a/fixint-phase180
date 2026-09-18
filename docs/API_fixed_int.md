@@ -704,6 +704,75 @@ Lo que hoy **no** vale para las cuatro:
 
 ---
 
+## Acceso atómico: `atomic_fixed_int_t` (P1.5 tramo 2d)
+
+```cpp
+#include "fixed_int_atomic.hpp"
+
+nstd::atomic_uint64_fixed_t contador{nstd::uint64_fixed_t{0}};
+contador.fetch_add(nstd::uint64_fixed_t{1}, std::memory_order_relaxed);
+```
+
+`atomic_fixed_int_t<N, Sign, Form, Policy>` da `load`, `store`, `exchange`,
+`compare_exchange_strong/weak`, `fetch_add|sub|and|or|xor`, los operadores
+compuestos y las funciones libres al estilo de `<atomic>`. No es copiable ni
+movible, como `std::atomic`.
+
+Alias: `atomic_uint64_fixed_t`, `atomic_int64_fixed_t`, `atomic_uint128_fixed_t`,
+`atomic_int128_fixed_t`.
+
+### Va sin bloqueo cuando puede, y lo dice
+
+| miembro | qué es |
+|---|---|
+| `sin_bloqueo` / `is_always_lock_free` | `constexpr`: si **todas** las instancias van sin bloqueo |
+| `is_lock_free()` | si **ésta** lo hace |
+
+**No es un `return false` fijo.** Con las banderas del proyecto,
+`fixed_int_t<1, …, wrap>` —8 bytes, como un `std::uint64_t`— va **sin bloqueo en
+los cuatro compiladores**; de 16 bytes en adelante usa un mutex interno. Con
+`-march=native`, clang sube el listón a 16 bytes.
+
+Por eso **no se debe suponer**: se pregunta. Y como es `constexpr`, el código de
+usuario puede exigirlo:
+
+```cpp
+static_assert(nstd::atomic_uint64_fixed_t::is_always_lock_free,
+              "este contador tiene que ir sin bloqueo en esta plataforma");
+```
+
+### Nunca hace falta `-latomic`
+
+Ésa es exactamente la condición que decide si se usa `std::atomic<value_type>` o
+un mutex propio: **`is_always_lock_free`**, no el tamaño. En gcc,
+`std::atomic<T>` de más de 8 bytes llama a `libatomic`, y esta biblioteca es de
+sólo cabeceras y no exige enlazar nada. Al preguntar en vez de tabular, la
+elección se adapta sola a las banderas del usuario.
+
+### La política sigue valiendo dentro
+
+Las operaciones de lectura-modificación-escritura usan un **bucle CAS** que
+calcula con la aritmética normal del tipo, así que **respetan su política**. Con
+`checked`, una operación que desborda deja la marca dentro del valor y se publica
+con él, y la marca sigue siendo pegajosa:
+
+```cpp
+nstd::atomic_fixed_int_t<1, nstd::signedness::unsigned_type,
+                         nstd::representation_form::binnat,
+                         nstd::overflow_policy::checked> a{/* 0 */};
+a.fetch_sub(/* 3 */);       // 0 - 3 sin signo: desborda
+a.load().valid();           // false, y sumar 3 no lo limpia
+```
+
+### `num_limbs`
+
+`fixed_int_t` publica ahora sus **cuatro** parámetros —`num_limbs`, `sign`,
+`form`, `policy`— y no tres. Faltaba justo el primero, que es el que hace falta
+para reconstruir el tipo desde código genérico. Se llama `num_limbs` y no
+`limbs` porque `limbs()` ya es el descriptor que devuelve el array.
+
+---
+
 ## Related Headers
 
 | Header | Provides |

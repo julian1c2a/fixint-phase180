@@ -267,6 +267,27 @@ CAPACIDADES = [
     # --- la marca ----------------------------------------------------------
     dict(grupo="Politica", nombre="valid()", espera=TODAS,
          cuerpo="(void)T{std::uint64_t{1}}.valid();"),
+
+    # --- acceso atomico (P1.5 tramo 2d) ------------------------------------
+    #
+    # Se prueba con `T` dentro para que la celda falle si alguna combinacion de
+    # signo y politica dejara de ser trivialmente copiable: `std::atomic<T>` lo
+    # exige, y sin el la clase no compila en ESA celda y solo en esa.
+    dict(grupo="Atomico", nombre="atomic_fixed_int_t (load/store)", espera=TODAS,
+         incluye=['#include "fixed_int_atomic.hpp"'],
+         cuerpo="nstd::atomic_fixed_int_t<T::num_limbs, T::sign, T::form, T::policy> a{T{std::uint64_t{7}}};\n"
+                "    a.store(T{std::uint64_t{9}}); (void)a.load();"),
+    dict(grupo="Atomico", nombre="atomic fetch_add / CAS", espera=TODAS,
+         incluye=['#include "fixed_int_atomic.hpp"'],
+         cuerpo="nstd::atomic_fixed_int_t<T::num_limbs, T::sign, T::form, T::policy> a{T{std::uint64_t{7}}};\n"
+                "    (void)a.fetch_add(T{std::uint64_t{1}});\n"
+                "    T esp{std::uint64_t{8}};\n"
+                "    (void)a.compare_exchange_strong(esp, T{std::uint64_t{3}});"),
+    dict(grupo="Atomico", nombre="is_lock_free / sin_bloqueo", espera=TODAS,
+         incluye=['#include "fixed_int_atomic.hpp"'],
+         cuerpo="using A = nstd::atomic_fixed_int_t<T::num_limbs, T::sign, T::form, T::policy>;\n"
+                "    static_assert(A::is_always_lock_free == A::sin_bloqueo);\n"
+                "    const A a{T{std::uint64_t{0}}}; (void)a.is_lock_free();"),
 ]
 
 

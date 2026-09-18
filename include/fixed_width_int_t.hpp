@@ -515,6 +515,19 @@ namespace nstd
         friend class fixed_int_t;
 
     public:
+        /// @brief Numero de limbos de 64 bits. Copia del parametro `N`.
+        ///
+        /// Faltaba: el tipo publicaba `sign`, `form` y `policy` «para codigo
+        /// generico sin repetir la lista de parametros» y se dejaba fuera el
+        /// primero de los cuatro, que es justo el que hace falta para
+        /// reconstruir el tipo. Lo destapo `atomic_fixed_int_t`, que necesita
+        /// los cuatro para envolverlo (P1.5 tramo 2d).
+        ///
+        /// @note Se llama `num_limbs` y no `limbs` porque `limbs()` ya es el
+        ///       descriptor que devuelve el array. Son cosas distintas y el
+        ///       compilador no deja que compartan nombre.
+        static constexpr std::size_t num_limbs{N};
+
         /// @brief Si el tipo tiene signo. Copia del parametro `Sign`, consultable
         ///        desde codigo generico sin repetir la lista de parametros.
         static constexpr signedness sign{Sign};
