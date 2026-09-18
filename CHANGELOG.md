@@ -1,3 +1,63 @@
+## [sin publicar] - 2026-09-18 - P1.5 tramo 3, primera pieza: las conversiones por N
+
+Magnitud-Signo y Exceso-K **son codificaciones, no aritmeticas**. Sumar dos
+numeros en MS no se hace «sumando en MS»: se decodifica a complemento a dos, se
+suma con el codigo que ya existe, y se recodifica. Es lo que hace
+`int128_param_t`, y es lo que evita duplicar los **41 puntos** de `fixed_int_t`
+que hoy deciden por el signo.
+
+Asi que la pieza sobre la que se apoya todo el tramo son las conversiones, y
+estaban **fijadas a 128 bits** porque nacieron para el tipo viejo
+(`ms128_to_twos_complement` y companeras). Ahora existen para cualquier N.
+
+### El sesgo de Exceso-K de `int128_param_t` esta mal, y se comprobo
+
+`representation_traits<excess_k>::default_bias_high` vale `1ULL << 62`, o sea un
+sesgo de **2^126** para 128 bits. Con ese valor el rango **ni siquiera llega a
+-2^127**:
+
+    sesgo 2^126 -> [-2^126, 3*2^126 - 1]   asimetrico, no cubre int128
+    sesgo 2^127 -> [-2^127,   2^127 - 1]   exactamente el rango de int128
+
+`fixed_int_t` usa **2^(64N-1)**, que es el canonico y el unico que hace de
+Exceso-K una biyeccion con el rango con signo de la misma anchura. El 2^126 de
+`int128_param_t` se queda: ese tipo se retira por ADR-006 y cambiarselo ahora
+romperia su propia paridad sin ganar nada.
+
+Con el sesgo canonico, Exceso-K es **el complemento a dos con el bit alto
+invertido** --la identidad conocida con «offset binary»--, asi que la ida y la
+vuelta son la MISMA funcion. Por eso hay una sola.
+
+### Las dos asimetrias, apretadas a proposito
+
+Un test de ida y vuelta con valores comodos no ve ninguna de las dos:
+
+1. **MS tiene dos ceros** (`+0` y `-0`) y complemento a dos uno. La ida no es
+   inyectiva, asi que la vuelta no puede devolver siempre el mismo patron.
+2. **El minimo de complemento a dos no existe en MS**: su magnitud es `2^(64N-1)`
+   y pisaria el bit de signo. `c2_a_ms` **satura** a `-(2^(64N-1) - 1)`, y eso
+   pierde informacion. Queda escrito en el `@warning` y comprobado en el test,
+   incluido que al volver **no** da el minimo.
+
+### Anadido
+
+- `nstd::repr` en `representation.hpp`: `bit_de_signo`, `niega_c2`, `ms_a_c2`,
+  `c2_a_ms`, `c2_ek_ida_y_vuelta`, y los despachadores `a_c2<Form>` /
+  `desde_c2<Form>`. Todo `constexpr`.
+- `tests/test_repr_conversions.cpp`: **2 894 comprobaciones** en N = 1, 2, 3, 4 y
+  8 --esquinas a mano mas aleatorios--, con las dos asimetrias como casos
+  propios y `static_assert` de que valen en evaluacion constante.
+
+### Lo que queda del tramo 3
+
+Conectarlo a `fixed_int_t`: relajar el `static_assert` que hoy solo admite
+`binnat` y `twos_complement`, y hacer que la aritmetica decodifique y recodifique.
+Son los 41 puntos citados arriba, y es un cambio que hay que verificar entero en
+los cinco compiladores antes de darlo por bueno.
+
+Verificado: 64/64 en las cinco configuraciones, 34/34 cabeceras aisladas, 190/190
+celdas, 9/9 en el armonizador con --doxygen, clang-format limpio.
+
 ## [sin publicar] - 2026-09-18 - Divisor constante: P1.5 tramo 2e
 
 `div<D>()`, `mod<D>()` y `divmod_const<D>()` en `fixed_int_t`. **8,13x en N=2**, y

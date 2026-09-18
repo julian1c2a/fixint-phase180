@@ -24,6 +24,8 @@
 #ifndef INT128_REPRESENTATION_HPP
 #define INT128_REPRESENTATION_HPP
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
@@ -397,6 +399,148 @@ namespace nstd
         excess_k128_to_twos_complement(ek_high, ek_low, tc_high, tc_low);
         twos_complement128_to_ms(tc_high, tc_low, ms_high, ms_low);
     }
+
+    // =========================================================================
+    // Las mismas conversiones, pero para N limbos (P1.5 tramo 3)
+    // =========================================================================
+    //
+    // Las de arriba estan fijadas a 128 bits porque nacieron para
+    // `int128_param_t`. `fixed_int_t<N, ...>` necesita las mismas para cualquier
+    // N, y son la pieza sobre la que se apoya el porte de Magnitud-Signo y
+    // Exceso-K (ADR-006).
+    //
+    // POR QUE ESTO BASTA, Y NO HACE FALTA ARITMETICA NUEVA
+    // ----------------------------------------------------
+    // Magnitud-Signo y Exceso-K son **codificaciones**, no aritmeticas. Sumar dos
+    // numeros en MS no se hace «sumando en MS»: se decodifica a complemento a
+    // dos, se suma con el codigo que ya existe, y se recodifica. Es exactamente
+    // lo que hace `int128_param_t`, y es lo que evita duplicar los 41 puntos del
+    // tipo que hoy deciden por el signo.
+    //
+    // EL SESGO DE EXCESO-K: 2^(64N-1), Y NO EL DE `int128_param_t`
+    // ------------------------------------------------------------
+    // `representation_traits<excess_k>::default_bias_high` vale `1ULL << 62`, o
+    // sea un sesgo de **2^126** para 128 bits. Comprobado el 18 sep 2026, ese
+    // valor da un rango asimetrico que **ni siquiera llega a -2^127**:
+    //
+    //     sesgo 2^126 -> [-2^126, 3*2^126 - 1]   asimetrico, no cubre int128
+    //     sesgo 2^127 -> [-2^127,   2^127 - 1]   exactamente el rango de int128
+    //
+    // Aqui se usa **2^(64N-1)**, que es el canonico y el unico que hace de
+    // Exceso-K una biyeccion con el rango con signo de la misma anchura. El 2^126
+    // de `int128_param_t` se queda como esta: ese tipo se retira por ADR-006 y
+    // cambiarselo ahora romperia su propia paridad sin ganar nada.
+    //
+    // Con ese sesgo, Exceso-K es **el complemento a dos con el bit alto
+    // invertido**, que es la identidad conocida entre complemento a dos y
+    // «offset binary». De ahi que las dos conversiones sean la misma funcion.
+
+    namespace repr
+    {
+        /// @brief `true` si el limbo alto tiene su bit mas significativo a uno.
+        template <std::size_t N>
+        [[nodiscard]] constexpr bool bit_de_signo(const std::array<std::uint64_t, N> &x) noexcept
+        {
+            return (x[N - 1] >> 63) != 0;
+        }
+
+        /// @brief Niega en complemento a dos, en su sitio: invertir y sumar uno.
+        template <std::size_t N>
+        constexpr void niega_c2(std::array<std::uint64_t, N> &x) noexcept
+        {
+            std::uint64_t acarreo = 1;
+            for (std::size_t i = 0; i < N; ++i)
+            {
+                const std::uint64_t inv = ~x[i];
+                x[i] = inv + acarreo;
+                acarreo = (x[i] < acarreo) ? 1U : 0U;
+            }
+        }
+
+        /// @brief Magnitud-Signo -> complemento a dos.
+        ///
+        /// En MS el bit alto es el signo y el resto es la **magnitud**, que es un
+        /// natural. Si el signo esta puesto, se quita y se niega.
+        ///
+        /// @note `-0` y `+0` son valores distintos en MS y los dos van a cero en
+        ///       complemento a dos. **La conversion no es inyectiva**, y por eso
+        ///       la vuelta no devuelve siempre el mismo patron de bits: ver
+        ///       `c2_a_ms`.
+        template <std::size_t N>
+        constexpr void ms_a_c2(std::array<std::uint64_t, N> &x) noexcept
+        {
+            const bool negativo = bit_de_signo<N>(x);
+            x[N - 1] &= ~(std::uint64_t{1} << 63); // quitar el bit de signo
+            if (negativo)
+                niega_c2<N>(x);
+        }
+
+        /// @brief Complemento a dos -> Magnitud-Signo.
+        ///
+        /// @warning El minimo de complemento a dos --`-2^(64N-1)`-- **no tiene
+        ///          representacion en Magnitud-Signo**: su magnitud es `2^(64N-1)`
+        ///          y no cabe junto al bit de signo. Aqui se satura al mas
+        ///          negativo representable, que es `-(2^(64N-1) - 1)`. Es la
+        ///          asimetria clasica, y es informacion que se pierde: quien
+        ///          convierta de ida y vuelta por complemento a dos tiene que
+        ///          saberlo.
+        template <std::size_t N>
+        constexpr void c2_a_ms(std::array<std::uint64_t, N> &x) noexcept
+        {
+            if (!bit_de_signo<N>(x))
+                return; // positivo: los dos lo escriben igual
+
+            // ¿Es el minimo? En complemento a dos es el unico negativo cuyo
+            // negado es el mismo.
+            bool es_el_minimo = (x[N - 1] == (std::uint64_t{1} << 63));
+            for (std::size_t i = 0; i + 1 < N && es_el_minimo; ++i)
+                es_el_minimo = (x[i] == 0);
+
+            niega_c2<N>(x); // ahora x es la magnitud
+            if (es_el_minimo)
+            {
+                // Saturar: la magnitud seria 2^(64N-1), que pisa el bit de signo.
+                for (std::size_t i = 0; i + 1 < N; ++i)
+                    x[i] = ~std::uint64_t{0};
+                x[N - 1] = (std::uint64_t{1} << 63) - 1;
+            }
+            x[N - 1] |= (std::uint64_t{1} << 63); // poner el signo
+        }
+
+        /// @brief Complemento a dos <-> Exceso-K, con sesgo `2^(64N-1)`.
+        ///
+        /// Con ese sesgo la operacion es **invertir el bit alto**, en los dos
+        /// sentidos: es la identidad entre complemento a dos y «offset binary».
+        /// Por eso hay una sola funcion y no dos.
+        template <std::size_t N>
+        constexpr void c2_ek_ida_y_vuelta(std::array<std::uint64_t, N> &x) noexcept
+        {
+            x[N - 1] ^= (std::uint64_t{1} << 63);
+        }
+
+        /// @brief Lleva `x` de la representacion `Desde` a complemento a dos.
+        template <representation_form Desde, std::size_t N>
+        constexpr void a_c2(std::array<std::uint64_t, N> &x) noexcept
+        {
+            if constexpr (Desde == representation_form::magnitude_sign)
+                ms_a_c2<N>(x);
+            else if constexpr (Desde == representation_form::excess_k)
+                c2_ek_ida_y_vuelta<N>(x);
+            // binnat y twos_complement ya estan en el formato que usa la
+            // aritmetica: no se toca nada.
+        }
+
+        /// @brief Lleva `x` de complemento a dos a la representacion `Hacia`.
+        template <representation_form Hacia, std::size_t N>
+        constexpr void desde_c2(std::array<std::uint64_t, N> &x) noexcept
+        {
+            if constexpr (Hacia == representation_form::magnitude_sign)
+                c2_a_ms<N>(x);
+            else if constexpr (Hacia == representation_form::excess_k)
+                c2_ek_ida_y_vuelta<N>(x);
+        }
+
+    } // namespace repr
 
 } // namespace nstd
 
