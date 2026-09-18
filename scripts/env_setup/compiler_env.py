@@ -188,7 +188,46 @@ _intel_env_cache = None
 
 
 def _capture_env_from_bat(bat_path: str, args: str = "") -> dict:
-    """Run a .bat file via cmd.exe and capture the resulting environment variables."""
+    """Run a .bat file via cmd.exe and capture the resulting environment variables.
+
+    SYSTEM32 VA PRIMERO, Y NO ES UN DETALLE
+    ---------------------------------------
+    `vcvarsall.bat` llama a `VsDevCmd.bat`, que usa `find.exe` y `findstr.exe`
+    --los de Windows-- para leer el registro y localizar el Windows SDK.
+
+    MSYS2 trae su PROPIO `find.exe`, el de GNU, que no entiende `find /i "..."`.
+    Y la configuracion documentada de este proyecto pone MSYS2 en el PATH, POR
+    DELANTE de System32. Resultado: `VsDevCmd` se encuentra el `find` equivocado,
+    no consigue leer el registro, y monta un entorno **sin el Windows SDK**.
+
+    El sintoma no se parece en nada a la causa. Lo que se ve es:
+
+        yvals.h(22): fatal error C1083: no se puede abrir 'crtdbg.h'
+
+    en los 61 ficheros, con MSVC y con Intel --que en Windows usa las cabeceras
+    de Microsoft--. Invita a pensar que falta el SDK, y el SDK esta instalado y
+    completo: diagnosticado el 18 sep 2026 tras comprobar que las cuatro
+    versiones de `Windows Kits\\10\\Include` tienen `ucrt`, `shared`, `um` y
+    `winrt`, y que la clave `KitsRoot10` del registro apunta bien.
+
+    Anteponer System32 **solo para esta llamada** quita la causa. Verificado:
+    con el PATH tal cual, `INCLUDE` sale con 3 entradas y ninguna del SDK; con
+    System32 delante, sale con 9 y el SDK entero.
+
+    @note Se antepone en el PATH que hereda `cmd.exe`, no en el del proceso: el
+          entorno que devuelve esta funcion lo construye `vcvarsall` y no lo
+          toca esta linea.
+    """
+    entorno = os.environ.copy()
+    if os.name == "nt":
+        sysroot = os.environ.get("SystemRoot", r"C:\Windows")
+        delante = os.pathsep.join([
+            os.path.join(sysroot, "System32"),
+            sysroot,
+            os.path.join(sysroot, "System32", "Wbem"),
+        ])
+        entorno["PATH"] = delante + os.pathsep + entorno.get("PATH", "")
+
     cmd = f'cmd.exe /c ""{bat_path}" {args} >nul 2>&1 && set"'
     try:
         result = subprocess.run(
@@ -196,7 +235,8 @@ def _capture_env_from_bat(bat_path: str, args: str = "") -> dict:
             shell=True,
             capture_output=True,
             text=True,
-            timeout=60
+            timeout=60,
+            env=entorno
         )
         if result.returncode != 0:
             return {}
