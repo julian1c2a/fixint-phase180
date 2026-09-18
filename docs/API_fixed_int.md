@@ -558,9 +558,21 @@ En la práctica: **dividir por un número «grande» de anchura parecida al divi
 es barato; dividir por uno de la mitad de ancho es lo caro.** Las cifras, en
 [PERFORMANCE.md](PERFORMANCE.md).
 
+**Dividir por un número que cabe en un limbo es el caso barato, y desde el 18 sep
+2026 lo es mucho más**: usa Möller–Granlund con un inverso precalculado en vez de
+la división por hardware, y el coste **cae de ~84 a ~17 ciclos por limbo** —hasta
+**4,97×**—. No se aplica por debajo de tres limbos: calcular el inverso cuesta
+una división, y con uno o dos no se amortiza.
+
 | macro | por defecto | qué hace |
 |---|---|---|
+| `NSTD_MG_2POR1_MIN` | 3 | anchura desde la que la división por un limbo usa Möller–Granlund |
 | `NSTD_DIV_COMPRUEBA_PRECONDICIONES` | apagada | comprueba en cada llamada las precondiciones internas de la división y aborta nombrando la que se rompa |
+
+**`NSTD_MG_2POR1_MIN` no es cosmética.** Bajarla a 1 hace la división de
+`uint64_fixed_t` **más de cuatro veces más lenta**, porque paga dos divisiones de
+hardware donde basta una. La tabla completa, con las dos casillas perdedoras,
+está en su bloque `@def` y en [PERFORMANCE.md](PERFORMANCE.md).
 
 La macro **no es para producción**: cuesta una comparación por división. Existe
 porque en x86-64 la división de 128/64 usa una instrucción `divq`, que exige que

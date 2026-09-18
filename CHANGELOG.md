@@ -1,3 +1,60 @@
+## [sin publicar] - 2026-09-18 - Moller-Granlund 2/1: dividir sin dividir
+
+Primera mitad de P2.10. La division por divisor de un limbo deja de usar `divq` y
+usa **dos multiplicaciones con un inverso precalculado** (Moller & Granlund,
+*Improved division by invariant integers*, 2011).
+
+**El coste por limbo cae de ~84 a ~17 ciclos**, hasta **4,97x** en N=128 y 256.
+Lo que gana no es «menos operaciones» sino **menos latencia**: la cadena de
+`div_un_limbo` es serial --cada division espera al resto de la anterior-- y una
+multiplicacion tiene ~3-5 ciclos frente a los ~85 de una division.
+
+### El umbral es el hallazgo, no el 5x
+
+El primer barrido empezaba en N=4 y daba de 1,90x a 5,05x, sin una sola casilla
+mala. **Integrarlo asi habria metido una regresion de mas de 4x en
+`uint64_fixed_t`**:
+
+    N=1   0,23x      N=2   0,91x      N=3   1,43x      N=4   2,07x
+
+La causa esta en el codigo: **calcular el inverso cuesta un `divq`**, y con uno o
+dos limbos esa division extra no se amortiza. En N=1 se pagan literalmente dos
+divisiones donde bastaba una. De ahi `NSTD_MG_2POR1_MIN = 3`, con la tabla entera
+--incluidas las casillas perdedoras-- en su `@def`.
+
+Es el error del acantilado otra vez: alli fue mirar solo potencias de dos, aqui
+empezar en N=4. **Cuando un barrido sale perfecto, sospechar de donde empieza.**
+
+### Lo que no se ve en las cifras pero esta contado
+
+La normalizacion. MG exige el divisor con el bit alto a uno; si no lo esta hay
+que desplazarlo **y arrastrar el dividendo entero**, limbo a limbo, y desplazar
+el resto de vuelta. Esta dentro de lo medido: medir la operacion suelta habria
+dado un numero mejor y falso.
+
+Y un llamante nuevo de `div_128_64_hi_menor_que_d` --el inverso es
+`(~d : ~0) / d`-- cuya precondicion se cumple por construccion: con `d`
+normalizado, `~d < d`. Comprobado, no solo razonado: los 61 ficheros con
+`NSTD_DIV_COMPRUEBA_PRECONDICIONES` y ninguno la rompe.
+
+**Todo es `constexpr`**: a diferencia de `mul_wide` y `checked_mul`, aqui no hace
+falta despachar con `is_constant_evaluated`.
+
+### Dos afirmaciones falsas mas, corregidas
+
+- La de `__udivti3` **seguia viva** en `fixed_width_int_t.hpp`: la correccion del
+  17 sep toco la copia de `div_kernels.hpp` y esta se quedo.
+- El bloque que describe el reparto de `operator*` tenia **tres falsedades en
+  cinco lineas**: umbrales «por defecto 4 y 8» cuando son 22 y 4096, una llamada
+  a `kmul_full<N/2>` que esta borrada, y un «fallback escolar» que ya no existe en
+  ninguna banda.
+
+Salieron de buscar **verbos de hecho** en los comentarios --«emite», «cuesta»,
+«por defecto», ratios con `x`-- y contrastarlos uno a uno. Las afirmaciones
+peligrosas no son las opiniones: son las que suenan a dato.
+
+---
+
 ## [sin publicar] - 2026-09-18 - Trabajo que se hacia dos veces: `mul_wide` y `checked_mul`
 
 Cierra P2.12 y P2.15. **Ninguna de las dos mejoras anade un algoritmo**: las dos

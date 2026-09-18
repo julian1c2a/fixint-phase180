@@ -20,10 +20,11 @@ cuestiones abiertas**: se está escribiendo. De P1 van cerradas P1.1 a P1.4 y
 ([ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md)) van
 **5 filas de 11**, y dos más esperan una decisión escrita, no trabajo.
 
-**El frente de la división está abierto** (17 sep 2026): Knuth D vive ya en su
-propia capa medible, con la estimación del dígito del cociente como perilla, y la
-división por divisores cortos gana **1,28×–1,39×**. Quedan Möller–Granlund y
-Burnikel–Ziegler.
+**El frente de la división está abierto**: Knuth D vive ya en su propia capa
+medible, con la estimación del dígito del cociente como perilla. La división por
+un divisor de un limbo usa **Möller–Granlund 2/1** desde el 18 sep y su coste por
+limbo cae de **~84 a ~17 ciclos** (hasta 4,97×). Quedan la **3/2** para la
+estimación de q̂ dentro de Knuth D, y Burnikel–Ziegler.
 
 **Y el 18 sep se recogieron dos ganancias que no eran algoritmos**: `mul_wide`
 ensanchaba antes de multiplicar (**2,3×–2,8×**) y `checked_mul` multiplicaba dos

@@ -997,6 +997,79 @@ tres salieron de comprobar lo que el código decía de sí mismo.
 
 ---
 
+## Möller–Granlund 2/1: dividir sin dividir (18 sep 2026)
+
+Primera mitad de P2.10. La división por divisor de un limbo deja de usar `divq` y
+usa **dos multiplicaciones con un inverso precalculado** (Möller & Granlund,
+*Improved division by invariant integers*, 2011, algoritmos 1 y 4).
+
+**Lo que gana no es «menos operaciones», es menos latencia.** La línea base decía
+que `div_un_limbo` costaba ~84 ciclos **por limbo**, y que casi todo era la
+latencia del `divq`: la cadena es **serial** —cada división espera al resto de la
+anterior— así que no hay nada que solapar. Una multiplicación tiene ~3–5 ciclos
+de latencia; una división, ~85.
+
+Las dos variantes entrelazadas, 20 repeticiones, con **la normalización y el
+cálculo del inverso contados dentro**:
+
+| N | `divq` | por limbo | MG | por limbo | razón |
+|---:|---:|---:|---:|---:|---:|
+| 1 | 24 | 23,7 | 103 | 103,0 | **0,23×** |
+| 2 | 118 | 59,1 | 130 | 65,1 | **0,91×** |
+| 3 | 189 | 62,9 | 132 | 44,0 | 1,43× |
+| 4 | 284 | 71,0 | 137 | 34,3 | 2,07× |
+| 8 | 626 | 78,2 | 218 | 27,2 | 2,88× |
+| 16 | 1 258 | 78,6 | 353 | 22,0 | 3,57× |
+| 32 | 2 695 | 84,2 | 604 | 18,9 | 4,46× |
+| 64 | 5 296 | 82,8 | 1 126 | 17,6 | 4,71× |
+| 128 | 11 034 | 86,2 | 2 222 | 17,4 | **4,97×** |
+| 256 | 20 860 | 81,5 | 4 198 | 16,4 | 4,97× |
+
+**El coste por limbo cae de ~84 a ~17 ciclos.** La razón crece con N porque el
+coste fijo se amortiza.
+
+### El umbral es el hallazgo, no el 5×
+
+El primer barrido **empezaba en N=4** y daba de 1,90× a 5,05×: un resultado
+redondo, sin una sola casilla mala. Integrarlo ahí habría metido una **regresión
+de más de 4× en `uint64_fixed_t`**, el tipo más pequeño de la biblioteca.
+
+La causa es concreta: **calcular el inverso cuesta un `divq`**. Con uno o dos
+limbos esa división extra no se amortiza, y en N=1 se pagan literalmente **dos
+divisiones donde bastaba una**.
+
+De ahí `NSTD_MG_2POR1_MIN = 3`, con la tabla entera —**incluidas las dos casillas
+perdedoras**— en su `@def`.
+
+> **Es el error del acantilado otra vez.** Allí fue mirar sólo potencias de dos;
+> aquí, empezar el barrido en N=4. En los dos casos el rango cómodo daba un
+> resultado limpio y escondía justo la región que dolía. La regla que sale:
+> **cuando un barrido sale perfecto, sospechar de dónde empieza.**
+
+### La normalización se cuenta dentro
+
+MG exige el divisor con el bit alto a uno. Si no lo está hay que desplazarlo, y
+entonces **el dividendo también**: se recorre arrastrando los bits que cruzan de
+un limbo al siguiente, y el resto se desplaza de vuelta al final. Ese trasiego es
+parte del coste y está en las cifras; medir la operación suelta habría dado un
+número mejor y falso.
+
+### Y un llamante nuevo de la precondición, comprobado
+
+El inverso es `(~d : ~0) / d`, o sea una llamada más a
+`div_128_64_hi_menor_que_d`, cuya precondición `hi < d` se cumple **por
+construcción**: con `d` normalizado, `~d < d`.
+
+Eso es un razonamiento, y desde el 17 sep los razonamientos sobre esta
+precondición se comprueban: `check_precondiciones_div.py` compila y ejecuta los
+61 ficheros con la macro encendida, y ninguno la rompe.
+
+**Todo es `constexpr`.** A diferencia de `mul_wide` y `checked_mul`, aquí no hace
+falta despachar con `is_constant_evaluated`: MG sólo usa multiplicaciones y
+desplazamientos, y las primitivas ya lo eran.
+
+---
+
 ## El tope de desenrollado: barrido con dispersión
 
 **Medido el 10 September 2026** con `benchmark_barrido_desenrollado`, el primer
