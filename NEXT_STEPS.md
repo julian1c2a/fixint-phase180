@@ -127,6 +127,42 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | **P1.5 tramo 3** | **Magnitud-Signo y Exceso-K.** 🔸 **Primera pieza hecha**: `nstd::repr` en `representation.hpp` da las conversiones para **cualquier N** (estaban fijadas a 128 bits), con 2 894 comprobaciones. **Queda conectarlo**: relajar el `static_assert` y hacer que la aritmética decodifique y recodifique — son 41 puntos del tipo. El diseño ya está decidido: MS y EK son **codificaciones, no aritméticas**, así que no hay algoritmo nuevo que escribir | tramo 2 |
 | **P1.6** | Etapa 5: punto fijo | P1.5 |
 
+### ⬅️ Por aquí se sigue (19 sep 2026)
+
+**Lo primero del lunes son tres decisiones, no código.** El tramo 3 está parado a
+propósito: [ADR-017](docs/decisions/ADR-017-magnitud-signo-y-exceso-k-como-codificaciones.md)
+cerró cinco cuestiones y **dejó tres abiertas** porque adivinarlas sería peor que
+dejarlas escritas. Hasta resolverlas, escribir el conectado sería una apuesta:
+
+| Hay que decidir | El problema |
+|---|---|
+| Qué hacen `<<` y `>>` en MS/EK | En complemento a dos son multiplicar y dividir por potencias de dos. En MS eso lo hace desplazar la **magnitud**; desplazar la **representación** es otra cosa. La elección cambia qué significa el tipo |
+| Qué hacen `&`, `\|`, `^`, `~` | Sobre la representación son una cosa y sobre el valor decodificado otra, y ninguna es obviamente «la buena» |
+| El orden de `<=>` | Decodificando sale el orden natural; sobre la representación, EK ordena igual que sin signo (ésa es su gracia) y MS no |
+
+**Por qué no se relajó el `static_assert` igualmente.** Las operaciones que no
+dependen de esas tres —`+ - * / %` y las comparaciones— se podrían conectar hoy.
+Pero dejar el tipo con la mitad de los operadores funcionando y la otra mitad
+dando basura es **peor** que el estado actual, y ese `static_assert` es justo lo
+que impide llegar ahí.
+
+Cuando estén decididas, el trabajo es mecánico: los 41 puntos, con
+`nstd::repr::a_c2` y `desde_c2` ya escritas y con 2 894 comprobaciones.
+
+**Y la matriz ya vigila el final**: `int/magnitude_sign` e `int/excess_k` están en
+las reservadas, así que en cuanto se implementen la comprobación **falla** y
+obliga a abrir sus columnas. No se puede dar por cerrado sin comprobarlo.
+
+#### P1.6 (punto fijo) no puede empezar antes
+
+Depende de P1.5 entero por [ADR-007](docs/decisions/ADR-007-politica-de-desbordamiento-como-parametro.md),
+y hacerlo al revés significa portar la API dos veces. Lo que sí está listo para
+cuando llegue: el tipo ya lleva sus **cuatro** parámetros publicados
+(`num_limbs`, `sign`, `form`, `policy`), que es lo que hace falta para
+reconstruirlo desde código genérico — y eso lo destapó el envoltorio atómico, no
+el punto fijo.
+
+
 > **Resuelto en 2a**, y eran nueve firmas, no tres: `mul_wide` y `sqrt` tenían el mismo defecto. La lección se repite: una
 > lista escrita de memoria se queda corta, y hay que contarlas abriendo el fichero.
 
