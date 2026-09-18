@@ -284,6 +284,71 @@ namespace nstd
 #endif
             }
 
+            /// @brief El inverso de un divisor NORMALIZADO, para la division 2/1.
+            ///
+            /// `v = floor((2^128 - 1) / d) - 2^64`, que es lo que pide el algoritmo 1
+            /// de Moller y Granlund (*Improved division by invariant integers*, 2011).
+            ///
+            /// @pre `d` **normalizado**: su bit mas alto a uno.
+            ///
+            /// @note Se calcula con la propia `div_128_64_hi_menor_que_d`, y su
+            ///       precondicion se cumple por construccion: con `d` normalizado,
+            ///       `~d < d`.
+            ///
+            /// @warning **Cuesta una division de hardware.** Por eso hay umbral: ver
+            ///          `div_un_limbo`.
+            [[nodiscard]] constexpr std::uint64_t inverso_2por1(std::uint64_t d) noexcept
+            {
+                std::uint64_t r = 0;
+                return div_128_64_hi_menor_que_d(~d, ~std::uint64_t{0}, d, r);
+            }
+
+            /// @brief Division de dos limbos por uno, **sin dividir**.
+            ///
+            /// Es el algoritmo 4 de Moller-Granlund: sustituye la division por dos
+            /// multiplicaciones y unas sumas, usando el inverso precalculado. Las dos
+            /// correcciones del final se toman con probabilidad muy baja.
+            ///
+            /// @pre `d` **normalizado** y `u1 < d`.
+            /// @param u1 Limbo alto del dividendo. @param u0 Limbo bajo.
+            /// @param d Divisor normalizado. @param v Su inverso.
+            /// @param rem Destino del resto.
+            /// @return El cociente de 64 bits.
+            ///
+            /// @note Lo que gana no es «menos operaciones», es **menos latencia**. La
+            ///       cadena de `div_un_limbo` es serial --cada division espera al
+            ///       resto de la anterior-- y `divq` tiene ~85 ciclos de latencia
+            ///       frente a los ~3-5 de una multiplicacion.
+            [[nodiscard]] constexpr std::uint64_t div_2por1_preinv(std::uint64_t u1, std::uint64_t u0,
+                                                                   std::uint64_t d, std::uint64_t v,
+                                                                   std::uint64_t &rem) noexcept
+            {
+                std::uint64_t q1 = 0;
+                const std::uint64_t q0 = mul_64x64(v, u1, q1);
+
+                // (q1,q0) += (u1,u0), en 128 bits
+                const std::uint64_t s0 = q0 + u0;
+                const std::uint64_t acarreo = (s0 < q0) ? 1u : 0u;
+                q1 = q1 + u1 + acarreo + 1;
+
+                std::uint64_t alto = 0;
+                const std::uint64_t bajo = mul_64x64(q1, d, alto);
+                std::uint64_t r = u0 - bajo;
+
+                if (r > s0)
+                {
+                    --q1;
+                    r += d;
+                }
+                if (r >= d)
+                {
+                    ++q1;
+                    r -= d;
+                }
+                rem = r;
+                return q1;
+            }
+
         } // namespace detail
 
         // =====================================================================
@@ -301,15 +366,77 @@ namespace nstd
         /// @param a Dividendo. @param d Divisor, distinto de cero.
         /// @param q Destino del cociente.
         /// @return El resto, que cabe en un limbo.
+        /// @def NSTD_MG_2POR1_MIN
+        /// @brief Anchura desde la que `div_un_limbo` usa Moller-Granlund.
+        ///
+        /// MG cambia cada division por dos multiplicaciones con un inverso
+        /// precalculado, **pero calcular el inverso cuesta una division**. Con uno o
+        /// dos limbos esa division extra no se amortiza.
+        ///
+        /// **Medido el 18 sep 2026 con clang**, el bucle entero --normalizacion e
+        /// inverso incluidos--, las dos variantes entrelazadas, 20 repeticiones:
+        ///
+        ///     N      divq       MG     razon        N      divq       MG     razon
+        ///     1        24      103     0,23x        16    1 258      353     3,57x
+        ///     2       118      130     0,91x        32    2 695      604     4,46x
+        ///     3       189      132     1,43x        64    5 296    1 126     4,71x
+        ///     4       284      137     2,07x       128   11 034    2 222     4,97x
+        ///     8       626      218     2,88x       256   20 860    4 198     4,97x
+        ///
+        /// El coste por limbo cae de ~84 a ~17 ciclos, y la razon crece con N porque
+        /// el coste fijo se amortiza.
+        ///
+        /// @warning **El umbral no es cosmetico.** En N=1 MG es 4x MAS LENTO: se
+        ///          pagan dos divisiones donde bastaba una. Un barrido que empezara
+        ///          en N=4 --como el primero que se hizo-- lo habria tapado por
+        ///          completo, y `uint64_fixed_t` y `uint128_fixed_t`, que son los
+        ///          tipos mas usados, habrian salido perdiendo.
+#ifndef NSTD_MG_2POR1_MIN
+#define NSTD_MG_2POR1_MIN 3
+#endif
+
         template <std::size_t N>
         [[nodiscard]] constexpr std::uint64_t div_un_limbo(const std::array<std::uint64_t, N> &a,
                                                            std::uint64_t d,
                                                            std::array<std::uint64_t, N> &q) noexcept
         {
-            std::uint64_t resto = 0;
-            for (std::size_t i = N; i-- > 0;)
-                q[i] = detail::div_128_64_hi_menor_que_d(resto, a[i], d, resto);
-            return resto;
+            if constexpr (N >= NSTD_MG_2POR1_MIN)
+            {
+                const int s = detail::normalizacion(d);
+                const std::uint64_t dn = d << s;
+                const std::uint64_t v = detail::inverso_2por1(dn);
+                std::uint64_t resto = 0;
+
+                if (s == 0)
+                {
+                    for (std::size_t i = N; i-- > 0;)
+                        q[i] = detail::div_2por1_preinv(resto, a[i], dn, v, resto);
+                    return resto;
+                }
+
+                // Con desplazamiento, el DIVIDENDO tambien hay que recorrerlo
+                // desplazado `s` bits a la izquierda, arrastrando lo que cruza de un
+                // limbo al siguiente; y el resto se desplaza de vuelta al final.
+                // Ese trasiego es parte del coste, y esta contado en las cifras.
+                resto = a[N - 1] >> (64 - s);
+                std::uint64_t arrastre = a[N - 1] << s;
+                for (std::size_t i = N - 1; i-- > 0;)
+                {
+                    const std::uint64_t trozo = arrastre | (a[i] >> (64 - s));
+                    q[i + 1] = detail::div_2por1_preinv(resto, trozo, dn, v, resto);
+                    arrastre = a[i] << s;
+                }
+                q[0] = detail::div_2por1_preinv(resto, arrastre, dn, v, resto);
+                return resto >> s;
+            }
+            else
+            {
+                // N = 1 o 2: el inverso costaria mas que las divisiones que ahorra.
+                std::uint64_t resto = 0;
+                for (std::size_t i = N; i-- > 0;)
+                    q[i] = detail::div_128_64_hi_menor_que_d(resto, a[i], d, resto);
+                return resto;
+            }
         }
 
         // =====================================================================

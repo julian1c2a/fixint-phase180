@@ -1657,11 +1657,23 @@ namespace nstd
         // N=2 fast path:
         //   GCC/Clang/ICX (has __uint128_t): single __uint128_t multiply (constexpr-safe)
         //   MSVC x64 (no __uint128_t):       _umul128 + two 64-bit muls (runtime only)
-        // Karatsuba (runtime only): T(N)=3·T(N/2)+O(N), T(2)=3 umul128
-        //   anchuras segun NSTD_KARATSUBA_MIN/MAX (por defecto 4 y 8)
-        //   kmul_full<N/2> for the full lower product; half-width operator* for middle terms
-        //   N=4: 9 umul128+0 (vs 10 schoolbook); N=8: 19 umul128+8 muls (vs 36)
-        // Fallback: schoolbook O(N^2) fuera de esas anchuras, o constexpr en MSVC
+        // ESTE BLOQUE ESTABA OBSOLETO ENTERO, y se reescribio el 18 sep 2026.
+        // Decia «anchuras segun NSTD_KARATSUBA_MIN/MAX (por defecto 4 y 8)»
+        // --son 22 y 4096--, citaba `kmul_full<N/2>`, que se borro, y remataba con
+        // «Fallback: schoolbook O(N^2) fuera de esas anchuras», cuando ya NO hay
+        // ninguna banda donde se elija el bucle: los dos umbrales son una sola
+        // frontera desde el 16 sep. Tres afirmaciones falsas en cinco lineas.
+        //
+        // El reparto de verdad, y donde esta escrito cada umbral:
+        //
+        //   N == 2                      especializado de 128 bits
+        //   x * x, N >= 4               `sqr_karatsuba_equilibrado`  (por DIRECCION)
+        //   N >= NSTD_KARATSUBA_MIN     `mul_karatsuba_equilibrado`, cualquier N
+        //   N <= NSTD_DESENROLLA_MAX    escolar desenrollado
+        //   evaluacion constante        escolar en bucle (el unico constexpr)
+        //
+        // Y por debajo, dentro de los productos COMPLETOS: Toom-3 desde
+        // `NSTD_TOOM3_MIN`. Cada umbral lleva su `@def` con las medidas.
         // =========================================================================
 
         constexpr fixed_int_t operator*(const fixed_int_t &o) const noexcept
@@ -1942,8 +1954,17 @@ namespace nstd
                 // iterate from MSL to LSL, each step divides (rem:a[i]) by d where
                 // rem < d is a loop invariant (guaranteed: each remainder < divisor).
                 //
-                // With rem < d, libgcc's __udivti3 / _udiv128 emit a SINGLE divq.
-                // Total cost: N divq instructions instead of 64N² bit-loop iterations.
+                // AQUI PONIA que «con rem < d, __udivti3 / _udiv128 emiten un solo
+                // divq». **Era falso**, y sobrevivio a la correccion del 17 sep
+                // porque esa toco la copia de `div_kernels.hpp` y esta se quedo.
+                // En la unidad de prueba habia 16 llamadas a `__udivti3` y solo 4
+                // `divq`: clang no puede saber que hi < d --es una precondicion
+                // escrita en la documentacion, no en el tipo-- asi que llamaba a la
+                // rutina general de 128/128.
+                //
+                // Desde el 17 sep 2026 SI es una instruccion, pero porque
+                // `div_128_64_hi_menor_que_d` lo pide con `__asm__("divq")` en
+                // x86-64, no porque el compilador lo dedujera. Medido: 1,26x-1,44x.
                 //
                 // (For N=2 on GCC/Clang, the __uint128_t block above already handled
                 //  the b.data[1]==0 case and returned; this is the critical path for N≥3.
