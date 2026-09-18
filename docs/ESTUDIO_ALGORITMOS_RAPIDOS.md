@@ -103,6 +103,26 @@ una multiplicación**, sea cual sea N. Hoy, con Knuth D, esa razón crece con N.
   **~860 bits** (≈14 limbos) en su artículo; GMP sitúa `DC_DIV_QR_THRESHOLD`
   «algo por encima del doble de `MUL_TOOM22_THRESHOLD`», o sea ~45–50 limbos.
   Dentro del rango de Toom-3, GMP cifra su coste en **≈2,63·M(N)**.
+
+  **Medido el 18 sep 2026, ese umbral aquí no está en 45–50 limbos sino entre
+  1024 y 2048** (`benchs/benchmark_techo_division.cpp`). La razón entre una
+  división `(N, n=N/2)` y una multiplicación de `N/2 × N/2` —que es el techo de
+  2–4× que publica GMP— sale así:
+
+  | N | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048 |
+  |---|---|---|---|---|---|---|---|---|---|
+  | div/mul | 3,6× | 2,8× | 1,9× | **1,6×** | 1,7× | 1,9× | 2,2× | 2,8× | **4,9×** |
+
+  Tiene un **mínimo en N=64** y **no pasa del techo hasta N=2048**, que es donde
+  la multiplicación entra en Toom-3 (`NSTD_TOOM3_MIN` = 1024, y el factor mide
+  `N/2`) y la división se queda sin nada con que seguirla.
+
+  El umbral de GMP no se traslada porque **GMP compara contra su propio
+  `mpn_mul`**, con ensamblador afinado y Toom-4. Aquí el rival es la
+  multiplicación de esta casa, cuyo exponente medido es 1,68. Una división que
+  sólo cuesta 1,6×–2,2× lo que una multiplicación no deja margen para un
+  algoritmo que convierte división en multiplicaciones: pagaría su sobrecoste
+  sin recoger ninguna diferencia de exponente.
 - **Newton/Barrett** llega a Θ(M(N)) y es lo que GMP usa por encima de
   `MU_DIV_QR_THRESHOLD`.
 

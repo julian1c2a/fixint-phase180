@@ -1192,6 +1192,66 @@ formas del dividendo (`a = b`, `a = b - 1`, todo unos, pegado al techo…).
 
 ---
 
+## El techo de la división, y qué le queda a Burnikel–Ziegler (18 sep 2026)
+
+Los algoritmos rápidos de división —Burnikel–Ziegler, Newton/Barrett— convierten
+la división en multiplicaciones. Su techo es el que publica GMP: *«a 2N×N
+division is about 2 to 4 times slower than an N×N multiplication»*.
+
+Así que antes de escribir ninguno, la pregunta que decide es una: **¿cuánto
+cuesta hoy una división `(N, n=N/2)` comparada con una multiplicación de
+`N/2 × N/2`?** Si ya está en 2–4×, no hay nada que recoger.
+
+**Medido con clang, entrelazadas, 20 repeticiones** (`benchmark_techo_division`).
+Se mide `n = N/2` porque es donde la superficie de la división tiene su máximo:
+el coste de Knuth D es `O((N-n)·n)`.
+
+| N | N/2 | división | multiplicación | razón |
+|---:|---:|---:|---:|---:|
+| 8 | 4 | 357 | 99 | 3,6× |
+| 16 | 8 | 770 | 274 | 2,8× |
+| 32 | 16 | 2 081 | 1 112 | 1,9× |
+| 64 | 32 | 6 139 | 3 745 | **1,6×** |
+| 128 | 64 | 22 783 | 13 287 | 1,7× |
+| 256 | 128 | 86 671 | 44 662 | 1,9× |
+| 512 | 256 | 281 862 | 128 114 | 2,2× |
+| 1 024 | 512 | 1 234 470 | 438 939 | 2,8× |
+| 2 048 | 1 024 | 4 359 190 | 892 486 | **4,9×** |
+
+La razón tiene un **mínimo en N=64** y crece a los dos lados. **No pasa del techo
+hasta N=2048**, que es donde la multiplicación entra en Toom-3 (`NSTD_TOOM3_MIN`
+= 1024, y el factor mide `N/2`) y la división se queda sin nada con que seguirla.
+
+### El umbral de GMP no se traslada, y por veinte veces
+
+`ESTUDIO_ALGORITMOS_RAPIDOS.md` esperaba **~45–50 limbos** para Burnikel–Ziegler,
+copiado de `DC_DIV_QR_THRESHOLD`. Lo medido lo pone entre **1024 y 2048**.
+
+El motivo no es que GMP se equivoque: es que **GMP compara contra su propio
+`mpn_mul`**, con ensamblador afinado y Toom-4. Aquí el rival es la multiplicación
+de esta casa, cuyo exponente medido es **1,68** frente al 1,89 de la división.
+Una división que sólo cuesta 1,6×–2,2× lo que una multiplicación no deja margen:
+un algoritmo que convierte división en multiplicaciones pagaría su sobrecoste sin
+recoger ninguna diferencia de exponente.
+
+**Un umbral publicado es un umbral relativo a la biblioteca que lo publicó.** Es
+el mismo error que ya cometió la proyección de Toom-3, que prometía 1,23× en
+N=256 y lo medido fue 0,87×.
+
+### El espantapájaros, otra vez
+
+La primera versión de este banco hacía `doNotOptimize(r[0])`: consume **un limbo**
+del producto y deja al compilador eliminar el cálculo de los otros `2H-1`. El
+exponente de la multiplicación salía **1,23** —imposible, mejor que Karatsuba— y
+la división parecía estar ya en el techo en todo el rango, incluido N=2048.
+
+Lo que lo delató fue el exponente, no la tabla. Con el resultado consumido
+entero, la multiplicación da 1,68, que es exactamente lo que este proyecto ya
+había medido para Karatsuba. **Una cifra sólo es creíble cuando su exponente
+cuadra con lo que ya se sabía.**
+
+---
+
 ## El tope de desenrollado: barrido con dispersión
 
 **Medido el 10 September 2026** con `benchmark_barrido_desenrollado`, el primer
