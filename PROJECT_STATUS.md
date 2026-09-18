@@ -1,6 +1,6 @@
 # PROJECT STATUS
 
-**Last Updated:** 17 September 2026
+**Last Updated:** 18 September 2026
 **Versión:** v1.90.4 · **rama** `phase-1.80` · árbol limpio, todo en `origin`
 
 > Instantánea **del estado actual**, y solo eso. No acumula historia: lo ya hecho
@@ -25,12 +25,16 @@ propia capa medible, con la estimación del dígito del cociente como perilla, y
 división por divisores cortos gana **1,28×–1,39×**. Quedan Möller–Granlund y
 Burnikel–Ziegler.
 
+**Y el 18 sep se recogieron dos ganancias que no eran algoritmos**: `mul_wide`
+ensanchaba antes de multiplicar (**2,3×–2,8×**) y `checked_mul` multiplicaba dos
+veces, la primera con un escolar cuadrático (**1,4×–1,9×, creciendo con N**).
+
 **El frente de la multiplicación está cerrado** (17 sep 2026): cuatro algoritmos
 en `include/algorithms/mul_kernels.hpp` —escolar desenrollado, Karatsuba con
 reparto equilibrado, cuadrado y Toom-3— **con cada umbral medido**, y la mitad
 alta del rango admitido (N = 64…4096) cubierta por primera vez.
 
-## Verificación — 17 September 2026
+## Verificación — 18 September 2026
 
 | Comprobación | Resultado |
 |---|---|

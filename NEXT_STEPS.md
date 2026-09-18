@@ -1,6 +1,6 @@
 # 🔮 NEXT STEPS
 
-**Last Updated:** 17 September 2026
+**Last Updated:** 18 September 2026
 **Versión:** **v1.90.4** publicada · **rama** `phase-1.80` · árbol limpio · todo en `origin`
 
 > Este documento es **el puntero y lo pendiente a corto**. No acumula historia:
@@ -15,7 +15,7 @@
 
 # 📍 POR AQUÍ VAMOS
 
-## Estado al 17 sep 2026
+## Estado al 18 sep 2026
 
 | | |
 |---|---|
@@ -145,9 +145,27 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | **P2.10** | **Möller–Granlund** en la división. Mejora la **constante**, así que **no tiene umbral**: gana en toda N. Tras medir la línea base tiene **dos sitios donde enchufarse, no uno**: la **2/1** quita el `divq` de `div_un_limbo` (columna `n=1`, hoy ~85 ciclos por limbo de pura latencia) y la **3/2** sustituye la estimación de q̂ dentro de Knuth D (columnas del medio) | Listo para empezar: P2.13 dejó la estimación como parámetro de plantilla |
 | **P2.11** | **Burnikel–Ziegler**: la división pasa de Θ(N²) a Θ(M(N)·log N). Umbral esperado ~45–50 limbos | Después de P2.8: convierte la división en multiplicaciones, así que se apoya en ellas |
 | ~~P2.9~~ | ~~**Toom-3**: Θ(N^1,465)~~ | ✅ **hecho** en `97523f3`, **y la proyección del estudio era falsa en un orden de magnitud**. Decía «gana 1,23× en N=256»: lo medido es que **pierde** en 256 (0,87×) y en 512 (0,96×), y **no cruza hasta ~1024**. Entra con `NSTD_TOOM3_MIN` = 1024 y da **1,13× en 2048 y 1,14×–1,15× en 4096** |
-| **P2.12** | **`mul_wide` calcula el producto completo con una multiplicación modular de 2N×2N**: hasta **4× de trabajo tirado**, y arrastra a `mulhi`, `checked_mul` y `saturating_mul`. Descubierto el 16 sep 2026 al conectar los núcleos | Sale de P2.8: ahora hay `kmul_full_gen`, que ya calcula productos **completos** de N×N → 2N. La pieza que falta ya existe |
+| ~~P2.12~~ | ~~**`mul_wide` calcula el producto completo con una multiplicación modular de 2N×2N**~~ | ✅ **hecho** en `5f834b5`: **2,3×–2,8×**. Y lo heredó **sólo `mulhi`** — `checked_mul` y `saturating_mul` salieron planos porque **no usaban `mul_wide`**, lo que destapó P2.15 |
+| ~~P2.15~~ | ~~**`checked_mul` multiplicaba DOS VECES**~~ | ✅ **hecho** en `1232175`: `producto_desborda` era un escolar **cuadrático** completo escrito sólo para mirar la mitad alta, y después se volvía a multiplicar por el camino rápido. Ahora una pasada: **1,4×–1,9×, y creciendo con N** porque la detección deja de ser cuadrática. `saturating_mul` lo hereda entero |
 | ~~P2.13~~ | ~~**Sacar Knuth D de dentro de `divmod`** a una capa medible~~ | ✅ **hecho el 17 sep 2026**: `include/algorithms/div_kernels.hpp`. La extracción sale **gratis** (A/B contra HEAD: 0,94×–1,07×, ruido a los dos lados) y deja **la estimación de q̂ como parámetro de plantilla**, que es donde enchufa P2.10. `fixed_width_int_t.hpp` baja de 5 737 a 5 518 líneas |
 | ~~P2.14~~ | ~~**`__udivti3` no emite un `divq`: emite una llamada**~~ | ✅ **hecho el 17 sep 2026**, y era un **comentario que mentía**. Decía «con `rem < d` se emite un solo `divq`»; en el binario había **16 llamadas a `__udivti3` y 4 `divq`**. Con `divq` en línea para GCC/Clang en x86-64: **1,28×–1,39× de punta a punta** en `n=1` y `n=2`, las siete anchuras. Trae consigo `check_precondiciones_div.py` |
+
+> ### La lección de los tres días: comprobar gana a añadir
+>
+> Cuatro mejoras entre el 16 y el 18 de septiembre, y **ninguna vino de añadir un
+> algoritmo**:
+>
+> | Hallazgo | Qué afirmaba el código | Qué hacía | Ganancia |
+> |---|---|---|---|
+> | `__udivti3` | «emite un solo `divq`» | emitía una **llamada** | 1,28×–1,39× |
+> | `mul_wide` | nadie lo había mirado | ensanchaba para calcular ceros | 2,3×–2,8× |
+> | `checked_mul` | «se construye sobre `mul_wide`» | multiplicaba **dos veces** | 1,4×–1,9× |
+> | Toom-3 | «gana 1,23× en N=256» | pierde hasta ~1024 | 1,13×–1,15× |
+>
+> **Toom-3 —el único algoritmo nuevo de verdad— fue el que menos dio.** Y el
+> `checked_mul` salió de comprobar una frase escrita *en este mismo repositorio*
+> sin haberla medido. Antes de abrir P2.10 o P2.11, conviene preguntar qué otras
+> afirmaciones llevan años sin comprobarse.
 
 > **La lección de P2.9, que vale para todo lo que queda.** El
 > [estudio](docs/ESTUDIO_ALGORITMOS_RAPIDOS.md) proyectó el cruce de Toom-3 en

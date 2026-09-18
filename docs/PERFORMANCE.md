@@ -876,6 +876,127 @@ restauró el silencio; se subió el listón por dos vías:
 
 ---
 
+## Trabajo que se hacía dos veces (18 sep 2026)
+
+Dos mejoras del mismo día y de la misma naturaleza: **ninguna añade un
+algoritmo**. Las dos quitan trabajo duplicado que nadie había medido.
+
+### `mul_wide` ensanchaba antes de multiplicar
+
+Era, literalmente:
+
+```cpp
+return uint_fixed_t<2N, Policy>{a} * uint_fixed_t<2N, Policy>{b};
+```
+
+Ensanchar los dos operandos —**con los N limbos altos a cero**— y multiplicar de
+forma **modular** 2N × 2N. Y `operator*` no mira los valores: reparte en dos
+mitades de N y calcula **los dos términos del medio igualmente**, aunque valgan
+cero. Tres productos de N donde hacía falta uno.
+
+`kmul_full_gen<N>` da directamente el producto completo N×N → 2N. Las dos
+variantes **entrelazadas en el mismo proceso** —mejor que el A/B entre binarios
+que hubo que usar para la división, porque aquí sí pueden coexistir—, 20
+repeticiones:
+
+| N | viejo | nuevo | razón | | N | viejo | nuevo | razón |
+|---:|---:|---:|---:|---|---:|---:|---:|---:|
+| 2 | 74 | 16 | **4,61×** | | 32 | 10 428 | 4 391 | 2,37× |
+| 4 | 314 | 176 | 1,79× | | 48 | 23 548 | 8 857 | 2,66× |
+| 8 | 1 142 | 501 | 2,28× | | 64 | 38 027 | 15 560 | 2,44× |
+| 16 | 3 034 | 1 226 | 2,47× | | 128 | 136 608 | 49 615 | **2,75×** |
+
+**2,3×–2,8× en todo el rango.** La cifra encaja con el mecanismo: el ~3× de
+calcular tres productos de N en vez de uno.
+
+> **Una cautela mía que resultó infundada, y por qué.** Antes de medir supuse que
+> Karatsuba recuperaría parte del desperdicio, porque la mitad alta es cero.
+> **No**: el reparto es **estático** y no mira los valores, así que calcula los
+> términos del medio aunque sean nulos. La intuición sobre lo que «el compilador
+> seguramente optimiza» falló; la medida no.
+
+**El caso con signo no se salva solo.** El núcleo es sin signo, y multiplicar sin
+signo dos representaciones en complemento a dos acierta los limbos **bajos** y
+nada más. Hay que restar `B` de la mitad alta cuando `A` es negativo, y `A`
+cuando lo es `B` — la misma trampa que Toom-3 al evaluar en x = −1. Sin ella el
+resultado **parece correcto mientras los dos operandos son positivos**, que es lo
+que da un generador al azar la mayoría de las veces. La sonda fuerza los cuatro
+cuadrantes: 24/24 anchuras, 4 800 casos × 2.
+
+**Y la marca pegajosa casi se pierde.** El camino viejo la propagaba *sin
+querer* —el constructor de ensanchado la arrastra— y el nuevo construye desde
+limbos crudos. Habría sido una regresión silenciosa **justo en la política que
+existe para que no las haya**, y la sonda inicial no podía verla porque usa
+`wrap`. Se añadió `detail::marca_de_los_factores`, verificado con 27
+comprobaciones sobre `checked`.
+
+### `checked_mul` multiplicaba dos veces
+
+El `operator*` con política `checked` hacía esto:
+
+```cpp
+const bool desbordo = producto_desborda(*this, o);   // producto #1
+fixed_int_t r = this->mul_sin_marca(o);              // producto #2
+```
+
+Y `producto_desborda` era un **escolar cuadrático completo** N×N → 2N, sin
+Karatsuba ni Toom-3, escrito **sólo para mirar si la mitad alta era cero**.
+
+Los números lo delataban sin leer el código: en N=64, `checked_mul` costaba
+**28 304** ciclos y un producto ancho entero cuesta **14 531**. Pagaba dos
+productos, y el primero con el peor algoritmo de la casa.
+
+Ahora `producto_desborda` devuelve las dos cosas de **una pasada**, con el
+reparto de siempre: la mitad baja es el resultado y la alta dice si desbordó.
+
+| N | `checked_mul` | `saturating_mul` |
+|---:|---:|---:|
+| 4 | 1,53× | 1,32× |
+| 8 | 1,43× | 1,40× |
+| 16 | 1,68× | 1,63× |
+| 32 | 1,85× | 1,86× |
+| 64 | **1,92×** | 1,85× |
+
+**La mejora crece con N** (1,43 → 1,68 → 1,85 → 1,92), y no sólo porque se
+multiplique una vez en lugar de dos: **la detección deja de ser cuadrática**.
+
+`saturating_mul` lo hereda entero sin tocarlo — es literalmente
+`checked_mul(wa, wb)` y luego saturar según la marca.
+
+> ### Cómo apareció, que es lo que más vale de todo esto
+>
+> Al acelerar `mul_wide` dejé escrito en el código que la ganancia la heredarían
+> `mulhi`, `checked_mul` y `saturating_mul`. **Lo medí después y era falso**:
+>
+> | N | `mul_wide` | `mulhi` | `checked_mul` | `sat_mul` |
+> |---:|---:|---:|---:|---:|
+> | 16 | 2,45× | 2,57× | 0,97× | 1,06× |
+> | 64 | 2,52× | 2,38× | 0,96× | 0,97× |
+>
+> Sólo `mulhi`. Y al ir a corregir la frase se vio que `checked_mul` no es que
+> heredara poco: **pagaba dos productos**. El 1,9× salió de comprobar una
+> afirmación que yo mismo había escrito sin medir.
+>
+> La cabecera además **ya decía desde antes** que `mul_wide` era «la operación
+> sobre la que se construyen `checked_mul()` y la división por constante».
+> También falso. Las dos correcciones quedan escritas en su sitio.
+
+### El patrón de los tres días
+
+Cuatro mejoras, y **ninguna vino de añadir un algoritmo**:
+
+| Hallazgo | Qué afirmaba el código | Qué hacía |
+|---|---|---|
+| `__udivti3` | «emite un solo `divq`» | emitía una **llamada** — 1,28×–1,39× |
+| `mul_wide` | (nada; nadie lo había mirado) | ensanchaba para calcular ceros — 2,3×–2,8× |
+| `checked_mul` | «se construye sobre `mul_wide`» | multiplicaba **dos veces** — 1,4×–1,9× |
+| Toom-3 | «gana 1,23× en N=256» | pierde hasta ~1024 |
+
+**Toom-3 —el único algoritmo nuevo de verdad— fue el que menos dio.** Las otras
+tres salieron de comprobar lo que el código decía de sí mismo.
+
+---
+
 ## El tope de desenrollado: barrido con dispersión
 
 **Medido el 10 September 2026** con `benchmark_barrido_desenrollado`, el primer

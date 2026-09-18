@@ -500,6 +500,33 @@ obliga a un `if constexpr` en cada sitio que la use.
 | `factorial<N, Form, Policy>` | `(unsigned n) -> U` | `n!` truncado a `64*N` bits. | O(n) productos |
 | `divmod` | `(const T& a, const T& b) -> std::pair<T, T>` | Cociente y resto de una vez. **Lanza `std::domain_error` si `b` es cero.** | Un solo Knuth D |
 
+#### Qué cuesta cada producto, y por qué
+
+Desde el 18 sep 2026 las cuatro operaciones de producto comparten el mismo
+motor, y ninguna calcula nada dos veces:
+
+| Operación | Qué hace | Coste relativo |
+|---|---|---|
+| `a * b` | producto **modular** N×N → N | la referencia |
+| `mul_wide(a, b)` | producto **completo** N×N → 2N | ~2× el modular |
+| `mulhi(a, b)` | `mul_wide` y quedarse la mitad alta | igual que `mul_wide` |
+| `mullo(a, b)` | es `a * b`; existe por simetría con `mulhi` | la referencia |
+| `checked_mul`, `saturating_mul` | `mul_wide` **una vez**: la mitad baja es el valor y la alta dice si desbordó | ~`mul_wide` |
+
+Dos cosas que conviene saber si se elige entre ellas:
+
+**`mul_wide` no ensancha antes de multiplicar.** Hasta esta versión hacía
+`uint_fixed_t<2N>{a} * uint_fixed_t<2N>{b}`, o sea tres productos de N donde
+hacía falta uno. Ahora usa el producto completo directamente: **2,3×–2,8× más
+rápido** ([PERFORMANCE.md](PERFORMANCE.md)).
+
+**Y `checked_mul` ya no multiplica dos veces.** Antes calculaba un producto
+escolar **cuadrático** completo sólo para detectar el desbordamiento, y después
+volvía a multiplicar por el camino rápido para obtener el valor. Ahora una sola
+pasada: **1,4×–1,9×**, y la mejora **crece con N** porque la detección deja de
+ser cuadrática. Con la política `wrap`, que es la de por defecto, nada de esto se
+ejecuta: no hay desbordamiento que detectar.
+
 Dos comportamientos se apartan a proposito del header viejo:
 
 - **`ilog2(0)` lanza**; el viejo devolvia `-1` y lo documentaba como

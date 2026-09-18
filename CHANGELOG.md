@@ -1,3 +1,84 @@
+## [sin publicar] - 2026-09-18 - Trabajo que se hacia dos veces: `mul_wide` y `checked_mul`
+
+Cierra P2.12 y P2.15. **Ninguna de las dos mejoras anade un algoritmo**: las dos
+quitan trabajo duplicado que nadie habia medido.
+
+### `mul_wide` ensanchaba antes de multiplicar -- 2,3x-2,8x
+
+Era `uint_fixed_t<2N>{a} * uint_fixed_t<2N>{b}`: ensanchar los dos operandos
+--con los N limbos altos a CERO-- y multiplicar de forma MODULAR 2N x 2N.
+`operator*` no mira los valores, asi que repartia en dos mitades de N y calculaba
+**los dos terminos del medio igualmente**, aunque valieran cero. Tres productos
+de N donde hacia falta uno.
+
+Medido con las dos variantes entrelazadas en el mismo proceso: **4,61x en N=2,
+2,3x-2,8x en el resto**, hasta N=128.
+
+Antes de medir supuse que Karatsuba recuperaria parte del desperdicio, porque la
+mitad alta es cero. **No**: el reparto es estatico y no mira los valores.
+
+Dos cosas que no se salvan solas y que la sonda inicial no podia ver:
+
+- **El producto con signo.** Multiplicar sin signo dos representaciones en
+  complemento a dos acierta los limbos BAJOS y nada mas. Hay que restar `B` de la
+  mitad alta cuando `A` es negativo, y `A` cuando lo es `B` -- la misma trampa que
+  Toom-3 en x = -1. Sin ella el resultado **parece correcto mientras los dos
+  operandos son positivos**. La sonda fuerza los cuatro cuadrantes: 24/24
+  anchuras, 4 800 casos x 2.
+- **La marca pegajosa de `checked`.** El camino viejo la propagaba SIN QUERER
+  --el constructor de ensanchado la arrastra-- y el nuevo construye desde limbos
+  crudos. Habria sido una regresion silenciosa justo en la politica que existe
+  para que no las haya. Se anade `detail::marca_de_los_factores`, con 27
+  comprobaciones.
+
+### `checked_mul` multiplicaba dos veces -- 1,4x-1,9x, creciendo con N
+
+`producto_desborda` era un **escolar cuadratico completo** N x N -> 2N, sin
+Karatsuba ni Toom-3, escrito **solo para mirar si la mitad alta era cero**; y a
+continuacion `mul_sin_marca` volvia a multiplicar por el camino rapido.
+
+Los numeros lo delataban sin leer el codigo: en N=64 `checked_mul` costaba 28 304
+ciclos y un producto ancho ENTERO cuesta 14 531.
+
+Ahora devuelve las dos cosas de una pasada. La mejora **crece con N** --1,43x en
+N=8, 1,92x en N=64-- porque la deteccion deja de ser cuadratica.
+`saturating_mul` lo hereda entero: es literalmente `checked_mul` y luego saturar.
+
+**No se toco la semantica**, solo como se obtiene el producto: la correccion de
+signo de la mitad alta y la condicion de desbordamiento --que no es «la mitad
+alta es cero» sino que sea la extension de signo del bit mas alto de la parte
+baja-- quedan intactas. Ahi vive el caso de `(-1) * (-1)` que cazo
+`test_fixed_signed` el 5 sep.
+
+### Y el `find` de MSYS2 rompia el entorno de MSVC e Intel
+
+Los 61 ficheros fallaban con `fatal error C1083: no se puede abrir 'crtdbg.h'`.
+`VsDevCmd.bat` usa el `find.exe` de Windows para leer el registro y localizar el
+Windows SDK; MSYS2 trae su propio `find.exe` --el de GNU-- y la configuracion
+documentada del proyecto pone MSYS2 en el PATH **por delante de System32**.
+
+El sintoma apuntaba al sitio equivocado: invitaba a reinstalar Visual Studio, y
+el SDK estaba completo y registrado. `_capture_env_from_bat` antepone ahora
+System32 al PATH que hereda `cmd.exe`, solo para esa llamada: `INCLUDE` pasa de
+**3 entradas sin SDK a 9 con el SDK entero**, y MSVC e Intel vuelven a 61/61.
+
+**No es una maquina rota, es el repositorio**: le pasa a cualquiera que siga las
+instrucciones del proyecto, porque esas instrucciones ponen MSYS2 en el PATH.
+
+### El patron de los tres dias
+
+Cuatro mejoras, y **ninguna vino de anadir un algoritmo**:
+
+    `__udivti3`    decia emitir un `divq` y emitia una llamada      1,28x-1,39x
+    `mul_wide`     ensanchaba para calcular ceros                   2,3x-2,8x
+    `checked_mul`  multiplicaba dos veces                           1,4x-1,9x
+    Toom-3         el algoritmo nuevo de verdad                     1,13x-1,15x
+
+**El unico algoritmo nuevo fue el que menos dio.** Y el de `checked_mul` salio de
+comprobar una frase escrita en este mismo repositorio sin haberla medido.
+
+---
+
 ## [sin publicar] - 2026-09-17 - Se abre el frente de la division: Knuth D sale a su capa, y un comentario que mentia
 
 Primer tramo de P2 sobre la division. Cierra P2.13 y P2.14; P2.10
