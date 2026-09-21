@@ -68,15 +68,26 @@
 // su contrato para los usuarios de gcc, y el error saldria en el enlazador del
 // usuario, no aqui.
 //
-// Lo que se cumple en todos es la implicacion que hace falta:
+// La primera version se apoyo en esta implicacion:
 //
 //     is_always_lock_free == true  ==>  enlaza sin libatomic
 //
-// Y por eso **esa, y no el tamano, es la condicion**: `std::atomic<value_type>`
-// cuando lo garantiza, mutex propio cuando no. Lo contrario no vale: clang
-// enlaza tambien los casos con bloqueo y fiarse de eso habria colado un fallo
-// que solo aparece en gcc. Al preguntar en vez de tabular, la eleccion se
-// adapta sola a las banderas con las que compile el usuario.
+// medida en gcc y clang. **Con `icpx` es FALSA.** El 21 sep 2026 el CI de Linux
+// murio al enlazar con
+//
+//     undefined reference to "__atomic_compare_exchange"
+//
+// para tipos que ese mismo compilador declaraba lock-free: dice que si y emite
+// la llamada a la biblioteca igualmente.
+//
+// Por eso la condicion son ahora DOS cosas: que lo diga `is_always_lock_free`
+// **y** que el tipo quepa en una palabra, que es lo unico que resuelven todos
+// con una instruccion. Se pierde el caso de 16 bytes que clang hacia sin
+// bloqueo con `-march=native`; gcc, MSVC e Intel ya decian que no. Vale mas no
+// romperle el enlazado a nadie que ganar un caso que dependia de una bandera.
+//
+// La leccion, que en este proyecto ya va por la tercera: **una medida tomada en
+// dos compiladores no es una ley para todos.**
 //
 // EL RELLENO NO ROMPE EL CAS, Y ESO TAMBIEN SE COMPROBO
 // -----------------------------------------------------
@@ -134,10 +145,40 @@ namespace nstd
 
         /// @brief Si esta instancia va **sin bloqueo** en esta plataforma.
         ///
-        /// Es la condicion exacta que garantiza que no hace falta enlazar
-        /// `libatomic`: ver la cabecera del fichero. Es publica a proposito, para
-        /// que el usuario pueda poner un `static_assert` sobre su tipo concreto.
-        static constexpr bool sin_bloqueo = std::atomic<value_type>::is_always_lock_free;
+        /// Son DOS condiciones, y la segunda esta aqui porque la primera no
+        /// basto. Es publica a proposito, para que el usuario pueda poner un
+        /// `static_assert` sobre su tipo concreto.
+        ///
+        /// POR QUE NO VALE `is_always_lock_free` A SECAS
+        /// ---------------------------------------------
+        /// La version del 18 sep 2026 usaba solo `is_always_lock_free`, apoyada
+        /// en esta premisa:
+        ///
+        ///     is_always_lock_free == true  ==>  enlaza sin libatomic
+        ///
+        /// Se comprobo en **gcc y clang** y se dio por buena para todos. **Con
+        /// `icpx` es falsa**: en el CI de Linux, el 21 sep 2026, el enlazado
+        /// murio con
+        ///
+        ///     undefined reference to "__atomic_compare_exchange"
+        ///     icpx: error: linker command failed with exit code 1
+        ///
+        /// para tipos que ese mismo compilador declara lock-free. Reporta que si
+        /// y luego emite la llamada a la biblioteca igualmente.
+        ///
+        /// Asi que se exige ademas que el tipo **quepa en una palabra**, que es
+        /// lo unico que todos los compiladores resuelven con una instruccion, sin
+        /// ayuda de libatomic. Lo que se pierde con eso son los 16 bytes que
+        /// clang hacia sin bloqueo **solo con `-march=native`** (o sea `-mcx16`);
+        /// gcc, MSVC e Intel ya decian que no. Se cambia un caso que dependia de
+        /// una bandera por no romperle el enlazado a nadie.
+        ///
+        /// @note Es la tercera vez en este proyecto que una medida tomada en dos
+        ///       compiladores se generaliza a todos y sale mal. Aqui el aviso lo
+        ///       dio el CI, y **solo despues de arreglarlo para que imprimiera el
+        ///       error**: antes decia «FAIL (compile)» y nada mas.
+        static constexpr bool sin_bloqueo =
+            std::atomic<value_type>::is_always_lock_free && sizeof(value_type) <= sizeof(void *);
 
     private:
         /// El camino sin bloqueo: `std::atomic` directo.

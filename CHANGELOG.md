@@ -1,3 +1,71 @@
+## [sin publicar] - 2026-09-21 - Auditoria: el CI llevaba tres dias en rojo
+
+La sesion del 18 sep cerro diciendo «64/64 en las cinco configuraciones». Era
+cierto **en local**, y no se miro el CI. **Estaba en rojo desde `b164290`**, el
+commit del envoltorio atomico, y siguio rojo tres commits mas.
+
+`PROJECT_STATUS` publicaba ademas «CI sobre `f959f53`: 24/24 jobs». Desde ese
+hash habian pasado **58 commits**.
+
+### El CI sabia que pasaba y lo tiraba a la basura
+
+Lo unico que decia era:
+
+    [4] test_fixed_atomic ... FAIL (compile)
+
+Los bucles de compilacion de aarch64, riscv64 e Intel llevaban `2>/dev/null`.
+Ahora guardan el error y lo imprimen cuando falla. **Con eso el diagnostico llego
+en el primer intento**, despues de que esta sesion gastara dos hipotesis falsas
+--que faltara `-pthread`, que hiciera falta `-latomic`-- reproduciendo en WSL con
+los flags exactos del job.
+
+### El fallo: una premisa medida en dos compiladores, aplicada a todos
+
+`fixed_int_atomic.hpp` decidia usar `std::atomic` o mutex con esta regla:
+
+    is_always_lock_free == true  ==>  enlaza sin libatomic
+
+Se comprobo en gcc y clang, y se dio por buena. **Con `icpx` es falsa**: declara
+lock-free y aun asi emite la llamada a la biblioteca.
+
+    undefined reference to "__atomic_compare_exchange"
+    icpx: error: linker command failed with exit code 1
+
+Ahora la condicion son **dos**: que lo diga `is_always_lock_free` **y** que el
+tipo quepa en una palabra, que es lo unico que todos resuelven con una
+instruccion. Se pierde el caso de 16 bytes que clang hacia sin bloqueo **solo con
+`-march=native`**; gcc, MSVC e Intel ya decian que no.
+
+Es la **tercera vez** en este proyecto que una medida tomada donde era comodo se
+generaliza y sale mal. Las dos anteriores fueron umbrales; esta, una condicion de
+enlazado.
+
+El test se actualizo en consecuencia: la relacion con `std::atomic` es una
+**implicacion**, no una igualdad, y ahora comprueba las dos direcciones por
+separado.
+
+### Un backtick del enlazador que rompio Doxygen
+
+Al citar el mensaje de `ld` en un comentario, el techo de avisos subio de 466 a
+479. La causa era **uno solo** de esos 13: el mensaje de GNU usa comillas
+**asimetricas** --backtick de apertura y comilla simple de cierre-- asi que
+Doxygen veia un bloque de codigo que no se cerraba nunca y daba por indocumentado
+todo lo que venia detras. Los otros 12 avisos eran consecuencia.
+
+Citado con comillas simetricas, vuelve a 466.
+
+### Lo demas que encontro la auditoria
+
+| Afirmacion | Realidad |
+|---|---|
+| `CMakeLists.txt` remite a `WORKFLOW_OBLIGATORIO.md`, y lo **imprime en pantalla** al configurar | **ese fichero no existe** |
+| «Documentos de raiz: 12, 9.834 renglones» | 12 documentos, pero **11.218** renglones |
+| «clang-format, 104 ficheros» | **131** rastreados |
+| «Fallback: binary long division — dead code, kept as safety net» | **es cierto que es codigo muerto**, y se comprobo por que: con `N == 1` el bucle que calcula `single_limb_b` no se ejecuta, asi que vale `true` y siempre se retorna antes; con `N >= 2` retorna el `if constexpr`. Pero «safety net» es falso: codigo inalcanzable no protege de nada |
+
+Los contadores de Headers (34), Tests (64), ADR (17) y celdas (192) **si
+cuadraban**.
+
 ## [sin publicar] - 2026-09-18 - ADR-017 y la vigilancia de MS/EK
 
 ### El diseno del tramo 3, escrito antes de escribir el codigo

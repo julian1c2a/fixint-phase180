@@ -15,14 +15,21 @@
 //      cuenta tiene que cuadrar exactamente. Si el CAS estuviera mal, o si el
 //      relleno del tipo `checked` rompiera la comparacion, saldria aqui.
 //   3. **Que `is_lock_free()` diga la verdad.** El envoltorio viejo devolvia
-//      `false` fijo. Este no: se comprueba que coincida con lo que declara
-//      `std::atomic` para el tipo, y se IMPRIME la tabla por plataforma, porque
-//      depende del compilador.
+//      `false` fijo. Este no. Ojo: la relacion con `std::atomic` es una
+//      IMPLICACION, no una igualdad --ver el apartado 3-- y se IMPRIME la tabla
+//      por plataforma, porque depende del compilador Y de las banderas.
 //
 // El apartado 2 usa hilos, pero **este fichero NO necesita la excepcion** que
 // lleva `test_param_thread_safety` para MSVC e Intel: se comprobo, y da 8/8 en
-// los cuatro compiladores por los dos modos. Tampoco necesita `-latomic`, que es
-// justo lo que el diseno de `fixed_int_atomic.hpp` va a buscar.
+// los cuatro compiladores por los dos modos.
+//
+// Sobre `-latomic`: aqui decia que tampoco hacia falta, «que es justo lo que el
+// diseno va a buscar». **Era verdad en los cuatro compiladores de Windows y
+// falsa en `icpx` sobre Linux**, donde el CI murio al enlazar con
+// `undefined reference to __atomic_compare_exchange` el 21 sep 2026. El diseno
+// se corrigio --ahora exige ademas que el tipo quepa en una palabra-- y esta
+// frase se queda como recordatorio de que la comprobacion se habia hecho en
+// media plataforma.
 // =============================================================================
 
 #include "fixed_int_atomic.hpp"
@@ -238,10 +245,24 @@ namespace
         using V = typename A::value_type;
         A a{V{0}};
 
-        // Lo que la clase declara tiene que ser lo que declara `std::atomic` para
-        // el tipo: es de donde sale la decision de usar mutex o no.
-        comprueba(A::is_always_lock_free == std::atomic<V>::is_always_lock_free,
-                  "is_always_lock_free coincide con el de std::atomic");
+        // La relacion con `std::atomic` es una IMPLICACION, no una igualdad, y
+        // eso es deliberado desde el 21 sep 2026.
+        //
+        // La version anterior exigia igualdad, apoyada en que
+        // `is_always_lock_free` bastaba para no necesitar libatomic. **Con
+        // `icpx` esa premisa es falsa**: declara lock-free y aun asi emite
+        // `__atomic_compare_exchange`, y el CI de Linux murio al enlazar. Asi
+        // que la clase exige ademas que el tipo quepa en una palabra.
+        //
+        // Lo que hay que garantizar, entonces, es solo una direccion:
+        comprueba(!A::is_always_lock_free || std::atomic<V>::is_always_lock_free,
+                  "si la clase dice sin bloqueo, std::atomic tambien lo dice");
+
+        // Y que la condicion es exactamente la que se quiso poner, ni mas ni
+        // menos: si esto falla, alguien cambio la regla sin actualizar el test.
+        comprueba(A::is_always_lock_free ==
+                      (std::atomic<V>::is_always_lock_free && sizeof(V) <= sizeof(void *)),
+                  "la condicion es is_always_lock_free Y caber en una palabra");
 
         // Y si dice que SIEMPRE, la instancia concreta tambien tiene que decirlo.
         if (A::is_always_lock_free)
