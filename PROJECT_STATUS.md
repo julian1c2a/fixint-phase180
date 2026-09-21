@@ -93,7 +93,7 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 |---|---|
 | Headers | 34 (`include/`, con `algorithms/` e `intrinsics/`) |
 | Tests | 64 ficheros |
-| Scripts vivos | 20 (llegaron a ser 47) |
+| Scripts vivos | **25** rastreados fuera de `tests/` y `benchs/`, mas 5 en `scripts/archive`. El contador decia 20 y llevaba tiempo desfasado: ahora el criterio esta dicho, que es lo que permite volver a contarlo |
 | Documentos de raíz | 12, 9.834 renglones — de los que 6.271 son el `CHANGELOG` |
 | ADR | **17**, ninguna decisión tomada sin documentar |
 
