@@ -1,3 +1,63 @@
+## [sin publicar] - 2026-09-21 - ADR-018: la representacion no es observable
+
+Cierra las tres cuestiones que ADR-017 dejo abiertas a proposito. Las tres tenian
+la misma forma --**?la operacion mira el valor o mira los bits?**-- y las tres se
+resuelven igual: **sobre el valor**.
+
+    `<<`, `>>`           -3 >> 1 da -2 en las TRES representaciones
+    `&` `|` `^` `~`      ~3 da -4 en las tres
+    `<=>`                orden por valor
+
+Es decir: `fixed_int_t<N, signed, MS, P>` y `fixed_int_t<N, signed, TC, P>` dan
+**lo mismo en todo**, y se distinguen solo por lo que devuelven `limb()` y
+`limbs()`.
+
+### El precedente estaba roto, y por eso no cuenta
+
+Antes de decidir se fue a ver como lo hacia `int128_param_t`, que lleva MS y EK
+desde antes de este repositorio. **Ejecutandolo:**
+
+    representacion        3 << 1        -3 >> 1              ~3
+    complemento a dos     6             -2                   -4
+    Magnitud-Signo        6             -1  (deliberado)     -1,70e38  ROTO
+    Exceso-K              8,5e37 ROTO   -4,25e37 ROTO         1,70e38  ROTO
+
+En MS si hubo eleccion, comentada en el codigo: desplazar la magnitud y conservar
+el signo, lo que hace que `>>` trunque hacia cero. Pero **`~` esta roto**:
+`~mag_high` pone a uno el bit 63, que es el de signo, y falta enmascararlo.
+
+En **Exceso-K no hay ninguna rama**: los desplazamientos operan sobre la
+representacion sesgada, que no significa nada.
+
+### Por que nadie lo vio: tests que no pueden fallar
+
+Asi prueba `~` el test de Magnitud-Signo:
+
+    TEST("ms not changes value",      ~x != x);
+    TEST("ms demorgan ~(a&b)==~a|~b", ~(a & b) == (~a | ~b));
+    TEST("ms shl pos sign preserved", !(x << 1).is_negative());
+
+**Ninguno comprueba el valor.** De Morgan se cumple igual con basura, porque es
+una identidad estructural: vale sobre las magnitudes y los signos coinciden a los
+dos lados. Y `test_param_ek.cpp` no prueba desplazamientos ni bitwise en
+absoluto.
+
+Mismo patron que P0.4 y que ADR-014: **una comprobacion que no puede fallar no es
+una comprobacion.**
+
+### Lo que se corrige de paso
+
+`PROJECT_STATUS` marcaba «Magnitud-Signo y Exceso-K en `int128_param_t`: ✅».
+Era falso. **No se arregla el tipo viejo** --lo retira ADR-006 y seria escribir
+dos veces lo mismo-- pero queda dicho, porque ese ✅ funcionaba como argumento
+tacito de que el problema estaba resuelto.
+
+### La regla que sale
+
+**Un parametro de plantilla que dice como se guarda algo no debe cambiar lo que
+ese algo hace.** Si lo cambia, no es un parametro de representacion: es un tipo
+distinto, y merece otro nombre.
+
 ## [sin publicar] - 2026-09-21 - Cierre de la auditoria: el CI verde y una deuda que no caducaba
 
 ### El CI vuelve a verde: 24/24, cero fallos, Intel incluido

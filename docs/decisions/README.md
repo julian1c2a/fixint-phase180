@@ -32,6 +32,7 @@ Lo esencial:
 | [015](ADR-015-version-de-intel-oneapi.md) | Intel oneAPI se usa en su versión más alta instalada, no fijada | ✅ Aceptado |
 | [016](ADR-016-burnikel-ziegler-aparcado-por-medida.md) | Burnikel–Ziegler se aparca, y el motivo es una medida | ✅ Aceptado |
 | [017](ADR-017-magnitud-signo-y-exceso-k-como-codificaciones.md) | Magnitud-Signo y Exceso-K son codificaciones, no aritméticas | ✅ Aceptado |
+| [018](ADR-018-la-representacion-no-es-observable.md) | La representación no es observable desde el comportamiento · cierra las tres cuestiones abiertas de [017](ADR-017-magnitud-signo-y-exceso-k-como-codificaciones.md) | ✅ Aceptado |
 
 ## Sobre los ADR 001–005
 

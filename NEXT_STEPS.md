@@ -128,34 +128,25 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P1.5 tramo 2f~~ | ~~Las siete `checked_*` y `saturating_*` sólo con `wrap`~~ | ✅ **hecho (10 sep)**: aceptan cualquier política, y **la marca es pegajosa**. Saturar no limpia una marca previa, porque un valor marcado guarda dentro el resultado *envuelto* y saturar a partir de él no da el valor correcto |
 | ~~P1.5 tramo 2d~~ | ~~`atomic_*` y el envoltorio atómico~~ | ✅ **hecho**: `include/fixed_int_atomic.hpp`. **No es una copia del viejo**: aquél usaba mutex siempre y mentía con `is_always_lock_free() == false` fijo; éste va **sin bloqueo** donde se puede. La condición **no es el tamaño sino `is_always_lock_free`**, porque es la única que garantiza no arrastrar `-latomic` — en gcc, `std::atomic<T>` de 16 bytes **no enlaza sin él**. Y corre en **MSVC e Intel**, donde el test viejo tiene excepción |
 | ~~P1.5 tramo 2e~~ | ~~`div<D>`/`mod<D>`/`divmod_const<D>` por divisor constante~~ | ✅ **hecho**, y **no hubo que portar Granlund–Montgomery**: basta con que el preámbulo (normalizar y calcular el recíproco, un `divq`) se resuelva en compilación, porque ya era `constexpr`. **8,13× en N=2**, y nunca pierde. De paso desmintió dos afirmaciones de `PERFORMANCE.md`: el eje que manda es `N`, no el tamaño del divisor, y **10¹⁹ sí cabe en 64 bits** |
-| **P1.5 tramo 3** | **Magnitud-Signo y Exceso-K.** 🔸 **Primera pieza hecha**: `nstd::repr` en `representation.hpp` da las conversiones para **cualquier N** (estaban fijadas a 128 bits), con 2 894 comprobaciones. **Queda conectarlo**: relajar el `static_assert` y hacer que la aritmética decodifique y recodifique — son 41 puntos del tipo. El diseño ya está decidido: MS y EK son **codificaciones, no aritméticas**, así que no hay algoritmo nuevo que escribir | tramo 2 |
+| **P1.5 tramo 3** | **Magnitud-Signo y Exceso-K.** ✅ Conversiones por N hechas (`nstd::repr`, 2 894 comprobaciones) y ✅ **las tres decisiones cerradas** en [ADR-018](docs/decisions/ADR-018-la-representacion-no-es-observable.md): la representación **no es observable**, así que `<<`, `>>`, los bitwise y `<=>` operan **sobre el valor**. Queda sólo lo mecánico: relajar el `static_assert` y meter decodificar/recodificar en los 41 puntos | tramo 2 |
 | **P1.6** | Etapa 5: punto fijo | P1.5 |
 
-### ⬅️ Por aquí se sigue (19 sep 2026)
+### ⬅️ Por aquí se sigue (21 sep 2026)
 
-**Lo primero del lunes son tres decisiones, no código.** El tramo 3 está parado a
-propósito: [ADR-017](docs/decisions/ADR-017-magnitud-signo-y-exceso-k-como-codificaciones.md)
-cerró cinco cuestiones y **dejó tres abiertas** porque adivinarlas sería peor que
-dejarlas escritas. Hasta resolverlas, escribir el conectado sería una apuesta:
+**Las tres decisiones ya están tomadas**
+([ADR-018](docs/decisions/ADR-018-la-representacion-no-es-observable.md)), así que
+el tramo 3 es ahora trabajo mecánico: `<<`, `>>`, los bitwise y `<=>` operan
+**sobre el valor**, no sobre los bits. Decodificar a complemento a dos, llamar a
+lo que ya existe, recodificar.
 
-| Hay que decidir | El problema |
-|---|---|
-| Qué hacen `<<` y `>>` en MS/EK | En complemento a dos son multiplicar y dividir por potencias de dos. En MS eso lo hace desplazar la **magnitud**; desplazar la **representación** es otra cosa. La elección cambia qué significa el tipo |
-| Qué hacen `&`, `\|`, `^`, `~` | Sobre la representación son una cosa y sobre el valor decodificado otra, y ninguna es obviamente «la buena» |
-| El orden de `<=>` | Decodificando sale el orden natural; sobre la representación, EK ordena igual que sin signo (ésa es su gracia) y MS no |
+**Lo que hay que vigilar al escribirlo** es el test, no el código. El tipo viejo
+llevaba MS y EK «implementados» y estaban **rotos** —`~` en MS, los
+desplazamientos enteros en EK— y nadie lo vio porque sus tests comprueban
+propiedades estructurales (`~x != x`, De Morgan) que se cumplen **aunque el
+resultado sea basura**. La forma que sí falla cuando algo está mal: **cruzar cada
+operación en MS y en EK contra el resultado en complemento a dos**. Si son la
+misma cosa, tienen que coincidir siempre.
 
-**Por qué no se relajó el `static_assert` igualmente.** Las operaciones que no
-dependen de esas tres —`+ - * / %` y las comparaciones— se podrían conectar hoy.
-Pero dejar el tipo con la mitad de los operadores funcionando y la otra mitad
-dando basura es **peor** que el estado actual, y ese `static_assert` es justo lo
-que impide llegar ahí.
-
-Cuando estén decididas, el trabajo es mecánico: los 41 puntos, con
-`nstd::repr::a_c2` y `desde_c2` ya escritas y con 2 894 comprobaciones.
-
-**Y la matriz ya vigila el final**: `int/magnitude_sign` e `int/excess_k` están en
-las reservadas, así que en cuanto se implementen la comprobación **falla** y
-obliga a abrir sus columnas. No se puede dar por cerrado sin comprobarlo.
 
 #### P1.6 (punto fijo) no puede empezar antes
 

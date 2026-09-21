@@ -95,7 +95,7 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 | Tests | 64 ficheros |
 | Scripts vivos | **25** rastreados fuera de `tests/` y `benchs/`, mas 5 en `scripts/archive`. El contador decia 20 y llevaba tiempo desfasado: ahora el criterio esta dicho, que es lo que permite volver a contarlo |
 | Documentos de raíz | 12, **11.286** renglones — de los que la mayoría son el `CHANGELOG` |
-| ADR | **17**, ninguna decisión tomada sin documentar |
+| ADR | **18**, ninguna decisión tomada sin documentar |
 
 ## Cifras de la suite
 
@@ -123,7 +123,7 @@ propiedades sobre `int128_param_t`.
 | Interop signed/unsigned al estilo de los built-in | ✅ |
 | iostreams, `std::format`, `std::hash`, cadena en bases 2..36 | ✅ |
 | Knuth D, Karatsuba (N≥32), escolar desenrollado (N=3..16), Granlund-Montgomery | ✅ · **2× a 4,9× más rápido** desde el 6 sep 2026, ver [PERFORMANCE](docs/PERFORMANCE.md) |
-| Magnitud-Signo y Exceso-K **en `int128_param_t`** | ✅ |
+| Magnitud-Signo y Exceso-K **en `int128_param_t`** | ⚠️ **incompleto, y el ✅ era falso** (medido 21 sep): en Exceso-K los **desplazamientos** dan basura —no hay rama para esa representación— y en Magnitud-Signo **`~` está roto** (invierte la magnitud y el `~` pone a uno el bit de signo). Los tests no lo cazaban porque comprueban propiedades estructurales, no valores. **No se arregla**: lo retira [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md); ver [ADR-018](docs/decisions/ADR-018-la-representacion-no-es-observable.md) |
 | Magnitud-Signo y Exceso-K **en `fixed_int_t`** | ❌ pendiente — [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md) |
 | Política de desbordamiento como parámetro | ✅ **escrita** (P1.1–P1.3): almacenamiento, propagación, orden y las `checked_*`/`saturating_*` |
 | `checked_div` y las tres `saturating_*` en `fixed_int_t` | ✅ (5 sep 2026) — desbloquea [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md) |
