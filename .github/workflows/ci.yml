@@ -157,12 +157,14 @@ jobs:
             name=$(basename "$src" .cpp)
             TOTAL=$((TOTAL + 1))
             echo -n "  [$TOTAL] $name ... "
-            if $CXX $CXXSTD $INCLUDE -O2 -o "build_temp/${name}_aarch64" "$src" 2>/dev/null; then
+            if $CXX $CXXSTD $INCLUDE -O2 -o "build_temp/${name}_aarch64" "$src" 2>"build_temp/${name}.err"; then
               echo "OK"
               PASS=$((PASS + 1))
             else
               echo "FAIL (compile)"
               FAIL=$((FAIL + 1))
+              echo "        --- error de compilacion ---"
+              head -40 "build_temp/${name}.err" | sed "s/^/        /"
             fi
           done
           echo ""
@@ -352,10 +354,12 @@ jobs:
             name=$(basename "$src" .cpp)
             TOTAL=$((TOTAL + 1))
             echo -n "  [$TOTAL] $name ... "
-            if $CXX $CXXSTD $INCLUDE -O2 -o "build_temp/${name}_riscv64" "$src" 2>/dev/null; then
+            if $CXX $CXXSTD $INCLUDE -O2 -o "build_temp/${name}_riscv64" "$src" 2>"build_temp/${name}.err"; then
               echo "OK"; PASS=$((PASS + 1))
             else
               echo "FAIL (compile)"; FAIL=$((FAIL + 1))
+              echo "        --- error de compilacion ---"
+              head -40 "build_temp/${name}.err" | sed "s/^/        /"
             fi
           done
           echo ""
@@ -754,7 +758,7 @@ jobs:
             name=$(basename "$src" .cpp)
             TOTAL=$((TOTAL + 1))
             echo -n "  [$TOTAL] $name ... "
-            if $CXX $FLAGS -o "build_temp/${name}_intel" "$src" 2>/dev/null; then
+            if $CXX $FLAGS -o "build_temp/${name}_intel" "$src" 2>"build_temp/${name}.err"; then
               if timeout 60 "./build_temp/${name}_intel" >/dev/null 2>&1; then
                 echo "OK"; PASS=$((PASS + 1))
               else
@@ -762,6 +766,8 @@ jobs:
               fi
             else
               echo "FAIL (compile)"; FAIL=$((FAIL + 1))
+              echo "        --- error de compilacion ---"
+              head -40 "build_temp/${name}.err" | sed "s/^/        /"
             fi
           done
           echo ""
