@@ -1,6 +1,6 @@
 # PROJECT STATUS
 
-**Last Updated:** 18 September 2026
+**Last Updated:** 21 September 2026
 **Versión:** v1.90.4 · **rama** `phase-1.80` · árbol limpio, todo en `origin`
 
 > Instantánea **del estado actual**, y solo eso. No acumula historia: lo ya hecho
@@ -43,7 +43,7 @@ en `include/algorithms/mul_kernels.hpp` —escolar desenrollado, Karatsuba con
 reparto equilibrado, cuadrado y Toom-3— **con cada umbral medido**, y la mitad
 alta del rango admitido (N = 64…4096) cubierta por primera vez.
 
-## Verificación — 18 September 2026
+## Verificación — 21 September 2026
 
 | Comprobación | Resultado |
 |---|---|
@@ -52,12 +52,12 @@ alta del rango admitido (N = 64…4096) cubierta por primera vez.
 | `python make.py test clang-libstdcxx release-O2` | **64/64 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
 | `python make.py test msvc release-O2` | **64/64 ficheros** |
 | `python make.py test intel release-O2` | **64/64 ficheros** (oneAPI 2026.1) |
-| CI sobre `f959f53` | **24/24 jobs**, matriz completa: gcc-13/14/15/16, clang-18/19/20/21/22, ARM64, arm32, riscv64, i686 |
+| CI sobre `21e9301` | **24/24 jobs, cero fallos** (21 sep 2026), matriz completa: gcc-13/14/15/16, clang-18/19/20/21/22, ARM64, arm32, riscv64, i686 e **Intel ICX**. La cifra anterior citaba `f959f53`, **58 commits atrás**, y en ese intervalo el CI estuvo cuatro días en rojo sin que nadie lo mirara |
 | `scripts/check_headers_selfcontained.py` | **34/34** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
-| `clang-format --dry-run --Werror`, 104 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
+| `clang-format --dry-run --Werror`, 131 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
 | `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
 | `scripts/check_matriz_paridad.py` | **192/192 celdas**, todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
-| Avisos de cobertura de Doxygen desde `include/` | **499** (local, doxygen 1.18.0) · **518** (CI, doxygen 1.9.8) |
+| Avisos de cobertura de Doxygen desde `include/` | **511** (local, doxygen 1.18.0), de los que **466 cuentan** contra el techo de ADR-014 y 45 son de headers internos, fuera del ámbito |
 
 > **La cifra de Doxygen no ha empeorado: antes no se medía.** Hasta el 25 ago el
 > `Doxyfile` tenía `EXTRACT_ALL = YES` y `WARN_IF_UNDOCUMENTED = NO`, con lo que
@@ -94,7 +94,7 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 | Headers | 34 (`include/`, con `algorithms/` e `intrinsics/`) |
 | Tests | 64 ficheros |
 | Scripts vivos | **25** rastreados fuera de `tests/` y `benchs/`, mas 5 en `scripts/archive`. El contador decia 20 y llevaba tiempo desfasado: ahora el criterio esta dicho, que es lo que permite volver a contarlo |
-| Documentos de raíz | 12, 9.834 renglones — de los que 6.271 son el `CHANGELOG` |
+| Documentos de raíz | 12, **11.286** renglones — de los que la mayoría son el `CHANGELOG` |
 | ADR | **17**, ninguna decisión tomada sin documentar |
 
 ## Cifras de la suite
@@ -133,6 +133,11 @@ propiedades sobre `int128_param_t`.
 - `intrinsics/compiler_detection.hpp` (29 avisos) y
   `algorithms/karatsuba.hpp` (3) están fuera del ámbito de ADR-014 pero no de
   `int128_param_*`: habrá que decidir si entran.
+- **Los 466 avisos del ámbito público NO bajan solos a cero con P1.5.** Contado
+  el 21 sep: 257 son de `int128_param_*` —esos sí los retira P1.5— y **209 son
+  del tipo nuevo** (177 en `fixed_width_int_t.hpp`, 32 en `fixed_int_limits.hpp`).
+  Es trabajo propio que no estaba en ninguna lista, y es lo que impide que P3.2
+  se desbloquee solo. Ver **P3.7** en NEXT_STEPS.
 - ✅ **`make.py build` ya detecta el fallo de enlazado** (25 ago 2026). Eran dos
   fallos en `scripts/build_generic.py`: el código de salida no se propagaba, y el
   criterio era `returncode == 0 **o** existe el binario`, con un `or` que dejaba

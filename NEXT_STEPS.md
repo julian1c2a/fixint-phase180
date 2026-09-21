@@ -1,6 +1,6 @@
 # 🔮 NEXT STEPS
 
-**Last Updated:** 18 September 2026
+**Last Updated:** 21 September 2026
 **Versión:** **v1.90.4** publicada · **rama** `phase-1.80` · árbol limpio · todo en `origin`
 
 > Este documento es **el puntero y lo pendiente a corto**. No acumula historia:
@@ -15,13 +15,13 @@
 
 # 📍 POR AQUÍ VAMOS
 
-## Estado al 18 sep 2026
+## Estado al 21 sep 2026
 
 | | |
 |---|---|
 | **Release** | ✅ **v1.90.4 publicada**, la primera del proyecto: tres zips (gcc, clang, msvc) |
 | **Suite local** | ✅ **64/64 en CINCO configuraciones**: GCC+libstdc++, clang+libc++, **clang+libstdc++**, MSVC e Intel |
-| **CI** | ✅ **24/24 jobs** sobre `f959f53`, ya con la matriz compilando de verdad: no había fallos tapados |
+| **CI** | ✅ **24/24 jobs, cero fallos** sobre `21e9301` (21 sep). Antes citaba `f959f53`, **58 commits atrás**, y en ese hueco estuvo **cuatro días en rojo** sin que nadie mirara: lo rompió el envoltorio atómico y lo tapó un `2>/dev/null` en el propio CI |
 | **Diseño de la 2.0** | ✅ cerrado. **P1.1 a P1.4 escritos**; quedan P1.5 y P1.6 |
 | **`operator*`** | ✅ **el frente de la multiplicación, cerrado** (17 sep 2026). Cuatro algoritmos reunidos en `algorithms/mul_kernels.hpp`, cada umbral medido: escolar desenrollado ≤ 21, **Karatsuba equilibrado** ≥ 22 para *cualquier* N, **cuadrado** propio para `x*x`, y **Toom-3** ≥ 1024 |
 | **La división** | ✅ **cerrada por ahora**. Knuth D en su capa medible (`div_kernels.hpp`), `divq` en línea **1,28×–1,39×**, Möller–Granlund **2/1** (~84 → ~17 ciclos/limbo) y **3/2** (hasta **3,3×**). **P2.11 aparcado con medida** ([ADR-016](docs/decisions/ADR-016-burnikel-ziegler-aparcado-por-medida.md)): hasta N=1024 la división ya está dentro del techo de 2–4× que publica GMP |
@@ -82,6 +82,10 @@ dirección lo haga:
   [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md): la
   cuenta **baja sola** conforme se alcanza la paridad, porque cada pieza portada
   permite **borrar** la vieja. El trabajo no es documentar, es borrar.
+
+  **Ojo: eso vale para 257 de los 466 avisos, no para todos.** Contado el 21 sep,
+  los otros **209 son del tipo NUEVO** y no los borra nadie. Es la diferencia
+  entre una deuda que caduca y una que sólo lo parece — ver **P3.7**.
 
 ### Desempate
 
@@ -240,8 +244,41 @@ el punto fijo.
 | **P3.2** | Cerrar la puerta: `WARN_AS_ERROR = YES` cuando el ámbito llegue a cero | Depende de P3.1 |
 | **P3.3** | Los 6 headers sin `API_*.md` propio que señala el armonizador | — |
 | ~~P3.4~~ | ~~`benchmark_vs_builtin` no enlaza sin GMP~~ | ✅ **hecho**: le faltaban `-lgmp`, `-lgmpxx` y `-ltommath`. Las tres bibliotecas estaban instaladas |
-| **P3.5** | Documentar `int128_param_*` (499 avisos) | **Caduca hacia atrás**: baja sola con P1.5 |
+| **P3.5** | Documentar `int128_param_*` (**257** avisos, contados el 21 sep) | **Caduca hacia atrás**: baja sola con P1.5. **Pero sólo esos 257**: los otros 209 del ámbito público son del tipo nuevo y no los retira nadie — ver **P3.7** |
 | **P3.6** | Decidir si Intel sale de la matriz de release | Se cae solo si P0.6 sale bien |
+| **P3.7** | **Documentar el tipo NUEVO: 209 miembros públicos sin `@brief`** | ⚠️ **Nadie lo tenía apuntado, y es lo que impide que P3.2 se desbloquee solo** |
+
+> ### P3.7 — «P3.5 caduca hacia atrás» era sólo medio cierto (21 sep 2026)
+>
+> P3.5 dice que documentar `int128_param_*` **baja sola** al retirar ese tipo con
+> P1.5, y de ahí se seguía que P3.2 —`WARN_AS_ERROR = YES` cuando el ámbito
+> llegue a cero— se desbloquearía solo. **Contado, no es así.**
+>
+> Los **466** avisos de cobertura del ámbito público se reparten:
+>
+> | origen | avisos | ¿lo retira P1.5? |
+> |---|---:|---|
+> | `int128_param_*` | **257** | sí |
+> | `fixed_width_int_t.hpp` | **177** | **no** |
+> | `fixed_int_limits.hpp` | **32** | **no** |
+>
+> Es decir: retirar el tipo viejo baja de 466 a **209**, no a 0. Los 209 que
+> quedan son del tipo que se queda, y **son trabajo propio que no estaba en
+> ninguna lista**. De ellos **196 son funciones** y 28 variables.
+>
+> (Hay otros 41 avisos en `intrinsics/` y `algorithms/` que **no cuentan**:
+> [ADR-014](docs/decisions/ADR-014-cobertura-de-doxygen.md) los dejó fuera del
+> ámbito público. Por eso el total de doxygen es 511 y el techo 466.)
+>
+> **Qué hacer con esto.** No es «documentar 209 cosas» de una sentada; es la
+> misma escalera de ADR-014: fijar el techo, bajarlo por tandas y no dejar que
+> suba. Dos avisos de esta semana muestran que el mecanismo ya funciona —el techo
+> saltó al insertar métodos en medio del bloque Doxygen de `divmod`, y otra vez
+> al citar un mensaje de `ld` con comillas asimétricas—, así que lo que falta es
+> **bajar**, no vigilar.
+>
+> **Y el orden importa**: hacerlo antes de P1.5 tramo 3 sería documentar
+> operaciones que ese tramo va a tocar. Va **después**.
 
 ---
 

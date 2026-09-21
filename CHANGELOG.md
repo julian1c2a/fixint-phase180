@@ -1,3 +1,62 @@
+## [sin publicar] - 2026-09-21 - Cierre de la auditoria: el CI verde y una deuda que no caducaba
+
+### El CI vuelve a verde: 24/24, cero fallos, Intel incluido
+
+`21e9301` -> **success**. Llevaba **cuatro dias en rojo**, desde `b164290`, y la
+sesion del 18 sep cerro diciendo «64/64 en las cinco configuraciones» sin mirarlo.
+Era cierto en local y falso fuera.
+
+La cadena completa, para que quede: el CI decia solo `FAIL (compile)` porque el
+bucle de Intel llevaba `2>/dev/null` -> se arreglo para que imprimiera el error
+(`a6b325f`) -> dijo `undefined reference to "__atomic_compare_exchange"` a la
+primera -> la causa era una premisa medida en gcc y clang y aplicada a todos ->
+corregida en `21e9301` -> verde.
+
+`PROJECT_STATUS` publicaba ademas «CI sobre `f959f53`: 24/24». Ese hash estaba
+**58 commits atras**. Ahora cita `21e9301` con la fecha de la comprobacion.
+
+### P3.7: la deuda de Doxygen no bajaba sola, y nadie lo habia contado
+
+El proyecto daba por hecho que P3.2 --`WARN_AS_ERROR = YES` cuando el ambito
+llegue a cero-- se desbloquearia solo, porque P3.5 «caduca hacia atras»: al
+retirar `int128_param_t` con P1.5, sus avisos se borran con el.
+
+**Contado el 21 sep, eso vale para la mitad.** De los 466 avisos del ambito
+publico:
+
+    int128_param_*            257   los retira P1.5
+    fixed_width_int_t.hpp     177   NO
+    fixed_int_limits.hpp       32   NO
+
+Retirar el tipo viejo baja de 466 a **209**, no a 0. Esos 209 --196 funciones y
+28 variables-- son del tipo que se queda, **y no estaban en ninguna lista**.
+
+Queda como **P3.7**, con dos cosas dichas que no son obvias:
+
+- No es «documentar 209 cosas»: es la escalera de ADR-014 otra vez --fijar techo,
+  bajar por tandas, no dejar que suba--. El mecanismo de vigilancia **ya
+  funciona**: esta semana salto dos veces, al partir el bloque Doxygen de
+  `divmod` y al citar un mensaje de `ld`.
+- **Va despues de P1.5 tramo 3**, no antes: hacerlo antes seria documentar
+  operaciones que ese tramo va a reescribir.
+
+El criterio 3 de NEXT_STEPS --«documentar caduca hacia atras»-- queda matizado
+en el sitio donde se lee, no solo aqui.
+
+### Y lo que citaba ficheros inexistentes
+
+`CMakeLists.txt` remitia **dos veces** a `WORKFLOW_OBLIGATORIO.md`, que no existe,
+y una de ellas **lo imprimia en pantalla** en cada configuracion. Ahora apunta a
+`AI-GUIDE.md` seccion 29, que si existe y es lo que describe ese flujo.
+
+Contadores puestos al dia contra la realidad, no de memoria: renglones de raiz
+9.834 -> **11.286**, clang-format 104 -> **131** ficheros, avisos de doxygen
+«499» -> **511 de los que 466 cuentan**.
+
+Verificado: **64/64 en las cinco configuraciones**, 34/34 cabeceras aisladas,
+192/192 celdas, 9/9 en el armonizador con --doxygen, 64 ficheros sin romper la
+precondicion, y **24/24 jobs del CI**.
+
 ## [sin publicar] - 2026-09-21 - Auditoria: el CI llevaba tres dias en rojo
 
 La sesion del 18 sep cerro diciendo «64/64 en las cinco configuraciones». Era

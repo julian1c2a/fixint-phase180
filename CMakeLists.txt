@@ -17,7 +17,7 @@
 # INCORRECTO:
 #   g++ -std=c++20 tests/int128_*.cpp  ❌ NUNCA COMPILAR MANUALMENTE
 #
-# Ver: WORKFLOW_OBLIGATORIO.md para detalles completos
+# Ver: AI-GUIDE.md, seccion 29 (Flujo de Trabajo del Desarrollador)
 #
 # =============================================================================
 
@@ -246,7 +246,7 @@ message(STATUS "  cmake --build . --target build-all  # Via make.py")
 message(STATUS "  cmake --build . --target test-all   # Via make.py")
 message(STATUS "  cmake --build . --target bench-all  # Via make.py")
 message(STATUS "")
-message(STATUS "⚠️  REMEMBER: Prefer Python workflow (see WORKFLOW_OBLIGATORIO.md)")
+message(STATUS "⚠️  REMEMBER: Prefer Python workflow (see AI-GUIDE.md, section 29)")
 message(STATUS "")
 
 # =============================================================================
