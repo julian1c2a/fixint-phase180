@@ -1,3 +1,152 @@
+## [sin publicar] - 2026-09-22 - P1.6 primera entrega: el tipo y las conversiones
+
+`fixed_point_t<N, F, Sign, Form, Policy>` existe. El valor es
+`crudo / 2^(64*F)`, y el crudo es un `fixed_int_t<N, Sign, Form, Policy>` sin
+relleno ni bits que enmascarar.
+
+Entra **lo exacto**: construccion, `desde_crudo`, las constantes, suma, resta,
+negacion, producto por un entero, las seis comparaciones y `<=>`, `suelo()`,
+`parte_fraccionaria()`, `es_entero()`, `valid()` y `to_string()`. Todo en
+`constexpr`.
+
+### Lo que NO entra, y a proposito
+
+`operator*` entre dos puntos fijos y `operator/` **no estan declarados**, porque
+necesitan el redondeo que [ADR-019](docs/decisions/ADR-019-punto-fijo-es-un-entero-con-escala.md)
+deja como perilla. No estan *desactivados*: no existen, de modo que llamarlos es
+un error de compilacion y no una sorpresa en tiempo de ejecucion.
+
+Y **eso esta vigilado**. La matriz de paridad lleva cinco sondas nuevas que
+tienen que seguir rechazando: el producto, la division, `one()` en el tipo
+puramente fraccionario y `F > N`. Es la misma vigilancia que el 21 sep metio
+`int/magnitude_sign` e `int/excess_k` en RESERVADAS y que **fallo a proposito**
+en cuanto se implementaron, obligando a abrirles columna. El dia que alguien
+escriba el producto, esta se pondra roja igual.
+
+La quinta sonda es de **control** y tiene que compilar. No es decoracion: las
+otras cuatro pasan cuando *no* compilan, asi que pasarian todas tambien si la
+cabecera estuviera rota o si el `-I` no llegara --un barrido perfecto que no
+comprueba nada--. La de control es lo unico que separa «no esta escrito» de
+«aqui no compila nada».
+
+**192 -> 284 -> 289 celdas.**
+
+### Los dos fallos que salieron, y los dos estaban en la misma esquina
+
+De 1177 comprobaciones fallo **una**, y fue la util. `to_string` de un medio en
+`ufixed_point_t<1, 1>` --un limbo, el unico fraccionario, o sea `[0, 1)`--
+daba `0.0`.
+
+El motivo es de los que solo aparecen en la esquina: para sacar la cifra
+siguiente hay que multiplicar el resto por diez y quedarse con **lo que se
+desborda a la parte entera**. Cuando `F == N` no hay parte entera donde recoger
+nada: `resto * 10` desborda el limbo y `resto >> 64*N` desplaza el ancho
+completo, asi que la cifra sale cero siempre. En Q64.64 --`N=2, F=1`-- no pasa,
+y por eso los otros ocho casos de `to_string` pasaban.
+
+Se arregla haciendo el producto **al doble de ancho**, que es el mismo
+razonamiento que ADR-019 usa para el redondeo: los bits que se van a descartar
+se calculan primero y se miran despues, en vez de guardarlos de mas.
+
+#### Y el segundo: `to_string(min())` llevaba **dos** signos
+
+`Q::min().to_string(2)` daba `--9223372036854775808.00`. `to_string` se pasa a
+la magnitud para que la coma no tenga que saber de signos y pega el `-` al
+final, pero **negar el minimo envuelve** --`-min() == min()`--, de modo que la
+magnitud seguia siendo negativa, su suelo ya traia su propio signo, y encima le
+caia otro.
+
+Se arregla mirando si la negacion envolvio, y en ese caso imprimiendo el valor
+tal cual. Sale exacto porque el minimo **no tiene parte fraccionaria** --sus
+limbos bajos son todos cero--, asi que el suelo *es* el valor. Para cualquier
+otro negativo esto no valdria: el suelo va hacia `-inf` y daria `-3.5` para
+`-2,5`, que es justo el motivo del rodeo por la magnitud.
+
+> Este no lo encontro el test: lo encontro **ir a buscar las dos esquinas que el
+> test no construia**, `F == 0` y el minimo, despues de que `F == N` hubiera
+> fallado. Si una esquina falla, las otras hay que mirarlas. `F == 0` estaba
+> bien; el minimo no.
+
+Las tres esquinas estan ahora en el test.
+
+> El caso `F == N` no estaba en el diseno por listo: estaba porque **los
+> aleatorios no bastan**, y la esquina hay que construirla a mano. La de
+> arriba era el segundo caso limite escrito en el test, y fue el unico que
+> fallo.
+
+### Las cuatro representaciones, y un test que no comprobaba nada
+
+El test cubria **dos** de las cuatro: `binnat` y complemento a dos. ADR-019 dice
+que el punto fijo lleva las cuatro, asi que faltaba cruzar Magnitud-Signo y
+Exceso-K, que es el eje que el tramo 3 acaba de abrir.
+
+Se anadio el cruce --2832 comprobaciones nuevas contra complemento a dos, en la
+forma que fija ADR-018-- y **paso entero a la primera**. Un barrido perfecto, y
+ya van cuatro veces que eso significa que falta cruzar algo.
+
+Se comprobo de la unica manera que vale: **rompiendo el codigo a proposito**.
+Se cambio `parte_fraccionaria()` para que copiara los limbos en vez de convertir
+el valor --la equivocacion exacta que el tramo 3 se encontro seis veces-- y las
+**4009 comprobaciones siguieron pasando enteras**. El cruce era decorativo.
+
+El motivo, una vez visto, es de una linea: **construido desde un entero, un
+Q64.64 tiene el limbo bajo siempre a cero**. `x` vale `k * 2^64`, asi que la
+mascara que saca los `F` limbos bajos nunca tenia nada que sacar, y las tres
+representaciones coincidian trivialmente.
+
+Y al arreglarlo aparecio una segunda trampa dentro de la primera: **un medio no
+sirve como fraccion de prueba**. Es `2^63`, que es **su propio complemento a
+dos**, de modo que el limbo bajo de `-2,5` sale igual en Magnitud-Signo que en
+complemento a dos *por casualidad*. Hace falta un cuarto --`2^62`, cuyo
+complemento es `0xC000...`-- para que las dos codificaciones se separen.
+
+Con las fracciones de verdad puestas, el mismo codigo roto da **166 fallos**.
+Eso es lo que hace un test.
+
+> Es la cuarta vez en este proyecto que un barrido sin una sola casilla mala
+> resulta ser un eje sin cruzar, y la segunda que la esquina que hacia falta
+> **no la habrian encontrado los aleatorios**: los 300 casos al azar de este
+> mismo bloque solo sirven *despues* de que las fracciones esten elegidas a
+> mano, porque hay que saber que `2^63` es el valor que engana.
+
+### El quinto eje era la politica, y le faltaba `valid()`
+
+Contados los ejes del tipo --`N`, `F`, `Sign`, `Form`, `Policy`--, el test
+cruzaba cuatro. El que faltaba destapo un hueco de API: `Policy` es parametro de
+la plantilla, asi que el tipo **declara** que admite `checked`, pero **no
+reexponia `valid()`**, de modo que la marca de desbordamiento solo se podia
+consultar excavando en `crudo()`.
+
+Es un parametro que el tipo publica y no deja preguntar. Se anade `valid()`, que
+delega en el entero, y se cruza el eje: que marque al pasarse del maximo y del
+minimo, que la marca sea **pegajosa** --volver al rango no la limpia, por P1.5
+tramo 2f--, que sin signo `3 - 4` marque, y que lo que cabe **no** marque.
+
+Las dos direcciones importan. Un test que solo comprueba que marca pasa igual
+con un `valid()` que devuelva siempre `false`.
+
+### Doxygen: 22 avisos nuevos, y no se sube el techo
+
+El fichero nuevo trajo 22 miembros sin `@brief` --488 contra un techo de 466--.
+Se han documentado los 22, y la cuenta vuelve a 466.
+
+Subir el techo para hacer sitio a un fichero escrito hoy seria justo lo
+contrario de para lo que esta la carraca. Esto **no** es P3.7: aquella es la
+deuda de los 209 del tipo entero y sigue donde estaba.
+
+### Verificado
+
+- **4635 comprobaciones, 0 fallos** en clang y gcc, contra un oraculo de
+  aritmetica exacta en `__int128` sobre el valor escalado, como pide ADR-019.
+  Nada de comprobar propiedades: con redondeo no se cumpliran, y las que si se
+  cumplen lo harian tambien con el redondeo mal puesto.
+- **66/66 tests** en las cinco configuraciones.
+- **35/35** cabeceras compilan aisladas, **289/289** celdas de la matriz,
+  **9/9** en el armonizador con `--doxygen`, **66** ficheros sin romper la
+  precondicion de la division, clang-format limpio.
+
+---
+
 ## [sin publicar] - 2026-09-22 - ADR-019: el diseno de P1.6, punto fijo
 
 P1.6 era **una linea** en NEXT_STEPS: «Etapa 5: punto fijo». Ya no.

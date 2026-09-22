@@ -117,6 +117,62 @@ RESERVADAS = [
     ("uint/trap", "nstd::uint_fixed_t<2, nstd::overflow_policy::trap>"),
 ]
 
+# =============================================================================
+# Punto fijo (P1.6): lo que TIENE que seguir sin compilar
+# =============================================================================
+#
+# El tipo nuevo `fixed_point_t` entra por el tipo y las conversiones; el
+# producto y la division **no estan**, porque necesitan el redondeo que ADR-019
+# deja como perilla. Mientras no esten, llamarlos tiene que ser un error de
+# compilacion, no una sorpresa en tiempo de ejecucion.
+#
+# Es la misma vigilancia que el 21 sep metio `int/magnitude_sign` e
+# `int/excess_k` en RESERVADAS, y que **fallo a proposito** en cuanto se
+# implementaron, obligando a abrirles columna. Aqui hara lo mismo: el dia que
+# alguien escriba `operator*` entre dos puntos fijos, esta comprobacion se
+# pondra roja y obligara a decidir si el tipo nuevo entra en la matriz.
+#
+# LA SONDA DE CONTROL NO ES DECORACION. Las otras cuatro pasan cuando NO
+# compilan, de modo que pasarian TODAS tambien si la cabecera estuviera rota o
+# si el `-I` no llegara: un barrido perfecto que no comprueba nada. La de
+# control tiene que compilar, y es lo unico que separa «no esta escrito» de
+# «aqui no compila nada».
+
+_FP = ('#include "fixed_point_t.hpp"\n'
+       '#include <cstdint>\n'
+       '\n'
+       'using Q = nstd::sfixed_point_t<2, 1>;\n'
+       '\n'
+       'int main()\n'
+       '{\n'
+       '    %s\n'
+       '    return 0;\n'
+       '}\n')
+
+_FP_SOLO = ('#include "fixed_point_t.hpp"\n'
+            '\n'
+            'int main()\n'
+            '{\n'
+            '    %s\n'
+            '    return 0;\n'
+            '}\n')
+
+PENDIENTES = [
+    ("control: el tipo compila", True,
+     _FP % "const Q a{2}, b{3};\n"
+           "    (void)(a + b); (void)(a - b); (void)(a < b);"),
+    ("producto entre puntos fijos", False,
+     _FP % "const Q a{2}, b{3};\n    (void)(a * b);"),
+    ("division entre puntos fijos", False,
+     _FP % "const Q a{6}, b{3};\n    (void)(a / b);"),
+    # `one()` en el tipo puramente fraccionario: solo representa [0,1), asi que
+    # el uno NO existe alli, y el static_assert lo dice en vez de dar cero.
+    ("one() con F == N", False,
+     _FP_SOLO % "(void)nstd::ufixed_point_t<1, 1>::one();"),
+    ("mas fraccion que total (F > N)", False,
+     _FP_SOLO % "const nstd::ufixed_point_t<2, 3> x{}; (void)x;"),
+]
+
 BASE = ['#include "fixed_width_int_t.hpp"']
 
 # =============================================================================
@@ -390,11 +446,18 @@ def main():
                 reserva.append((celda,
                                 ex.submit(compila, compiler_cmd, env, tmpdir,
                                           "res_" + limpia(celda), tipo, fuente(cap, tipo))))
+            # y el punto fijo, que lleva fuente propia y no pasa por `fuente()`
+            pend = []
+            for nombre, debe, src in PENDIENTES:
+                pend.append((nombre, debe,
+                             ex.submit(compila, compiler_cmd, env, tmpdir,
+                                       "pf_" + limpia(nombre), None, src)))
 
             resultados = {}
             for ci, celda, fut in tareas:
                 resultados[(ci, celda)] = fut.result()
             reservadas = {celda: fut.result() for celda, fut in reserva}
+            pendientes = [(n, d, f.result()) for n, d, f in pend]
 
     # --- informe ------------------------------------------------------------
     filas = []
@@ -434,6 +497,21 @@ def main():
             print("  %-16s rechazada, como debe" % celda)
 
     print()
+    print("  --- punto fijo: el redondeo aun no esta (ADR-019) ---")
+    for nombre, debe, (ok, err) in pendientes:
+        if ok == debe:
+            print("  %-32s %s" % (nombre, "compila, como debe" if debe
+                                  else "rechazado, como debe"))
+        elif debe:
+            print("  %-32s NO COMPILA -- y deberia: la sonda de control" % nombre)
+            incoherencias.append((nombre, "punto fijo", True,
+                                  (err.strip().splitlines() or [""])[0][:120]))
+        else:
+            print("  %-32s COMPILA -- y no deberia: no esta escrito" % nombre)
+            incoherencias.append((nombre, "punto fijo", False,
+                                  "compila una operacion que necesita el redondeo"))
+
+    print()
     print("=" * 78)
     if incoherencias:
         print("  %d celdas NO se comportan como declaran:" % len(incoherencias))
@@ -445,7 +523,8 @@ def main():
                 print("      %s" % err)
     else:
         print("  %d celdas, todas se comportan como declaran"
-              % (len(CAPACIDADES) * len(CELDAS) + len(RESERVADAS)))
+              % (len(CAPACIDADES) * len(CELDAS) + len(RESERVADAS)
+                 + len(PENDIENTES)))
     print("=" * 78)
 
     if args.escribe_doc:
