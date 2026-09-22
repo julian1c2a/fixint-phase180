@@ -724,6 +724,47 @@ def cmd_docker(args: argparse.Namespace) -> int:
     return 0 if failed == 0 else 1
 
 
+# El compilador de cada familia en WSL, para la sonda de arranque.
+_WSL_COMPILADOR = {'gcc': 'g++', 'clang': 'clang++', 'intel': 'icpx'}
+
+
+def _wsl_sonda_arranque(family: str) -> Tuple[bool, str]:
+    """¿Compila esta familia un `int main(){}` con la biblioteca estándar?
+
+    Se llama ANTES de los 66 tests. Sin esto, un compilador que no está en el
+    PATH --o al que le faltan las cabeceras de libstdc++-- produce 66 fallos, y
+    el resumen los presenta igual que una regresión de código. Distinguir «aquí
+    no compila nada» de «aquí algo dejó de funcionar» es el trabajo de la sonda.
+
+    Es la misma comprobación que ya hacen `check_matriz_paridad.py` y
+    `check_headers_selfcontained.py`.
+    """
+    cc = _WSL_COMPILADOR.get(family)
+    if cc is None:
+        return True, ""  # familia desconocida: que hable el test
+
+    # Shell de LOGIN a propósito: oneAPI se activa desde el perfil.
+    guion = (
+        f"command -v {cc} >/dev/null 2>&1 || {{ echo 'NO_EN_PATH'; exit 3; }}; "
+        "d=$(mktemp -d); "
+        "printf '#include <cstddef>\\n#include <algorithm>\\nint main(){ return 0; }\\n'"
+        " > \"$d/arranque.cpp\"; "
+        f"{cc} -std=c++20 -fsyntax-only \"$d/arranque.cpp\" 2>&1; "
+        "c=$?; rm -rf \"$d\"; exit $c"
+    )
+    r = subprocess.run(["wsl", "--", "bash", "-lc", guion],
+                       capture_output=True, text=True, cwd=PROJECT_ROOT)
+    if r.returncode == 0:
+        return True, ""
+    if r.returncode == 3 or "NO_EN_PATH" in r.stdout:
+        return False, (f"`{cc}` no está en el PATH de WSL ni siquiera en un shell de "
+                       f"login. Si está instalado, su activación no llega al perfil "
+                       f"(oneAPI necesita `source /opt/intel/oneapi/setvars.sh`).")
+    primera = next((l for l in (r.stdout + r.stderr).splitlines() if "error" in l.lower()),
+                   "(sin línea de error legible)")
+    return False, f"`{cc}` está, pero no compila ni un `int main(){{}}`: {primera.strip()[:160]}"
+
+
 def cmd_wsl(args: argparse.Namespace) -> int:
     """Compila y ejecuta tests en WSL con GCC, Clang e Intel."""
     echo_header("=" * 60)
@@ -750,10 +791,23 @@ def cmd_wsl(args: argparse.Namespace) -> int:
 
     results: Dict[str, bool] = {}
 
+    sin_entorno: Dict[str, str] = {}
+
     for family in families:
         echo_header(f"--- {family.upper()} ---")
+
+        arranca, motivo = _wsl_sonda_arranque(family)
+        if not arranca:
+            echo_error(f"{family}: el compilador no arranca; NO se ejecuta nada")
+            echo_info(f"  {motivo}")
+            echo_info("  No es un fallo de los tests: es que aquí no compilaría nada.")
+            sin_entorno[family] = motivo
+            print()
+            continue
+
+        # Shell de LOGIN: oneAPI y demás toolchains se activan desde el perfil.
         bash_cmd = f"cd '{wsl_root}' && python3 make.py test {family} {mode}"
-        r = subprocess.run(["wsl", "--", "bash", "-c", bash_cmd], cwd=PROJECT_ROOT)
+        r = subprocess.run(["wsl", "--", "bash", "-lc", bash_cmd], cwd=PROJECT_ROOT)
         ok = (r.returncode == 0)
         results[family] = ok
         if ok:
@@ -768,14 +822,21 @@ def cmd_wsl(args: argparse.Namespace) -> int:
     echo_header("=" * 60)
     echo_header("  RESUMEN WSL")
     echo_header("=" * 60)
-    echo_success(f"Pasaron: {passed}/{len(families)} familias")
+    echo_success(f"Pasaron: {passed}/{len(results)} familias ejecutadas")
     if failed:
-        echo_error(f"Fallaron: {failed}/{len(families)} familias")
+        echo_error(f"Fallaron: {failed}/{len(results)} familias")
         for fam, ok in results.items():
             if not ok:
                 echo_error(f"  - {fam}")
 
-    return 0 if failed == 0 else 1
+    # Un fallo de entorno NO se cuenta como fallo de tests, y se dice aparte.
+    # Pero tampoco se calla: sigue siendo cobertura que no se ha obtenido.
+    if sin_entorno:
+        echo_error(f"NO verificadas por el entorno: {len(sin_entorno)}/{len(families)}")
+        for fam, motivo in sin_entorno.items():
+            echo_error(f"  - {fam}: {motivo}")
+
+    return 0 if (failed == 0 and not sin_entorno) else 1
 
 
 def cmd_sanitize(args: argparse.Namespace) -> int:

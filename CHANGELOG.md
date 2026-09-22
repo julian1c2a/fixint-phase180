@@ -1,3 +1,39 @@
+## [sin publicar] - 2026-09-22 - `make.py wsl` presentaba un fallo de entorno como una regresion
+
+`cmd_wsl` lanzaba los tests con `bash -c`, que **no es un shell de login**: no
+corre `.bashrc` ni `/etc/profile.d`, que es donde se activa oneAPI. Con eso
+`icpx` no estaba en el PATH **aunque estuviera instalado**, los 66 tests
+fallaban, y el resumen decia «Fallaron: 66».
+
+Eso es lo grave: un problema de entorno con la misma cara que una regresion de
+codigo. Y funciono como estaba disenado para funcionar -- yo mismo lei ese
+«66 fallaron», mire con una sonda que tampoco usaba login, y **escribi en
+PROJECT_STATUS que icpx no estaba instalado en WSL**. Lo estaba. Lo unico
+medido era que no aparecia en el PATH de aquel shell concreto.
+
+Dos cambios:
+
+- **Shell de login** (`bash -lc`) para la sonda y para los tests.
+- **Sonda de arranque por familia**: antes de los 66 tests se comprueba que el
+  compilador compila un `int main(){}` con `<cstddef>` y `<algorithm>`. Si no,
+  no se ejecuta nada y se dice lo que pasa. El resumen separa **«fallaron»** de
+  **«no verificadas por el entorno»**, sin callar las segundas: siguen siendo
+  cobertura que no se ha obtenido, y `cmd_wsl` devuelve 1 igual.
+
+`check_matriz_paridad.py` y `check_headers_selfcontained.py` ya llevaban esta
+sonda por esta misma razon. A `cmd_wsl` le faltaba, que es donde el proyecto
+cruza la frontera de maquina y donde mas falta hacia.
+
+La sonda se probo **en las dos direcciones**: las tres familias arrancan, y con
+un compilador inventado devuelve el motivo. Una sonda que no sabe fallar no
+significa nada cuando dice que si.
+
+**Verificado:** `python make.py wsl` da **66/66 en las tres familias** --g++
+15.2, clang 23 e Intel oneAPI 2026.0--, que es la primera vez que las tres
+corren juntas.
+
+---
+
 ## [sin publicar] - 2026-09-22 - P1.6 primera entrega: el tipo y las conversiones
 
 `fixed_point_t<N, F, Sign, Form, Policy>` existe. El valor es

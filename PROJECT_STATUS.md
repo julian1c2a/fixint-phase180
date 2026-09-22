@@ -56,7 +56,7 @@ alta del rango admitido (N = 64…4096) cubierta por primera vez.
 | `scripts/check_headers_selfcontained.py` | **35/35** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
 | `clang-format --dry-run --Werror`, 131 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
 | `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
-| `python make.py wsl` | **66/66 con g++**. `clang++` e `icpx` **no corren, y no es el código**: WSL tiene las bibliotecas de GCC 11–16 pero las cabeceras de C++ **sólo hasta la 15** —falta `libstdc++-16-dev`—, así que clang 23 elige la 16, busca `/usr/include/c++/16` y no existe; con `--gcc-install-dir=…/15` compila. `icpx` no está instalado en WSL |
+| `python make.py wsl` | **66/66 en las tres familias**: g++ 15.2 (317 s), clang 23 (326 s) e **Intel oneAPI 2026.0** (606 s) |
 | `scripts/check_matriz_paridad.py` | **289/289 celdas** (47 capacidades × **6** columnas, más 2 políticas reservadas y **5 sondas del punto fijo** que tienen que seguir sin compilar), todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
 | Avisos de cobertura de Doxygen desde `include/` | **512** (local, doxygen 1.18.0), de los que **466 cuentan** contra el techo de ADR-014 y 46 son de headers internos, fuera del ámbito. El tipo nuevo trajo 22 y **se documentaron los 22**: el techo no se ha subido |
 
@@ -67,8 +67,7 @@ alta del rango admitido (N = 64…4096) cubierta por primera vez.
 > [ADR-014](docs/decisions/ADR-014-cobertura-de-doxygen.md).
 
 Compiladores: GCC 13–16, Clang 18–22, MSVC 19.5x e **Intel ICX 2026.1**
-(55/55 en local sobre Windows; en el runner del CI sigue sin instalarse, ver la
-deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
+(66/66 en local sobre Windows, y **Intel oneAPI 2026.0 también en WSL**). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 
 > **ARM ya no lleva reservas** (26 ago 2026). Los cuatro fallos que las
 > tolerancias del CI tapaban eran un bug de portabilidad real —`_umul128` en la
