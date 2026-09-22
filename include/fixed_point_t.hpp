@@ -504,10 +504,8 @@ namespace nstd
                 pasa_mitad = (mitad < r);
             }
 
-            return desde_crudo(sumar_si(suelo,
-                                        detalle_redondeo::sube(Redondeo, resto_cero, pasa_mitad,
-                                                               empate, es_impar(suelo),
-                                                               suelo.is_negative())));
+            const bool sube = decide(resto_cero, pasa_mitad, empate, es_impar(suelo), suelo.is_negative());
+            return desde_crudo(sumar_si(suelo, sube));
         }
 
         /// @brief Desplazamiento a la izquierda en sitio.
@@ -677,8 +675,7 @@ namespace nstd
             // `F == N` no queda parte entera donde recoger la cifra, `resto*10`
             // desborda y `resto >> 64*N` desplaza el ancho completo, con lo que
             // `0,5` se imprimia como «0.0».
-            using U2 = fixed_int_t<2 * N, signedness::unsigned_type, representation_form::binnat,
-                                   Policy>;
+            using U2 = u_ancho;
             U2 resto{mag.parte_fraccionaria()};
             const U2 diez{std::uint64_t{10}};
             const U2 escala = U2::one() << static_cast<unsigned>(escala_bits);
@@ -715,8 +712,7 @@ namespace nstd
                 const bool ultima_impar = ((cifras.back() - '0') % 2) != 0;
                 const bool q_impar = negativo ? !ultima_impar : ultima_impar;
 
-                const bool sube_el_valor = detalle_redondeo::sube(Redondeo, false, pasa_mitad,
-                                                                  empate, q_impar, negativo);
+                const bool sube_el_valor = decide(false, pasa_mitad, empate, q_impar, negativo);
 
                 // Y aqui el espejo: en los negativos, subir el VALOR es no subir
                 // la MAGNITUD, porque la magnitud crece hacia abajo.
@@ -771,7 +767,7 @@ namespace nstd
 
             // Los k bits bajos, leidos SIN signo: son el `r`, y `r >= 0` es lo
             // que hace que la formula valga igual para negativos.
-            using UAncho = fixed_int_t<2 * N, signedness::unsigned_type, representation_form::binnat, Policy>;
+            using UAncho = u_ancho;
             const UAncho bits{p};
             const UAncho mascara = (UAncho::one() << k) - UAncho::one();
             const UAncho r = bits & mascara;
@@ -781,9 +777,8 @@ namespace nstd
             const bool empate = (r == mitad);
             const bool pasa_mitad = (mitad < r);
 
-            const entero q = estrecha(suelo);
-            return sumar_si(q, detalle_redondeo::sube(Redondeo, resto_cero, pasa_mitad, empate,
-                                                      es_impar(suelo), suelo.is_negative()));
+            const bool sube = decide(resto_cero, pasa_mitad, empate, es_impar(suelo), suelo.is_negative());
+            return sumar_si(estrecha(suelo), sube);
         }
 
         /// @brief `num / den`, redondeado: el camino de la division.
@@ -832,8 +827,8 @@ namespace nstd
             const bool empate = (!es_impar(dm) && rm == media);
             const bool pasa_mitad = (media < rm);
 
-            return sumar_si(estrecha(q), detalle_redondeo::sube(Redondeo, resto_cero, pasa_mitad, empate,
-                                                                es_impar(q), q.is_negative()));
+            const bool sube = decide(resto_cero, pasa_mitad, empate, es_impar(q), q.is_negative());
+            return sumar_si(estrecha(q), sube);
         }
 
         /// El valor absoluto dentro del tipo ancho. Nunca desborda aqui, porque
@@ -858,6 +853,22 @@ namespace nstd
         {
             return sube ? (q + entero::one()) : q;
         }
+
+        /// @brief `detalle_redondeo::sube` con la perilla ya puesta.
+        ///
+        /// Ahorra repetir `Redondeo` en los cuatro sitios que deciden, y de paso
+        /// deja las llamadas lo bastante cortas como para que **clang-format 21
+        /// y 22 las formateen igual**: una llamada larga admite varios repartos
+        /// y cada version elige el suyo (ADR-013).
+        [[nodiscard]] static constexpr bool decide(bool resto_cero, bool pasa_mitad, bool empate,
+                                                   bool q_impar, bool q_negativo) noexcept
+        {
+            return detalle_redondeo::sube(Redondeo, resto_cero, pasa_mitad, empate, q_impar, q_negativo);
+        }
+
+        /// @brief El doble de ancho, sin signo: donde se leen los bits que se
+        ///        descartan y donde se hacen las cuentas de `to_string`.
+        using u_ancho = fixed_int_t<2 * N, signedness::unsigned_type, representation_form::binnat, Policy>;
 
         /// @brief Suma uno a una cadena de cifras decimales, con acarreo.
         ///

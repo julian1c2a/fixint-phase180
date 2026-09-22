@@ -67,6 +67,35 @@ Sobre los **103 ficheros** de `include/`, `tests/`, `benchs/` y `demos/`, con
   mezclados con cambios reales, hasta el punto de que un cambio funcional de
   cinco líneas estuvo a punto de perderse dentro de uno de esos diffs.
 
+## Disparo por primera vez -- 22 sep 2026
+
+**El job se puso rojo, que es para lo que esta.** La entrega del punto fijo
+introdujo seis construcciones que la 21 y la 22 reparten distinto, y ninguna
+local lo habria detectado: en local solo corre la 22, y para la 22 el arbol
+estaba impecable.
+
+Las seis eran del mismo tipo: **expresiones largas con varios repartos
+posibles**. Cuando una llamada no cabe en 110 columnas hay mas de una forma de
+partirla, cada version tiene sus penalizaciones, y eligen distinto.
+
+| Construcción | Arreglo |
+|---|---|
+| llamada anidada de tres niveles | un nombre intermedio: `const bool sube = …` |
+| `using U2 = fixed_int_t<…>`, 103 columnas | alias de clase `u_ancho`, declarado una vez |
+| `sube(Redondeo, false, …)`, seis argumentos | un atajo `decide(…)` con la perilla ya puesta |
+| `printf` con formato largo | acortar el mensaje |
+| lista con comentarios en unas entradas sí y otras no | comentario en **todas** |
+| `for` anidado sin llaves en el de fuera | poner las llaves |
+
+**La regla que sale: dejar una sola disposicion posible.** Una linea corta no
+admite mas que un reparto; una partida a mano por un nombre intermedio, tampoco.
+Donde hay eleccion, hay dos opiniones.
+
+Y la segunda, sobre el método: **la versión del CI se puede correr en local**.
+`clang-format-21` está en WSL —`apt install clang-format-21`— así que reproducir
+este job no exige esperar al CI ni leer sus registros, que además no están
+disponibles hasta que el run termina. Lo que costó la primera vez fue no saberlo.
+
 ## Consecuencias
 
 ### Positivas

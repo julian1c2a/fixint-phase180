@@ -512,8 +512,8 @@ namespace
         ++casos;
         if (obtenido != esp)
         {
-            std::printf("  [FALLA] cadena %s modo %d con %u cifras: esperado %s, obtenido %s\n",
-                        c.nombre, static_cast<int>(M), c.decimales, esp, obtenido.c_str());
+            std::printf("  [FALLA] cadena %s modo %d, %u cifras: esp %s, obt %s\n", c.nombre,
+                        static_cast<int>(M), c.decimales, esp, obtenido.c_str());
             ++fallos;
         }
     }
@@ -540,12 +540,12 @@ namespace
             const std::uint64_t mitad = std::uint64_t{1} << (n - 1U);
 
             const std::uint64_t bajos[] = {
-                0U,             // exacto: los cinco modos tienen que coincidir
-                mitad,          // EMPATE
-                mitad - 1U,     // justo por debajo
-                mitad + 1U,     // justo por encima  (con n=1 coincide con paso)
-                1U,
-                paso - 1U,
+                0U,         // exacto: los cinco modos tienen que coincidir
+                mitad,      // EMPATE
+                mitad - 1U, // justo por debajo
+                mitad + 1U, // justo por encima (con n=1 coincide con paso)
+                1U,         // el epsilon
+                paso - 1U,  // lo mas alto que se cae
             };
             const long long enteros[] = {0, 1, -1, 2, -2, 3, -3, 100, -100};
 
@@ -555,33 +555,35 @@ namespace
                 dos_a_la_n = dos_a_la_n + dos_a_la_n;
 
             for (long long v : enteros)
-                for (std::uint64_t b : bajos)
             {
-                // El crudo: la parte entera `v` mas unos bits bajos. Para los
-                // negativos se construye por resta, que es lo que deja el
-                // complemento a dos correcto sin escribirlo a mano.
-                const T base{v};
-                const T x = T::desde_crudo(base.crudo() + typename T::entero{b});
-
-                const T por_desplazamiento = x >> n;
-                const T por_division = x / dos_a_la_n;
-
-                ++casos;
-                if (por_desplazamiento != por_division)
+                for (std::uint64_t b : bajos)
                 {
-                    std::printf("  [FALLA] (%lld,%llu) >> %u no es lo mismo que / 2^%u (modo %d)\n",
-                                v, static_cast<unsigned long long>(b), n, n, static_cast<int>(M));
-                    ++fallos;
-                }
+                    // El crudo: la parte entera `v` mas unos bits bajos. Para los
+                    // negativos se construye por resta, que es lo que deja el
+                    // complemento a dos correcto sin escribirlo a mano.
+                    const T base{v};
+                    const T x = T::desde_crudo(base.crudo() + typename T::entero{b});
 
-                // `<<` es exacto, asi que deshace a `>>`: los bits bajos que
-                // `<<` mete son ceros, y volver no pierde nada.
-                ++casos;
-                if (((x << n) >> n) != x)
-                {
-                    std::printf("  [FALLA] ((%lld,%llu) << %u) >> %u no vuelve (modo %d)\n", v,
-                                static_cast<unsigned long long>(b), n, n, static_cast<int>(M));
-                    ++fallos;
+                    const T por_desplazamiento = x >> n;
+                    const T por_division = x / dos_a_la_n;
+
+                    ++casos;
+                    if (por_desplazamiento != por_division)
+                    {
+                        std::printf("  [FALLA] (%lld,%llu) >> %u no es lo mismo que / 2^%u (modo %d)\n", v,
+                                    static_cast<unsigned long long>(b), n, n, static_cast<int>(M));
+                        ++fallos;
+                    }
+
+                    // `<<` es exacto, asi que deshace a `>>`: los bits bajos que
+                    // `<<` mete son ceros, y volver no pierde nada.
+                    ++casos;
+                    if (((x << n) >> n) != x)
+                    {
+                        std::printf("  [FALLA] ((%lld,%llu) << %u) >> %u no vuelve (modo %d)\n", v,
+                                    static_cast<unsigned long long>(b), n, n, static_cast<int>(M));
+                        ++fallos;
+                    }
                 }
             }
         }
@@ -1210,17 +1212,16 @@ int main()
 
         // El acarreo que ALARGA la cadena, que es el caso que obliga a meter la
         // coma al final y contando desde la derecha.
-        const Q casi_diez = Q::desde_crudo(Q::entero{std::uint64_t{9}} *
-                                               (Q::entero::one() << 64U) +
-                                           (Q::entero::one() << 64U) - Q::entero::one());
+        const Q::entero uno_crudo = Q::entero::one() << 64U;
+        const Q casi_diez =
+            Q::desde_crudo(Q::entero{std::uint64_t{9}} * uno_crudo + uno_crudo - Q::entero::one());
         compara(casi_diez.to_string(2), "10.00", "9,9999... sube a 10,00 y la cadena crece");
         compara(casi_diez.to_string(0), "10", "y sin cifras tambien");
 
         // Muchos decimales: la cuenta no se desborda porque el resto se reduce
         // modulo la escala en cada vuelta.
         compara(Q::epsilon().to_string(0), "0", "un epsilon con cero cifras es cero");
-        comprueba(Q::epsilon().to_string(30).size() == 32U,
-                  "treinta cifras caben y salen todas");
+        comprueba(Q::epsilon().to_string(30).size() == 32U, "treinta cifras caben");
     }
 
     // ------------------------------------ << y >> escalan el VALOR -----------
