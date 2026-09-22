@@ -33,6 +33,7 @@ Lo esencial:
 | [016](ADR-016-burnikel-ziegler-aparcado-por-medida.md) | Burnikel–Ziegler se aparca, y el motivo es una medida | ✅ Aceptado |
 | [017](ADR-017-magnitud-signo-y-exceso-k-como-codificaciones.md) | Magnitud-Signo y Exceso-K son codificaciones, no aritméticas | ✅ Aceptado |
 | [018](ADR-018-la-representacion-no-es-observable.md) | La representación no es observable desde el comportamiento · cierra las tres cuestiones abiertas de [017](ADR-017-magnitud-signo-y-exceso-k-como-codificaciones.md) | ✅ Aceptado |
+| [019](ADR-019-punto-fijo-es-un-entero-con-escala.md) | Un punto fijo es un entero con una escala · el diseño de P1.6 | ✅ Aceptado |
 
 ## Sobre los ADR 001–005
 

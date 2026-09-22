@@ -68,7 +68,7 @@ Implementación de extensiones completas para trabajar en en vez de 128 bits con
 
 ## ETAPA 5
 
-Implementación de tipos de punto fijo basados en los tipos enteros de N*64 bits, donde la longitud de la parte entera se llamará E y la de la parte fraccionaria será F, pueda ser configurable por parámetros de plantilla. Se implementarán solo 2 modalidades: signed y unsigned, siendo la signed en complemento a 2 (únicamente). Implementación de pruebas unitarias y benchmarks para verificar la corrección y el rendimiento de los tipos de punto fijo en comparación con los tipos enteros nativos de C++ y las bibliotecas existentes. (Por comenzar)
+Implementación de tipos de punto fijo basados en los tipos enteros de N*64 bits, donde la longitud de la parte entera se llamará E y la de la parte fraccionaria será F, pueda ser configurable por parámetros de plantilla. **Corregido el 22 sep 2026 por [ADR-019](../../docs/decisions/ADR-019-punto-fijo-es-un-entero-con-escala.md):** aquí decía «se implementarán solo 2 modalidades: signed y unsigned, siendo la signed en complemento a 2 (únicamente)». Se escribió cuando Magnitud-Signo y Exceso-K sólo existían en `int128_param_t` y su destino previsto era la coma flotante. Desde el 22 sep están en `fixed_int_t`, comprobadas con 16 624 comprobaciones cruzadas, y dejarlas fuera del punto fijo sería una asimetría sin motivo: van **las cuatro** representaciones. Los parámetros son `N` (limbos totales) y `F` (limbos fraccionarios), no `E` y `F` en bits. Implementación de pruebas unitarias y benchmarks para verificar la corrección y el rendimiento de los tipos de punto fijo en comparación con los tipos enteros nativos de C++ y las bibliotecas existentes. (Por comenzar)
 
 ## ETAPA 6
 

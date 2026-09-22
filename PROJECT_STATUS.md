@@ -95,7 +95,7 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 | Tests | 65 ficheros |
 | Scripts vivos | **25** rastreados fuera de `tests/` y `benchs/`, mas 5 en `scripts/archive`. El contador decia 20 y llevaba tiempo desfasado: ahora el criterio esta dicho, que es lo que permite volver a contarlo |
 | Documentos de raíz | 12, **11.286** renglones — de los que la mayoría son el `CHANGELOG` |
-| ADR | **18**, ninguna decisión tomada sin documentar |
+| ADR | **19**, ninguna decisión tomada sin documentar |
 
 ## Cifras de la suite
 

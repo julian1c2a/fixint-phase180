@@ -27,7 +27,7 @@
 | **La división** | ✅ **cerrada por ahora**. Knuth D en su capa medible (`div_kernels.hpp`), `divq` en línea **1,28×–1,39×**, Möller–Granlund **2/1** (~84 → ~17 ciclos/limbo) y **3/2** (hasta **3,3×**). **P2.11 aparcado con medida** ([ADR-016](docs/decisions/ADR-016-burnikel-ziegler-aparcado-por-medida.md)): hasta N=1024 la división ya está dentro del techo de 2–4× que publica GMP |
 | **Lo siguiente** | 🔸 **el camino crítico de la 2.0**. Los tramos **2d** (atómico) y **2e** (divisor constante) cerrados el 18 sep; queda **P1.5 tramo 3** —Magnitud-Signo y Exceso-K, el de más peso— y luego **P1.6** (punto fijo). Lo fija [ADR-007](docs/decisions/ADR-007-politica-de-desbordamiento-como-parametro.md) y hacerlo al revés significa portar la API dos veces |
 | **Paridad de parámetros** | ✅ **284/284 celdas** en la [matriz de paridad](docs/MATRIZ_DE_PARIDAD.md): 47 capacidades × **6** columnas —las de MS y EK se abrieron el 22 sep—, comprobadas **compilando** |
-| **ADR** | 17 registros, ninguna decisión sin documentar |
+| **ADR** | 19 registros, ninguna decisión sin documentar |
 
 **Lo primero al retomar: `python scripts/check_docs_consistency.py --doxygen`.**
 Con `--doxygen`, que es la orden que corre el CI; sin el flag son 7
@@ -129,7 +129,7 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P1.5 tramo 2d~~ | ~~`atomic_*` y el envoltorio atómico~~ | ✅ **hecho**: `include/fixed_int_atomic.hpp`. **No es una copia del viejo**: aquél usaba mutex siempre y mentía con `is_always_lock_free() == false` fijo; éste va **sin bloqueo** donde se puede. La condición **no es el tamaño sino `is_always_lock_free`**, porque es la única que garantiza no arrastrar `-latomic` — en gcc, `std::atomic<T>` de 16 bytes **no enlaza sin él**. Y corre en **MSVC e Intel**, donde el test viejo tiene excepción |
 | ~~P1.5 tramo 2e~~ | ~~`div<D>`/`mod<D>`/`divmod_const<D>` por divisor constante~~ | ✅ **hecho**, y **no hubo que portar Granlund–Montgomery**: basta con que el preámbulo (normalizar y calcular el recíproco, un `divq`) se resuelva en compilación, porque ya era `constexpr`. **8,13× en N=2**, y nunca pierde. De paso desmintió dos afirmaciones de `PERFORMANCE.md`: el eje que manda es `N`, no el tamaño del divisor, y **10¹⁹ sí cabe en 64 bits** |
 | ~~P1.5 tramo 3~~ | ~~**Magnitud-Signo y Exceso-K**~~ | ✅ **hecho (22 sep)**. Todo el tramo cabe en **dos funciones** --`a_c2` y `desde_c2`-- y quince sitios que las cruzan: **ni un algoritmo aritmético nuevo**. El test cruzado que fijó [ADR-018](docs/decisions/ADR-018-la-representacion-no-es-observable.md) sacó seis huecos, todos la misma equivocación —dar por hecho que los limbos son el valor—, incluido que en Exceso-K `T x{}` valía **-2¹²⁷ en vez de cero**. **16 624 comprobaciones** cruzadas contra complemento a dos |
-| **P1.6** | Etapa 5: punto fijo | P1.5 |
+| **P1.6** | **Punto fijo.** ✅ **Diseñado** en [ADR-019](docs/decisions/ADR-019-punto-fijo-es-un-entero-con-escala.md): es **un entero con una escala**, así que **no lleva aritmética propia** — `+` y `−` son los del entero sin tocar nada, `*` y `/` son los del entero más un desplazamiento. Parámetros `N` y `F` **en limbos**, las cuatro representaciones, y el redondeo como **perilla** separada de la política, con al-más-cercano-al-par por omisión. Queda escribirlo | ✅ P1.5 |
 
 ### ⬅️ Por aquí se sigue (22 sep 2026)
 

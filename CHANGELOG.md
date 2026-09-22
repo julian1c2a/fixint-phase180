@@ -1,3 +1,61 @@
+## [sin publicar] - 2026-09-22 - ADR-019: el diseno de P1.6, punto fijo
+
+P1.6 era **una linea** en NEXT_STEPS: «Etapa 5: punto fijo». Ya no.
+
+### Un punto fijo es un entero con una escala
+
+`fixed_point_t` guarda un `fixed_int_t<N, Sign, Form, Policy>` y sabe que vale
+`x / 2^(64*F)`. De ahi sale todo:
+
+    +  -  comparacion   las del entero, SIN TOCAR NADA: misma escala
+    *                   la del entero mas descartar F limbos
+    /                   preescalar por 2^(64*F) y dividir
+
+**No hay ni un algoritmo aritmetico que escribir.** Knuth D, Karatsuba,
+Moller-Granlund, Toom-3, las cuatro representaciones y la politica de
+desbordamiento vienen ya escritos y probados.
+
+Es el mismo hallazgo que ADR-017, y la regla que sale generaliza aquella: **antes
+de escribir una capa, mirar si es una capa, una codificacion o una escala**. Las
+tres se parecen desde fuera y cuestan muy distinto -- una capa se paga en cada
+operacion, una codificacion son dos funciones, una escala es un desplazamiento.
+Este proyecto se ha encontrado las tres, y en los tres casos la lectura barata
+era la correcta.
+
+### Lo decidido
+
+- **`N` y `F` en LIMBOS**, no `E` y `F` en bits. Con bits, si `E+F` no es
+  multiplo de 64 sobran bits en el limbo alto y **cada operacion** tendria que
+  enmascararlos y leer el signo del bit `E+F-1`. Con limbos, el almacenamiento ES
+  un `fixed_int_t<N>`: nada que enmascarar nunca.
+- **Las cuatro representaciones**, y el bit de signo es el MSB de la parte
+  entera, **no un bit anadido**: asi MS y complemento a dos ocupan lo mismo, como
+  en el entero.
+- **El redondeo es una perilla propia**, no un valor de `overflow_policy`. Meterlo
+  ahi daria 16-20 combinaciones y la matriz pasaria de 6 columnas a 24. Y son
+  cosas distintas: el desbordamiento es *no cabe por arriba*, el redondeo es *no
+  cabe por abajo*.
+- **Por omision, al mas cercano con desempate al par.** Lo que decide no es el
+  rendimiento sino el **sesgo**: lo que la gente hace con punto fijo es acumular,
+  y truncar deriva siempre hacia el mismo lado. Truncar queda como perilla.
+
+### Los bits de guarda no hacen falta
+
+Se planteo guardarlos. No: `mul_wide` da el producto **exacto** de 2N limbos, asi
+que **todos los bits que se van a descartar estan ya calculados**. Bastan las dos
+senales que salen de mirarlos --*round* y *sticky*-- para cualquier modo, el
+desempate al par incluido, sin almacenar un bit de mas.
+
+Los bits de guarda vienen de la coma flotante, donde el producto se trunca AL
+CALCULARLO. Aqui no se trunca al calcular.
+
+### Un documento corregido en su sitio
+
+`Explicacion_del_Proyecto.md` decia «se implementaran solo 2 modalidades: signed
+y unsigned, siendo la signed en complemento a 2 (unicamente)». Se escribio cuando
+MS y EK solo existian en `int128_param_t`. Queda corregido **donde se lee**, no
+solo aqui.
+
 ## [sin publicar] - 2026-09-22 - P1.5 tramo 3: Magnitud-Signo y Exceso-K, de verdad
 
 **Las cuatro combinaciones que ADR-011 declara validas estan ahora las cuatro
