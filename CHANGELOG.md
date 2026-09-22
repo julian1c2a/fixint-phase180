@@ -1,3 +1,70 @@
+## [sin publicar] - 2026-09-22 - P1.5 tramo 3: Magnitud-Signo y Exceso-K, de verdad
+
+**Las cuatro combinaciones que ADR-011 declara validas estan ahora las cuatro
+implementadas.** Se retira el `static_assert` que rechazaba MS y EK «porque por
+ahora viven en int128_param_t».
+
+### Un puente, no un algoritmo
+
+Todo el tramo cabe en dos funciones --`a_c2()` y `desde_c2()`-- y en unos quince
+sitios que las cruzan con dos lineas. **No hay ni un algoritmo aritmetico
+nuevo**: es lo que decidio ADR-017 al leer MS y EK como codificaciones, y lo que
+ADR-018 extendio a los desplazamientos, los bitwise y el orden.
+
+El efecto: `fixed_int_t<N, signed, MS, P>` y `<N, signed, TC, P>` dan **lo mismo
+en todo**, y se distinguen solo por lo que devuelven `limb()` y `limbs()`.
+
+### Lo que el test cruzado fue sacando
+
+ADR-018 fijo la forma del test --cruzar cada operacion en MS y EK contra
+complemento a dos-- precisamente porque los tests del tipo viejo comprobaban
+propiedades estructurales y no podian fallar. Este si puede, y fue sacando los
+huecos uno a uno. **Todos son la misma equivocacion**: dar por hecho que los
+limbos son el valor.
+
+| Donde | Que pasaba |
+|---|---|
+| Constructor desde entero | guardaba el patron de complemento a dos **sin codificar** |
+| `to_string`, `is_zero` | leian los limbos en crudo |
+| `+=`, `-=`, `*=`, `<<=`, `>>=` | tienen camino rapido propio y **no cruzaban el puente** |
+| Constructor de conversion | copiaba limbos entre representaciones distintas |
+| `mul_wide`, `mulhi` | multiplicaban los bits sesgados: **compilaban y daban mal el valor** |
+| Constructor por defecto | en Exceso-K, `data` a ceros vale **-2^127**, no 0 |
+
+El ultimo es el mas instructivo: `T x{};` daba el numero **mas negativo** en vez
+de cero, y eso envenena cualquier acumulador --`pow`, `gcd` y media biblioteca
+empiezan asi--.
+
+### La matriz y el test encontraron cosas distintas
+
+- **La matriz de paridad** encontro lo que **no compilaba**: `pow`, `gcd`, `lcm`,
+  `mul_wide`, `mulhi`/`mullo` y `std::common_type` estaban escritos sobre los
+  alias `int_fixed_t` y `uint_fixed_t`, que **fijan `Form`**. Es el mismo hueco
+  que destapo la primera vez, ahora en el cuarto eje.
+- **El test** encontro lo que **compilaba y daba mal el valor**, que es peor:
+  `mul_wide` y `mulhi`. Uno de esos lo introduje yo al arreglar otra cosa
+  --escribi bits de complemento a dos en un objeto declarado como MS-- y compilo
+  sin una queja.
+
+### La vigilancia del viernes disparo, que para eso estaba
+
+El 21 sep se metieron `int/magnitude_sign` e `int/excess_k` en las RESERVADAS de
+la matriz, vigiladas para que **siguieran sin compilar**. Al implementarlas, esa
+comprobacion **fallo y obligo a abrir sus columnas**, que es exactamente lo que
+se queria:
+
+    int/magnitude_sign COMPILA -- y no deberia: no esta escrita
+    int/excess_k       COMPILA -- y no deberia: no esta escrita
+
+**192 celdas -> 284**: 47 capacidades x 6 columnas.
+
+### Verificado
+
+**65/65 en las cinco configuraciones**, 16 624 comprobaciones cruzadas contra
+complemento a dos en clang y gcc, 34/34 cabeceras aisladas, 284/284 celdas, 9/9
+en el armonizador con --doxygen, 65 ficheros sin romper la precondicion,
+clang-format limpio.
+
 ## [sin publicar] - 2026-09-21 - ADR-018: la representacion no es observable
 
 Cierra las tres cuestiones que ADR-017 dejo abiertas a proposito. Las tres tenian

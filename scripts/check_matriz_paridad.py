@@ -91,10 +91,23 @@ CELDAS = [
     ("uint/checked", "nstd::uint_fixed_t<2, nstd::overflow_policy::checked>"),
     ("int/wrap", "nstd::int_fixed_t<2>"),
     ("int/checked", "nstd::int_fixed_t<2, nstd::overflow_policy::checked>"),
+    # Magnitud-Signo y Exceso-K, desde P1.5 tramo 3 (22 sep 2026).
+    #
+    # Estaban en RESERVADAS --vigiladas para que siguieran sin compilar-- y esa
+    # comprobacion **fallo en cuanto se implementaron**, que es justo para lo que
+    # se puso. De ahi salen estas dos columnas.
+    #
+    # Por ADR-018 tienen que comportarse **igual** que complemento a dos en todo,
+    # asi que cualquier capacidad que compile en `int/wrap` tiene que compilar
+    # aqui: si una no lo hace, es un hueco de verdad.
+    ("int/MS", "nstd::fixed_int_t<2, nstd::signedness::signed_type, "
+               "nstd::representation_form::magnitude_sign>"),
+    ("int/EK", "nstd::fixed_int_t<2, nstd::signedness::signed_type, "
+               "nstd::representation_form::excess_k>"),
 ]
 
 SIN_SIGNO = {"uint/wrap", "uint/checked"}
-CON_SIGNO = {"int/wrap", "int/checked"}
+CON_SIGNO = {"int/wrap", "int/checked", "int/MS", "int/EK"}
 TODAS = SIN_SIGNO | CON_SIGNO
 
 # Politicas declaradas en el enum pero NO escritas. Tienen que seguir sin
@@ -102,21 +115,6 @@ TODAS = SIN_SIGNO | CON_SIGNO
 RESERVADAS = [
     ("uint/saturate", "nstd::uint_fixed_t<2, nstd::overflow_policy::saturate>"),
     ("uint/trap", "nstd::uint_fixed_t<2, nstd::overflow_policy::trap>"),
-    # Las dos REPRESENTACIONES que faltan, en la misma situacion que las dos
-    # politicas de arriba: declaradas en el enumerado, rechazadas por el
-    # `static_assert` de la clase, y pendientes de P1.5 tramo 3.
-    #
-    # Estaban sin vigilar, y eso era un hueco: el dia que se relaje el
-    # `static_assert` sin abrir sus columnas, la matriz seguiria diciendo
-    # «190/190, todas como declaran» mientras dos representaciones enteras
-    # quedaban sin comprobar en ninguna capacidad. Ahora esta comprobacion
-    # **falla en cuanto se implementen**, y obliga a abrirlas.
-    ("int/magnitude_sign",
-     "nstd::fixed_int_t<2, nstd::signedness::signed_type, "
-     "nstd::representation_form::magnitude_sign>"),
-    ("int/excess_k",
-     "nstd::fixed_int_t<2, nstd::signedness::signed_type, "
-     "nstd::representation_form::excess_k>"),
 ]
 
 BASE = ['#include "fixed_width_int_t.hpp"']

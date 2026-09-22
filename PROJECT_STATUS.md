@@ -18,7 +18,7 @@ cuestiones abiertas**: se está escribiendo. De P1 van cerradas P1.1 a P1.4 y
 **los tramos 1 y 2 de P1.5** salvo lo anotado; del inventario de retirada de
 `int128_param_t`
 ([ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md)) van
-**7 filas de 11**, y dos más esperan una decisión escrita, no trabajo.
+**8 filas de 11**, y dos más esperan una decisión escrita, no trabajo.
 
 **El frente de la división está abierto, pero Möller–Granlund queda cerrado**
 (P2.10, 18 sep). Knuth D vive en su propia capa medible, con la estimación del
@@ -47,16 +47,16 @@ alta del rango admitido (N = 64…4096) cubierta por primera vez.
 
 | Comprobación | Resultado |
 |---|---|
-| `python make.py test gcc release-O2` | **64/64 ficheros** (GCC 16.2 ucrt64, libstdc++) |
-| `python make.py test clang release-O2` | **64/64 ficheros** (clang 22.1.8 clang64, **libc++**) |
-| `python make.py test clang-libstdcxx release-O2` | **64/64 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
-| `python make.py test msvc release-O2` | **64/64 ficheros** |
-| `python make.py test intel release-O2` | **64/64 ficheros** (oneAPI 2026.1) |
+| `python make.py test gcc release-O2` | **65/65 ficheros** (GCC 16.2 ucrt64, libstdc++) |
+| `python make.py test clang release-O2` | **65/65 ficheros** (clang 22.1.8 clang64, **libc++**) |
+| `python make.py test clang-libstdcxx release-O2` | **65/65 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
+| `python make.py test msvc release-O2` | **65/65 ficheros** |
+| `python make.py test intel release-O2` | **65/65 ficheros** (oneAPI 2026.1) |
 | CI sobre `21e9301` | **24/24 jobs, cero fallos** (21 sep 2026), matriz completa: gcc-13/14/15/16, clang-18/19/20/21/22, ARM64, arm32, riscv64, i686 e **Intel ICX**. La cifra anterior citaba `f959f53`, **58 commits atrás**, y en ese intervalo el CI estuvo cuatro días en rojo sin que nadie lo mirara |
 | `scripts/check_headers_selfcontained.py` | **34/34** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
 | `clang-format --dry-run --Werror`, 131 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
 | `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
-| `scripts/check_matriz_paridad.py` | **192/192 celdas**, todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
+| `scripts/check_matriz_paridad.py` | **284/284 celdas** (47 capacidades × **6** columnas: se abrieron las de MS y EK), todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
 | Avisos de cobertura de Doxygen desde `include/` | **511** (local, doxygen 1.18.0), de los que **466 cuentan** contra el techo de ADR-014 y 45 son de headers internos, fuera del ámbito |
 
 > **La cifra de Doxygen no ha empeorado: antes no se medía.** Hasta el 25 ago el
@@ -92,7 +92,7 @@ deuda). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 | | |
 |---|---|
 | Headers | 34 (`include/`, con `algorithms/` e `intrinsics/`) |
-| Tests | 64 ficheros |
+| Tests | 65 ficheros |
 | Scripts vivos | **25** rastreados fuera de `tests/` y `benchs/`, mas 5 en `scripts/archive`. El contador decia 20 y llevaba tiempo desfasado: ahora el criterio esta dicho, que es lo que permite volver a contarlo |
 | Documentos de raíz | 12, **11.286** renglones — de los que la mayoría son el `CHANGELOG` |
 | ADR | **18**, ninguna decisión tomada sin documentar |
@@ -124,7 +124,7 @@ propiedades sobre `int128_param_t`.
 | iostreams, `std::format`, `std::hash`, cadena en bases 2..36 | ✅ |
 | Knuth D, Karatsuba (N≥32), escolar desenrollado (N=3..16), Granlund-Montgomery | ✅ · **2× a 4,9× más rápido** desde el 6 sep 2026, ver [PERFORMANCE](docs/PERFORMANCE.md) |
 | Magnitud-Signo y Exceso-K **en `int128_param_t`** | ⚠️ **incompleto, y el ✅ era falso** (medido 21 sep): en Exceso-K los **desplazamientos** dan basura —no hay rama para esa representación— y en Magnitud-Signo **`~` está roto** (invierte la magnitud y el `~` pone a uno el bit de signo). Los tests no lo cazaban porque comprueban propiedades estructurales, no valores. **No se arregla**: lo retira [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md); ver [ADR-018](docs/decisions/ADR-018-la-representacion-no-es-observable.md) |
-| Magnitud-Signo y Exceso-K **en `fixed_int_t`** | ❌ pendiente — [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md) |
+| Magnitud-Signo y Exceso-K **en `fixed_int_t`** | ✅ (22 sep 2026, P1.5 tramo 3) — y a diferencia del tipo viejo, **comprobado por valor**: 16 624 comprobaciones cruzadas contra complemento a dos. Se comportan igual que él en todo ([ADR-018](docs/decisions/ADR-018-la-representacion-no-es-observable.md)) |
 | Política de desbordamiento como parámetro | ✅ **escrita** (P1.1–P1.3): almacenamiento, propagación, orden y las `checked_*`/`saturating_*` |
 | `checked_div` y las tres `saturating_*` en `fixed_int_t` | ✅ (5 sep 2026) — desbloquea [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md) |
 

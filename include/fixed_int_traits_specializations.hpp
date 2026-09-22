@@ -245,11 +245,31 @@ namespace nstd
 //   common_type<fixed_int_t<N,Sign,Form>, T>     = fixed_int_t<N,Sign,Form>  (T integral built-in)
 //
 // We specialize on the canonical alias pairs (binnat/twos_complement). Other
-// Form combinations fall through to the primary template (undefined) for now;
-// MS/EK extensions go here when those Forms gain support for fixed_int_t.
+// Las combinaciones de `Form` caian al primary template, que no esta definido, y
+// por eso `std::common_type<MS, MS>` salia **ambiguo**: encajaban igual de bien
+// las dos especializaciones genericas de mas abajo --`<fixed_int_t, T>` y
+// `<T, fixed_int_t>`-- y ninguna era mas especializada que la otra.
+//
+// Lo dice el comentario que habia aqui: «MS/EK extensions go here when those
+// Forms gain support». Ese dia llego el 22 sep 2026 (P1.5 tramo 3).
 
 namespace std
 {
+    /// @brief `std::common_type` de dos `fixed_int_t` con la MISMA
+    ///        representacion y politica: gana la anchura mayor.
+    ///
+    /// Cubre Magnitud-Signo y Exceso-K, que no tienen alias propio. Para
+    /// complemento a dos y `binnat` **no se usa**: las especializaciones de
+    /// abajo, escritas sobre los alias, fijan `Form` y por tanto son **mas
+    /// especializadas**, asi que el orden parcial las elige a ellas. No hay
+    /// ambiguedad ni redefinicion.
+    template <std::size_t N, std::size_t M, ::nstd::signedness S, ::nstd::representation_form F,
+              ::nstd::overflow_policy P>
+    struct common_type<::nstd::fixed_int_t<N, S, F, P>, ::nstd::fixed_int_t<M, S, F, P>>
+    {
+        using type = ::nstd::fixed_int_t<(N > M ? N : M), S, F, P>; ///< El mas ancho de los dos.
+    };
+
     /// @brief `std::common_type` de dos `int_fixed_t`: gana la anchura mayor.
     template <std::size_t N, std::size_t M, ::nstd::overflow_policy P>
     struct common_type<::nstd::int_fixed_t<N, P>, ::nstd::int_fixed_t<M, P>>

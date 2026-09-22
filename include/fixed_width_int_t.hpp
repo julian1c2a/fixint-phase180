@@ -491,13 +491,15 @@ namespace nstd
                       "Sin signo implica binnat y binnat implica sin signo (ADR-011). "
                       "Preferir los alias uint_fixed_t<N> e int_fixed_t<N>, que ya lo cumplen.");
 
-        // TAREA PENDIENTE. De las cuatro combinaciones que la ley admite
-        // --binnat sin signo, y TC / MS / EK con signo--, hoy solo hay dos
-        // implementadas. Esta condicion SE RELAJA al portar Magnitud-Signo y
-        // Exceso-K, que es lo que decide ADR-006.
-        static_assert(Form == representation_form::binnat || Form == representation_form::twos_complement,
-                      "Magnitud-Signo y Exceso-K todavia no estan implementadas en fixed_int_t; "
-                      "por ahora viven en int128_param_t (ADR-006).");
+        // Las cuatro combinaciones que la ley admite --binnat sin signo, y
+        // TC / MS / EK con signo-- estan las cuatro implementadas desde el
+        // 22 sep 2026 (P1.5 tramo 3).
+        //
+        // Aqui habia un `static_assert` que rechazaba Magnitud-Signo y Exceso-K
+        // «por ahora viven en int128_param_t». Se retira: ya no viven solo alli.
+        // Lo que las trae no es aritmetica nueva sino un puente de ida y vuelta
+        // --ver `a_c2` y `desde_c2`-- porque son CODIFICACIONES (ADR-017), y su
+        // comportamiento es indistinguible del de complemento a dos (ADR-018).
 
         // TAREA PENDIENTE, como la de las representaciones: el enumerado nace
         // con cuatro valores para no ampliarlo despues y romper el ABI de la
@@ -539,6 +541,68 @@ namespace nstd
         /// @brief La politica de desbordamiento de este tipo, consultable desde
         ///        codigo generico sin repetir la lista de parametros.
         static constexpr overflow_policy policy{Policy};
+
+        // =====================================================================
+        // El puente con la aritmetica  (P1.5 tramo 3, ADR-017 y ADR-018)
+        // =====================================================================
+        //
+        // Magnitud-Signo y Exceso-K son **codificaciones, no aritmeticas**
+        // (ADR-017): no se suma «en MS», se decodifica, se suma con el codigo
+        // que ya existe y esta probado, y se recodifica.
+        //
+        // Y por ADR-018 eso vale para TODAS las operaciones, incluidas `<<`,
+        // `>>` y los bitwise: **la representacion no es observable desde el
+        // comportamiento**. `-3 >> 1` da -2 en las tres representaciones, y dos
+        // tipos que solo se diferencian en `Form` dan lo mismo en todo.
+        //
+        // Por eso aqui no hay ni un algoritmo nuevo: hay un puente de ida y
+        // vuelta, y cada operador lo cruza cuando hace falta.
+
+        /// @brief Si esta representacion hay que decodificarla para operar.
+        ///
+        /// `binnat` y complemento a dos **ya son** el formato en el que trabaja
+        /// la aritmetica, asi que cruzan el puente sin pagar nada: el
+        /// `if constexpr` desaparece en compilacion.
+        static constexpr bool representacion_codificada =
+            (Form == representation_form::magnitude_sign || Form == representation_form::excess_k);
+
+        /// @brief El tipo con el MISMO valor y la misma politica, en el formato
+        ///        que entiende la aritmetica.
+        ///
+        /// Sin signo es `binnat`; con signo, complemento a dos.
+        using tipo_en_c2 =
+            fixed_int_t<N, Sign,
+                        (Sign == signedness::unsigned_type ? representation_form::binnat
+                                                           : representation_form::twos_complement),
+                        Policy>;
+
+        /// @brief Este valor, decodificado a complemento a dos.
+        ///
+        /// @note La marca de `checked` **viaja tal cual**: decodificar no es una
+        ///       operacion aritmetica y no puede desbordar, asi que no la pone
+        ///       ni la limpia.
+        [[nodiscard]] constexpr tipo_en_c2 a_c2() const noexcept
+        {
+            tipo_en_c2 r{};
+            r.data = data;
+            if constexpr (representacion_codificada)
+                repr::a_c2<Form, N>(r.data);
+            if constexpr (Policy == overflow_policy::checked)
+                r.estado = estado;
+            return r;
+        }
+
+        /// @brief Recodifica un valor de complemento a dos a esta representacion.
+        [[nodiscard]] static constexpr fixed_int_t desde_c2(const tipo_en_c2 &x) noexcept
+        {
+            fixed_int_t r{};
+            r.data = x.data;
+            if constexpr (representacion_codificada)
+                repr::desde_c2<Form, N>(r.data);
+            if constexpr (Policy == overflow_policy::checked)
+                r.estado = x.estado;
+            return r;
+        }
 
         /// @brief Si este tipo puede quedar marcado como invalido, es decir, si
         ///        lleva el limbo de estado. Falso con `wrap`, que es el caso por
@@ -743,7 +807,21 @@ namespace nstd
         // Construction
         // =========================================================================
 
-        constexpr fixed_int_t() noexcept = default;
+        /// @brief Construye el **cero**.
+        ///
+        /// En `binnat`, complemento a dos y Magnitud-Signo el cero es «todos los
+        /// limbos a cero», asi que esto es `= default` y no cuesta nada.
+        ///
+        /// **En Exceso-K no.** Alli el cero es el sesgo --`2^(64N-1)`, o sea el
+        /// bit alto puesto-- y dejar los limbos a cero daria `-2^(64N-1)`, el
+        /// **minimo**. Un `T x{};` que valiera el numero mas negativo en vez de
+        /// cero envenena todo lo que construya un acumulador, que es justo lo que
+        /// hacen `pow`, `gcd` y media biblioteca.
+        constexpr fixed_int_t() noexcept : data{}
+        {
+            if constexpr (Form == representation_form::excess_k)
+                data[N - 1] = std::uint64_t{1} << 63;
+        }
 
         /// @brief Construye desde un entero del lenguaje.
         ///
@@ -758,10 +836,21 @@ namespace nstd
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
         explicit constexpr fixed_int_t(T v) noexcept : data{}
         {
+            // Esto construye el patron de COMPLEMENTO A DOS: el limbo bajo con el
+            // valor y el resto con la extension de signo.
             data[0] = static_cast<std::uint64_t>(v);
             const std::uint64_t fill = (std::is_signed_v<T> && v < 0) ? ~std::uint64_t{0} : std::uint64_t{0};
             for (std::size_t i{1}; i < N; ++i)
                 data[i] = fill;
+
+            // Y en Magnitud-Signo y Exceso-K hay que recodificarlo, porque lo que
+            // se guarda no es ese patron. Sin esto, el constructor y `to_string`
+            // serian inversos entre si --los dos hablando complemento a dos-- y
+            // todo *pareceria* funcionar mientras el valor guardado fuese mentira:
+            // la primera operacion que cruzara el puente lo decodificaria como MS
+            // y daria basura.
+            if constexpr (representacion_codificada)
+                repr::desde_c2<Form, N>(data);
         }
 
         // Construct from array of limbs (data[0]=LSB, data[N-1]=MSB)
@@ -844,14 +933,36 @@ namespace nstd
                   typename = std::enable_if_t<(M != N || S2 != Sign || F2 != Form || P2 != Policy)>>
         explicit constexpr fixed_int_t(const fixed_int_t<M, S2, F2, P2> &o) noexcept : data{}
         {
+            // Copiar limbos y extender el signo solo vale si los limbos SON el
+            // valor. Cuando el origen o el destino llevan Magnitud-Signo o
+            // Exceso-K no lo son, asi que se pasa por complemento a dos: se
+            // decodifica el origen, se copia y extiende alli, y se recodifica.
+            //
+            // Es el hueco que destapo `gcd`, que convierte a `uint_fixed_t` para
+            // trabajar con magnitudes: copiaba los bits sesgados de Exceso-K y
+            // devolvia un maximo comun divisor que no era el de esos numeros.
+            constexpr bool origen_codificado =
+                (F2 == representation_form::magnitude_sign || F2 == representation_form::excess_k);
+
+            const auto fuente = [&o]
+            {
+                std::array<std::uint64_t, M> d = o.data;
+                if constexpr (origen_codificado)
+                    repr::a_c2<F2, M>(d);
+                return d;
+            }();
+
             constexpr std::size_t copy = M < N ? M : N;
             for (std::size_t i{0}; i < copy; ++i)
-                data[i] = o.data[i];
+                data[i] = fuente[i];
             // sign-extend if source is signed and negative
-            const bool src_neg = (S2 == signedness::signed_type) && ((o.data[M - 1] >> 63) != 0);
+            const bool src_neg = (S2 == signedness::signed_type) && ((fuente[M - 1] >> 63) != 0);
             const std::uint64_t fill = src_neg ? ~std::uint64_t{0} : std::uint64_t{0};
             for (std::size_t i{M}; i < N; ++i)
                 data[i] = fill;
+
+            if constexpr (representacion_codificada)
+                repr::desde_c2<Form, N>(data);
 
             if constexpr (Policy == overflow_policy::checked && P2 == overflow_policy::checked)
             {
@@ -1029,6 +1140,11 @@ namespace nstd
         /// @brief `true` si todos los limbos son cero.
         constexpr bool is_zero() const noexcept
         {
+            // «Todos los limbos a cero» NO es «vale cero» en las otras dos
+            // representaciones: en Exceso-K el cero es el sesgo --el bit alto
+            // puesto-- y en Magnitud-Signo hay DOS ceros, `+0` y `-0`.
+            if constexpr (representacion_codificada)
+                return a_c2().is_zero();
             for (const auto &limb : data)
                 if (limb != 0)
                     return false;
@@ -1082,7 +1198,16 @@ namespace nstd
         {
             if constexpr (!is_signed)
                 return false;
+            else if constexpr (Form == representation_form::excess_k)
+                // En Exceso-K el bit alto esta INVERTIDO respecto a complemento a
+                // dos: con el sesgo `2^(64N-1)`, los negativos son justo los que
+                // tienen ese bit a cero. Leerlo como en C2 daria el signo al reves
+                // en todos los casos.
+                return (data[N - 1] >> 63) == 0;
             else
+                // `binnat`, complemento a dos y Magnitud-Signo coinciden aqui: en
+                // las tres, el bit alto a uno significa negativo. En MS porque es
+                // literalmente el bit de signo.
                 return (data[N - 1] >> 63) != 0;
         }
 
@@ -1167,9 +1292,16 @@ namespace nstd
         /// invalido. Es lo que separa esto del NaN, y lo que hace que
         /// `unordered_map` y `unordered_set` sigan siendo correctos: la igualdad
         /// es una relacion de equivalencia. Ver ADR-010.
+        /// @brief Igualdad **por valor**, no por patron de bits (ADR-018).
+        ///
+        /// En Magnitud-Signo hay **dos ceros**: `+0` y `-0` tienen `data`
+        /// distinto y son el mismo numero. Comparar los limbos directamente
+        /// diria que son distintos, y entonces el tipo no seria un entero.
         constexpr bool operator==(const fixed_int_t &o) const noexcept
         {
-            if constexpr (Policy == overflow_policy::checked)
+            if constexpr (representacion_codificada)
+                return a_c2() == o.a_c2();
+            else if constexpr (Policy == overflow_policy::checked)
                 return estado == o.estado && data == o.data;
             else
                 return data == o.data;
@@ -1189,6 +1321,21 @@ namespace nstd
         /// `>`, `std::sort` y `std::max_element` usando el orden de siempre.
         constexpr bool operator<(const fixed_int_t &o) const noexcept
         {
+            // El orden es **por valor** (ADR-018). En Magnitud-Signo la
+            // representacion ordena al reves entre negativos --`-1` es `0x8..01`
+            // y `-2` es `0x8..02`-- asi que compararla daria `-1 < -2`, que es
+            // falso.
+            //
+            // @note En Exceso-K con el sesgo `2^(64N-1)` la representacion SI
+            //       ordena igual que el valor si se lee sin signo: es su razon de
+            //       ser, y por eso se usa en los exponentes de coma flotante.
+            //       ADR-018 deja esa comparacion directa como **optimizacion
+            //       posible**, no como regla distinta. No se aplica todavia
+            //       porque no se ha medido que compense, y en este proyecto lo
+            //       que no se mide no se integra.
+            if constexpr (representacion_codificada)
+                return a_c2() < o.a_c2();
+
             if constexpr (Policy == overflow_policy::checked)
             {
                 const bool a_mal = (estado != 0);
@@ -1254,36 +1401,68 @@ namespace nstd
         // Bitwise
         // =========================================================================
 
+        // -------------------------------------------------------------------------
+        // Los bitwise operan SOBRE EL VALOR, no sobre los bits guardados
+        // -------------------------------------------------------------------------
+        //
+        // En `binnat` y complemento a dos la representacion ES el valor, asi que
+        // no hay diferencia y el `if constexpr` se evapora. En Magnitud-Signo y
+        // Exceso-K si la hay, y ADR-018 decide que gana el valor: `~3` vale -4 en
+        // las tres representaciones.
+        //
+        // El tipo viejo hacia lo contrario --operar sobre la magnitud-- y su `~`
+        // estaba roto por eso: `~mag` pone a uno el bit de signo. Aqui ese error
+        // no cabe, porque no se tocan los bits de la representacion.
         constexpr fixed_int_t operator~() const noexcept
         {
-            fixed_int_t r{};
-            for (std::size_t i{0}; i < N; ++i)
-                r.data[i] = ~data[i];
-            return r;
+            if constexpr (representacion_codificada)
+                return desde_c2(~a_c2());
+            else
+            {
+                fixed_int_t r{};
+                for (std::size_t i{0}; i < N; ++i)
+                    r.data[i] = ~data[i];
+                return r;
+            }
         }
 
         constexpr fixed_int_t operator&(const fixed_int_t &o) const noexcept
         {
-            fixed_int_t r{};
-            for (std::size_t i{0}; i < N; ++i)
-                r.data[i] = data[i] & o.data[i];
-            return r;
+            if constexpr (representacion_codificada)
+                return desde_c2(a_c2() & o.a_c2());
+            else
+            {
+                fixed_int_t r{};
+                for (std::size_t i{0}; i < N; ++i)
+                    r.data[i] = data[i] & o.data[i];
+                return r;
+            }
         }
 
         constexpr fixed_int_t operator|(const fixed_int_t &o) const noexcept
         {
-            fixed_int_t r{};
-            for (std::size_t i{0}; i < N; ++i)
-                r.data[i] = data[i] | o.data[i];
-            return r;
+            if constexpr (representacion_codificada)
+                return desde_c2(a_c2() | o.a_c2());
+            else
+            {
+                fixed_int_t r{};
+                for (std::size_t i{0}; i < N; ++i)
+                    r.data[i] = data[i] | o.data[i];
+                return r;
+            }
         }
 
         constexpr fixed_int_t operator^(const fixed_int_t &o) const noexcept
         {
-            fixed_int_t r{};
-            for (std::size_t i{0}; i < N; ++i)
-                r.data[i] = data[i] ^ o.data[i];
-            return r;
+            if constexpr (representacion_codificada)
+                return desde_c2(a_c2() ^ o.a_c2());
+            else
+            {
+                fixed_int_t r{};
+                for (std::size_t i{0}; i < N; ++i)
+                    r.data[i] = data[i] ^ o.data[i];
+                return r;
+            }
         }
 
         constexpr fixed_int_t &operator&=(const fixed_int_t &o) noexcept
@@ -1311,9 +1490,24 @@ namespace nstd
         ///       que un desplazamiento a la izquierda hace cuando desborda. El
         ///       contador saturado a `64*N` cuenta como desbordamiento salvo que
         ///       el valor sea cero.
+        // -------------------------------------------------------------------------
+        // Los desplazamientos tambien operan SOBRE EL VALOR  (ADR-018)
+        // -------------------------------------------------------------------------
+        //
+        // `-3 >> 1` vale **-2** en las tres representaciones: es el
+        // desplazamiento aritmetico de C++, que redondea hacia -inf.
+        //
+        // El tipo viejo hacia otra cosa en Magnitud-Signo --desplazar la
+        // magnitud y conservar el signo-- con lo que `-3 >> 1` le daba -1,
+        // truncando hacia cero. Era deliberado y esta comentado en su codigo,
+        // pero hace **observable la representacion**: el mismo numero se
+        // comportaba distinto segun como estuviera guardado. En Exceso-K ni
+        // siquiera habia rama, y desplazar una representacion sesgada da basura.
         constexpr fixed_int_t operator<<(unsigned shift) const noexcept
         {
-            if constexpr (detecta)
+            if constexpr (representacion_codificada)
+                return desde_c2(a_c2() << shift);
+            else if constexpr (detecta)
             {
                 // Desborda si algun bit distinto de cero sale por arriba, es
                 // decir si el valor tiene mas de `64*N - shift` bits utiles.
@@ -1354,7 +1548,9 @@ namespace nstd
         // Right shift: logical for unsigned, arithmetic for signed
         constexpr fixed_int_t operator>>(unsigned shift) const noexcept
         {
-            if constexpr (!is_signed)
+            if constexpr (representacion_codificada)
+                return desde_c2(a_c2() >> shift);
+            else if constexpr (!is_signed)
             {
                 fixed_int_t r{};
                 if (shift >= 64U * N)
@@ -1393,6 +1589,11 @@ namespace nstd
 
         constexpr fixed_int_t &operator<<=(unsigned shift) noexcept
         {
+            if constexpr (representacion_codificada)
+            {
+                *this = *this << shift;
+                return *this;
+            }
             if constexpr (detecta)
             {
                 *this = *this << shift;
@@ -1404,6 +1605,11 @@ namespace nstd
 
         constexpr fixed_int_t &operator>>=(unsigned shift) noexcept
         {
+            if constexpr (representacion_codificada)
+            {
+                *this = *this >> shift;
+                return *this;
+            }
             *this = *this >> shift;
             return *this;
         }
@@ -1494,8 +1700,21 @@ namespace nstd
         // Arithmetic — addition/subtraction (ripple-carry via intrinsics or portable)
         // =========================================================================
 
+        // -------------------------------------------------------------------------
+        // Aritmetica: se decodifica, se opera y se recodifica  (ADR-017)
+        // -------------------------------------------------------------------------
+        //
+        // Ni una linea de algoritmo nuevo. Sumar «en Magnitud-Signo» no existe:
+        // se decodifica a complemento a dos, se suma con el codigo de abajo --el
+        // mismo que lleva probandose desde el principio-- y se recodifica.
+        //
+        // La marca de `checked` viaja dentro del valor, asi que la propagacion y
+        // la deteccion de desbordamiento siguen ocurriendo una sola vez, en el
+        // camino de complemento a dos, y llegan aqui ya puestas.
         constexpr fixed_int_t operator+(const fixed_int_t &o) const noexcept
         {
+            if constexpr (representacion_codificada)
+                return desde_c2(a_c2() + o.a_c2());
             fixed_int_t r{};
             unsigned char carry{0};
             for (std::size_t i{0}; i < N; ++i)
@@ -1531,6 +1750,8 @@ namespace nstd
 
         constexpr fixed_int_t operator-(const fixed_int_t &o) const noexcept
         {
+            if constexpr (representacion_codificada)
+                return desde_c2(a_c2() - o.a_c2());
             fixed_int_t r{};
             unsigned char borrow{0};
             for (std::size_t i{0}; i < N; ++i)
@@ -1573,6 +1794,8 @@ namespace nstd
         ///       representable.
         constexpr fixed_int_t operator-() const noexcept
         {
+            if constexpr (representacion_codificada)
+                return desde_c2(-a_c2());
             fixed_int_t r = ~(*this) + one();
             if constexpr (detecta)
             {
@@ -1592,6 +1815,16 @@ namespace nstd
 
         constexpr fixed_int_t &operator+=(const fixed_int_t &o) noexcept
         {
+            // Los compuestos tienen camino rapido propio, que manipula `data`
+            // directamente. Ese camino asume que los limbos SON el valor, asi que
+            // en Magnitud-Signo y Exceso-K hay que delegar en el binario, que es
+            // quien cruza el puente. Sin esto el resultado sale sin codificar y
+            // `to_string` lo lee desplazado justo el sesgo.
+            if constexpr (representacion_codificada)
+            {
+                *this = *this + o;
+                return *this;
+            }
             // Con `checked` se delega en `operator+`, que ya detecta y marca: la
             // deteccion vive en un solo sitio. Con `wrap` sigue el camino rapido
             // de siempre, sin tocar ni una instruccion.
@@ -1617,6 +1850,16 @@ namespace nstd
 
         constexpr fixed_int_t &operator-=(const fixed_int_t &o) noexcept
         {
+            // Los compuestos tienen camino rapido propio, que manipula `data`
+            // directamente. Ese camino asume que los limbos SON el valor, asi que
+            // en Magnitud-Signo y Exceso-K hay que delegar en el binario, que es
+            // quien cruza el puente. Sin esto el resultado sale sin codificar y
+            // `to_string` lo lee desplazado justo el sesgo.
+            if constexpr (representacion_codificada)
+            {
+                *this = *this - o;
+                return *this;
+            }
             if constexpr (detecta)
             {
                 *this = *this - o;
@@ -1691,6 +1934,9 @@ namespace nstd
 
         constexpr fixed_int_t operator*(const fixed_int_t &o) const noexcept
         {
+            if constexpr (representacion_codificada)
+                return desde_c2(a_c2() * o.a_c2());
+
             // Con `checked`, la deteccion se hace ANTES y el resultado se calcula
             // por el camino de siempre. Separarlo asi evita tener que marcar en
             // los tres puntos de salida distintos que tiene este operador --el
@@ -1822,6 +2068,16 @@ namespace nstd
 
         constexpr fixed_int_t &operator*=(const fixed_int_t &o) noexcept
         {
+            // Los compuestos tienen camino rapido propio, que manipula `data`
+            // directamente. Ese camino asume que los limbos SON el valor, asi que
+            // en Magnitud-Signo y Exceso-K hay que delegar en el binario, que es
+            // quien cruza el puente. Sin esto el resultado sale sin codificar y
+            // `to_string` lo lee desplazado justo el sesgo.
+            if constexpr (representacion_codificada)
+            {
+                *this = *this * o;
+                return *this;
+            }
             if constexpr (detecta)
             {
                 *this = *this * o;
@@ -1900,6 +2156,16 @@ namespace nstd
         {
             if (b.is_zero())
                 throw std::domain_error("fixed_int_t::divmod: division by zero");
+
+            // Magnitud-Signo y Exceso-K se resuelven en complemento a dos y se
+            // recodifican: el cociente sigue truncando hacia cero y el resto
+            // sigue llevando el signo del dividendo, como manda C++ y como hacen
+            // las otras dos representaciones (ADR-018).
+            if constexpr (representacion_codificada)
+            {
+                const auto qr = tipo_en_c2::divmod(a.a_c2(), b.a_c2());
+                return {desde_c2(qr.first), desde_c2(qr.second)};
+            }
 
             if constexpr (!is_signed)
             {
@@ -2731,6 +2997,12 @@ namespace nstd
         /// @return La representacion decimal, con `-` delante si es negativo.
         std::string to_string() const
         {
+            // El camino de abajo divide `data` por 10^19 repetidamente, o sea lee
+            // los limbos como el valor. Vale para `binnat` y complemento a dos;
+            // en las otras dos hay que decodificar antes.
+            if constexpr (representacion_codificada)
+                return a_c2().to_string();
+
             if constexpr (Policy == overflow_policy::checked)
             {
                 if (!valid())
@@ -4951,10 +5223,20 @@ namespace nstd
     /// @param a Primer factor.
     /// @param b Segundo factor.
     /// @return El producto exacto, en `int_fixed_t<2 * N>`.
-    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
-    [[nodiscard]] constexpr int_fixed_t<2 * N, Policy> mul_wide(const int_fixed_t<N, Policy> &a,
-                                                                const int_fixed_t<N, Policy> &b) noexcept
+    template <std::size_t N, representation_form Form = representation_form::twos_complement,
+              overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr fixed_int_t<2 * N, signedness::signed_type, Form, Policy>
+    mul_wide(const fixed_int_t<N, signedness::signed_type, Form, Policy> &a,
+             const fixed_int_t<N, signedness::signed_type, Form, Policy> &b) noexcept
     {
+        // `limb(i)` devuelve los BITS guardados, que en Magnitud-Signo y
+        // Exceso-K no son el valor. Multiplicarlos da basura --compilaba y daba
+        // mal el resultado, que es peor que no compilar-- asi que primero se
+        // decodifica, se multiplica por el camino de siempre y se recodifica.
+        if constexpr (Form != representation_form::twos_complement)
+            return fixed_int_t<2 * N, signedness::signed_type, Form, Policy>::desde_c2(
+                mul_wide(a.a_c2(), b.a_c2()));
+
         if (!std::is_constant_evaluated())
         {
             std::array<std::uint64_t, N> x{}, y{};
@@ -4979,12 +5261,18 @@ namespace nstd
                     pr = algorithms::detail::sub_limb_borrow(p[N + i], x[i], pr);
             }
 
-            int_fixed_t<2 * N, Policy> r{};
+            // Ojo: `set_limb` escribe BITS en crudo, y `p` lleva el patron en
+            // complemento a dos. Asi que se arma primero un valor del tipo EN C2
+            // --no uno del tipo de salida, que interpretaria esos bits como su
+            // propia representacion-- y despues se recodifica.
+            typename fixed_int_t<2 * N, signedness::signed_type, Form, Policy>::tipo_en_c2 bruto{};
             for (std::size_t i = 0; i < 2 * N; ++i)
-                r.set_limb(i, p[i]);
+                bruto.set_limb(i, p[i]);
+            const auto r = fixed_int_t<2 * N, signedness::signed_type, Form, Policy>::desde_c2(bruto);
             return detail::marca_de_los_factores<N, Policy>(r, a, b);
         }
-        return int_fixed_t<2 * N, Policy>{a} * int_fixed_t<2 * N, Policy>{b};
+        return fixed_int_t<2 * N, signedness::signed_type, Form, Policy>{a} *
+               fixed_int_t<2 * N, signedness::signed_type, Form, Policy>{b};
     }
 
     /// @brief Potencia por cuadrados repetidos, **modular**.
@@ -5020,11 +5308,16 @@ namespace nstd
     /// @param base Base, que puede ser negativa.
     /// @param exp  Exponente, sin signo.
     /// @return `base^exp` modulo 2^(64N), con el signo que corresponda.
-    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
-    [[nodiscard]] constexpr int_fixed_t<N, Policy> pow(int_fixed_t<N, Policy> base,
-                                                       uint_fixed_t<N, Policy> exp) noexcept
+    template <std::size_t N, representation_form Form = representation_form::twos_complement,
+              overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr fixed_int_t<N, signedness::signed_type, Form, Policy>
+    pow(fixed_int_t<N, signedness::signed_type, Form, Policy> base, uint_fixed_t<N, Policy> exp) noexcept
     {
-        int_fixed_t<N, Policy> result = int_fixed_t<N, Policy>::one();
+        // El acumulador tiene que ser del MISMO tipo que `base`, no del alias
+        // `int_fixed_t<N, Policy>`: ese alias fija `Form` a complemento a dos, y
+        // con Magnitud-Signo o Exceso-K no habria ni `operator*=` que valiera.
+        fixed_int_t<N, signedness::signed_type, Form, Policy> result =
+            fixed_int_t<N, signedness::signed_type, Form, Policy>::one();
         while (!exp.is_zero())
         {
             if (exp.limb(0) & std::uint64_t{1})
@@ -5105,9 +5398,11 @@ namespace nstd
     /// @param b Segundo operando, con signo.
     /// @return `gcd(|a|, |b|)`, **sin signo**: el mcd se define sobre los valores
     ///         absolutos y siempre es no negativo.
-    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
-    [[nodiscard]] constexpr uint_fixed_t<N, Policy> gcd(const int_fixed_t<N, Policy> &a,
-                                                        const int_fixed_t<N, Policy> &b) noexcept
+    template <std::size_t N, representation_form Form = representation_form::twos_complement,
+              overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr uint_fixed_t<N, Policy>
+    gcd(const fixed_int_t<N, signedness::signed_type, Form, Policy> &a,
+        const fixed_int_t<N, signedness::signed_type, Form, Policy> &b) noexcept
     {
         return gcd(a.is_negative() ? uint_fixed_t<N, Policy>{-a} : uint_fixed_t<N, Policy>{a},
                    b.is_negative() ? uint_fixed_t<N, Policy>{-b} : uint_fixed_t<N, Policy>{b});
@@ -5138,9 +5433,11 @@ namespace nstd
     /// @param b Segundo operando, con signo.
     /// @return `lcm(|a|, |b|)`, sin signo.
     /// @warning No es `noexcept`: usa `operator/`.
-    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
-    [[nodiscard]] constexpr uint_fixed_t<N, Policy> lcm(const int_fixed_t<N, Policy> &a,
-                                                        const int_fixed_t<N, Policy> &b)
+    template <std::size_t N, representation_form Form = representation_form::twos_complement,
+              overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr uint_fixed_t<N, Policy>
+    lcm(const fixed_int_t<N, signedness::signed_type, Form, Policy> &a,
+        const fixed_int_t<N, signedness::signed_type, Form, Policy> &b)
     {
         const uint_fixed_t<N, Policy> ua =
             a.is_negative() ? uint_fixed_t<N, Policy>{-a} : uint_fixed_t<N, Policy>{a};
@@ -5197,15 +5494,20 @@ namespace nstd
     ///       producto con signo lleva la extension de signo del producto
     ///       completo, y leerla sin signo es justo el error que tenia
     ///       `producto_desborda` antes de P1.3.
-    template <std::size_t N, overflow_policy Policy = overflow_policy::wrap>
-    [[nodiscard]] constexpr int_fixed_t<N, Policy> mulhi(const int_fixed_t<N, Policy> &a,
-                                                         const int_fixed_t<N, Policy> &b) noexcept
+    template <std::size_t N, representation_form Form = representation_form::twos_complement,
+              overflow_policy Policy = overflow_policy::wrap>
+    [[nodiscard]] constexpr fixed_int_t<N, signedness::signed_type, Form, Policy>
+    mulhi(const fixed_int_t<N, signedness::signed_type, Form, Policy> &a,
+          const fixed_int_t<N, signedness::signed_type, Form, Policy> &b) noexcept
     {
-        const int_fixed_t<2 * N, Policy> ancho = mul_wide(a, b);
-        int_fixed_t<N, Policy> r{};
+        // Se trabaja en complemento a dos de punta a punta: `limb()` devuelve
+        // BITS, y quedarse con «los N de arriba» solo significa la mitad alta si
+        // esos bits SON el valor. En MS o EK no lo son.
+        const auto ancho = mul_wide(a, b).a_c2();
+        typename fixed_int_t<N, signedness::signed_type, Form, Policy>::tipo_en_c2 alto{};
         for (std::size_t i = 0; i < N; ++i)
-            r.set_limb(i, ancho.limb(N + i));
-        return r;
+            alto.set_limb(i, ancho.limb(N + i));
+        return fixed_int_t<N, signedness::signed_type, Form, Policy>::desde_c2(alto);
     }
 
     /// @brief Mitad **baja** del producto. Es `a * b`.
