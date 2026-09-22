@@ -394,6 +394,149 @@ rounded there — the minimum has no fractional part.
 
 ---
 
+## Free functions
+
+Fourteen, all in `namespace nstd`, all `constexpr` except where noted. **None of
+them is the identity here**, unlike on the integer.
+
+| Signature | Semantics | Complexity | Rounds? |
+|---|---|---|---|
+| `floor(x)` | largest integer `<= x`, toward −∞ | `O(N)` | no — `floor` *is* a direction |
+| `ceil(x)` | smallest integer `>= x`, toward +∞ | `O(N)` | no |
+| `trunc(x)` | toward zero: `floor` if positive, `ceil` if negative | `O(N)` | no |
+| `round(x)` | nearest integer, **per `Redondeo`** | `O(N)` | **yes** |
+| `abs(x)` | `\|x\|`; `abs(min())` is `min()`, as with built-in integers | `O(N)` | no |
+| `sqrt(x)` | `√x` **with the scale inside**; `0` for negatives | `O(N log N)` (Newton) | **yes**, and no ties |
+| `pow(x, unsigned)` | `x^n` by repeated squaring | `O(N² log n)` | **yes, at every step** |
+| `pow(x, T)` | same; the exponent's integer part, truncated toward zero | `O(N² log n)` | **yes** |
+| `gcd(a, b)` | greatest common divisor **in units of `epsilon`** | `O(N·bits)` (Stein) | no — exact |
+| `lcm(a, b)` | least common multiple, same units | `O(N·bits)` | no — exact |
+| `midpoint(a, b)` | `(a+b)/2` without overflowing, rounded **toward `a`** | `O(N)` | no — exact |
+| `checked_add(a, b)` / `checked_sub` | marks on overflow; returns the **`checked`** policy | `O(N)` | no |
+| `saturating_add(a, b)` / `saturating_sub` | clamps instead of wrapping | `O(N)` | no |
+
+### The four rounding functions do different things
+
+On the integer they all coincide; that is a property of the integer, not a
+simplification of the code.
+
+| | `2.5` | `-2.5` |
+|---|---|---|
+| `floor` | `2` | `-3` (toward −∞) |
+| `ceil` | `3` | `-2` |
+| `trunc` | `2` | `-2` (toward zero) |
+| `round` | per the knob | per the knob |
+
+`round` is written as `(x >> k) << k`: the shift already applies the knob, with
+exactly the `(floor, low bits, 2^k)` frame, so the rounding is applied **once**
+and in the one place where it was already written.
+
+`ceil` and `pow` require `F < N`. With `F == N` the type only holds `[0, 1)` and
+the result would be one, which does not exist there — the same reason `one()`
+and `operator++` do not exist either. `floor` and `trunc` work at any shape,
+because their result always fits.
+
+### `sqrt` carries the scale, and has no ties
+
+`√(x/2^k) = √(x·2^k)/2^k`, so the raw is **pre-scaled** before the root. Taking
+the root of the raw alone would give a result `2^(k/2)` times too small.
+
+There are no ties to break: the exact root lands halfway only when
+`v = q² + q + ¼`, which is not an integer. Both nearest modes therefore agree,
+and the decision reduces to `round up iff r > q`, where `r = v − q²`.
+
+### `gcd` and `lcm` work in units of `epsilon`
+
+Every value is an integer multiple of `epsilon`, so their greatest common
+divisor exists and is exact: `gcd(0.5, 0.25)` is `0.25`. `lcm` overflows easily
+— the least common multiple of two values with many fractional bits is enormous
+in units of `epsilon` — and that is the overflow policy's business.
+
+### `midpoint` is not symmetric
+
+It rounds **toward `a`**, as `std::midpoint` specifies, so `midpoint(a, b)` is
+not `midpoint(b, a)` when the true midpoint falls between two representable
+values.
+
+```cpp
+#include "fixed_point_t.hpp"
+
+using Q = nstd::sfixed_point_t<2, 1>;
+const Q medio = Q::desde_crudo(Q::entero::one() << 63U);   // 0,5
+const Q dos_y_medio = Q{2} + medio;
+
+nstd::floor(dos_y_medio).to_string(1);   // "2.0"
+nstd::ceil(dos_y_medio).to_string(1);    // "3.0"
+nstd::trunc(-dos_y_medio).to_string(1);  // "-2.0"  (toward zero)
+nstd::floor(-dos_y_medio).to_string(1);  // "-3.0"  (toward -inf)
+
+nstd::sqrt(Q{2}).to_string(6);           // "1.414214"
+nstd::gcd(medio, Q::desde_crudo(Q::entero::one() << 62U)).to_string(2);  // "0.25"
+```
+
+---
+
+## Standard-library support
+
+The type reaches **24/24** on the project's `std`-accompaniment checklist
+(`scripts/check_acompanamiento_std.py`), in both the signed and unsigned cells.
+Four of the 24 are recorded as *not applicable* rather than missing.
+
+Five separate headers provide it, documented in
+[API_fixed_point_stl.md](API_fixed_point_stl.md):
+
+| Header | Provides |
+|---|---|
+| `fixed_point_limits.hpp` | `std::numeric_limits` |
+| `fixed_point_traits_specializations.hpp` | `nstd::is_*`, `make_signed`/`make_unsigned`, `std::common_type` |
+| `fixed_point_hash.hpp` | `std::hash` |
+| `fixed_point_format.hpp` | `std::formatter` |
+| `fixed_point_iostreams.hpp` | `operator<<` and `operator>>` |
+
+**Read the `numeric_limits` warnings before using it generically**: `min()` is
+the most negative (not the smallest positive), `is_integer` is `false` while
+`is_exact` is `true`, and `epsilon()` is absolute rather than relative. See
+[ADR-022](decisions/ADR-022-numeric-limits-del-punto-fijo.md).
+
+### Not applicable, and recorded as such
+
+`popcount`, `countl_zero`, `rotl`, `rotr` and the rest of `<bit>` are **not**
+provided, and that is an answer rather than a gap: on a fixed point the bits are
+not the value. Same reasoning as the bitwise operators
+([ADR-020](decisions/ADR-020-los-operadores-multiplicativos-del-punto-fijo.md)).
+
+`nstd::is_integral_v` is likewise `false` on purpose.
+
+### `std::ranges`
+
+`difference_type` is `std::ptrdiff_t`, which makes the type
+`std::weakly_incrementable` and therefore usable with `std::views::iota`.
+
+It **must** be a built-in integer: the standard requires
+`is-signed-integer-like`, and only built-ins and implementation-defined
+*integer-class types* qualify — a program-defined type cannot be one, however
+much it behaves like an integer.
+
+The step is **one**, not one epsilon, because `operator++` adds one (ADR-020).
+
+`std::input_or_output_iterator` is false, deliberately: a number is not an
+iterator — it has no `operator*`.
+
+```cpp
+#include "fixed_point_t.hpp"
+#include <ranges>
+
+int n = 0;
+for (auto v : std::views::iota(nstd::sfixed_point_t<2, 1>{0},
+                               nstd::sfixed_point_t<2, 1>{5}))
+{
+    (void)v;
+    ++n;              // n == 5
+}
+```
+
+---
+
 ## Not here yet
 
 Deliberately absent, and tracked:

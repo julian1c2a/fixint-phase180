@@ -128,3 +128,33 @@ Uses the Karatsuba algorithm internally, which requires 3 base multiplications (
 - `int128_parameterized.hpp` — Core `uint128_t` type and `operator*`
 - `algorithms/karatsuba.hpp` — Internal Karatsuba implementation
 - `algorithms/div_by_const.hpp` — Uses `mulhi` for division by constants
+
+---
+
+## Nombre canonico (ADR-021)
+
+Las mismas operaciones se llamaban distinto en esta familia y en `fixed_int_t`.
+Desde el 23 sep, **el nombre canonico existe en las dos** y el antiguo se queda
+solo donde ya estaba, documentado. No llevan `[[deprecated]]`: el CI compila con
+`-Werror` y la propia biblioteca usa algunos de los antiguos.
+
+| Operacion | Antiguo aqui | **Canonico** |
+|---|---|---|
+| raiz entera | `isqrt` | **`sqrt`** |
+| producto ancho | `widening_mul` | **`mul_wide`** |
+| potencia de dos | `is_power_of_2` | **`has_single_bit`** |
+| potencia | `pow(T, unsigned)` | **`pow` con las dos firmas** |
+
+Los dos nombres de cada par dan **el mismo valor**, no solo compilan: la matriz
+de paridad lo vigila, porque un alias que se desincroniza compila igual.
+
+> `int128_param_t` **no entra** en el objetivo de 24/24 del acompanamiento de
+> `std` ([ADR-006](decisions/ADR-006-migracion-int128-param-a-fixed-int.md): esta
+> familia se retira). Los nombres canonicos si se le anaden, porque el objetivo
+> de ADR-021 es que mover codigo entre familias no obligue a saberse dos
+> vocabularios.
+
+### `mul_wide` aqui
+
+`nstd::mul_wide(a, b)` reenvia a `widening_mul(a, b)`: `uint128_t x uint128_t ->
+uint256_t`, por Karatsuba.

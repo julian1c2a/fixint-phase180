@@ -454,17 +454,47 @@ En las firmas, `T` es `fixed_int_t<N, Sign, Form, Policy>` con cualquier signo, 
 | `countr_zero` | `(const T& x) -> unsigned` | Ceros por detras; `64*N` si `x` es cero. Alias de `count_trailing_zeros()`. | O(N) |
 | `popcount` | `(const T& x) -> unsigned` | Bits a uno. Alias del metodo homonimo. | O(N) |
 | `bit_width` | `(const T& x) -> unsigned` | Bits necesarios para representarlo; 0 si es cero. | O(N) |
-| `is_power_of_2` | `(const T& x) -> bool` | Un solo bit a uno **y no negativo**. | O(N) |
+| `has_single_bit` | `(const T& x) -> bool` | Un solo bit a uno **y no negativo**. Es el nombre de `<bit>` y el **canonico** (ADR-021). | O(N) |
+| `is_power_of_2` | `(const T& x) -> bool` | Lo mismo. Nombre anterior, conservado porque ya estaba publicado. | O(N) |
 
 `rotl` y `rotr` rotan el patron de bits completo, sin tratar el signo aparte. El
 `rotl` de `int128_param_t` si lo trataba en Magnitud-Signo, pero eso es propio de
 esa representacion y no aplica mientras `fixed_int_t` solo admita `binnat` y
 complemento a dos ([ADR-011](decisions/ADR-011-sin-signo-equivale-a-binnat.md)).
 
-> **`is_power_of_2` y el minimo con signo.** En complemento a dos,
+> **`has_single_bit` y el minimo con signo.** En complemento a dos,
 > `int_fixed_t<N>::min()` tiene puesto **un solo bit** --el de signo-- asi que un
 > `popcount(x) == 1` a secas diria que es potencia de dos. No lo es. De ahi la
 > condicion de no ser negativo.
+
+> **Los dos nombres dan el mismo valor, y la matriz lo vigila.** Un alias que se
+> desincroniza compila igual, asi que la sonda no comprueba que los dos existan
+> sino que **coinciden** (ADR-021, decision 2). No llevan `[[deprecated]]`: el
+> CI compila con `-Werror` y la propia biblioteca usa `is_power_of_2`.
+
+> **El recuento de bits opera sobre el VALOR, no sobre los limbos guardados**
+> (ADR-018). Hasta el 23 sep no era asi: `popcount` contaba ademas el bit del
+> sesgo en Exceso-K y el de signo en Magnitud-Signo, y discrepaba de complemento
+> a dos en **400 de 400** valores al azar en EK. `countl_zero` y `bit_width`
+> tenian el mismo fallo; `countr_zero` coincidia salvo en el cero.
+
+### Redondeo a entero: la identidad, y por que existen
+
+| Funcion | Firma | Semantica | Coste |
+|---|---|---|---|
+| `floor` | `(const T& x) -> T` | `x`. | O(1) |
+| `ceil` | `(const T& x) -> T` | `x`. | O(1) |
+| `trunc` | `(const T& x) -> T` | `x`. | O(1) |
+| `round` | `(const T& x) -> T` | `x`. | O(1) |
+
+Sobre un entero no hay nada que redondear, asi que las cuatro son la identidad.
+**Existen para que el codigo generico compile**: una plantilla que sirva para
+enteros y para punto fijo las llama igual, y si aqui no estan hay que escribir
+el caso aparte.
+
+En `fixed_point_t` **no son la identidad**: alli hay parte fraccionaria y cada
+una va a un sitio distinto. Que aqui coincidan las cuatro es una propiedad del
+tipo, no una simplificacion del codigo.
 
 ### Comparacion y mezcla
 
@@ -473,7 +503,7 @@ complemento a dos ([ADR-011](decisions/ADR-011-sin-signo-equivale-a-binnat.md)).
 | `min` | `(const T& a, const T& b) -> const T&` | El menor; `a` si son iguales. | O(N) |
 | `max` | `(const T& a, const T& b) -> const T&` | El mayor; `a` si son iguales. | O(N) |
 | `clamp` | `(const T& x, const T& lo, const T& hi) -> const T&` | `lo` si `x < lo`, `hi` si `x > hi`, si no `x`. **Pre:** `lo <= hi`. | O(N) |
-| `midpoint` | `(const U& a, const U& b) -> U` | `(a + b) / 2` redondeado hacia `a`, **sin desbordar**. Solo sin signo. | O(N) |
+| `midpoint` | `(const T& a, const T& b) -> T` | `(a + b) / 2` redondeado **hacia `a`**, sin desbordar. **Con signo y sin el.** | O(N) |
 | `abs_diff` | `(const U& a, const U& b) -> U` | Diferencia en valor absoluto. Solo sin signo. | O(N) |
 | `abs` | `(const T& x) -> T` | Valor absoluto. **Acepta tambien sin signo**, donde es la identidad. | O(N) |
 
@@ -481,9 +511,27 @@ complemento a dos ([ADR-011](decisions/ADR-011-sin-signo-equivale-a-binnat.md)).
 misma trampa: no guardar el resultado de una llamada sobre temporales mas alla
 de la expresion completa.
 
-`midpoint` no calcula `(a + b) / 2` sino `a + (b - a) / 2`: la primera desborda
-precisamente cuando hace falta. Por eso `midpoint(U::max(), U::max())` da
-`U::max()` y no basura.
+`midpoint` no calcula `(a + b) / 2` sino la diferencia: la suma desborda
+precisamente cuando hace falta un punto medio, y con `wrap` el acarreo se pierde.
+Medido contra `std::midpoint` sobre 20 000 pares al azar de 64 bits,
+`(a + b) >> 1` discrepa en **12 451** sin signo y en **8794** con signo. Por eso
+`midpoint(U::max(), U::max())` da `U::max()` y no basura.
+
+> **No es simetrica.** `midpoint(4, 1)` es **3**, no 2: [numeric.ops.midpoint]
+> dice *«if the sum is odd, the result is rounded towards a»*. Hasta el 23 sep
+> esta funcion redondeaba hacia el **menor** y discrepaba de `std::midpoint` en
+> 5110 de 20 000 casos. Vivia en verde porque el test tenia `midpoint(3, 4)` y
+> nunca `midpoint(4, 3)`: con `a < b` las dos lecturas coinciden.
+
+> **Si hay una forma sin resta**, y tambien es correcta:
+> `(a & b) + ((a ^ b) >> 1)` no desborda nunca. Lo que le falta es el redondeo
+> --da el suelo, no «hacia `a`»-- y necesita una correccion de paridad para
+> igualar al estandar. Se prefiere la resta porque su «por que» cabe en una
+> linea y el de la otra no.
+
+Con signo, la diferencia se calcula **sin signo**: `max - min` es `2^(64N) - 1`,
+que no cabe con signo, y solo se vuelve al tipo con signo con la mitad, que ya
+cabe seguro.
 
 `abs` libre acepta sin signo aunque el **metodo** `abs()` solo exista con signo.
 Pedirle el absoluto a un `uint` suele ser un error de quien escribe, pero la
@@ -670,6 +718,40 @@ se elige que mitad devolver, asi que no hay nada que desbordar; `mullo` es
 > Igual que con `power`/`pow`, no se anade un segundo nombre para la misma
 > operacion. Quien venga de `int128_param_t` busca `mul_wide`.
 
+### Nombres canonicos: `sqrt`, `mul_wide`, `pow`, `has_single_bit` (ADR-021)
+
+Las mismas operaciones se llamaban distinto en `int128_param_t` y aqui. Medido
+llamando a 43 nombres contra las dos familias, no leyendo los ficheros: **tres
+divergencias**, y una cuarta contra el propio `<bit>`.
+
+| Operacion | 1.75 | limbos | **Canonico** |
+|---|---|---|---|
+| raiz entera | `isqrt` | `sqrt` | **`sqrt`** |
+| producto ancho | `widening_mul` | `mul_wide` | **`mul_wide`** |
+| potencia | `pow(T, unsigned)` | `pow(T, T)` | **las dos sobrecargas** |
+| potencia de dos | `is_power_of_2` | `is_power_of_2` | **`has_single_bit`** |
+
+**No son alias en las dos direcciones.** Un segundo nombre para la misma
+operacion es deuda recien estrenada, asi que se elige **un canonico que existe
+en las dos familias** y el antiguo se queda solo donde ya estaba.
+
+| Funcion | Firma | Semantica | Coste |
+|---|---|---|---|
+| `sqrt` | `(const U& x) -> U` | `floor(sqrt(x))`; `sqrt(0)` es 0. | Newton, O(log log x) iteraciones |
+| `sqrt` | `(const I& x) -> I` | Idem con signo. **Para un radicando negativo devuelve cero.** | Idem |
+| `pow` | `(T base, unsigned exp) -> T` | `base^exp` modular, por cuadrados repetidos. | O(log exp) productos |
+| `pow` | `(U base, U exp) -> U` | Idem con el exponente del mismo tipo. | Idem |
+| `pow` | `(I base, I exp) -> I` | Idem con signo; exponente negativo devuelve **uno**. | Idem |
+| `has_single_bit` | `(const T& x) -> bool` | Un solo bit a uno y no negativo. | O(N) |
+
+> **`sqrt` de un negativo devuelve cero, y es una verruga heredada a proposito.**
+> Devolver cero en silencio esconde un error de quien llama; lo honesto seria una
+> precondicion con asercion. Pero es lo que ya hacia `isqrt` en 1.75, y **dos
+> familias que dan el mismo nombre a comportamientos distintos serian peor que
+> una verruga compartida**: el objetivo de ADR-021 es que mover codigo entre
+> familias no cambie lo que hace. Si algun dia se revisa, se revisa en las dos a
+> la vez.
+
 ### La politica ya no bloquea: `pow`, `gcd`, `lcm`, `sqrt`, `mul_wide`
 
 Estas nueve firmas estaban escritas sobre `uint_fixed_t<N>` / `int_fixed_t<N>`,
@@ -699,8 +781,18 @@ Lo que hoy **no** vale para las cuatro:
 
 | Capacidad | Dónde vale | Por qué |
 |---|---|---|
-| `sqrt`, `midpoint`, `abs_diff`, `ilog2` | solo sin signo | Su definición es sobre naturales |
-| las siete `checked_*` y `saturating_*` | solo con `wrap` | **Sin decidir** si es hueco o diseño; ver la matriz |
+| `abs_diff`, `ilog2` | solo sin signo | Su definición es sobre naturales |
+
+Dos filas que **estaban aquí y ya no**:
+
+- **`sqrt` y `midpoint` aceptan las cuatro** desde el 23 sep. `sqrt` con signo
+  devuelve cero para un radicando negativo —no hay raíz real y aquí no hay NaN—
+  y `midpoint` calcula la diferencia sin signo, que es lo que evita que
+  `max − min` desborde ([ADR-021](decisions/ADR-021-un-nombre-por-operacion.md)).
+- **Las siete `checked_*` y `saturating_*` aceptan cualquier política** desde
+  P1.5 tramo 2f. La restricción a `wrap` la encontró la matriz de paridad en su
+  primera pasada: código genérico que llamara a `saturating_add` dejaba de
+  compilar en cuanto alguien cambiaba la política del tipo.
 
 ---
 

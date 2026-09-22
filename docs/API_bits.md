@@ -136,3 +136,34 @@ constexpr uint128_t pow2{uint128_t{1} << 64};
 static_assert(nstd::is_power_of_2(pow2));
 static_assert(nstd::bit_width(pow2) == 65);
 ```
+
+---
+
+## Nombre canonico (ADR-021)
+
+Las mismas operaciones se llamaban distinto en esta familia y en `fixed_int_t`.
+Desde el 23 sep, **el nombre canonico existe en las dos** y el antiguo se queda
+solo donde ya estaba, documentado. No llevan `[[deprecated]]`: el CI compila con
+`-Werror` y la propia biblioteca usa algunos de los antiguos.
+
+| Operacion | Antiguo aqui | **Canonico** |
+|---|---|---|
+| raiz entera | `isqrt` | **`sqrt`** |
+| producto ancho | `widening_mul` | **`mul_wide`** |
+| potencia de dos | `is_power_of_2` | **`has_single_bit`** |
+| potencia | `pow(T, unsigned)` | **`pow` con las dos firmas** |
+
+Los dos nombres de cada par dan **el mismo valor**, no solo compilan: la matriz
+de paridad lo vigila, porque un alias que se desincroniza compila igual.
+
+> `int128_param_t` **no entra** en el objetivo de 24/24 del acompanamiento de
+> `std` ([ADR-006](decisions/ADR-006-migracion-int128-param-a-fixed-int.md): esta
+> familia se retira). Los nombres canonicos si se le anaden, porque el objetivo
+> de ADR-021 es que mover codigo entre familias no obligue a saberse dos
+> vocabularios.
+
+### `has_single_bit` aqui
+
+`nstd::has_single_bit(x)` reenvia a `is_power_of_2(x)`. Hereda su nota: el
+resultado **no es significativo en Exceso-K** sin convertir antes a complemento
+a dos.
