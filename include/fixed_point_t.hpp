@@ -71,6 +71,80 @@
 
 namespace nstd
 {
+    /// @brief Los modos de redondeo del punto fijo (ADR-019, ADR-020).
+    ///
+    /// Es un parametro de plantilla propio y **no** parte de `overflow_policy`:
+    /// son dos politicas distintas --el desbordamiento es *no cabe por arriba*,
+    /// el redondeo es *no cabe por abajo*-- y juntarlas multiplicaria las
+    /// combinaciones que habria que verificar.
+    enum class rounding_mode : std::uint8_t
+    {
+        /// Al mas cercano, y en el empate al **par**. Es el de IEEE-754 y el de
+        /// esta biblioteca por omision. Se elige por el **sesgo**, no por el
+        /// coste: lo que se hace con punto fijo es acumular, y un redondeo
+        /// sesgado deriva tanto mas cuanto mas larga es la cadena.
+        to_nearest_even,
+
+        /// Al mas cercano, y en el empate **alejandose del cero**. Es el
+        /// «redondeo de toda la vida» que se ensena en la escuela.
+        to_nearest_away,
+
+        /// Truncar hacia cero. El mas barato, y el que ya tiene `operator/` del
+        /// entero. **Sesga** siempre hacia cero.
+        toward_zero,
+
+        /// Hacia `-infinito`: el suelo. Es **gratis**, porque es el
+        /// desplazamiento aritmetico tal cual.
+        toward_neg_inf,
+
+        /// Hacia `+infinito`: el techo.
+        toward_pos_inf,
+    };
+
+    namespace detalle_redondeo
+    {
+        /// @brief ¿Hay que sumar uno al suelo?
+        ///
+        /// El valor exacto es `q + r/d`, con `q` entero, `0 <= r < d` y `d > 0`.
+        /// `q` es el **suelo** y `r` **nunca es negativo**, que es lo que hace
+        /// que la misma formula valga para negativos sin un caso aparte.
+        ///
+        /// Toda operacion con redondeo acaba aqui, con tres datos y nada mas:
+        /// como queda `2r` contra `d`, y la paridad y el signo de `q`.
+        ///
+        /// @param modo        El modo pedido.
+        /// @param resto_cero  `r == 0`: el resultado ya era exacto.
+        /// @param pasa_mitad  `2r > d`.
+        /// @param empate      `2r == d`.
+        /// @param q_impar     La paridad del suelo, para el desempate al par.
+        /// @param q_negativo  `q < 0`, que con `r != 0` equivale a valor < 0.
+        [[nodiscard]] constexpr bool sube(rounding_mode modo, bool resto_cero, bool pasa_mitad, bool empate,
+                                          bool q_impar, bool q_negativo) noexcept
+        {
+            if (resto_cero)
+                return false; // exacto: no hay nada que decidir
+
+            switch (modo)
+            {
+                case rounding_mode::to_nearest_even:
+                    return pasa_mitad || (empate && q_impar);
+                case rounding_mode::to_nearest_away:
+                    // El empate se aleja del cero. El valor es `q + 1/2`, asi que es
+                    // positivo exactamente cuando `q >= 0`.
+                    return pasa_mitad || (empate && !q_negativo);
+                case rounding_mode::toward_zero:
+                    // Truncar hacia cero desde el SUELO: para un valor negativo hay
+                    // que subir, porque el suelo se paso de largo.
+                    return q_negativo;
+                case rounding_mode::toward_neg_inf:
+                    return false;
+                case rounding_mode::toward_pos_inf:
+                    return true;
+            }
+            return false;
+        }
+    } // namespace detalle_redondeo
+
     /// @brief Punto fijo binario de `N` limbos, de los que `F` son fraccionarios.
     ///
     /// El valor representado es `crudo() / 2^(64*F)`, donde `crudo()` es un
@@ -85,9 +159,13 @@ namespace nstd
     ///         El bit de signo es el mas significativo de la parte entera, **no
     ///         un bit anadido**, asi que todas ocupan lo mismo (ADR-019).
     /// @tparam Policy Politica de desbordamiento, igual que en el entero.
+    /// @tparam Redondeo Que hacer con lo que no cabe por abajo. Va **el ultimo**
+    ///         porque es el que menos gente toca, de modo que anadirlo no cambio
+    ///         ni un uso existente (ADR-020).
     template <std::size_t N, std::size_t F, signedness Sign = signedness::unsigned_type,
               representation_form Form = representation_form::binnat,
-              overflow_policy Policy = overflow_policy::wrap>
+              overflow_policy Policy = overflow_policy::wrap,
+              rounding_mode Redondeo = rounding_mode::to_nearest_even>
     class fixed_point_t
     {
         static_assert(F <= N, "fixed_point_t: la parte fraccionaria no puede pasar del total");
@@ -117,6 +195,9 @@ namespace nstd
         ///        no hay nada que anadirle, porque la suma y la resta son las
         ///        suyas sin tocar nada.
         static constexpr overflow_policy policy{Policy};
+        /// @brief El modo de redondeo, publicado para poder reconstruir el tipo
+        ///        desde codigo generico.
+        static constexpr rounding_mode redondeo{Redondeo};
 
         // =====================================================================
         // Construccion
@@ -223,12 +304,225 @@ namespace nstd
             return *this;
         }
 
+        // --- incremento y decremento: suman UNO, no un epsilon ---------------
+        //
+        // `++x` es `x += 1`, que es lo que hacen `float` y `double` en C++.
+        //
+        // Avanzar al siguiente valor representable --un `epsilon`-- es tentador
+        // porque aqui ese valor EXISTE, cosa que en un entero no pasa. Pero esa
+        // operacion ya tiene nombre en el estandar y no es `++`: es
+        // `std::nextafter`. Darle a `++` otro significado del que tiene en
+        // `float` seria una sorpresa silenciosa en codigo generico (ADR-020).
+        //
+        // Son exactos: sumar uno no cambia la escala.
+
+        /// @brief Pre-incremento: suma **uno**, no un `epsilon`.
+        constexpr fixed_point_t &operator++() noexcept
+        {
+            static_assert(F < N, "fixed_point_t: con F == N el uno no es representable, "
+                                 "asi que ++ no tiene a que sumar");
+            bruto_ += one().bruto_;
+            return *this;
+        }
+
+        /// @brief Pre-decremento: resta **uno**.
+        constexpr fixed_point_t &operator--() noexcept
+        {
+            static_assert(F < N, "fixed_point_t: con F == N el uno no es representable, "
+                                 "asi que -- no tiene que restar");
+            bruto_ -= one().bruto_;
+            return *this;
+        }
+
+        /// @brief Post-incremento.
+        constexpr fixed_point_t operator++(int) noexcept
+        {
+            const fixed_point_t antes{*this};
+            ++(*this);
+            return antes;
+        }
+
+        /// @brief Post-decremento.
+        constexpr fixed_point_t operator--(int) noexcept
+        {
+            const fixed_point_t antes{*this};
+            --(*this);
+            return antes;
+        }
+
         /// @brief Multiplicar por un entero **no** cambia la escala, asi que es
         ///        exacto y no necesita redondeo.
         ///
         /// Es `a * k`, no `a * b` entre dos puntos fijos: eso ultimo duplica los
         /// limbos fraccionarios y hay que redondear.
         constexpr fixed_point_t operator*(const entero &k) const noexcept { return desde_crudo(bruto_ * k); }
+
+        // =====================================================================
+        // Lo que si redondea: producto y division  (ADR-020)
+        // =====================================================================
+        //
+        // Ni una es un algoritmo nuevo. `*` es `mul_wide` mas un desplazamiento,
+        // `/` es un preescalado mas `divmod`, y `%` es `divmod` a secas.
+
+        /// @brief Producto de dos puntos fijos. **Redondea** segun `Redondeo`.
+        ///
+        /// `a*b = (A*B)/2^(2k)`, y el crudo del resultado es `(A*B)/2^k`: sobran
+        /// justo los `k` bits bajos del producto.
+        ///
+        /// `mul_wide` devuelve el producto **exacto** en `2N` limbos, asi que
+        /// **todos los bits que se descartan estan ya calculados** y no hace
+        /// falta guardar ni uno de mas. Los bits de guarda son de la coma
+        /// flotante, donde el producto se trunca al calcularlo (ADR-019).
+        [[nodiscard]] constexpr fixed_point_t operator*(const fixed_point_t &o) const noexcept
+        {
+            if constexpr (F == 0)
+                return desde_crudo(bruto_ * o.bruto_); // sin escala no hay nada que descartar
+            else
+            {
+                const ancho producto = mul_wide(bruto_, o.bruto_);
+                return desde_crudo(redondea_desplazando(producto));
+            }
+        }
+
+        /// @brief Division de dos puntos fijos. **Redondea** segun `Redondeo`.
+        ///
+        /// `a/b = A/B`, y el crudo del resultado es `A*2^k/B`: el dividendo se
+        /// preescala a `2N` limbos y se divide. Lo que decide el redondeo es el
+        /// resto de esa division.
+        ///
+        /// @throws std::domain_error si `o` es cero, igual que en el entero
+        ///         (ADR-004). Por eso no es `noexcept`.
+        [[nodiscard]] constexpr fixed_point_t operator/(const fixed_point_t &o) const
+        {
+            const ancho num = desplaza_ancho(ensancha(bruto_));
+            const ancho den = ensancha(o.bruto_);
+            return desde_crudo(redondea_dividiendo(num, den));
+        }
+
+        /// @brief Resto de la division. **Es exacto: no redondea** (ADR-020).
+        ///
+        /// Sigue a `std::fmod`: el resto de truncar el cociente hacia cero, con
+        /// el signo del dividendo. Y resulta ser el `%` de los crudos sin mas,
+        /// porque **el resto siempre es representable**: `a` y `b` son multiplos
+        /// de `epsilon`, el cociente truncado es entero, luego `q*b` es multiplo
+        /// de `epsilon` y `r = a - q*b` tambien. No hay nada que descartar.
+        ///
+        /// @warning La identidad `a == (a/b)*b + a%b` **no se cumple** cuando
+        ///          `/` redondea, porque entonces `a/b` ya no es el cociente
+        ///          truncado. Vale entre `%` y el cociente **truncado**, no
+        ///          entre `%` y `operator/`.
+        ///
+        /// @throws std::domain_error si `o` es cero.
+        [[nodiscard]] constexpr fixed_point_t operator%(const fixed_point_t &o) const
+        {
+            return desde_crudo(bruto_ % o.bruto_);
+        }
+
+        /// @brief Producto en sitio.
+        constexpr fixed_point_t &operator*=(const fixed_point_t &o) noexcept
+        {
+            *this = *this * o;
+            return *this;
+        }
+
+        /// @brief Producto en sitio por un entero (exacto).
+        constexpr fixed_point_t &operator*=(const entero &k) noexcept
+        {
+            bruto_ *= k;
+            return *this;
+        }
+
+        /// @brief Division en sitio.
+        constexpr fixed_point_t &operator/=(const fixed_point_t &o)
+        {
+            *this = *this / o;
+            return *this;
+        }
+
+        /// @brief Resto en sitio.
+        constexpr fixed_point_t &operator%=(const fixed_point_t &o)
+        {
+            bruto_ %= o.bruto_;
+            return *this;
+        }
+
+        // =====================================================================
+        // Desplazamientos: escalar por potencias de dos
+        // =====================================================================
+        //
+        // En punto fijo `<<` y `>>` escalan el VALOR, no reacomodan bits: es lo
+        // que hacen los tipos de coma fija del TR 18037, y lo que hace que
+        // `x >> 1` valga `x / 2`.
+        //
+        // No hay `&`, `|`, `^` ni `~`. El entero los tiene, pero ahi operan
+        // sobre el valor de un entero; aqui no significarian nada util --ni
+        // `float` ni los tipos del TR 18037 los ofrecen-- y anadirlos seria
+        // inventar semantica en vez de seguir el estandar.
+
+        /// @brief `x << n` es `x * 2^n`. **Exacto** salvo desbordamiento, que lo
+        ///        decide `overflow_policy`.
+        [[nodiscard]] constexpr fixed_point_t operator<<(unsigned n) const noexcept
+        {
+            return desde_crudo(bruto_ << n);
+        }
+
+        /// @brief `x >> n` es `x / 2^n`, y **redondea** segun `Redondeo`.
+        ///
+        /// No es un desplazamiento de bits disfrazado: al bajar `n` posiciones
+        /// se caen `n` bits por abajo, y que se caigan es exactamente el caso
+        /// que la perilla decide. Con `toward_neg_inf` sale el desplazamiento
+        /// aritmetico tal cual, que es gratis.
+        [[nodiscard]] constexpr fixed_point_t operator>>(unsigned n) const noexcept
+        {
+            if (n == 0U)
+                return *this;
+
+            using U = fixed_int_t<N, signedness::unsigned_type, representation_form::binnat, Policy>;
+            constexpr unsigned bits_tipo = 64U * static_cast<unsigned>(N);
+
+            const entero suelo = bruto_ >> n;
+            const U trozos{bruto_};
+
+            bool resto_cero{}, empate{}, pasa_mitad{};
+            if (n >= bits_tipo)
+            {
+                // Se cae TODO: el resto es el valor entero. Y `2^n` es tan
+                // grande que la mitad solo puede alcanzarse justo en `n` igual
+                // al ancho; por encima, `2r < 2^n` siempre.
+                resto_cero = trozos.is_zero();
+                const U mitad = U::one() << (bits_tipo - 1U);
+                empate = (n == bits_tipo) && (trozos == mitad);
+                pasa_mitad = (n == bits_tipo) && (mitad < trozos);
+            }
+            else
+            {
+                const U mascara = (U::one() << n) - U::one();
+                const U r = trozos & mascara;
+                const U mitad = U::one() << (n - 1U);
+                resto_cero = r.is_zero();
+                empate = (r == mitad);
+                pasa_mitad = (mitad < r);
+            }
+
+            return desde_crudo(sumar_si(suelo,
+                                        detalle_redondeo::sube(Redondeo, resto_cero, pasa_mitad,
+                                                               empate, es_impar(suelo),
+                                                               suelo.is_negative())));
+        }
+
+        /// @brief Desplazamiento a la izquierda en sitio.
+        constexpr fixed_point_t &operator<<=(unsigned n) noexcept
+        {
+            bruto_ <<= n;
+            return *this;
+        }
+
+        /// @brief Desplazamiento a la derecha en sitio. **Redondea.**
+        constexpr fixed_point_t &operator>>=(unsigned n) noexcept
+        {
+            *this = *this >> n;
+            return *this;
+        }
 
         // --- comparacion: la escala es comun, asi que basta el entero ---------
 
@@ -336,62 +630,255 @@ namespace nstd
         // Cadena
         // =====================================================================
 
-        /// @brief Decimal con `decimales` cifras tras la coma, **truncando**.
+        /// @brief Decimal con `decimales` cifras tras la coma, **redondeando**
+        ///        segun `Redondeo`.
         ///
-        /// @warning Trunca, no redondea, y es a proposito mientras el redondeo no
-        ///          este escrito: mas vale que corte de forma evidente a que
-        ///          redondee de una manera que luego haya que cambiar. Cuando
-        ///          entre la perilla, esta funcion la usara.
+        /// Se redondea el VALOR, no la magnitud, que es la unica forma de que
+        /// los modos dirigidos salgan bien: `toward_pos_inf` sobre `-2,55` con
+        /// una cifra da `-2,5`, no `-2,6`. Redondear la magnitud y pegar el
+        /// signo despues daria lo segundo.
+        ///
+        /// Para llegar ahi se escriben las cifras de la magnitud y luego se pasa
+        /// al marco `(q, r, d)` de ADR-020:
+        ///
+        ///     positivo             q = Dmag,       r = resto
+        ///     negativo, resto > 0  q = -(Dmag+1),  r = 2^k - resto
+        ///
+        /// de modo que en los negativos **subir el valor es NO subir la
+        /// magnitud**, y al reves. La paridad que mira el desempate al par es la
+        /// de `q`, que en los negativos es la de `Dmag+1`.
         ///
         /// @param decimales Cuantas cifras tras la coma. Con `0` no se escribe ni
-        ///        la coma.
+        ///        la coma. Con `F == 0` se escriben igual, todas cero: el valor
+        ///        es entero, y `to_string(3)` de un siete es `7.000`, como
+        ///        `printf("%.3f", 7.0)`.
+        ///
+        /// @note Un negativo que redondea a cero sale con signo --`-0.00`--,
+        ///       igual que `printf`. Este tipo no tiene cero negativo; lo que
+        ///       dice esa cadena es «un negativo pequeno», que es informacion.
         [[nodiscard]] std::string to_string(unsigned decimales = 6) const
         {
             const bool negativo = is_negative();
-            // Se trabaja con la magnitud para que la coma no tenga que saber de
-            // signos: el `-` se pega al final.
+            // Se trabaja con la magnitud para escribir las cifras, y el marco
+            // (q, r, d) devuelve el signo al final.
             const fixed_point_t mag = negativo ? -(*this) : *this;
 
             // ...salvo en el minimo, donde NO hay magnitud a la que pasarse:
-            // `-min()` envuelve y vuelve a dar `min()`. Imprimirlo por el camino
-            // de arriba pegaba un segundo signo --«--9223372036854775808.00»--.
-            //
-            // En ese unico caso se imprime el valor tal cual, y sale bien porque
-            // el minimo **no tiene parte fraccionaria**: sus limbos bajos son
-            // todos cero, asi que el suelo ES el valor y ya trae su signo. Para
-            // cualquier otro negativo esto no valdria --el suelo va hacia -inf y
-            // daria «-3.5» para -2,5-- y por eso el rodeo por la magnitud.
+            // `-min()` envuelve y vuelve a dar `min()`. Sale bien igualmente
+            // porque el minimo **no tiene parte fraccionaria** --sus limbos
+            // bajos son todos cero-- asi que no hay nada que redondear y el
+            // suelo ES el valor, con su propio signo.
             const bool envolvio = mag.is_negative();
 
-            std::string s = mag.suelo().to_string();
-            if (decimales > 0 && F > 0)
+            // --- las cifras de la magnitud, sin coma todavia -----------------
+            std::string cifras = mag.suelo().to_string();
+
+            // El producto por diez va al doble de ancho a proposito: con
+            // `F == N` no queda parte entera donde recoger la cifra, `resto*10`
+            // desborda y `resto >> 64*N` desplaza el ancho completo, con lo que
+            // `0,5` se imprimia como «0.0».
+            using U2 = fixed_int_t<2 * N, signedness::unsigned_type, representation_form::binnat,
+                                   Policy>;
+            U2 resto{mag.parte_fraccionaria()};
+            const U2 diez{std::uint64_t{10}};
+            const U2 escala = U2::one() << static_cast<unsigned>(escala_bits);
+
+            for (unsigned i = 0; i < decimales; ++i)
             {
-                s += '.';
-                // El producto por diez se hace ANCHO a proposito. Con `F == N`
-                // --el tipo puramente fraccionario, que solo representa [0,1)--
-                // no queda ni un bit de parte entera donde recoger la cifra:
-                // `resto * 10` desborda y `resto >> 64*N` da cero, con lo que
-                // `0,5` se imprimia como «0.0». Con el doble de ancho la cifra
-                // tiene sitio, y el caso general no paga nada por ello porque el
-                // producto se descarta enseguida.
-                using U2 = fixed_int_t<2 * N, signedness::unsigned_type, representation_form::binnat, Policy>;
-                U2 resto{mag.parte_fraccionaria()};
-                const U2 diez{std::uint64_t{10}};
-                const U2 escala = U2::one() << static_cast<unsigned>(escala_bits);
-                for (unsigned i = 0; i < decimales; ++i)
-                {
-                    resto = resto * diez;
-                    const U2 cifra = resto / escala;
-                    s += static_cast<char>('0' + static_cast<char>(cifra.limb(0) % 10U));
-                    resto = resto - (cifra * escala);
-                }
+                resto = resto * diez;
+                const U2 cifra = resto / escala;
+                cifras += static_cast<char>('0' + static_cast<char>(cifra.limb(0) % 10U));
+                resto = resto - (cifra * escala);
             }
-            return (negativo && !envolvio) ? ("-" + s) : s;
+
+            // --- el redondeo de la ultima cifra ------------------------------
+            //
+            // Lo que queda mas alla de la ultima cifra es `resto/escala`, en
+            // [0,1) y en unidades de esa ultima cifra. De ahi salen las tres
+            // senales de siempre.
+            if (!resto.is_zero() && !envolvio)
+            {
+                // `resto` es lo que queda de la MAGNITUD. El marco (q, r, d)
+                // es del VALOR, y en los negativos no son lo mismo: si a la
+                // magnitud le sobra poquito, al valor le falta casi todo.
+                //
+                //     positivo             q = Dmag,       r = resto
+                //     negativo, resto > 0  q = -(Dmag+1),  r = escala - resto
+                const U2 r = negativo ? (escala - resto) : resto;
+
+                const U2 media = escala >> 1U;
+                const bool empate = (r == media);
+                const bool pasa_mitad = (media < r);
+
+                // La paridad de `q`. En los negativos `q = -(Dmag+1)`, asi que
+                // es la CONTRARIA de la ultima cifra escrita.
+                const bool ultima_impar = ((cifras.back() - '0') % 2) != 0;
+                const bool q_impar = negativo ? !ultima_impar : ultima_impar;
+
+                const bool sube_el_valor = detalle_redondeo::sube(Redondeo, false, pasa_mitad,
+                                                                  empate, q_impar, negativo);
+
+                // Y aqui el espejo: en los negativos, subir el VALOR es no subir
+                // la MAGNITUD, porque la magnitud crece hacia abajo.
+                if (negativo ? !sube_el_valor : sube_el_valor)
+                    incrementa_decimal(cifras);
+            }
+
+            // --- la coma, que va `decimales` cifras desde la derecha ----------
+            if (decimales > 0)
+                cifras.insert(cifras.size() - decimales, 1, '.');
+
+            return (negativo && !envolvio) ? ("-" + cifras) : cifras;
         }
 
     private:
         /// El entero, ya escalado: el valor es `bruto_ / 2^(64*F)`.
         entero bruto_{};
+
+        // =====================================================================
+        // La maquinaria del redondeo  (ADR-020, decision 3)
+        // =====================================================================
+
+        /// El doble de ancho, donde caben el producto exacto y el dividendo
+        /// preescalado.
+        using ancho = fixed_int_t<2 * N, Sign, Form, Policy>;
+
+        /// Sube un crudo de `N` limbos al tipo ancho, conservando el VALOR.
+        [[nodiscard]] static constexpr ancho ensancha(const entero &x) noexcept { return ancho{x}; }
+
+        /// Multiplica por `2^k` dentro del tipo ancho.
+        [[nodiscard]] static constexpr ancho desplaza_ancho(const ancho &x) noexcept
+        {
+            if constexpr (F == 0)
+                return x;
+            else
+                return x << static_cast<unsigned>(escala_bits);
+        }
+
+        /// Baja del tipo ancho al crudo. Si no cabe, manda `overflow_policy`.
+        [[nodiscard]] static constexpr entero estrecha(const ancho &x) noexcept { return entero{x}; }
+
+        /// @brief `p / 2^k`, redondeado: el camino del producto.
+        ///
+        /// `q` es el desplazamiento **aritmetico**, que es el suelo, y `r` son
+        /// los `k` bits bajos, que nunca son negativos. Con `d = 2^k`, el empate
+        /// es `r == 2^(k-1)` y pasarse de la mitad es `r > 2^(k-1)`.
+        [[nodiscard]] static constexpr entero redondea_desplazando(const ancho &p) noexcept
+        {
+            const unsigned k = static_cast<unsigned>(escala_bits);
+
+            const ancho suelo = p >> k;
+
+            // Los k bits bajos, leidos SIN signo: son el `r`, y `r >= 0` es lo
+            // que hace que la formula valga igual para negativos.
+            using UAncho = fixed_int_t<2 * N, signedness::unsigned_type, representation_form::binnat, Policy>;
+            const UAncho bits{p};
+            const UAncho mascara = (UAncho::one() << k) - UAncho::one();
+            const UAncho r = bits & mascara;
+            const UAncho mitad = UAncho::one() << (k - 1U);
+
+            const bool resto_cero = r.is_zero();
+            const bool empate = (r == mitad);
+            const bool pasa_mitad = (mitad < r);
+
+            const entero q = estrecha(suelo);
+            return sumar_si(q, detalle_redondeo::sube(Redondeo, resto_cero, pasa_mitad, empate,
+                                                      es_impar(suelo), suelo.is_negative()));
+        }
+
+        /// @brief `num / den`, redondeado: el camino de la division.
+        ///
+        /// `divmod` da el cociente **truncado** y un resto con el signo del
+        /// dividendo. Para llegar al suelo hay que bajar uno cuando el resto no
+        /// es cero y los signos difieren; es el unico ajuste de signo de todo
+        /// esto, y son tres lineas.
+        [[nodiscard]] static constexpr entero redondea_dividiendo(const ancho &num, const ancho &den)
+        {
+            auto [q, r] = ancho::divmod(num, den);
+
+            if constexpr (Sign == signedness::signed_type)
+            {
+                // De cociente truncado a suelo.
+                if (!r.is_zero() && (num.is_negative() != den.is_negative()))
+                {
+                    q -= ancho::one();
+                    r += den;
+                }
+            }
+
+            // `r/den` es ahora la fraccion no negativa que queda. Se compara
+            // `2|r|` con `|den|`, que es el `d` de la formula.
+            const ancho rm = valor_absoluto(r);
+            const ancho dm = valor_absoluto(den);
+
+            const bool resto_cero = rm.is_zero();
+            // `2*rm` puede no caber, asi que se compara `rm` con `dm/2` y se
+            // corrige con la paridad de `dm`: `2rm > dm` <=> `rm > dm/2` o
+            // (`rm == dm/2` y `dm` impar).
+            const ancho media = dm >> 1U; // suelo de d/2
+            //
+            // `2r > d` sale igual con `d` par y con `d` impar, y es solo
+            // `media < r`:
+            //   d = 2m    ->  2r > 2m    <=>  r > m
+            //   d = 2m+1  ->  2r > 2m+1  <=>  2r >= 2m+2  <=>  r > m
+            //
+            // El empate, en cambio, SOLO puede darse con `d` par: con `d`
+            // impar, `2r` nunca lo iguala. Y ahi estuvo el fallo -- escribi
+            // `|| (dm_impar && rm == media)` creyendo que ese caso se pasaba de
+            // la mitad, cuando `r = m` con `d = 2m+1` da `2r = 2m < d`: esta
+            // por DEBAJO. El efecto era que cuatro de los cinco modos se
+            // comportaban como `toward_pos_inf` siempre que el divisor era
+            // impar, que es justo lo que saco el oraculo con `1/3`.
+            const bool empate = (!es_impar(dm) && rm == media);
+            const bool pasa_mitad = (media < rm);
+
+            return sumar_si(estrecha(q), detalle_redondeo::sube(Redondeo, resto_cero, pasa_mitad, empate,
+                                                                es_impar(q), q.is_negative()));
+        }
+
+        /// El valor absoluto dentro del tipo ancho. Nunca desborda aqui, porque
+        /// los dos usos vienen de valores de `N` limbos ya ensanchados.
+        template <typename T>
+        [[nodiscard]] static constexpr T valor_absoluto(const T &x) noexcept
+        {
+            if constexpr (Sign == signedness::signed_type)
+                return x.is_negative() ? -x : x;
+            else
+                return x;
+        }
+
+        /// La paridad del VALOR, no de los bits: en Exceso-K no son lo mismo.
+        template <typename T>
+        [[nodiscard]] static constexpr bool es_impar(const T &x) noexcept
+        {
+            return !(x & T::one()).is_zero();
+        }
+
+        [[nodiscard]] static constexpr entero sumar_si(const entero &q, bool sube) noexcept
+        {
+            return sube ? (q + entero::one()) : q;
+        }
+
+        /// @brief Suma uno a una cadena de cifras decimales, con acarreo.
+        ///
+        /// Es lo que obliga a redondear un decimal de longitud fija: el acarreo
+        /// no se queda en la parte fraccionaria. `0.99` con dos cifras sube a
+        /// `1.00`, y `9.99` a `10.00`, que ademas **alarga la cadena**. Por eso
+        /// la coma se mete al final y contando desde la derecha.
+        static void incrementa_decimal(std::string &cifras)
+        {
+            for (std::size_t i = cifras.size(); i > 0;)
+            {
+                --i;
+                if (cifras[i] != '9')
+                {
+                    ++cifras[i];
+                    return;
+                }
+                cifras[i] = '0';
+            }
+            cifras.insert(cifras.begin(), '1');
+        }
 
         /// Sube un entero a la escala del tipo.
         [[nodiscard]] static constexpr entero desplaza_a_escala(const entero &v) noexcept
@@ -408,14 +895,16 @@ namespace nstd
     // =========================================================================
 
     /// @brief Punto fijo sin signo: `N` limbos, `F` fraccionarios.
-    template <std::size_t N, std::size_t F, overflow_policy Policy = overflow_policy::wrap>
+    template <std::size_t N, std::size_t F, overflow_policy Policy = overflow_policy::wrap,
+              rounding_mode Redondeo = rounding_mode::to_nearest_even>
     using ufixed_point_t =
-        fixed_point_t<N, F, signedness::unsigned_type, representation_form::binnat, Policy>;
+        fixed_point_t<N, F, signedness::unsigned_type, representation_form::binnat, Policy, Redondeo>;
 
     /// @brief Punto fijo con signo, en complemento a dos.
-    template <std::size_t N, std::size_t F, overflow_policy Policy = overflow_policy::wrap>
+    template <std::size_t N, std::size_t F, overflow_policy Policy = overflow_policy::wrap,
+              rounding_mode Redondeo = rounding_mode::to_nearest_even>
     using sfixed_point_t =
-        fixed_point_t<N, F, signedness::signed_type, representation_form::twos_complement, Policy>;
+        fixed_point_t<N, F, signedness::signed_type, representation_form::twos_complement, Policy, Redondeo>;
 
     /// @brief 64 enteros y 64 fraccionarios, sin signo. El «Q64.64» de toda la vida.
     using ufixed_64_64_t = ufixed_point_t<2, 1>;

@@ -129,23 +129,21 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P1.5 tramo 2d~~ | ~~`atomic_*` y el envoltorio atómico~~ | ✅ **hecho**: `include/fixed_int_atomic.hpp`. **No es una copia del viejo**: aquél usaba mutex siempre y mentía con `is_always_lock_free() == false` fijo; éste va **sin bloqueo** donde se puede. La condición **no es el tamaño sino `is_always_lock_free`**, porque es la única que garantiza no arrastrar `-latomic` — en gcc, `std::atomic<T>` de 16 bytes **no enlaza sin él**. Y corre en **MSVC e Intel**, donde el test viejo tiene excepción |
 | ~~P1.5 tramo 2e~~ | ~~`div<D>`/`mod<D>`/`divmod_const<D>` por divisor constante~~ | ✅ **hecho**, y **no hubo que portar Granlund–Montgomery**: basta con que el preámbulo (normalizar y calcular el recíproco, un `divq`) se resuelva en compilación, porque ya era `constexpr`. **8,13× en N=2**, y nunca pierde. De paso desmintió dos afirmaciones de `PERFORMANCE.md`: el eje que manda es `N`, no el tamaño del divisor, y **10¹⁹ sí cabe en 64 bits** |
 | ~~P1.5 tramo 3~~ | ~~**Magnitud-Signo y Exceso-K**~~ | ✅ **hecho (22 sep)**. Todo el tramo cabe en **dos funciones** --`a_c2` y `desde_c2`-- y quince sitios que las cruzan: **ni un algoritmo aritmético nuevo**. El test cruzado que fijó [ADR-018](docs/decisions/ADR-018-la-representacion-no-es-observable.md) sacó seis huecos, todos la misma equivocación —dar por hecho que los limbos son el valor—, incluido que en Exceso-K `T x{}` valía **-2¹²⁷ en vez de cero**. **16 624 comprobaciones** cruzadas contra complemento a dos |
-| **P1.6** (1ª entrega) | **Punto fijo: el tipo y las conversiones.** ✅ **hecho (22 sep)**. `include/fixed_point_t.hpp`: el tipo, `desde_crudo`, las constantes, y **lo exacto** —suma, resta, negación, producto por un entero, las seis comparaciones, `<=>`, `suelo()`, `parte_fraccionaria()`, `to_string()`—, todo `constexpr`. **4635 comprobaciones** contra un oráculo de `__int128` escalado. El único fallo fue el tipo **puramente fraccionario** (`F == N`): sin parte entera donde recoger la cifra, `to_string` daba `0.0` para un medio; se arregla multiplicando **al doble de ancho**. Buscar las otras dos esquinas saco un segundo fallo: `to_string(min())` llevaba **dos** signos, porque negar el minimo envuelve. Y el cruce de **las cuatro representaciones** paso entero a la primera hasta que se rompio el codigo a proposito: era vacuo --construido desde enteros, el limbo bajo es siempre cero-- y con fracciones de verdad el mismo fallo da **166**. Y contar los ejes del tipo --`N`, `F`, `Sign`, `Form`, `Policy`-- saco el quinto sin cruzar: `checked` estaba declarado pero **`valid()` no se reexponia** | ✅ P1.5 |
-| **P1.6** (2ª entrega) | **El redondeo, y con él `*` y `/`.** ⏸ pendiente. Hoy **no están declarados**, de modo que llamarlos es un error de compilación, y **la matriz lo vigila** con cinco sondas nuevas —más una de control que sí tiene que compilar—. Por [ADR-019](docs/decisions/ADR-019-punto-fijo-es-un-entero-con-escala.md) el redondeo es una **perilla**, con al-más-cercano-al-par por omisión, y **no hacen falta bits de guarda**: `mul_wide` ya calcula todo lo que se descarta | ✅ P1.6 1ª |
+| **P1.6** (1ª entrega) | **Punto fijo: el tipo y las conversiones.** ✅ **hecho (22 sep)**. `include/fixed_point_t.hpp`: el tipo, `desde_crudo`, las constantes, y **lo exacto** —suma, resta, negación, producto por un entero, las seis comparaciones, `<=>`, `suelo()`, `parte_fraccionaria()`, `to_string()`—, todo `constexpr`. **13 020 comprobaciones** contra un oráculo de `__int128` escalado. El único fallo fue el tipo **puramente fraccionario** (`F == N`): sin parte entera donde recoger la cifra, `to_string` daba `0.0` para un medio; se arregla multiplicando **al doble de ancho**. Buscar las otras dos esquinas saco un segundo fallo: `to_string(min())` llevaba **dos** signos, porque negar el minimo envuelve. Y el cruce de **las cuatro representaciones** paso entero a la primera hasta que se rompio el codigo a proposito: era vacuo --construido desde enteros, el limbo bajo es siempre cero-- y con fracciones de verdad el mismo fallo da **166**. Y contar los ejes del tipo --`N`, `F`, `Sign`, `Form`, `Policy`-- saco el quinto sin cruzar: `checked` estaba declarado pero **`valid()` no se reexponia** | ✅ P1.5 |
+| **P1.6** (2ª entrega) | **El redondeo, `*`, `/`, `%`, `++`.** ✅ **hecho (22 sep)**, según [ADR-020](docs/decisions/ADR-020-los-operadores-multiplicativos-del-punto-fijo.md). Ni una trae algoritmo nuevo: `*` es `mul_wide` más un desplazamiento, `/` un preescalado más `divmod`, y **`%` resultó ser exacto** —el resto de dos múltiplos de `epsilon` es múltiplo de `epsilon`—. `++` suma **uno**, como en `float`. **13 020 comprobaciones** contra **dos** oráculos en dos anchuras, y el test falsificado modo por modo con seis averías. Sacó un fallo real: con divisor **impar**, cuatro de los cinco modos se comportaban como `toward_pos_inf` | ✅ P1.6 1ª |
+| **P1.6** (3ª entrega) | **`to_string` redondeado, y los desplazamientos.** ✅ **hecho (22 sep)**. Se redondea el **valor**, no la magnitud —lo contrario rompe los modos dirigidos— y de ahí salen dos espejos que costaron un fallo cada uno. `<<` exacto, `>>` redondea; **sin bitwise**, vigilado por la matriz. **13 020 comprobaciones**, y el arnés de falsificación destapó que el cruce de `>>` era vacuo: los enteros tienen 64 bits bajos a cero y no hay nada que redondear | ✅ P1.6 2ª |
 
 ### ⬅️ Por aquí se sigue (22 sep 2026)
 
-**El camino crítico de la 2.0 está a una pieza de cerrarse: el redondeo.**
+**El camino crítico de la 2.0 está cerrado.**
 
-P1.5 está completo y P1.6 tiene ya el tipo y las conversiones. Lo que falta es
-la perilla `Redondeo` y, con ella, `*` y `/` entre puntos fijos. El orden lo fija
-[ADR-019](docs/decisions/ADR-019-punto-fijo-es-un-entero-con-escala.md) y es
-deliberado: con la perilla puesta los modos se **comparan midiendo**, como se
-comparó Knuth contra Möller–Granlund, en vez de elegirse por analogía con la
-coma flotante.
+P1.5 y P1.6 están hechos: el punto fijo tiene el tipo, las conversiones, la
+aritmética exacta, los operadores multiplicativos y la perilla de redondeo con
+sus cinco modos. **P1.6 está completo**, `to_string` redondeado incluido.
 
-Mientras tanto esas dos operaciones **no existen**, y la matriz de paridad lo
-vigila. El día que aparezcan, la vigilancia se pondrá roja y obligará a decidir
-si el tipo nuevo entra en la matriz con columnas propias.
+Lo abierto de verdad sigue en la tabla de ADR-019: operaciones entre tipos con
+**distinto `F`**, conversión **desde y hacia coma flotante**, y `sqrt` con
+escala. Ninguna está decidida, y la primera es la que más toca la ergonomía.
 
 **Y P3.7 ya puede empezar.** Estaba esperando al tramo 3 a propósito: documentar
 antes habría sido documentar operaciones que acababan de reescribirse.
@@ -236,7 +234,7 @@ el punto fijo.
 |---|---|---|
 | ~~P3.1~~ | ~~Ámbito de Doxygen para los headers internos~~ | ✅ **decidido (10 sep)**: fuera del ámbito. Criterio: entra lo que un usuario puede incluir, o sea la raíz de `include/`; `intrinsics/` y `algorithms/` no. Desbloquea P3.2 |
 | **P3.2** | Cerrar la puerta: `WARN_AS_ERROR = YES` cuando el ámbito llegue a cero | Depende de P3.1 |
-| **P3.3** | Los **9** headers sin `API_*.md` propio que señala el armonizador — uno de ellos es `fixed_point_t.hpp`, del 22 sep | — |
+| **P3.3** | Los **8** headers sin `API_*.md` propio que señala el armonizador. Eran 9: `fixed_point_t.hpp` salió el 22 sep con [API_fixed_point.md](docs/API_fixed_point.md) | — |
 | ~~P3.4~~ | ~~`benchmark_vs_builtin` no enlaza sin GMP~~ | ✅ **hecho**: le faltaban `-lgmp`, `-lgmpxx` y `-ltommath`. Las tres bibliotecas estaban instaladas |
 | **P3.5** | Documentar `int128_param_*` (**257** avisos, contados el 21 sep) | **Caduca hacia atrás**: baja sola con P1.5. **Pero sólo esos 257**: los otros 209 del ámbito público son del tipo nuevo y no los retira nadie — ver **P3.7** |
 | **P3.6** | Decidir si Intel sale de la matriz de release | Se cae solo si P0.6 sale bien |

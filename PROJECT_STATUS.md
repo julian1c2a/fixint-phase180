@@ -57,7 +57,7 @@ alta del rango admitido (N = 64…4096) cubierta por primera vez.
 | `clang-format --dry-run --Werror`, 131 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
 | `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
 | `python make.py wsl` | **66/66 en las tres familias**: g++ 15.2 (317 s), clang 23 (326 s) e **Intel oneAPI 2026.0** (606 s) |
-| `scripts/check_matriz_paridad.py` | **289/289 celdas** (47 capacidades × **6** columnas, más 2 políticas reservadas y **5 sondas del punto fijo** que tienen que seguir sin compilar), todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
+| `scripts/check_matriz_paridad.py` | **297/297 celdas** (47 capacidades × **6** columnas, más 2 políticas reservadas y **13 sondas del punto fijo**, ocho que tienen que compilar y cinco que no), todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
 | Avisos de cobertura de Doxygen desde `include/` | **512** (local, doxygen 1.18.0), de los que **466 cuentan** contra el techo de ADR-014 y 46 son de headers internos, fuera del ámbito. El tipo nuevo trajo 22 y **se documentaron los 22**: el techo no se ha subido |
 
 > **La cifra de Doxygen no ha empeorado: antes no se medía.** Hasta el 25 ago el

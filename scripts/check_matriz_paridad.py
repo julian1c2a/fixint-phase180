@@ -118,25 +118,23 @@ RESERVADAS = [
 ]
 
 # =============================================================================
-# Punto fijo (P1.6): lo que TIENE que seguir sin compilar
+# Punto fijo (P1.6): lo que tiene que compilar y lo que no
 # =============================================================================
 #
-# El tipo nuevo `fixed_point_t` entra por el tipo y las conversiones; el
-# producto y la division **no estan**, porque necesitan el redondeo que ADR-019
-# deja como perilla. Mientras no esten, llamarlos tiene que ser un error de
-# compilacion, no una sorpresa en tiempo de ejecucion.
+# **Esta vigilancia ya disparo una vez, que es para lo que estaba.** Se puso el
+# 22 sep con `*` y `/` entre las que TENIAN que ser rechazadas, porque el
+# redondeo no estaba escrito. Al escribirlo (ADR-020) se puso roja y obligo a
+# revisar esta lista, igual que `int/magnitude_sign` e `int/excess_k` habian
+# obligado a abrirles columna el dia antes.
 #
-# Es la misma vigilancia que el 21 sep metio `int/magnitude_sign` e
-# `int/excess_k` en RESERVADAS, y que **fallo a proposito** en cuanto se
-# implementaron, obligando a abrirles columna. Aqui hara lo mismo: el dia que
-# alguien escriba `operator*` entre dos puntos fijos, esta comprobacion se
-# pondra roja y obligara a decidir si el tipo nuevo entra en la matriz.
+# Ahora `*` y `/` tienen que COMPILAR, y quedan vigiladas las dos cosas que
+# siguen siendo errores de uso: el uno en un tipo que no llega a uno, y pedir
+# mas parte fraccionaria que total.
 #
-# LA SONDA DE CONTROL NO ES DECORACION. Las otras cuatro pasan cuando NO
-# compilan, de modo que pasarian TODAS tambien si la cabecera estuviera rota o
-# si el `-I` no llegara: un barrido perfecto que no comprueba nada. La de
-# control tiene que compilar, y es lo unico que separa «no esta escrito» de
-# «aqui no compila nada».
+# LA SONDA DE CONTROL NO ES DECORACION. Las negativas pasan cuando NO compilan,
+# de modo que pasarian todas tambien si la cabecera estuviera rota o si el `-I`
+# no llegara: un barrido perfecto que no comprueba nada. Las positivas son lo
+# unico que separa «no esta escrito» de «aqui no compila nada».
 
 _FP = ('#include "fixed_point_t.hpp"\n'
        '#include <cstdint>\n'
@@ -158,17 +156,51 @@ _FP_SOLO = ('#include "fixed_point_t.hpp"\n'
             '}\n')
 
 PENDIENTES = [
+    # --- lo que tiene que compilar ---------------------------------------
     ("control: el tipo compila", True,
      _FP % "const Q a{2}, b{3};\n"
            "    (void)(a + b); (void)(a - b); (void)(a < b);"),
-    ("producto entre puntos fijos", False,
+    ("producto entre puntos fijos", True,
      _FP % "const Q a{2}, b{3};\n    (void)(a * b);"),
-    ("division entre puntos fijos", False,
+    ("division entre puntos fijos", True,
      _FP % "const Q a{6}, b{3};\n    (void)(a / b);"),
+    ("resto entre puntos fijos", True,
+     _FP % "const Q a{7}, b{3};\n    (void)(a % b);"),
+    ("compuestos *= /= %=", True,
+     _FP % "Q a{7};\n    const Q b{3};\n    a *= b; a /= b; a %= b; (void)a;"),
+    ("incremento y decremento", True,
+     _FP % "Q a{7};\n    ++a; --a; a++; a--; (void)a;"),
+    ("desplazamientos << >> <<= >>=", True,
+     _FP % "Q a{7};\n    (void)(a << 2U); (void)(a >> 2U); a <<= 1U; a >>= 1U; (void)a;"),
+    # Y lo que NO hay a proposito: en punto fijo los bitwise no significan nada
+    # util, y ni `float` ni los tipos del TR 18037 los ofrecen (ADR-020).
+    ("bitwise & sobre punto fijo", False,
+     _FP % "const Q a{7}, b{3};\n    (void)(a & b);"),
+    ("bitwise ~ sobre punto fijo", False,
+     _FP % "const Q a{7};\n    (void)(~a);"),
+    # La perilla se instancia con los cinco modos: si uno solo no compilara,
+    # nadie se enteraria hasta usarlo.
+    ("los cinco modos de redondeo", True,
+     '#include "fixed_point_t.hpp"\n\n'
+     'template <nstd::rounding_mode M>\n'
+     'using T = nstd::sfixed_point_t<2, 1, nstd::overflow_policy::wrap, M>;\n\n'
+     'int main()\n{\n'
+     '    using R = nstd::rounding_mode;\n'
+     '    (void)(T<R::to_nearest_even>{6} / T<R::to_nearest_even>{4});\n'
+     '    (void)(T<R::to_nearest_away>{6} / T<R::to_nearest_away>{4});\n'
+     '    (void)(T<R::toward_zero>{6} / T<R::toward_zero>{4});\n'
+     '    (void)(T<R::toward_neg_inf>{6} / T<R::toward_neg_inf>{4});\n'
+     '    (void)(T<R::toward_pos_inf>{6} / T<R::toward_pos_inf>{4});\n'
+     '    return 0;\n}\n'),
+
+    # --- lo que tiene que seguir rechazandose -----------------------------
     # `one()` en el tipo puramente fraccionario: solo representa [0,1), asi que
     # el uno NO existe alli, y el static_assert lo dice en vez de dar cero.
     ("one() con F == N", False,
      _FP_SOLO % "(void)nstd::ufixed_point_t<1, 1>::one();"),
+    # `++` suma UNO (ADR-020), asi que donde no hay uno tampoco hay `++`.
+    ("++ con F == N", False,
+     _FP_SOLO % "nstd::ufixed_point_t<1, 1> x{}; ++x;"),
     ("mas fraccion que total (F > N)", False,
      _FP_SOLO % "const nstd::ufixed_point_t<2, 3> x{}; (void)x;"),
 ]
@@ -497,7 +529,7 @@ def main():
             print("  %-16s rechazada, como debe" % celda)
 
     print()
-    print("  --- punto fijo: el redondeo aun no esta (ADR-019) ---")
+    print("  --- punto fijo: operadores y perilla de redondeo (ADR-020) ---")
     for nombre, debe, (ok, err) in pendientes:
         if ok == debe:
             print("  %-32s %s" % (nombre, "compila, como debe" if debe

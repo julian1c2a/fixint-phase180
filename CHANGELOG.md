@@ -1,3 +1,190 @@
+## [sin publicar] - 2026-09-22 - P1.6 segunda entrega: el redondeo, y `*` `/` `%`
+
+La perilla `Redondeo` existe, y con ella `*`, `/`, `%`, `*=`, `/=`, `%=`,
+`++` y `--`. Todo lo decide
+[ADR-020](docs/decisions/ADR-020-los-operadores-multiplicativos-del-punto-fijo.md),
+escrito antes del codigo.
+
+### Ni una de las tres trae un algoritmo nuevo
+
+`*` es `mul_wide` mas un desplazamiento. `/` es un preescalado mas `divmod`.
+Y `%` es `divmod` a secas. Cuarta vez en este proyecto que la lectura barata es
+la correcta --capa, codificacion, escala, y ahora redondeo--.
+
+### La sorpresa: `%` NO necesita redondeo
+
+Se esperaba que fuera la tercera operacion con perilla y resulta ser **exacta**.
+
+`a` y `b` son multiplos de `epsilon`, el cociente truncado es entero, luego
+`q*b` es multiplo de `epsilon` y `r = a - q*b` tambien. **No hay nada que
+descartar.** Y el resultado es literalmente `desde_crudo(A % B)`: el modulo
+entero de los crudos, sin escalar y sin ensanchar.
+
+La regla que sale: **antes de dar por hecho que una operacion necesita
+redondeo, mirar si su resultado es representable.**
+
+### `++` suma UNO, no un epsilon
+
+Como `float` y `double` en C++. Avanzar al siguiente valor representable es
+tentador porque aqui ese valor existe --en un entero no--, pero esa operacion ya
+tiene nombre en el estandar y no es `++`: es `std::nextafter`.
+
+Con `F == N` no existen, por lo mismo que `one()`: ese tipo solo llega a `[0,1)`.
+
+### Dos fallos, y salieron por sitios distintos
+
+**Uno en el codigo.** Al comparar `2r` con `d` escribi
+`pasa_mitad = (media < rm) || (dm_impar && rm == media)`, creyendo que con
+divisor impar el caso `r == d/2` se pasaba de la mitad. Es al reves: con
+`d = 2m+1` y `r = m`, `2r = 2m < d`, o sea que esta **por debajo**. El efecto era
+que **cuatro de los cinco modos se comportaban como `toward_pos_inf` siempre que
+el divisor fuera impar**, y lo saco el oraculo con `1/3`. La condicion correcta
+es la misma para par e impar: `media < rm`.
+
+**Otro en el test.** Escribi la identidad del resto como
+`a == (a/b)*b + a%b`, que es la de los **enteros**, donde `/` ya devuelve el
+cociente entero. Aqui `a/b` tiene parte fraccionaria: `-12345/7` es
+`-1763,571...`, no `-1763`. La que si vale pasa por el cociente truncado **a
+entero**, que se recupera quitando el resto: `k = (a - r)/b` es entero y
+`k*b + r == a`.
+
+Los dos salieron de las mismas 78 comprobaciones, y ninguno habria salido sin
+oraculo.
+
+### Dos oraculos, sobre dos anchuras
+
+- **`__int128` sobre los tipos de UN limbo** (`N = F = 1`), escrito a mano en el
+  test: ahi los crudos son de 64 bits y el producto cabe en 128.
+- **Tabla generada en Python** para Q64.64, porque el producto de dos crudos de
+  128 bits son 256 y no hay tipo nativo donde calcularlo
+  (`scripts/genera_tabla_redondeo.py`).
+
+Con uno solo no habria forma de separar «el redondeo esta bien» de «esta bien en
+la anchura que mire», que es el eje sin cruzar que este proyecto ya se ha
+encontrado cuatro veces. La tabla de decision esta escrita **dos veces a mano**,
+en C++ y en Python: importar una de la otra no seria un oraculo, seria un espejo.
+
+El generador **se comprueba a si mismo**: si los cinco modos coincidieran en
+todos los casos, la tabla pasaria igual con cuatro de ellos mal escritos, asi
+que aborta. Hoy distinguen en 11 de 22 productos y 10 de 17 divisiones.
+
+### Y el test se falsifico modo por modo
+
+Seis averias plausibles, aplicadas por separado y revertidas:
+
+| Averia | Fallos que la cogen |
+|---|---|
+| al-par ignora la paridad | 19 |
+| alejarse ignora el signo | 18 |
+| truncar no corrige el negativo | 140 |
+| suelo sube cuando no debe | 281 |
+| techo no sube | 281 |
+| el empate del producto se pierde | 35 |
+
+Las seis se detectan. Sin esto, «los cinco modos pasan» diria lo mismo con
+cuatro de ellos sin cubrir --que es exactamente lo que paso el 22 sep con las
+representaciones--.
+
+### La vigilancia de la matriz disparo, como estaba previsto
+
+`*` y `/` pasaron a compilar y las sondas se pusieron rojas:
+
+    producto entre puntos fijos      COMPILA -- y no deberia: no esta escrito
+    division entre puntos fijos      COMPILA -- y no deberia: no esta escrito
+
+Es la segunda vez que esta clase de vigilancia dispara en dos dias. Ahora las
+dos tienen que compilar, y entran cinco sondas nuevas: `%`, los compuestos,
+`++`/`--`, **los cinco modos instanciados**, y una negativa --`++` con
+`F == N`--. **289 -> 294 celdas.**
+
+### `to_string` redondea, y ahi estaban los dos espejos
+
+Se habia dejado truncando a proposito, para no mezclar dos cambios observables
+en una entrega. Al pedirse expresamente se hizo aqui, y resultó traer una
+decision de diseno que merecia un ADR y no un `@warning`.
+
+**Se redondea el VALOR, no la magnitud.** Es lo unico que hace salir bien los
+modos dirigidos: `toward_pos_inf` sobre `-2,55` con una cifra da `-2,5`, no
+`-2,6`. Pero las cifras si se escriben desde la magnitud --es lo que evita que
+la coma tenga que saber de signos-- asi que hay que volver al marco `(q, r, d)`:
+
+    positivo              q = Dmag,       r = resto
+    negativo, resto > 0   q = -(Dmag+1),  r = 2^k - resto
+
+De ahi salen dos espejos que **costaron un fallo cada uno**:
+
+- **subir el valor es NO subir la magnitud**, y al reves;
+- la paridad del desempate al par es la de `q`, que en los negativos es **la
+  contraria** de la ultima cifra escrita.
+
+El primero lo escribi en el comentario de la funcion y luego **no lo
+implemente**: use `resto` donde tocaba `escala - resto`. El efecto era que
+`-1 epsilon` con dos decimales daba `-0.01` en vez de `-0.00`, porque un resto
+diminuto de la magnitud es un resto casi completo del valor.
+
+Y el acarreo **puede alargar la cadena** --`9,999...` con dos cifras es
+`10.00`--, por eso la coma se inserta al final y contando desde la derecha.
+
+#### Tres cambios de salida, todos queridos
+
+| | Antes | Ahora | Por que |
+|---|---|---|---|
+| `max().to_string(2)` | `...807.99` | `...808.00` | el valor es `...807,99999999999999999995`: a dos cifras sube, y el acarreo llega a la parte entera |
+| `to_string(3)` con `F == 0` | `7` | `7.000` | `decimales` significa lo que dice, como `printf("%.3f", 7.0)` |
+| un negativo que redondea a cero | -- | `-0.00` | igual que `printf`. El tipo no tiene cero negativo; la cadena dice «un negativo pequeno», que es informacion |
+
+### `<<` y `>>` escalan el valor; y NO hay bitwise
+
+`x << n` es `x * 2^n` y es exacto. `x >> n` es `x / 2^n` y **redondea**: al bajar
+`n` posiciones se caen `n` bits, y que se caigan es lo que la perilla decide.
+Con `toward_neg_inf` sale el desplazamiento aritmetico tal cual, que es gratis.
+Es lo que hacen los tipos de coma fija del TR 18037.
+
+**No hay `&`, `|`, `^` ni `~`**, y la matriz vigila que sigan sin compilar. El
+entero los tiene, pero en un punto fijo no significan nada util, y ni `float` ni
+el TR 18037 los ofrecen: anadirlos seria inventar semantica en vez de seguir el
+estandar.
+
+### El arnes de falsificacion encontro un test vacuo MIO
+
+El cruce de `>>` contra `/ 2^n` pasaba entero... y tambien pasaba con `>>`
+roto para que **nunca** redondeara. El motivo, otra vez el mismo: los valores
+eran enteros, y el crudo de un entero en Q64.64 es `v * 2^64`, **con 64 bits
+bajos a cero**. Desplazar diez posiciones no perdia nada, asi que no habia nada
+que redondear y los cinco modos coincidian.
+
+Reescrito con crudos que llevan bits bajos --y con el empate, el de justo debajo
+y el de justo encima para cada `n`--, la misma averia da **1008 fallos**.
+
+Doce averias en total entre los dos arneses, y **las doce se detectan**:
+
+| Averia | Fallos |
+|---|---|
+| al-par ignora la paridad | 24 |
+| alejarse ignora el signo | 23 |
+| truncar no corrige el negativo | 148 |
+| suelo sube cuando no debe | 301 |
+| techo no sube | 299 |
+| el empate del producto se pierde | 35 |
+| el resto del valor vuelve a ser el de la magnitud | 6 |
+| la paridad no se invierte en negativos | 5 |
+| subir el valor se confunde con subir la magnitud | 40 |
+| el acarreo no se propaga | 15 |
+| `>>` no redondea, siempre trunca al suelo | 1008 |
+| `<<` deja de ser exacto | 2648 |
+
+### Documentacion
+
+`docs/API_fixed_point.md`, que faltaba: el tipo nuevo sale de la lista de P3.3
+y quedan ocho headers sin documento propio. Lleva el **inventario completo de
+operadores** y lo que queda fuera a proposito. Doxygen sigue en **466**, el
+techo: los miembros nuevos entran documentados.
+
+La matriz crece otra vez con los desplazamientos y las dos sondas de bitwise:
+**289 -> 297 celdas**.
+
+---
+
 ## [sin publicar] - 2026-09-22 - `make.py wsl` presentaba un fallo de entorno como una regresion
 
 `cmd_wsl` lanzaba los tests con `bash -c`, que **no es un shell de login**: no

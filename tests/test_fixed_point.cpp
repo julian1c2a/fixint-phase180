@@ -24,6 +24,7 @@
 #include "fixed_point_t.hpp"
 
 #include <cstdio>
+#include <limits>
 #include <string>
 
 namespace
@@ -185,6 +186,498 @@ namespace
         }
     }
 
+    // ---- TABLA:INICIO -- generada por scripts/genera_tabla_redondeo.py ----
+    // clang-format off
+    // GENERADO por scripts/genera_tabla_redondeo.py -- no editar a mano.
+    //
+    // Oraculo de Q64.64 en aritmetica exacta de Python. El otro oraculo, el de
+    // `__int128` sobre los tipos de un limbo, esta escrito a mano mas abajo: dos
+    // caminos independientes sobre dos anchuras distintas.
+
+    constexpr int kModos = 5;  // los del enum `rounding_mode`, en su orden
+
+    struct CasoBin
+    {
+        const char *nombre;
+        std::uint64_t a[2];
+        std::uint64_t b[2];
+        std::uint64_t esperado[kModos][2];
+    };
+
+    constexpr CasoBin kProductos[] = {
+        {"uno por uno", {0x0000000000000000ULL, 0x0000000000000001ULL}, {0x0000000000000000ULL, 0x0000000000000001ULL},
+         {{0x0000000000000000ULL, 0x0000000000000001ULL}, {0x0000000000000000ULL, 0x0000000000000001ULL}, {0x0000000000000000ULL, 0x0000000000000001ULL}, {0x0000000000000000ULL, 0x0000000000000001ULL}, {0x0000000000000000ULL, 0x0000000000000001ULL}}},
+        {"dos por tres", {0x0000000000000000ULL, 0x0000000000000002ULL}, {0x0000000000000000ULL, 0x0000000000000003ULL},
+         {{0x0000000000000000ULL, 0x0000000000000006ULL}, {0x0000000000000000ULL, 0x0000000000000006ULL}, {0x0000000000000000ULL, 0x0000000000000006ULL}, {0x0000000000000000ULL, 0x0000000000000006ULL}, {0x0000000000000000ULL, 0x0000000000000006ULL}}},
+        {"medio por medio", {0x8000000000000000ULL, 0x0000000000000000ULL}, {0x8000000000000000ULL, 0x0000000000000000ULL},
+         {{0x4000000000000000ULL, 0x0000000000000000ULL}, {0x4000000000000000ULL, 0x0000000000000000ULL}, {0x4000000000000000ULL, 0x0000000000000000ULL}, {0x4000000000000000ULL, 0x0000000000000000ULL}, {0x4000000000000000ULL, 0x0000000000000000ULL}}},
+        {"menos medio por medio", {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL}, {0x8000000000000000ULL, 0x0000000000000000ULL},
+         {{0xC000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL}, {0xC000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL}, {0xC000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL}, {0xC000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL}, {0xC000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL}}},
+        {"cuarto por cuarto", {0x4000000000000000ULL, 0x0000000000000000ULL}, {0x4000000000000000ULL, 0x0000000000000000ULL},
+         {{0x1000000000000000ULL, 0x0000000000000000ULL}, {0x1000000000000000ULL, 0x0000000000000000ULL}, {0x1000000000000000ULL, 0x0000000000000000ULL}, {0x1000000000000000ULL, 0x0000000000000000ULL}, {0x1000000000000000ULL, 0x0000000000000000ULL}}},
+        {"empate: epsilon por medio", {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x8000000000000000ULL, 0x0000000000000000ULL},
+         {{0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}}},
+        {"empate: 3 epsilon por medio", {0x0000000000000003ULL, 0x0000000000000000ULL}, {0x8000000000000000ULL, 0x0000000000000000ULL},
+         {{0x0000000000000002ULL, 0x0000000000000000ULL}, {0x0000000000000002ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000002ULL, 0x0000000000000000ULL}}},
+        {"empate negativo: -epsilon por medio", {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0x8000000000000000ULL, 0x0000000000000000ULL},
+         {{0x0000000000000000ULL, 0x0000000000000000ULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}}},
+        {"empate negativo: -3 eps por medio", {0xFFFFFFFFFFFFFFFDULL, 0xFFFFFFFFFFFFFFFFULL}, {0x8000000000000000ULL, 0x0000000000000000ULL},
+         {{0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL}, {0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}}},
+        {"empate: (uno+eps) por medio", {0x0000000000000001ULL, 0x0000000000000001ULL}, {0x8000000000000000ULL, 0x0000000000000000ULL},
+         {{0x8000000000000000ULL, 0x0000000000000000ULL}, {0x8000000000000001ULL, 0x0000000000000000ULL}, {0x8000000000000000ULL, 0x0000000000000000ULL}, {0x8000000000000000ULL, 0x0000000000000000ULL}, {0x8000000000000001ULL, 0x0000000000000000ULL}}},
+        {"bajo la mitad", {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x7FFFFFFFFFFFFFFFULL, 0x0000000000000000ULL},
+         {{0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}}},
+        {"sobre la mitad", {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x8000000000000001ULL, 0x0000000000000000ULL},
+         {{0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}}},
+        {"negativo bajo la mitad", {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0x7FFFFFFFFFFFFFFFULL, 0x0000000000000000ULL},
+         {{0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}}},
+        {"negativo sobre la mitad", {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0x8000000000000001ULL, 0x0000000000000000ULL},
+         {{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}}},
+        {"empate con suelo par", {0x0000000000000002ULL, 0x0000000000000000ULL}, {0x8000000000000000ULL, 0x0000000000000000ULL},
+         {{0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}}},
+        {"empate con suelo impar", {0x0000000000000003ULL, 0x0000000000000000ULL}, {0x8000000000000000ULL, 0x0000000000000000ULL},
+         {{0x0000000000000002ULL, 0x0000000000000000ULL}, {0x0000000000000002ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000002ULL, 0x0000000000000000ULL}}},
+        {"empate suelo par negativo", {0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL}, {0x8000000000000000ULL, 0x0000000000000000ULL},
+         {{0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}}},
+        {"empate suelo impar negativo", {0xFFFFFFFFFFFFFFFDULL, 0xFFFFFFFFFFFFFFFFULL}, {0x8000000000000000ULL, 0x0000000000000000ULL},
+         {{0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL}, {0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}}},
+        {"1.5 por 1.5", {0x8000000000000000ULL, 0x0000000000000001ULL}, {0x8000000000000000ULL, 0x0000000000000001ULL},
+         {{0x4000000000000000ULL, 0x0000000000000002ULL}, {0x4000000000000000ULL, 0x0000000000000002ULL}, {0x4000000000000000ULL, 0x0000000000000002ULL}, {0x4000000000000000ULL, 0x0000000000000002ULL}, {0x4000000000000000ULL, 0x0000000000000002ULL}}},
+        {"-1.5 por 2.25", {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFEULL}, {0x4000000000000000ULL, 0x0000000000000002ULL},
+         {{0xA000000000000000ULL, 0xFFFFFFFFFFFFFFFCULL}, {0xA000000000000000ULL, 0xFFFFFFFFFFFFFFFCULL}, {0xA000000000000000ULL, 0xFFFFFFFFFFFFFFFCULL}, {0xA000000000000000ULL, 0xFFFFFFFFFFFFFFFCULL}, {0xA000000000000000ULL, 0xFFFFFFFFFFFFFFFCULL}}},
+        {"7.25 por -3.75", {0x4000000000000000ULL, 0x0000000000000007ULL}, {0x4000000000000000ULL, 0xFFFFFFFFFFFFFFFCULL},
+         {{0xD000000000000000ULL, 0xFFFFFFFFFFFFFFE4ULL}, {0xD000000000000000ULL, 0xFFFFFFFFFFFFFFE4ULL}, {0xD000000000000000ULL, 0xFFFFFFFFFFFFFFE4ULL}, {0xD000000000000000ULL, 0xFFFFFFFFFFFFFFE4ULL}, {0xD000000000000000ULL, 0xFFFFFFFFFFFFFFE4ULL}}},
+        {"grande por pequeno", {0x0000000000000000ULL, 0x00000000000F4240ULL}, {0x0000000000000003ULL, 0x0000000000000000ULL},
+         {{0x00000000002DC6C0ULL, 0x0000000000000000ULL}, {0x00000000002DC6C0ULL, 0x0000000000000000ULL}, {0x00000000002DC6C0ULL, 0x0000000000000000ULL}, {0x00000000002DC6C0ULL, 0x0000000000000000ULL}, {0x00000000002DC6C0ULL, 0x0000000000000000ULL}}},
+    };
+
+    constexpr CasoBin kDivisiones[] = {
+        {"uno entre tres", {0x0000000000000000ULL, 0x0000000000000001ULL}, {0x0000000000000000ULL, 0x0000000000000003ULL},
+         {{0x5555555555555555ULL, 0x0000000000000000ULL}, {0x5555555555555555ULL, 0x0000000000000000ULL}, {0x5555555555555555ULL, 0x0000000000000000ULL}, {0x5555555555555555ULL, 0x0000000000000000ULL}, {0x5555555555555556ULL, 0x0000000000000000ULL}}},
+        {"menos uno entre tres", {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL}, {0x0000000000000000ULL, 0x0000000000000003ULL},
+         {{0xAAAAAAAAAAAAAAABULL, 0xFFFFFFFFFFFFFFFFULL}, {0xAAAAAAAAAAAAAAABULL, 0xFFFFFFFFFFFFFFFFULL}, {0xAAAAAAAAAAAAAAABULL, 0xFFFFFFFFFFFFFFFFULL}, {0xAAAAAAAAAAAAAAAAULL, 0xFFFFFFFFFFFFFFFFULL}, {0xAAAAAAAAAAAAAAABULL, 0xFFFFFFFFFFFFFFFFULL}}},
+        {"uno entre menos tres", {0x0000000000000000ULL, 0x0000000000000001ULL}, {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFDULL},
+         {{0xAAAAAAAAAAAAAAABULL, 0xFFFFFFFFFFFFFFFFULL}, {0xAAAAAAAAAAAAAAABULL, 0xFFFFFFFFFFFFFFFFULL}, {0xAAAAAAAAAAAAAAABULL, 0xFFFFFFFFFFFFFFFFULL}, {0xAAAAAAAAAAAAAAAAULL, 0xFFFFFFFFFFFFFFFFULL}, {0xAAAAAAAAAAAAAAABULL, 0xFFFFFFFFFFFFFFFFULL}}},
+        {"menos uno entre menos tres", {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL}, {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFDULL},
+         {{0x5555555555555555ULL, 0x0000000000000000ULL}, {0x5555555555555555ULL, 0x0000000000000000ULL}, {0x5555555555555555ULL, 0x0000000000000000ULL}, {0x5555555555555555ULL, 0x0000000000000000ULL}, {0x5555555555555556ULL, 0x0000000000000000ULL}}},
+        {"dos entre uno", {0x0000000000000000ULL, 0x0000000000000002ULL}, {0x0000000000000000ULL, 0x0000000000000001ULL},
+         {{0x0000000000000000ULL, 0x0000000000000002ULL}, {0x0000000000000000ULL, 0x0000000000000002ULL}, {0x0000000000000000ULL, 0x0000000000000002ULL}, {0x0000000000000000ULL, 0x0000000000000002ULL}, {0x0000000000000000ULL, 0x0000000000000002ULL}}},
+        {"uno entre dos", {0x0000000000000000ULL, 0x0000000000000001ULL}, {0x0000000000000000ULL, 0x0000000000000002ULL},
+         {{0x8000000000000000ULL, 0x0000000000000000ULL}, {0x8000000000000000ULL, 0x0000000000000000ULL}, {0x8000000000000000ULL, 0x0000000000000000ULL}, {0x8000000000000000ULL, 0x0000000000000000ULL}, {0x8000000000000000ULL, 0x0000000000000000ULL}}},
+        {"epsilon entre dos", {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000002ULL},
+         {{0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}}},
+        {"menos epsilon entre dos", {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0x0000000000000000ULL, 0x0000000000000002ULL},
+         {{0x0000000000000000ULL, 0x0000000000000000ULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}, {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, {0x0000000000000000ULL, 0x0000000000000000ULL}}},
+        {"tres epsilon entre dos", {0x0000000000000003ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000002ULL},
+         {{0x0000000000000002ULL, 0x0000000000000000ULL}, {0x0000000000000002ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000002ULL, 0x0000000000000000ULL}}},
+        {"siete entre dos", {0x0000000000000000ULL, 0x0000000000000007ULL}, {0x0000000000000000ULL, 0x0000000000000002ULL},
+         {{0x8000000000000000ULL, 0x0000000000000003ULL}, {0x8000000000000000ULL, 0x0000000000000003ULL}, {0x8000000000000000ULL, 0x0000000000000003ULL}, {0x8000000000000000ULL, 0x0000000000000003ULL}, {0x8000000000000000ULL, 0x0000000000000003ULL}}},
+        {"menos siete entre dos", {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFF9ULL}, {0x0000000000000000ULL, 0x0000000000000002ULL},
+         {{0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFCULL}, {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFCULL}, {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFCULL}, {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFCULL}, {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFCULL}}},
+        {"10 entre 4", {0x0000000000000000ULL, 0x000000000000000AULL}, {0x0000000000000000ULL, 0x0000000000000004ULL},
+         {{0x8000000000000000ULL, 0x0000000000000002ULL}, {0x8000000000000000ULL, 0x0000000000000002ULL}, {0x8000000000000000ULL, 0x0000000000000002ULL}, {0x8000000000000000ULL, 0x0000000000000002ULL}, {0x8000000000000000ULL, 0x0000000000000002ULL}}},
+        {"-10 entre 4", {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFF6ULL}, {0x0000000000000000ULL, 0x0000000000000004ULL},
+         {{0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFDULL}, {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFDULL}, {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFDULL}, {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFDULL}, {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFDULL}}},
+        {"1.5 entre 0.25", {0x8000000000000000ULL, 0x0000000000000001ULL}, {0x4000000000000000ULL, 0x0000000000000000ULL},
+         {{0x0000000000000000ULL, 0x0000000000000006ULL}, {0x0000000000000000ULL, 0x0000000000000006ULL}, {0x0000000000000000ULL, 0x0000000000000006ULL}, {0x0000000000000000ULL, 0x0000000000000006ULL}, {0x0000000000000000ULL, 0x0000000000000006ULL}}},
+        {"cien entre siete", {0x0000000000000000ULL, 0x0000000000000064ULL}, {0x0000000000000000ULL, 0x0000000000000007ULL},
+         {{0x4924924924924925ULL, 0x000000000000000EULL}, {0x4924924924924925ULL, 0x000000000000000EULL}, {0x4924924924924924ULL, 0x000000000000000EULL}, {0x4924924924924924ULL, 0x000000000000000EULL}, {0x4924924924924925ULL, 0x000000000000000EULL}}},
+        {"-cien entre siete", {0x0000000000000000ULL, 0xFFFFFFFFFFFFFF9CULL}, {0x0000000000000000ULL, 0x0000000000000007ULL},
+         {{0xB6DB6DB6DB6DB6DBULL, 0xFFFFFFFFFFFFFFF1ULL}, {0xB6DB6DB6DB6DB6DBULL, 0xFFFFFFFFFFFFFFF1ULL}, {0xB6DB6DB6DB6DB6DCULL, 0xFFFFFFFFFFFFFFF1ULL}, {0xB6DB6DB6DB6DB6DBULL, 0xFFFFFFFFFFFFFFF1ULL}, {0xB6DB6DB6DB6DB6DCULL, 0xFFFFFFFFFFFFFFF1ULL}}},
+        {"cien entre menos siete", {0x0000000000000000ULL, 0x0000000000000064ULL}, {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFF9ULL},
+         {{0xB6DB6DB6DB6DB6DBULL, 0xFFFFFFFFFFFFFFF1ULL}, {0xB6DB6DB6DB6DB6DBULL, 0xFFFFFFFFFFFFFFF1ULL}, {0xB6DB6DB6DB6DB6DCULL, 0xFFFFFFFFFFFFFFF1ULL}, {0xB6DB6DB6DB6DB6DBULL, 0xFFFFFFFFFFFFFFF1ULL}, {0xB6DB6DB6DB6DB6DCULL, 0xFFFFFFFFFFFFFFF1ULL}}},
+    };
+
+    // El resto es EXACTO, asi que lleva UN valor y no cinco (ADR-020).
+    struct CasoResto
+    {
+        const char *nombre;
+        std::uint64_t a[2];
+        std::uint64_t b[2];
+        std::uint64_t esperado[2];
+    };
+
+    constexpr CasoResto kRestos[] = {
+        {"7 mod 2", {0x0000000000000000ULL, 0x0000000000000007ULL}, {0x0000000000000000ULL, 0x0000000000000002ULL},
+         {0x0000000000000000ULL, 0x0000000000000001ULL}},
+        {"-7 mod 2", {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFF9ULL}, {0x0000000000000000ULL, 0x0000000000000002ULL},
+         {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL}},
+        {"7 mod -2", {0x0000000000000000ULL, 0x0000000000000007ULL}, {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFEULL},
+         {0x0000000000000000ULL, 0x0000000000000001ULL}},
+        {"-7 mod -2", {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFF9ULL}, {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFEULL},
+         {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL}},
+        {"5.5 mod 2", {0x8000000000000000ULL, 0x0000000000000005ULL}, {0x0000000000000000ULL, 0x0000000000000002ULL},
+         {0x8000000000000000ULL, 0x0000000000000001ULL}},
+        {"-5.5 mod 2", {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFAULL}, {0x0000000000000000ULL, 0x0000000000000002ULL},
+         {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFEULL}},
+        {"0.75 mod 0.5", {0xC000000000000000ULL, 0x0000000000000000ULL}, {0x8000000000000000ULL, 0x0000000000000000ULL},
+         {0x4000000000000000ULL, 0x0000000000000000ULL}},
+        {"epsilon mod uno", {0x0000000000000001ULL, 0x0000000000000000ULL}, {0x0000000000000000ULL, 0x0000000000000001ULL},
+         {0x0000000000000001ULL, 0x0000000000000000ULL}},
+    };
+
+    struct CasoCadena
+    {
+        const char *nombre;
+        std::uint64_t a[2];
+        unsigned decimales;
+        const char *esperado[kModos];
+    };
+
+    constexpr CasoCadena kCadenas[] = {
+        {"cero, dos cifras", {0x0000000000000000ULL, 0x0000000000000000ULL}, 2,
+         {"0.00", "0.00", "0.00", "0.00", "0.00"}},
+        {"siete sin cifras", {0x0000000000000000ULL, 0x0000000000000007ULL}, 0,
+         {"7", "7", "7", "7", "7"}},
+        {"menos siete sin cifras", {0x0000000000000000ULL, 0xFFFFFFFFFFFFFFF9ULL}, 0,
+         {"-7", "-7", "-7", "-7", "-7"}},
+        {"un medio, una cifra", {0x8000000000000000ULL, 0x0000000000000000ULL}, 1,
+         {"0.5", "0.5", "0.5", "0.5", "0.5"}},
+        {"dos y medio", {0x8000000000000000ULL, 0x0000000000000002ULL}, 2,
+         {"2.50", "2.50", "2.50", "2.50", "2.50"}},
+        {"menos dos y medio", {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFDULL}, 2,
+         {"-2.50", "-2.50", "-2.50", "-2.50", "-2.50"}},
+        {"empate 2,5 sin cifras", {0x8000000000000000ULL, 0x0000000000000002ULL}, 0,
+         {"2", "3", "2", "2", "3"}},
+        {"empate 3,5 sin cifras", {0x8000000000000000ULL, 0x0000000000000003ULL}, 0,
+         {"4", "4", "3", "3", "4"}},
+        {"empate -2,5 sin cifras", {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFDULL}, 0,
+         {"-2", "-3", "-2", "-3", "-2"}},
+        {"empate -3,5 sin cifras", {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFCULL}, 0,
+         {"-4", "-4", "-3", "-4", "-3"}},
+        {"empate 0,5 sin cifras", {0x8000000000000000ULL, 0x0000000000000000ULL}, 0,
+         {"0", "1", "0", "0", "1"}},
+        {"empate -0,5 sin cifras", {0x8000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL}, 0,
+         {"-0", "-1", "-0", "-1", "-0"}},
+        {"empate 0,25 con una cifra", {0x4000000000000000ULL, 0x0000000000000000ULL}, 1,
+         {"0.2", "0.3", "0.2", "0.2", "0.3"}},
+        {"empate -0,25 con una cifra", {0xC000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL}, 1,
+         {"-0.2", "-0.3", "-0.2", "-0.3", "-0.2"}},
+        {"casi uno, dos cifras", {0xFFFFFFFFFFFFFFFFULL, 0x0000000000000000ULL}, 2,
+         {"1.00", "1.00", "0.99", "0.99", "1.00"}},
+        {"casi diez, dos cifras", {0xFFFFFFFFFFFFFFFFULL, 0x0000000000000009ULL}, 2,
+         {"10.00", "10.00", "9.99", "9.99", "10.00"}},
+        {"casi menos diez, dos cifras", {0x0000000000000001ULL, 0xFFFFFFFFFFFFFFF6ULL}, 2,
+         {"-10.00", "-10.00", "-9.99", "-10.00", "-9.99"}},
+        {"casi cien, una cifra", {0xFFFFFFFFFFFFFFFFULL, 0x0000000000000063ULL}, 1,
+         {"100.0", "100.0", "99.9", "99.9", "100.0"}},
+        {"un epsilon negativo, dos cifras", {0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL}, 2,
+         {"-0.00", "-0.00", "-0.00", "-0.01", "-0.00"}},
+        {"un epsilon positivo, dos cifras", {0x0000000000000001ULL, 0x0000000000000000ULL}, 2,
+         {"0.00", "0.00", "0.00", "0.00", "0.01"}},
+        {"menos tres cuartos, una cifra", {0x4000000000000000ULL, 0xFFFFFFFFFFFFFFFFULL}, 1,
+         {"-0.8", "-0.8", "-0.7", "-0.8", "-0.7"}},
+        {"un tercio aproximado, 8 cifras", {0x5555555555555555ULL, 0x0000000000000000ULL}, 8,
+         {"0.33333333", "0.33333333", "0.33333333", "0.33333333", "0.33333334"}},
+        {"menos un tercio, 8 cifras", {0xAAAAAAAAAAAAAAABULL, 0xFFFFFFFFFFFFFFFFULL}, 8,
+         {"-0.33333333", "-0.33333333", "-0.33333333", "-0.33333334", "-0.33333333"}},
+        {"mil y pico, 4 cifras", {0x4000000000000000ULL, 0x00000000000003E8ULL}, 4,
+         {"1000.2500", "1000.2500", "1000.2500", "1000.2500", "1000.2500"}},
+        {"epsilon, 20 cifras", {0x0000000000000001ULL, 0x0000000000000000ULL}, 20,
+         {"0.00000000000000000005", "0.00000000000000000005", "0.00000000000000000005", "0.00000000000000000005", "0.00000000000000000006"}},
+    };
+    // clang-format on
+    // ---- TABLA:FIN ----
+
+    // =====================================================================
+    // Oraculo propio: `__int128` sobre los tipos de UN limbo
+    // =====================================================================
+    //
+    // Para Q64.64 el producto de dos crudos son 256 bits y no hay tipo nativo
+    // donde calcularlo; por eso aquella tabla se genera en Python. Pero con
+    // `N = F = 1` los crudos son de 64 bits, el producto cabe en 128, y el
+    // oraculo se puede escribir **aqui**, sin generar nada.
+    //
+    // Son dos caminos independientes sobre dos anchuras. Con uno solo no habria
+    // forma de separar «el redondeo esta bien» de «esta bien en la anchura que
+    // mire».
+
+#ifdef __SIZEOF_INT128__
+    /// La tabla de ADR-020, escrita otra vez. Que este repetida es el punto:
+    /// llamar a la del C++ seria comprobar que una funcion es igual a si misma.
+    bool sube_oraculo(nstd::rounding_mode modo, bool resto_cero, bool pasa_mitad, bool empate, bool q_impar,
+                      bool q_negativo)
+    {
+        if (resto_cero)
+            return false;
+        switch (modo)
+        {
+            case nstd::rounding_mode::to_nearest_even:
+                return pasa_mitad || (empate && q_impar);
+            case nstd::rounding_mode::to_nearest_away:
+                return pasa_mitad || (empate && !q_negativo);
+            case nstd::rounding_mode::toward_zero:
+                return q_negativo;
+            case nstd::rounding_mode::toward_neg_inf:
+                return false;
+            case nstd::rounding_mode::toward_pos_inf:
+                return true;
+        }
+        return false;
+    }
+
+    /// Crudo esperado de `a * b` con `N = F = 1`, en aritmetica exacta de 128 bits.
+    std::int64_t producto_oraculo(std::int64_t a, std::int64_t b, nstd::rounding_mode modo)
+    {
+        const __int128 p = static_cast<__int128>(a) * static_cast<__int128>(b);
+        const __int128 q = p >> 64; // suelo
+        const std::uint64_t r = static_cast<std::uint64_t>(static_cast<unsigned __int128>(p));
+        const std::uint64_t mitad = std::uint64_t{1} << 63U;
+        const bool inc = sube_oraculo(modo, r == 0, r > mitad, r == mitad,
+                                      (static_cast<std::uint64_t>(q) & 1U) != 0U, q < 0);
+        return static_cast<std::int64_t>(static_cast<std::uint64_t>(q) + (inc ? 1U : 0U));
+    }
+
+    /// Crudo esperado de `a / b` con `N = F = 1`.
+    std::int64_t division_oraculo(std::int64_t a, std::int64_t b, nstd::rounding_mode modo)
+    {
+        const __int128 num = static_cast<__int128>(a) << 64;
+        const __int128 den = static_cast<__int128>(b);
+
+        __int128 q = num / den;  // C++ trunca hacia cero
+        __int128 rt = num % den; // resto con el signo del dividendo
+        if (rt != 0 && ((num < 0) != (den < 0)))
+        {
+            // de cociente truncado a suelo
+            --q;
+            rt += den;
+        }
+        const unsigned __int128 rm = static_cast<unsigned __int128>(rt < 0 ? -rt : rt);
+        const unsigned __int128 dm = static_cast<unsigned __int128>(den < 0 ? -den : den);
+
+        const bool inc = sube_oraculo(modo, rm == 0, 2 * rm > dm, 2 * rm == dm,
+                                      (static_cast<std::uint64_t>(q) & 1U) != 0U, q < 0);
+        return static_cast<std::int64_t>(static_cast<std::uint64_t>(q) + (inc ? 1U : 0U));
+    }
+#endif
+
+    // --- ayudantes del redondeo, definidos tras los oraculos ---------------
+
+    /// Instancia Q64.64 con el modo `M` y devuelve el crudo de `a op b`.
+    template <nstd::rounding_mode M>
+    void mira_tabla(const std::uint64_t a[2], const std::uint64_t b[2], const std::uint64_t esp[2],
+                    const char *nombre, const char *op)
+    {
+        using T = nstd::sfixed_point_t<2, 1, nstd::overflow_policy::wrap, M>;
+        typename T::entero ea{}, eb{};
+        ea.set_limb(0, a[0]);
+        ea.set_limb(1, a[1]);
+        eb.set_limb(0, b[0]);
+        eb.set_limb(1, b[1]);
+        const T x = T::desde_crudo(ea);
+        const T y = T::desde_crudo(eb);
+
+        const T r = (op[0] == '*') ? (x * y) : ((op[0] == '/') ? (x / y) : (x % y));
+
+        ++casos;
+        if (r.crudo().limb(0) != esp[0] || r.crudo().limb(1) != esp[1])
+        {
+            std::printf("  [FALLA] %s %s modo %d: esperado %016llX%016llX, obtenido %016llX%016llX\n", nombre,
+                        op, static_cast<int>(M), static_cast<unsigned long long>(esp[1]),
+                        static_cast<unsigned long long>(esp[0]),
+                        static_cast<unsigned long long>(r.crudo().limb(1)),
+                        static_cast<unsigned long long>(r.crudo().limb(0)));
+            ++fallos;
+        }
+    }
+
+    void cruza_tabla_producto(const CasoBin &c)
+    {
+        mira_tabla<nstd::rounding_mode::to_nearest_even>(c.a, c.b, c.esperado[0], c.nombre, "*");
+        mira_tabla<nstd::rounding_mode::to_nearest_away>(c.a, c.b, c.esperado[1], c.nombre, "*");
+        mira_tabla<nstd::rounding_mode::toward_zero>(c.a, c.b, c.esperado[2], c.nombre, "*");
+        mira_tabla<nstd::rounding_mode::toward_neg_inf>(c.a, c.b, c.esperado[3], c.nombre, "*");
+        mira_tabla<nstd::rounding_mode::toward_pos_inf>(c.a, c.b, c.esperado[4], c.nombre, "*");
+    }
+
+    void cruza_tabla_division(const CasoBin &c)
+    {
+        mira_tabla<nstd::rounding_mode::to_nearest_even>(c.a, c.b, c.esperado[0], c.nombre, "/");
+        mira_tabla<nstd::rounding_mode::to_nearest_away>(c.a, c.b, c.esperado[1], c.nombre, "/");
+        mira_tabla<nstd::rounding_mode::toward_zero>(c.a, c.b, c.esperado[2], c.nombre, "/");
+        mira_tabla<nstd::rounding_mode::toward_neg_inf>(c.a, c.b, c.esperado[3], c.nombre, "/");
+        mira_tabla<nstd::rounding_mode::toward_pos_inf>(c.a, c.b, c.esperado[4], c.nombre, "/");
+    }
+
+    /// Instancia Q64.64 con el modo `M` y compara la cadena.
+    template <nstd::rounding_mode M>
+    void mira_cadena(const CasoCadena &c, const char *esp)
+    {
+        using T = nstd::sfixed_point_t<2, 1, nstd::overflow_policy::wrap, M>;
+        typename T::entero ea{};
+        ea.set_limb(0, c.a[0]);
+        ea.set_limb(1, c.a[1]);
+
+        const std::string obtenido = T::desde_crudo(ea).to_string(c.decimales);
+        ++casos;
+        if (obtenido != esp)
+        {
+            std::printf("  [FALLA] cadena %s modo %d con %u cifras: esperado %s, obtenido %s\n",
+                        c.nombre, static_cast<int>(M), c.decimales, esp, obtenido.c_str());
+            ++fallos;
+        }
+    }
+
+    /// `x >> n` contra `x / 2^n`, en el modo `M`.
+    ///
+    /// Son dos caminos distintos dentro de la misma cabecera: el
+    /// desplazamiento enmascara los `n` bits bajos, y la division preescala y
+    /// llama a `divmod` en el tipo ancho. Si coinciden en los cinco modos y en
+    /// los dos signos, es que el marco (q, r, d) esta bien puesto en los dos.
+    template <nstd::rounding_mode M>
+    void cruza_desplazamientos()
+    {
+        using T = nstd::sfixed_point_t<2, 1, nstd::overflow_policy::wrap, M>;
+
+        // OJO con los valores. Construido desde un entero, el crudo es `v*2^64`
+        // y lleva **64 bits bajos a cero**: desplazar diez posiciones no pierde
+        // nada, los cinco modos coinciden y el cruce no comprueba el redondeo.
+        // Aqui se trabaja con CRUDOS que tienen bits bajos, y para cada `n` se
+        // incluyen los tres casos que decide la perilla.
+        for (unsigned n = 1; n <= 10; ++n)
+        {
+            const std::uint64_t paso = std::uint64_t{1} << n;
+            const std::uint64_t mitad = std::uint64_t{1} << (n - 1U);
+
+            const std::uint64_t bajos[] = {
+                0U,             // exacto: los cinco modos tienen que coincidir
+                mitad,          // EMPATE
+                mitad - 1U,     // justo por debajo
+                mitad + 1U,     // justo por encima  (con n=1 coincide con paso)
+                1U,
+                paso - 1U,
+            };
+            const long long enteros[] = {0, 1, -1, 2, -2, 3, -3, 100, -100};
+
+            // `2^n` como punto fijo, para la division.
+            T dos_a_la_n = T::one();
+            for (unsigned i = 0; i < n; ++i)
+                dos_a_la_n = dos_a_la_n + dos_a_la_n;
+
+            for (long long v : enteros)
+                for (std::uint64_t b : bajos)
+            {
+                // El crudo: la parte entera `v` mas unos bits bajos. Para los
+                // negativos se construye por resta, que es lo que deja el
+                // complemento a dos correcto sin escribirlo a mano.
+                const T base{v};
+                const T x = T::desde_crudo(base.crudo() + typename T::entero{b});
+
+                const T por_desplazamiento = x >> n;
+                const T por_division = x / dos_a_la_n;
+
+                ++casos;
+                if (por_desplazamiento != por_division)
+                {
+                    std::printf("  [FALLA] (%lld,%llu) >> %u no es lo mismo que / 2^%u (modo %d)\n",
+                                v, static_cast<unsigned long long>(b), n, n, static_cast<int>(M));
+                    ++fallos;
+                }
+
+                // `<<` es exacto, asi que deshace a `>>`: los bits bajos que
+                // `<<` mete son ceros, y volver no pierde nada.
+                ++casos;
+                if (((x << n) >> n) != x)
+                {
+                    std::printf("  [FALLA] ((%lld,%llu) << %u) >> %u no vuelve (modo %d)\n", v,
+                                static_cast<unsigned long long>(b), n, n, static_cast<int>(M));
+                    ++fallos;
+                }
+            }
+        }
+    }
+
+    void cruza_tabla_cadena(const CasoCadena &c)
+    {
+        mira_cadena<nstd::rounding_mode::to_nearest_even>(c, c.esperado[0]);
+        mira_cadena<nstd::rounding_mode::to_nearest_away>(c, c.esperado[1]);
+        mira_cadena<nstd::rounding_mode::toward_zero>(c, c.esperado[2]);
+        mira_cadena<nstd::rounding_mode::toward_neg_inf>(c, c.esperado[3]);
+        mira_cadena<nstd::rounding_mode::toward_pos_inf>(c, c.esperado[4]);
+    }
+
+    void cruza_tabla_resto(const CasoResto &c)
+    {
+        // El resto es exacto: el mismo esperado para todos los modos, y se
+        // comprueba con dos de ellos para que eso quede dicho por el test.
+        mira_tabla<nstd::rounding_mode::to_nearest_even>(c.a, c.b, c.esperado, c.nombre, "%");
+        mira_tabla<nstd::rounding_mode::toward_neg_inf>(c.a, c.b, c.esperado, c.nombre, "%");
+    }
+
+    /// ¿Dan lo mismo los cinco modos para un producto que sale exacto?
+    bool coinciden_los_cinco(long long a, long long b)
+    {
+        using E =
+            nstd::sfixed_point_t<2, 1, nstd::overflow_policy::wrap, nstd::rounding_mode::to_nearest_even>;
+        using A =
+            nstd::sfixed_point_t<2, 1, nstd::overflow_policy::wrap, nstd::rounding_mode::to_nearest_away>;
+        using Z = nstd::sfixed_point_t<2, 1, nstd::overflow_policy::wrap, nstd::rounding_mode::toward_zero>;
+        using M =
+            nstd::sfixed_point_t<2, 1, nstd::overflow_policy::wrap, nstd::rounding_mode::toward_neg_inf>;
+        using P =
+            nstd::sfixed_point_t<2, 1, nstd::overflow_policy::wrap, nstd::rounding_mode::toward_pos_inf>;
+        const auto ref = (E{a} * E{b}).crudo();
+        return (A{a} * A{b}).crudo().limb(0) == ref.limb(0) && (A{a} * A{b}).crudo().limb(1) == ref.limb(1) &&
+               (Z{a} * Z{b}).crudo().limb(0) == ref.limb(0) && (M{a} * M{b}).crudo().limb(0) == ref.limb(0) &&
+               (P{a} * P{b}).crudo().limb(0) == ref.limb(0) && (P{a} * P{b}).crudo().limb(1) == ref.limb(1);
+    }
+
+#ifdef __SIZEOF_INT128__
+    /// Cruza un modo concreto en el tipo de UN limbo contra el oraculo de 128 bits.
+    template <nstd::rounding_mode M>
+    void cruza_un_modo(const std::int64_t *crudos, std::size_t n)
+    {
+        using T =
+            nstd::fixed_point_t<1, 1, nstd::signedness::signed_type,
+                                nstd::representation_form::twos_complement, nstd::overflow_policy::wrap, M>;
+        for (std::size_t i = 0; i < n; ++i)
+            for (std::size_t j = 0; j < n; ++j)
+            {
+                const std::int64_t a = crudos[i], b = crudos[j];
+
+                typename T::entero ea{}, eb{};
+                ea.set_limb(0, static_cast<std::uint64_t>(a));
+                eb.set_limb(0, static_cast<std::uint64_t>(b));
+                const T x = T::desde_crudo(ea);
+                const T y = T::desde_crudo(eb);
+
+                ++casos;
+                const auto obtenido = static_cast<std::int64_t>((x * y).crudo().limb(0));
+                const std::int64_t esperado = producto_oraculo(a, b, M);
+                if (obtenido != esperado)
+                {
+                    std::printf("  [FALLA] producto modo %d: %lld * %lld  esperado %lld, obtenido %lld\n",
+                                static_cast<int>(M), static_cast<long long>(a), static_cast<long long>(b),
+                                static_cast<long long>(esperado), static_cast<long long>(obtenido));
+                    ++fallos;
+                }
+
+                if (b == 0)
+                    continue; // dividir por cero lanza; se comprueba aparte
+
+                ++casos;
+                const auto obt_div = static_cast<std::int64_t>((x / y).crudo().limb(0));
+                const std::int64_t esp_div = division_oraculo(a, b, M);
+                if (obt_div != esp_div)
+                {
+                    std::printf("  [FALLA] division modo %d: %lld / %lld  esperado %lld, obtenido %lld\n",
+                                static_cast<int>(M), static_cast<long long>(a), static_cast<long long>(b),
+                                static_cast<long long>(esp_div), static_cast<long long>(obt_div));
+                    ++fallos;
+                }
+            }
+    }
+
+    void cruza_modos_1limbo(const std::int64_t *crudos, std::size_t n)
+    {
+        cruza_un_modo<nstd::rounding_mode::to_nearest_even>(crudos, n);
+        cruza_un_modo<nstd::rounding_mode::to_nearest_away>(crudos, n);
+        cruza_un_modo<nstd::rounding_mode::toward_zero>(crudos, n);
+        cruza_un_modo<nstd::rounding_mode::toward_neg_inf>(crudos, n);
+        cruza_un_modo<nstd::rounding_mode::toward_pos_inf>(crudos, n);
+    }
+#endif
+
     struct xorshift
     {
         std::uint64_t s;
@@ -319,14 +812,27 @@ int main()
         using E = sfixed_point_t<2, 0>;
         comprueba(E::escala_bits == 0U, "F == 0 no tiene escala");
         comprueba(E{7}.es_entero(), "con F == 0 todo es entero");
-        compara(E{7}.to_string(3), "7", "F == 0 no pone coma aunque se pidan decimales");
-        compara((-E{7}).to_string(2), "-7", "F == 0 con signo");
+
+        // CAMBIO del 22 sep: antes `to_string(3)` de un siete daba "7" porque
+        // no habia parte fraccionaria que escribir. Ahora escribe las tres
+        // cifras, que es lo que hace `printf("%.3f", 7.0)`: el valor ES siete,
+        // y siete con tres decimales es 7,000. `decimales` significa lo que
+        // dice.
+        compara(E{7}.to_string(3), "7.000", "F == 0 escribe las cifras pedidas, como printf");
+        compara((-E{7}).to_string(2), "-7.00", "F == 0 con signo");
+        compara(E{7}.to_string(0), "7", "y con cero cifras no hay coma");
 
         // El minimo: negarlo ENVUELVE, y por ahi se colaba un segundo signo.
         comprueba(-Q::min() == Q::min(), "negar el minimo envuelve y da el minimo");
         comprueba(Q::min().is_negative(), "el minimo es negativo");
         compara(Q::min().to_string(2), "-9223372036854775808.00", "el minimo lleva UN signo, no dos");
-        compara(Q::max().to_string(2), "9223372036854775807.99", "el maximo");
+        // CAMBIO del 22 sep: `to_string` redondea. El maximo es
+        // 9223372036854775807,99999999999999999995, y a dos cifras eso **sube**.
+        // La cadena ya no es el valor truncado sino el valor redondeado, que es
+        // lo que se pidio, y el acarreo llega hasta la parte entera.
+        compara(Q::max().to_string(2), "9223372036854775808.00",
+                "el maximo redondea hacia arriba y acarrea a la parte entera");
+        compara(Q::max().to_string(0), "9223372036854775808", "y sin cifras igual");
         compara(QU::min().to_string(2), "0.00", "sin signo el minimo es cero");
     }
 
@@ -514,6 +1020,246 @@ int main()
         using QUc = ufixed_point_t<2, 1, overflow_policy::checked>;
         comprueba(!(QUc{3} - QUc{4}).valid(), "sin signo, 3 - 4 marca");
         comprueba((QUc{4} - QUc{3}).valid(), "y 4 - 3 no");
+    }
+
+    // ------------------------------------ incremento y decremento (ADR-020) ---
+    //
+    // `++x` es `x += 1`, como en `float` y `double`. NO avanza un epsilon: eso
+    // es `std::nextafter`, y darle a `++` otro significado del que tiene en
+    // coma flotante seria una sorpresa silenciosa en codigo generico.
+    std::printf("-- ++ y -- suman UNO, no un epsilon\n");
+    {
+        Q x{5};
+        comprueba(++x == Q{6}, "++ suma uno");
+        comprueba(x == Q{6}, "y deja el valor subido");
+        comprueba(--x == Q{5}, "-- resta uno");
+
+        // Lo que distingue las dos lecturas: un epsilon NO es uno.
+        Q y{0};
+        ++y;
+        comprueba(y == Q::one(), "++ desde cero da UNO");
+        comprueba(y != Q::epsilon(), "y no un epsilon, que es la otra lectura posible");
+
+        // Post frente a pre.
+        Q z{3};
+        comprueba(z++ == Q{3}, "post-incremento devuelve el valor de ANTES");
+        comprueba(z == Q{4}, "y deja el de despues");
+        comprueba(z-- == Q{4}, "post-decremento igual");
+        comprueba(z == Q{3}, "y vuelve");
+
+        // Con fraccion: sumar uno no toca la parte fraccionaria.
+        Q f = Q{2} + Q::desde_crudo(Q::entero{std::uint64_t{1}} << 63U);
+        ++f;
+        compara(f.to_string(2), "3.50", "++ sobre 2,5 da 3,5: la fraccion no se toca");
+    }
+
+    // ------------------------------------- el resto es EXACTO (ADR-020) -------
+    //
+    // `%` sigue a `std::fmod`: el resto de truncar hacia cero, con el signo del
+    // dividendo. Y NO necesita redondeo, porque el resto de dos multiplos de
+    // epsilon es multiplo de epsilon.
+    std::printf("-- %% es exacto y no redondea\n");
+    {
+        // La identidad que SI se cumple: con el cociente TRUNCADO.
+        using Qt = sfixed_point_t<2, 1, overflow_policy::wrap, rounding_mode::toward_zero>;
+        const long long dividendos[] = {0, 1, -1, 7, -7, 10, -10, 100, -100, 12345, -12345};
+        const long long divisores[] = {1, -1, 2, -2, 3, -3, 7, -7, 100, -100};
+        for (long long da : dividendos)
+            for (long long db : divisores)
+            {
+                const Qt a{da}, b{db};
+                const Qt r = a % b;
+
+                // OJO: la identidad NO es `a == (a/b)*b + a%b`. Esa es la de
+                // los ENTEROS, donde `/` ya devuelve el cociente entero. Aqui
+                // `a/b` tiene parte fraccionaria --`-12345/7` es `-1763,571...`,
+                // no `-1763`-- y escribirla asi fue un error mio que este mismo
+                // bucle destapo.
+                //
+                // La que si vale pasa por el cociente truncado A ENTERO, y ese
+                // se recupera quitando el resto: `a - r` es multiplo exacto de
+                // `b`, asi que `k = (a - r)/b` es entero.
+                const Qt k = (a - r) / b;
+                ++casos;
+                if (!k.es_entero())
+                {
+                    std::printf("  [FALLA] (a - a%%b)/b no es entero: %lld, %lld\n", da, db);
+                    ++fallos;
+                }
+
+                // `k` es entero, asi que `k * b` es exacto y esto no depende
+                // del modo de redondeo.
+                ++casos;
+                if (k * b + r != a)
+                {
+                    std::printf("  [FALLA] a != k*b + a%%b con k entero: %lld, %lld\n", da, db);
+                    ++fallos;
+                }
+
+                // Y el resto es menor que el divisor en valor absoluto.
+                const Qt ra = r.is_negative() ? -r : r;
+                const Qt ba = b.is_negative() ? -b : b;
+                ++casos;
+                if (!(ra < ba))
+                {
+                    std::printf("  [FALLA] |resto| no es menor que |divisor|: %lld, %lld\n", da, db);
+                    ++fallos;
+                }
+                // Y el resto lleva el signo del dividendo, como en C++.
+                ++casos;
+                if (!r.is_zero() && (r.is_negative() != a.is_negative()))
+                {
+                    std::printf("  [FALLA] el signo del resto no es el del dividendo: %lld, %lld\n", da, db);
+                    ++fallos;
+                }
+            }
+
+        // El resto NO depende del modo de redondeo: es exacto.
+        using Qe = sfixed_point_t<2, 1, overflow_policy::wrap, rounding_mode::to_nearest_even>;
+        using Qp = sfixed_point_t<2, 1, overflow_policy::wrap, rounding_mode::toward_pos_inf>;
+        comprueba((Qe{7} % Qe{2}).crudo() == (Qp{7} % Qp{2}).crudo(),
+                  "el resto sale igual con dos modos distintos");
+    }
+
+    // ------------------- el redondeo, oraculo 1: __int128 en un limbo ---------
+#ifdef __SIZEOF_INT128__
+    std::printf("-- redondeo, oraculo de __int128 sobre N = F = 1\n");
+    {
+        // Los crudos que hacen falta. Las esquinas a mano PRIMERO: los empates
+        // exactos son lo unico que separa al-par de alejarse-del-cero, y un
+        // sorteo al azar no los produce nunca.
+        const std::int64_t crudos[] = {
+            0,
+            1,
+            -1,
+            2,
+            -2,
+            3,
+            -3,
+            std::int64_t{1} << 62, // un cuarto
+            -(std::int64_t{1} << 62),
+            std::numeric_limits<std::int64_t>::max(),
+            std::numeric_limits<std::int64_t>::min(),
+            std::numeric_limits<std::int64_t>::min() + 1,
+            0x0123456789ABCDEFLL,
+            -0x0123456789ABCDEFLL,
+            0x7FFFFFFFFFFFFFFELL,
+        };
+
+        cruza_modos_1limbo(crudos, sizeof(crudos) / sizeof(crudos[0]));
+    }
+#else
+    std::printf("-- (sin __int128: el oraculo de un limbo no corre aqui)\n");
+#endif
+
+    // ------------------- el redondeo, oraculo 2: la tabla de Q64.64 -----------
+    //
+    // Generada con aritmetica exacta de Python, porque el producto de dos
+    // crudos de 128 bits son 256 y no hay tipo nativo donde calcularlo.
+    std::printf("-- redondeo, tabla generada para Q64.64\n");
+    {
+        for (const CasoBin &c : kProductos)
+            cruza_tabla_producto(c);
+        for (const CasoBin &c : kDivisiones)
+            cruza_tabla_division(c);
+        for (const CasoResto &c : kRestos)
+            cruza_tabla_resto(c);
+    }
+
+    // --------------------------------- lo que el redondeo NO debe tocar -------
+    std::printf("-- los cinco modos coinciden cuando el resultado es exacto\n");
+    {
+        // Si el producto cae justo, los cinco modos tienen que dar lo mismo. Un
+        // modo que «redondeara» un resultado exacto estaria mal, y este es el
+        // unico sitio del test donde todos deben coincidir.
+        comprueba(coinciden_los_cinco(2, 3), "2 * 3 es exacto en los cinco modos");
+        comprueba(coinciden_los_cinco(-4, 5), "-4 * 5 tambien");
+        comprueba(coinciden_los_cinco(7, 1), "y 7 * 1");
+    }
+
+    // ------------------------------------------- compuestos y equivalencia ----
+    std::printf("-- *=, /=, %%= hacen lo mismo que *, / y %%\n");
+    {
+        const Q a{7}, b{3};
+        Q x{a};
+        x *= b;
+        comprueba(x == a * b, "*= es *");
+        Q y{a};
+        y /= b;
+        comprueba(y == a / b, "/= es /");
+        Q z{a};
+        z %= b;
+        comprueba(z == a % b, "%= es %");
+
+        // Y el *= por un entero, que es el exacto.
+        Q w{a};
+        w *= Q::entero{4};
+        comprueba(w == a * Q::entero{4}, "*= por entero es * por entero");
+        comprueba(w == Q{28}, "7 * 4 = 28");
+    }
+
+    // ------------------------------ to_string redondea, y acarrea ------------
+    //
+    // Un decimal de longitud fija se rompe por tres sitios, y ninguno sale de
+    // numeros bonitos: el EMPATE en la ultima cifra, el ACARREO que se sale de
+    // la parte fraccionaria, y los negativos diminutos que redondean a cero.
+    std::printf("-- to_string, tabla generada para los cinco modos\n");
+    {
+        for (const CasoCadena &c : kCadenas)
+            cruza_tabla_cadena(c);
+
+        // El acarreo que ALARGA la cadena, que es el caso que obliga a meter la
+        // coma al final y contando desde la derecha.
+        const Q casi_diez = Q::desde_crudo(Q::entero{std::uint64_t{9}} *
+                                               (Q::entero::one() << 64U) +
+                                           (Q::entero::one() << 64U) - Q::entero::one());
+        compara(casi_diez.to_string(2), "10.00", "9,9999... sube a 10,00 y la cadena crece");
+        compara(casi_diez.to_string(0), "10", "y sin cifras tambien");
+
+        // Muchos decimales: la cuenta no se desborda porque el resto se reduce
+        // modulo la escala en cada vuelta.
+        compara(Q::epsilon().to_string(0), "0", "un epsilon con cero cifras es cero");
+        comprueba(Q::epsilon().to_string(30).size() == 32U,
+                  "treinta cifras caben y salen todas");
+    }
+
+    // ------------------------------------ << y >> escalan el VALOR -----------
+    //
+    // El cruce fuerte: `x >> n` y `x / 2^n` tienen que dar lo mismo, y son
+    // **dos implementaciones distintas** --una enmascara los n bits bajos, la
+    // otra pasa por `divmod` en el tipo ancho--. Que coincidan en los cinco
+    // modos no lo garantiza ninguna de las dos por separado.
+    std::printf("-- << y >> escalan por potencias de dos\n");
+    {
+        cruza_desplazamientos<rounding_mode::to_nearest_even>();
+        cruza_desplazamientos<rounding_mode::to_nearest_away>();
+        cruza_desplazamientos<rounding_mode::toward_zero>();
+        cruza_desplazamientos<rounding_mode::toward_neg_inf>();
+        cruza_desplazamientos<rounding_mode::toward_pos_inf>();
+
+        // `<<` es exacto: es multiplicar por una potencia de dos.
+        comprueba((Q{3} << 2U) == Q{12}, "3 << 2 = 12");
+        comprueba((Q{-3} << 2U) == Q{-12}, "-3 << 2 = -12");
+        comprueba((Q{5} << 0U) == Q{5}, "desplazar cero no hace nada");
+        comprueba((Q{5} >> 0U) == Q{5}, "ni a la derecha");
+
+        // Un medio: `>> 1` sobre uno.
+        compara((Q::one() >> 1U).to_string(1), "0.5", "1 >> 1 es un medio");
+
+        // En sitio.
+        Q x{3};
+        x <<= 3U;
+        comprueba(x == Q{24}, "<<= es <<");
+        Q y{24};
+        y >>= 3U;
+        comprueba(y == Q{3}, ">>= es >>");
+
+        // Desplazar MAS que el ancho del tipo no es indefinido: se cae todo, y
+        // lo que quede decide el redondeo como en cualquier otro sitio.
+        using Msuelo = sfixed_point_t<2, 1, overflow_policy::wrap, rounding_mode::toward_neg_inf>;
+        comprueba((Msuelo{7} >> 200U).is_zero(), "un positivo se cae entero hacia el suelo");
+        comprueba((Msuelo{-7} >> 200U) == Msuelo{0} - Msuelo::epsilon(),
+                  "un negativo cae al escalon de abajo, no a cero");
     }
 
     // -------------------------------------------- contra el oraculo exacto ---
