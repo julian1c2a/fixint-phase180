@@ -177,6 +177,33 @@ namespace nstd
 
         /// @brief Limbos **totales** del almacenamiento, enteros y fraccionarios.
         static constexpr std::size_t num_limbs{N};
+
+        /// @brief El tipo de la diferencia **en pasos**, para `std::ranges`.
+        ///
+        /// Es lo unico que le faltaba a estos tipos para ser
+        /// `std::weakly_incrementable`, y con eso `std::views::iota(a, b)`
+        /// funciona. El `operator++` ya devolvia `T&`, que es el otro requisito.
+        ///
+        /// **Tiene que ser un entero del lenguaje, no este tipo.** El estandar
+        /// exige `is-signed-integer-like<iter_difference_t<I>>`, y eso solo lo
+        /// cumplen los enteros con signo del lenguaje y los *integer-class
+        /// types*, que son **definidos por la implementacion**: un tipo de
+        /// usuario no puede serlo por mucho que se parezca a un entero. Ver
+        /// [iterator.concept.winc].
+        ///
+        /// Se declara como miembro y no especializando
+        /// `std::incrementable_traits` porque es el punto de personalizacion
+        /// que el estandar mira **primero**, y asi no hay que incluir nada.
+        ///
+        /// @note Esto **no** convierte al tipo en un iterador:
+        ///       `std::input_or_output_iterator` sigue siendo falso, y esta
+        ///       bien --a un numero le falta `operator*`--.
+        using difference_type = std::ptrdiff_t;
+        //
+        // En punto fijo el paso de `++` es **uno**, no un epsilon (ADR-020), asi
+        // que `views::iota(a, b)` recorre los enteros del intervalo. Es lo
+        // coherente con que `++` siga a `float`.
+
         /// @brief Limbos **fraccionarios**: los que quedan por debajo de la coma.
         static constexpr std::size_t limbos_fraccionarios{F};
         /// @brief Limbos de la parte entera, `N - F`.
@@ -900,6 +927,330 @@ namespace nstd
                 return v << static_cast<unsigned>(escala_bits);
         }
     };
+
+    // =========================================================================
+    // Funciones libres  (P4, etapa E6)
+    // =========================================================================
+    //
+    // Aqui **ninguna es la identidad**, al reves que en el entero: hay parte
+    // fraccionaria y cada una va a un sitio distinto. Que en `fixed_int_t`
+    // coincidan las cuatro es una propiedad de aquel tipo, no una simplificacion
+    // del codigo.
+    //
+    // Todas se escriben con la API **publica** del tipo. No es purismo: la
+    // maquinaria del redondeo esta en un solo sitio y reimplementarla aqui seria
+    // arriesgarse a que las dos copias se separen, que es como nacio el fallo de
+    // `popcount` en Exceso-K.
+
+    /// @name Redondeo a entero
+    /// @{
+
+    /// @brief El mayor entero `<= x`, como punto fijo. Va hacia `-infinito`.
+    ///
+    /// No usa la perilla: `floor` **es** una direccion, no «la que toque».
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, P, R>
+    floor(const fixed_point_t<N, F, S, Fm, P, R> &x) noexcept
+    {
+        using T = fixed_point_t<N, F, S, Fm, P, R>;
+        if constexpr (F == 0)
+            return x;
+        else
+            return T::desde_crudo(x.suelo() << static_cast<unsigned>(T::escala_bits));
+    }
+
+    /// @brief El menor entero `>= x`. Va hacia `+infinito`.
+    ///
+    /// @note Necesita `F < N`: con `F == N` el tipo llega hasta `[0, 1)` y el
+    ///       techo de cualquier valor distinto de cero seria **uno**, que alli
+    ///       no existe. Es la misma razon por la que `one()` y `++` tampoco
+    ///       existen en ese tipo (ADR-020).
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, P, R>
+    ceil(const fixed_point_t<N, F, S, Fm, P, R> &x) noexcept
+    {
+        using T = fixed_point_t<N, F, S, Fm, P, R>;
+        if constexpr (F == 0)
+        {
+            return x;
+        }
+        else
+        {
+            static_assert(F < N, "ceil: con F == N el uno no es representable, y el techo de "
+                                 "cualquier valor no nulo es uno");
+            return x.es_entero() ? x : (floor(x) + T::one());
+        }
+    }
+
+    /// @brief `x` truncado **hacia cero**.
+    ///
+    /// Es `floor` para los positivos y `ceil` para los negativos: la asimetria
+    /// que `suelo()` no disimula.
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, P, R>
+    trunc(const fixed_point_t<N, F, S, Fm, P, R> &x) noexcept
+    {
+        using T = fixed_point_t<N, F, S, Fm, P, R>;
+        if constexpr (F == 0)
+            return x;
+        else if constexpr (S == signedness::unsigned_type)
+            return floor(x);
+        else
+        {
+            if (!x.is_negative() || x.es_entero())
+                return floor(x);
+            // Hacia cero desde abajo: un escalon por encima del suelo.
+            return T::desde_crudo((x.suelo() + T::entero::one()) << static_cast<unsigned>(T::escala_bits));
+        }
+    }
+
+    /// @brief `x` redondeado al entero mas cercano, **segun la perilla**.
+    ///
+    /// Es la unica de las cuatro que consulta `Redondeo`, y no reimplementa
+    /// nada: `x >> k` divide por `2^k` aplicando la perilla --su marco es
+    /// exactamente `(suelo, bits bajos, 2^k)`-- y `<< k` devuelve la escala.
+    /// El redondeo se aplica **una vez**, y en el sitio donde ya estaba escrito.
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, P, R>
+    round(const fixed_point_t<N, F, S, Fm, P, R> &x) noexcept
+    {
+        using T = fixed_point_t<N, F, S, Fm, P, R>;
+        if constexpr (F == 0)
+            return x;
+        else
+            return (x >> static_cast<unsigned>(T::escala_bits)) << static_cast<unsigned>(T::escala_bits);
+    }
+
+    /// @}
+
+    /// @brief Valor absoluto.
+    ///
+    /// @warning `abs(min())` **no es representable** y devuelve `min()`, igual
+    ///          que con los enteros del lenguaje.
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, P, R>
+    abs(const fixed_point_t<N, F, S, Fm, P, R> &x) noexcept
+    {
+        if constexpr (S == signedness::unsigned_type)
+            return x;
+        else
+            return x.is_negative() ? -x : x;
+    }
+
+    /// @brief Raiz cuadrada, **con la escala dentro**.
+    ///
+    /// No es la del entero. `sqrt(x/2^k) = sqrt(x * 2^k) / 2^k`, asi que el
+    /// crudo se **preescala** antes de la raiz; sacar la raiz del crudo a secas
+    /// daria un resultado `2^(k/2)` veces mas pequeno.
+    ///
+    /// Redondea al mas cercano o hacia una direccion segun `Redondeo`, y aqui
+    /// **no hay empates que deshacer**: la raiz exacta cae justo en la mitad
+    /// cuando `v = q^2 + q + 1/4`, que no es entero. Por eso los dos modos «al
+    /// mas cercano» coinciden.
+    ///
+    /// @warning Para un radicando negativo devuelve cero, igual que en el
+    ///          entero: no hay raiz real y aqui no hay NaN (ADR-021).
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, P, R> sqrt(const fixed_point_t<N, F, S, Fm, P, R> &x)
+    {
+        using T = fixed_point_t<N, F, S, Fm, P, R>;
+        using A = fixed_int_t<2 * N, signedness::unsigned_type, representation_form::binnat, P>;
+
+        if constexpr (S == signedness::signed_type)
+        {
+            if (x.is_negative())
+                return T{};
+        }
+        if (x.is_zero())
+            return T{};
+
+        const A v = A{fixed_int_t<N, signedness::unsigned_type, representation_form::binnat, P>{x.crudo()}}
+                    << static_cast<unsigned>(T::escala_bits);
+        const A q = nstd::sqrt(v);
+
+        // `r = v - q^2` dice a que distancia esta el radicando del cuadrado de
+        // abajo. La raiz esta mas cerca de `q+1` que de `q` cuando `r > q`.
+        const A r = v - (q * q);
+        bool sube = false;
+        if (!r.is_zero())
+        {
+            if constexpr (R == rounding_mode::to_nearest_even || R == rounding_mode::to_nearest_away)
+                sube = (q < r);
+            else if constexpr (R == rounding_mode::toward_pos_inf)
+                sube = true;
+        }
+
+        const A final = sube ? (q + A::one()) : q;
+        return T::desde_crudo(typename T::entero{
+            fixed_int_t<N, signedness::unsigned_type, representation_form::binnat, P>{final}});
+    }
+
+    /// @brief Potencia con exponente entero, por cuadrados repetidos.
+    ///
+    /// @note **Redondea en cada paso**, no una vez al final. Es inevitable sin
+    ///       un acumulador mas ancho, y significa que el error crece con el
+    ///       numero de multiplicaciones, no con el exponente.
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, P, R> pow(fixed_point_t<N, F, S, Fm, P, R> base,
+                                                                 unsigned exp) noexcept
+    {
+        using T = fixed_point_t<N, F, S, Fm, P, R>;
+        static_assert(F < N, "pow: con F == N el uno no es representable, y x^0 es uno");
+        T resultado = T::one();
+        while (exp != 0U)
+        {
+            if ((exp & 1U) != 0U)
+                resultado = resultado * base;
+            base = base * base;
+            exp >>= 1U;
+        }
+        return resultado;
+    }
+
+    /// @brief Potencia con el exponente **del mismo tipo**, que tiene que ser
+    ///        un entero.
+    ///
+    /// Va junto a la de `unsigned` por lo mismo que en el entero: ninguna firma
+    /// es mejor, y en codigo generico sobre `T` lo que se tiene a mano es un `T`
+    /// (ADR-021, decision 4).
+    ///
+    /// @warning **El exponente tiene que ser entero.** Un exponente fraccionario
+    ///          pide una potencia real --`x^0,5` es una raiz-- y eso no es esta
+    ///          funcion. Se toma su parte entera truncada hacia cero, que es lo
+    ///          que hace `trunc`, y queda documentado en vez de disimulado.
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, P, R>
+    pow(const fixed_point_t<N, F, S, Fm, P, R> &base, const fixed_point_t<N, F, S, Fm, P, R> &exp) noexcept
+    {
+        using T = fixed_point_t<N, F, S, Fm, P, R>;
+        static_assert(F < N, "pow: con F == N el uno no es representable, y x^0 es uno");
+
+        if constexpr (S == signedness::signed_type)
+        {
+            // Exponente negativo: daria un racional, que no es representable.
+            if (exp.is_negative())
+                return T::one();
+        }
+        // La parte entera del exponente, en un `unsigned` del lenguaje. Mas alla
+        // de 2^32 el resultado ya desbordo hace mucho.
+        const auto e = static_cast<unsigned>(trunc(exp).suelo().limb(0));
+        return pow(base, e);
+    }
+
+    /// @brief Maximo comun divisor **en unidades de `epsilon`**.
+    ///
+    /// Todo valor del tipo es un multiplo entero de `epsilon`, asi que el maximo
+    /// comun divisor de dos valores existe y es otro multiplo de `epsilon`. Es
+    /// el `gcd` de los crudos, y es **exacto**: `gcd(0.5, 0.25)` es `0.25`.
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, P, R>
+    gcd(const fixed_point_t<N, F, S, Fm, P, R> &a, const fixed_point_t<N, F, S, Fm, P, R> &b) noexcept
+    {
+        using T = fixed_point_t<N, F, S, Fm, P, R>;
+        using U = fixed_int_t<N, signedness::unsigned_type, representation_form::binnat, P>;
+        const U ua{abs(a).crudo()};
+        const U ub{abs(b).crudo()};
+        return T::desde_crudo(typename T::entero{nstd::gcd(ua, ub)});
+    }
+
+    /// @brief Minimo comun multiplo, en unidades de `epsilon`.
+    ///
+    /// @warning Desborda con facilidad: el mcm de dos valores con muchos bits
+    ///          fraccionarios es enorme en unidades de `epsilon`. Lo decide
+    ///          `overflow_policy`.
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, P, R>
+    lcm(const fixed_point_t<N, F, S, Fm, P, R> &a, const fixed_point_t<N, F, S, Fm, P, R> &b) noexcept
+    {
+        using T = fixed_point_t<N, F, S, Fm, P, R>;
+        using U = fixed_int_t<N, signedness::unsigned_type, representation_form::binnat, P>;
+        const U ua{abs(a).crudo()};
+        const U ub{abs(b).crudo()};
+        return T::desde_crudo(typename T::entero{nstd::lcm(ua, ub)});
+    }
+
+    /// @brief Punto medio, **exacto** y sin desbordar, redondeado hacia `a`.
+    ///
+    /// Es el `midpoint` del entero sobre los crudos: la escala es comun, asi que
+    /// no hay nada que ajustar ni que redondear mas alla de lo que ya hace
+    /// aquel. Y hereda su asimetria: `midpoint(a, b)` **no** es
+    /// `midpoint(b, a)` cuando el punto medio cae entre dos representables.
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, P, R>
+    midpoint(const fixed_point_t<N, F, S, Fm, P, R> &a, const fixed_point_t<N, F, S, Fm, P, R> &b) noexcept
+    {
+        using T = fixed_point_t<N, F, S, Fm, P, R>;
+        return T::desde_crudo(nstd::midpoint(a.crudo(), b.crudo()));
+    }
+
+    /// @name Operaciones con politica explicita
+    /// @{
+    ///
+    /// Van sobre los crudos, que comparten escala: sumar dos puntos fijos es
+    /// sumar dos enteros, y la marca o la saturacion son las del entero.
+
+    /// @brief Suma que **marca** si se sale del rango.
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, overflow_policy::checked, R>
+    checked_add(const fixed_point_t<N, F, S, Fm, P, R> &a, const fixed_point_t<N, F, S, Fm, P, R> &b) noexcept
+    {
+        // Devuelve la politica `checked` **aunque la entrada sea `wrap`**, igual
+        // que la del entero: el sentido de pedir la suma comprobada es poder
+        // preguntar despues si valio, y para eso el resultado tiene que poder
+        // llevar la marca.
+        using C = fixed_point_t<N, F, S, Fm, overflow_policy::checked, R>;
+        return C::desde_crudo(nstd::checked_add(a.crudo(), b.crudo()));
+    }
+
+    /// @brief Resta que **marca** si se sale del rango.
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, overflow_policy::checked, R>
+    checked_sub(const fixed_point_t<N, F, S, Fm, P, R> &a, const fixed_point_t<N, F, S, Fm, P, R> &b) noexcept
+    {
+        // Devuelve la politica `checked` **aunque la entrada sea `wrap`**, igual
+        // que la del entero: el sentido de pedir la suma comprobada es poder
+        // preguntar despues si valio, y para eso el resultado tiene que poder
+        // llevar la marca.
+        using C = fixed_point_t<N, F, S, Fm, overflow_policy::checked, R>;
+        return C::desde_crudo(nstd::checked_sub(a.crudo(), b.crudo()));
+    }
+
+    /// @brief Suma que **satura** en vez de envolver.
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, P, R>
+    saturating_add(const fixed_point_t<N, F, S, Fm, P, R> &a,
+                   const fixed_point_t<N, F, S, Fm, P, R> &b) noexcept
+    {
+        using T = fixed_point_t<N, F, S, Fm, P, R>;
+        return T::desde_crudo(nstd::saturating_add(a.crudo(), b.crudo()));
+    }
+
+    /// @brief Resta que **satura** en vez de envolver.
+    template <std::size_t N, std::size_t F, signedness S, representation_form Fm, overflow_policy P,
+              rounding_mode R>
+    [[nodiscard]] constexpr fixed_point_t<N, F, S, Fm, P, R>
+    saturating_sub(const fixed_point_t<N, F, S, Fm, P, R> &a,
+                   const fixed_point_t<N, F, S, Fm, P, R> &b) noexcept
+    {
+        using T = fixed_point_t<N, F, S, Fm, P, R>;
+        return T::desde_crudo(nstd::saturating_sub(a.crudo(), b.crudo()));
+    }
+
+    /// @}
 
     // =========================================================================
     // Alias

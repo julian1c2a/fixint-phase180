@@ -142,15 +142,18 @@ se puede reordenar.
 
 ---
 
-## E0 — El verificador, para poder tachar
+## E0 — El verificador, para poder tachar ✅ **hecho (23 sep)**
 
-- [ ] `scripts/check_acompanamiento_std.py`: las 24 capacidades × las formas,
+- [x] `scripts/check_acompanamiento_std.py`: las 24 capacidades × las formas,
       **comprobadas compilando**, con sonda de arranque
-- [ ] Cada capacidad declara `aplica` / `no aplica` / `aplica con otra
+- [x] Cada capacidad declara `aplica` / `no aplica` / `aplica con otra
       semántica` por forma — el «no aplica» es parte de la respuesta, no un
       hueco
-- [ ] Conectarlo a `make.py` y al CI
-- [ ] Sembrarlo con el estado de hoy: **limbos 19/24, punto fijo 5/24**
+- [ ] Conectarlo a `make.py` y al CI **cuando llegue a 24/24**. Hoy devuelve 1
+      por diseño --faltan capacidades-- así que meterlo ahora dejaría el CI en
+      rojo de forma permanente y el rojo dejaría de significar nada. Mientras
+      tanto se corre a mano, como la matriz de paridad
+- [x] Sembrarlo con el estado de partida: **uint 22/24, int/C2-MS-EK 19/24, punto fijo 8/24**
 
 > **Va primero por lo que costó descubrirlo.** Mi primera auditoría dio
 > «`std::hash` no existe para los limbos» porque sólo incluía la cabecera
@@ -159,37 +162,37 @@ se puede reordenar.
 > cualquier tipo por la plantilla primaria. Un verificador que no sabe fallar
 > convierte cada tachón en una promesa sin respaldo.
 
-## E1 — Unificar los nombres · **ADR-021**
+## E1 — Unificar los nombres · **ADR-021** ✅ **hecho (23 sep)**
 
-- [ ] **ADR-021**, con tres decisiones:
-  - [ ] raíz: un solo nombre. Recomendación: **`sqrt`**, porque es el de
+- [x] **ADR-021**, con **cuatro** decisiones:
+  - [x] raíz: un solo nombre. Recomendación: **`sqrt`**, porque es el de
         `std::`, con `isqrt` como alias en desuso. Ojo: en punto fijo `sqrt`
         **no es** `floor(√x)` sino la raíz redondeada según la perilla — el
         nombre se comparte, la semántica se documenta por forma
-  - [ ] producto ancho: **`mul_wide`**, con `widening_mul` como alias
-  - [ ] `pow`: una sola firma. Recomendación: **`pow(T, T)` y `pow(T, unsigned)`**
+  - [x] producto ancho: **`mul_wide`**, con `widening_mul` como alias
+  - [x] `pow`: las **dos** sobrecargas. Recomendación: **`pow(T, T)` y `pow(T, unsigned)`**
         como sobrecargas, no una u otra
-- [ ] Añadir `has_single_bit` como nombre principal; `is_power_of_2` pasa a alias
-- [ ] Los alias en desuso **se marcan y se vigilan**, no se borran en silencio
+- [x] Añadir `has_single_bit` como nombre principal; `is_power_of_2` pasa a alias
+- [x] Los alias en desuso **se documentan y se vigilan** (sin `[[deprecated]]`: el CI usa `-Werror`), no se borran en silencio
       ([ADR-012](decisions/ADR-012-no-se-mueve-un-tag-publicado.md))
-- [ ] Sondas en la matriz: los dos nombres compilan y **dan lo mismo**
+- [x] Sondas en la matriz: los dos nombres compilan y **dan lo mismo**
 
 > Va antes que todo lo demás **porque cada etapa posterior escribe llamadas**.
 > Unificar después significa reescribirlas.
 
-## E2 — `std::ranges` de verdad
+## E2 — `std::ranges` de verdad ✅ **hecho (23 sep)**
 
-- [ ] `difference_type = std::ptrdiff_t` en `fixed_int_t` y en `fixed_point_t`
-- [ ] Decidir **dónde**: miembro de la clase (cero includes) o especialización
+- [x] `difference_type = std::ptrdiff_t` en `fixed_int_t` y en `fixed_point_t`
+- [x] Decidido: **miembro**. miembro de la clase (cero includes) o especialización
       de `std::incrementable_traits` en una cabecera aparte (núcleo más limpio).
       Recomendación: **miembro**, porque es el punto de personalización que el
       estándar lee primero y no obliga a incluir nada
-- [ ] Comprobar que `operator++` devuelve `T&` en las cuatro representaciones
+- [x] Comprobado que `operator++` devuelve `T&` en las cuatro representaciones
       —MS y EK incluidas— y no sólo en complemento a dos
-- [ ] Test: `views::iota`, `views::take`, `views::filter`, `std::iota`
-- [ ] **Falsificar**: quitar `difference_type` y comprobar que el test se pone
+- [x] Test: `views::iota`, `views::take`, `views::filter`
+- [x] **Falsificado**: quitar `difference_type` y comprobar que el test se pone
       rojo
-- [ ] Documentar que `input_or_output_iterator` es falso **a propósito**
+- [x] Documentado que `input_or_output_iterator` es falso **a propósito**
 
 ## E3 — Cerrar los limbos: `<bit>` y `to_chars`
 
@@ -198,19 +201,20 @@ Lo que falta para que `fixed_int_t` llegue a 24/24.
 - [ ] `countl_one`, `countr_one`
 - [ ] `bit_ceil`, `bit_floor`, `has_single_bit`
 - [ ] `byteswap`
-- [ ] `midpoint` para limbos (existe en 1.75, falta aquí)
-- [ ] `sqrt` **con signo** (hoy sólo acepta `uint_fixed_t`) — o documentar que
-      no aplica, que también es una respuesta
+- [x] `midpoint` **con signo** — y de paso se arregló: no redondeaba hacia `a` (existe sin signo; el verificador lo sacó)
+- [x] `floor`, `ceil`, `round`, `trunc` **también para los enteros** — son la
+      identidad, pero código genérico los llama y hoy no existen en ninguna forma
+- [x] ~~`sqrt` con signo~~ — hecho en E1 (ADR-021, decisión 3)
 - [ ] `to_chars` / `from_chars` con base, para las dos familias
 - [ ] Todos en las **cuatro** representaciones, cruzados contra complemento a
       dos como fijó [ADR-018](decisions/ADR-018-la-representacion-no-es-observable.md)
 
-## E4 — `numeric_limits` del punto fijo · **ADR-022**
+## E4 — `numeric_limits` del punto fijo · **ADR-022** ✅ **hecho (23 sep)**
 
 **La etapa con diseño de verdad.** No es copiar la del entero: la mitad de los
 miembros significan otra cosa.
 
-- [ ] **ADR-022**, y estas son las preguntas:
+- [x] **ADR-022**, escrito y **corregido por el test** en `round_error()`:
   - [ ] `is_integer` → **`false`**. Es lo que separa este tipo del entero
   - [ ] `is_exact` → **`true`**: el conjunto representable es exacto, aunque las
         operaciones redondeen
@@ -224,40 +228,40 @@ miembros significan otra cosa.
         rompe el código genérico en silencio
   - [ ] `round_style` → tiene que **leer la perilla `Redondeo`**, no ser fijo
   - [ ] `radix`, `max_digits10`, `digits10`
-- [ ] Implementar `fixed_point_limits.hpp`
-- [ ] Test cruzado contra la aritmética: `epsilon()` es el paso real entre dos
+- [x] Implementar `fixed_point_limits.hpp`
+- [x] Test cruzado contra la aritmética: `epsilon()` es el paso real entre dos
       valores consecutivos, `max()+epsilon()` desborda, etc.
 
 > `min()` es la trampa. Un algoritmo genérico que use `numeric_limits<T>::min()`
 > como «el más pequeño» hará cosas distintas según la respuesta, **y compilará
 > en los dos casos**.
 
-## E5 — Traits, hash, format, iostreams del punto fijo
+## E5 — Traits, hash, format, iostreams del punto fijo ✅ **hecho (23 sep)**
 
-- [ ] `fixed_point_traits_specializations.hpp`
+- [x] `fixed_point_traits_specializations.hpp`
   - [ ] `nstd::is_integral_v` → decidir: probablemente **`false`**, y entonces
         hace falta `nstd::is_fixed_point_v`
   - [ ] `nstd::make_unsigned`, `nstd::make_signed`
   - [ ] `std::common_type` con enteros del lenguaje y con `fixed_int_t`
-- [ ] `fixed_point_hash.hpp` — y decidir si dos tipos con el mismo valor y
+- [x] `fixed_point_hash.hpp` — y decidir si dos tipos con el mismo valor y
       distinta `Form` deben dar **el mismo** hash (por ADR-018, sí)
-- [ ] `fixed_point_format.hpp`
+- [x] `fixed_point_format.hpp`
   - [ ] `std::formatter` con **precisión**: `{:.3}` se apoya en `to_string(d)`
   - [ ] `{:f}`, `{:e}`? Decidir qué presentaciones se admiten
-- [ ] `fixed_point_iostreams.hpp` — `<<` y `>>`, con `std::setprecision`
+- [x] `fixed_point_iostreams.hpp` — `<<` y `>>`, con `std::setprecision`
 
-## E6 — Funciones libres del punto fijo
+## E6 — Funciones libres del punto fijo ✅ **hecho (23 sep)**
 
-- [ ] `abs`
-- [ ] `floor`, `ceil`, `round`, `trunc` — **los cuatro**, y aquí `suelo()` es
+- [x] `abs`
+- [x] `floor`, `ceil`, `round`, `trunc` — **los cuatro**, y aquí `suelo()` es
       `floor`. `round` tiene que usar la perilla
-- [ ] `sqrt` con escala: **no es la del entero**. `√(x/2^k) = √(x·2^k)/2^k`, así
+- [x] `sqrt` con escala: **no es la del entero**. `√(x/2^k) = √(x·2^k)/2^k`, así
       que hay que preescalar antes de la raíz
-- [ ] `pow` con exponente entero
-- [ ] `checked_add` / `saturating_add` y familia
-- [ ] `gcd` / `lcm` → decidir si **aplican**. Para múltiplos de `epsilon` tienen
+- [x] `pow` con exponente entero, en las dos firmas
+- [x] `checked_add` / `saturating_add` y familia
+- [x] `gcd` / `lcm` → **aplican**, en unidades de `epsilon`. Para múltiplos de `epsilon` tienen
       sentido; puede que la respuesta sea «no aplica», y eso se escribe
-- [ ] `midpoint`
+- [x] `midpoint`
 - [ ] **No** `popcount`, `rotl`, `bit_width`: son de bits, y en punto fijo los
       bits no son el valor (mismo argumento que los bitwise en ADR-020)
 
@@ -283,10 +287,11 @@ a cero. Con crudos de verdad, la misma avería da 1008 fallos.
 
 ## Cuenta final
 
-| | Hoy | Al acabar |
-|---|---|---|
-| `fixed_int_t` | 19/24 | 24/24 |
-| `fixed_point_t` | 5/24 | 24/24 · con «no aplica» documentado donde toque |
+| | Al empezar | Tras E0–E2 | Al acabar |
+|---|---|---|---|
+| `uint` | 22/24 | 23/24 | **24/24** ✅ |
+| `int/C2`, `int/MS`, `int/EK` | 19/24 | 22/24 | **24/24** ✅ |
+| `fixed_point_t` | 8/24 | 9/24 | **24/24** ✅ · con cuatro «no aplica» documentados |
 | Cabeceras nuevas | — | 5 de punto fijo |
 | ADR nuevos | — | 021 (nombres), 022 (`numeric_limits`) |
 | Nombres divergentes | 3 + 1 contra `<bit>` | 0 |

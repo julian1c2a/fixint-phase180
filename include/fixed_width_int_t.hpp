@@ -530,6 +530,28 @@ namespace nstd
         ///       compilador no deja que compartan nombre.
         static constexpr std::size_t num_limbs{N};
 
+        /// @brief El tipo de la diferencia **en pasos**, para `std::ranges`.
+        ///
+        /// Es lo unico que le faltaba a estos tipos para ser
+        /// `std::weakly_incrementable`, y con eso `std::views::iota(a, b)`
+        /// funciona. El `operator++` ya devolvia `T&`, que es el otro requisito.
+        ///
+        /// **Tiene que ser un entero del lenguaje, no este tipo.** El estandar
+        /// exige `is-signed-integer-like<iter_difference_t<I>>`, y eso solo lo
+        /// cumplen los enteros con signo del lenguaje y los *integer-class
+        /// types*, que son **definidos por la implementacion**: un tipo de
+        /// usuario no puede serlo por mucho que se parezca a un entero. Ver
+        /// [iterator.concept.winc].
+        ///
+        /// Se declara como miembro y no especializando
+        /// `std::incrementable_traits` porque es el punto de personalizacion
+        /// que el estandar mira **primero**, y asi no hay que incluir nada.
+        ///
+        /// @note Esto **no** convierte al tipo en un iterador:
+        ///       `std::input_or_output_iterator` sigue siendo falso, y esta
+        ///       bien --a un numero le falta `operator*`--.
+        using difference_type = std::ptrdiff_t;
+
         /// @brief Si el tipo tiene signo. Copia del parametro `Sign`, consultable
         ///        desde codigo generico sin repetir la lista de parametros.
         static constexpr signedness sign{Sign};
@@ -1060,6 +1082,14 @@ namespace nstd
                 for (auto &limb : r.data)
                     limb = ~std::uint64_t{0};
             }
+            else if constexpr (representacion_codificada)
+            {
+                // En Exceso-K el patron «todo unos menos el bit alto» vale -1,
+                // no el maximo: hay que codificar. En Magnitud-Signo coincidia
+                // por casualidad --signo 0 y magnitud maxima-- y se ruta igual,
+                // para que la correccion no dependa de la casualidad.
+                return desde_c2(tipo_en_c2::max());
+            }
             else
             {
                 for (auto &limb : r.data)
@@ -1069,12 +1099,30 @@ namespace nstd
             return r;
         }
 
-        /// @brief Menor valor representable: 0 sin signo, -2^(64N-1) con signo.
+        /// @brief Menor valor representable: 0 sin signo, `-2^(64N-1)` con signo.
+        ///
+        /// @note En **Magnitud-Signo** es `-(2^(64N-1) - 1)`, uno mas alto. Ese
+        ///       minimo no tiene representacion alli --su magnitud pisaria el
+        ///       bit de signo-- y la conversion satura, que es lo que decidio
+        ///       ADR-017. Es la unica asimetria real entre las representaciones,
+        ///       y sale de la conversion sin escribir un caso aparte.
+        ///
+        /// @note En **Exceso-K** es el mismo que en complemento a dos: con el
+        ///       sesgo `2^(64N-1)` la codificacion es una biyeccion con el rango
+        ///       con signo de la misma anchura (ADR-017, decision 2).
         static constexpr fixed_int_t min() noexcept
         {
             if constexpr (!is_signed)
             {
                 return fixed_int_t{};
+            }
+            else if constexpr (representacion_codificada)
+            {
+                // Hasta el 23 sep esto escribia el patron de complemento a dos
+                // SIN codificar: en Exceso-K daba 0 y en Magnitud-Signo el cero
+                // negativo. Es la misma equivocacion que el tramo 3 arreglo en
+                // las operaciones y que a las constantes no llego.
+                return desde_c2(tipo_en_c2::min());
             }
             else
             {
@@ -2779,6 +2827,17 @@ namespace nstd
         /// @brief Numero de bits significativos, floor(log2(x))+1. Devuelve 0 para el cero.
         constexpr unsigned bit_width() const noexcept
         {
+            // Se cuenta sobre el VALOR, no sobre los limbos guardados.
+            //
+            // En Exceso-K el sesgo pone un bit que no es del valor, y en
+            // Magnitud-Signo el de signo tampoco lo es: contarlos daria un
+            // numero distinto para el mismo numero segun como se guarde, que es
+            // exactamente lo que ADR-018 prohibe. Medido antes de arreglarlo:
+            // `popcount` discrepaba en 194 de 400 valores en MS y en los 400 en
+            // EK.
+            if constexpr (representacion_codificada)
+                return a_c2().bit_width();
+
             for (std::size_t i{N}; i-- > 0;)
             {
                 if (data[i] != 0)
@@ -2800,6 +2859,17 @@ namespace nstd
         /// @brief Numero de bits a uno.
         constexpr unsigned popcount() const noexcept
         {
+            // Se cuenta sobre el VALOR, no sobre los limbos guardados.
+            //
+            // En Exceso-K el sesgo pone un bit que no es del valor, y en
+            // Magnitud-Signo el de signo tampoco lo es: contarlos daria un
+            // numero distinto para el mismo numero segun como se guarde, que es
+            // exactamente lo que ADR-018 prohibe. Medido antes de arreglarlo:
+            // `popcount` discrepaba en 194 de 400 valores en MS y en los 400 en
+            // EK.
+            if constexpr (representacion_codificada)
+                return a_c2().popcount();
+
             unsigned total{0};
             for (const auto &limb : data)
             {
@@ -2824,6 +2894,13 @@ namespace nstd
         /// @brief Ceros a la derecha (por el lado del LSB). Devuelve 64*N para el cero.
         constexpr unsigned count_trailing_zeros() const noexcept
         {
+            // Aqui MS y EK **ya coincidian** --los ceros de la derecha de
+            // `2^n - m` son los de `m`-- pero se ruta igual: que la correccion
+            // dependa de una demostracion mental es justo lo que conviene
+            // evitar, y es lo que dejo el hueco de `popcount` sin ver.
+            if constexpr (representacion_codificada)
+                return a_c2().count_trailing_zeros();
+
             for (std::size_t i{0}; i < N; ++i)
             {
                 if (data[i] != 0)
@@ -5355,6 +5432,82 @@ namespace nstd
         return r;
     }
 
+    /// @brief Raiz cuadrada entera de un valor **con signo** (ADR-021).
+    ///
+    /// Mismo nombre que la version sin signo: `sqrt` es el nombre canonico de
+    /// esta operacion en las dos familias, y `isqrt` es el antiguo de 1.75.
+    ///
+    /// @param x Radicando.
+    /// @return `floor(sqrt(x))`.
+    ///
+    /// @warning **Para un radicando negativo devuelve cero.** No hay raiz real
+    ///          de un negativo y aqui no hay NaN donde ponerla, asi que se
+    ///          hereda lo que hacia `isqrt` en 1.75: devolver cero. Es una
+    ///          verruga --esconde un error de quien llama-- y se hereda a
+    ///          proposito, porque dos familias que dan el mismo nombre a
+    ///          comportamientos distintos serian peor (ADR-021, decision 3).
+    ///
+    /// @note Funciona en las cuatro representaciones: se pasa por el tipo sin
+    ///       signo, que convierte el VALOR y no los limbos (ADR-018).
+    template <std::size_t N, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, signedness::signed_type, Form, Policy>
+    sqrt(const fixed_int_t<N, signedness::signed_type, Form, Policy> &x)
+    {
+        using T = fixed_int_t<N, signedness::signed_type, Form, Policy>;
+        if (x.is_negative())
+            return T{};
+        return T{sqrt(uint_fixed_t<N, Policy>{x})};
+    }
+
+    /// @brief Potencia con el exponente en un `unsigned` del lenguaje.
+    ///
+    /// La otra sobrecarga toma el exponente del mismo tipo que la base. Van las
+    /// dos, en las dos familias, porque ninguna firma es mejor: el exponente
+    /// natural es un entero pequeno, pero en codigo generico sobre `T` lo que
+    /// se tiene a mano es un `T` (ADR-021, decision 4).
+    ///
+    /// No hay ambiguedad al resolver: `unsigned` y `fixed_int_t` no se
+    /// convierten entre si, porque el constructor desde entero es `explicit`
+    /// (ADR-001).
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy> pow(fixed_int_t<N, Sign, Form, Policy> base,
+                                                                   unsigned exp) noexcept
+    {
+        fixed_int_t<N, Sign, Form, Policy> result = fixed_int_t<N, Sign, Form, Policy>::one();
+        while (exp != 0U)
+        {
+            if ((exp & 1U) != 0U)
+                result *= base;
+            base *= base;
+            exp >>= 1U;
+        }
+        return result;
+    }
+
+    /// @brief Potencia con base y exponente **con signo**.
+    ///
+    /// El exponente tiene que ser no negativo: uno negativo daria un racional,
+    /// que no es representable aqui. Con exponente negativo devuelve uno, que
+    /// es lo que sale de no dar ni una vuelta al bucle.
+    template <std::size_t N, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, signedness::signed_type, Form, Policy>
+    pow(fixed_int_t<N, signedness::signed_type, Form, Policy> base,
+        fixed_int_t<N, signedness::signed_type, Form, Policy> exp) noexcept
+    {
+        using T = fixed_int_t<N, signedness::signed_type, Form, Policy>;
+        T result = T::one();
+        if (exp.is_negative())
+            return result;
+        while (!exp.is_zero())
+        {
+            if (!(exp & T::one()).is_zero())
+                result *= base;
+            base *= base;
+            exp >>= 1;
+        }
+        return result;
+    }
+
     /// @brief Maximo comun divisor, por el **algoritmo binario de Stein**.
     ///
     /// Se usa Stein y no Euclides porque solo necesita restas y desplazamientos:
@@ -5653,20 +5806,113 @@ namespace nstd
 
     /// @brief Punto medio de dos valores, SIN desbordar por el camino.
     /// @param a Primer valor. @param b Segundo valor.
-    /// @return `(a + b) / 2`, redondeado hacia `a`.
+    /// @return `(a + b) / 2`, redondeado **hacia `a`**.
     ///
-    /// @note No se calcula como `(a + b) / 2`, que desborda cuando la suma no
-    ///       cabe -- justo el caso en que hace falta. Se usa
-    ///       `a + (b - a) / 2` sobre la diferencia, que siempre cabe. Es la
-    ///       misma razon por la que existe `std::midpoint`.
+    /// @note **Por que no `(a + b) / 2`.** La suma desborda cuando no cabe, que
+    ///       es justo el caso en que hace falta un punto medio; con `wrap` el
+    ///       acarreo se pierde y el resultado es basura. Medido contra
+    ///       `std::midpoint` sobre 20 000 pares al azar de 64 bits: discrepa en
+    ///       **12 451** sin signo y en **8794** con signo.
+    ///
+    /// @note **Si hay una forma sin resta**, y tambien es correcta:
+    ///       `(a & b) + ((a ^ b) >> 1)` no desborda nunca. Lo que le falta es
+    ///       el redondeo: da el **suelo** de `(a+b)/2`, no «hacia `a`», asi que
+    ///       discrepa en las ~4900 de suma impar con `a > b` y necesita una
+    ///       correccion de paridad para igualar al estandar. Se prefiere la
+    ///       resta porque su «por que» cabe en una linea y el de la otra no.
+    ///
+    /// @warning **Hacia `a`, no hacia el menor.** `midpoint(4, 1)` es **3**, no
+    ///          2: lo dice [numeric.ops.midpoint] --*«if the sum is odd, the
+    ///          result is rounded towards a»*-- y por tanto la funcion **no es
+    ///          simetrica**. Hasta el 23 sep esta version calculaba
+    ///          `b + (a-b)/2` cuando `a > b`, que redondea hacia `b`:
+    ///          discrepaba de `std::midpoint` en 5110 de 20 000 casos al azar.
+    ///          El test tenia `midpoint(3, 4)` y **no** `midpoint(4, 3)`, que es
+    ///          la esquina donde se ve.
     template <std::size_t N, representation_form Form, overflow_policy Policy>
     [[nodiscard]] constexpr fixed_int_t<N, signedness::unsigned_type, Form, Policy>
     midpoint(const fixed_int_t<N, signedness::unsigned_type, Form, Policy> &a,
              const fixed_int_t<N, signedness::unsigned_type, Form, Policy> &b) noexcept
     {
         using U = fixed_int_t<N, signedness::unsigned_type, Form, Policy>;
-        return (a < b) ? U{a + ((b - a) >> 1U)} : U{b + ((a - b) >> 1U)};
+        // Las dos ramas se alejan de `a` y vuelven a la mitad, asi que el
+        // truncamiento del desplazamiento cae siempre del lado de `a`.
+        return (a < b) ? U{a + ((b - a) >> 1U)} : U{a - ((a - b) >> 1U)};
     }
+
+    /// @brief Punto medio de dos valores **con signo**, sin desbordar.
+    /// @param a Primer valor. @param b Segundo valor.
+    /// @return `(a + b) / 2`, redondeado **hacia `a`**.
+    ///
+    /// @note Con signo, `b - a` **si desborda**: con `a = min` y `b = max` la
+    ///       diferencia es `2^(64N) - 1`, que no cabe con signo. Por eso la
+    ///       diferencia se calcula **sin signo**, donde siempre cabe, y solo se
+    ///       vuelve al tipo con signo con la mitad, que ya cabe seguro. Es lo
+    ///       mismo que hacen las implementaciones de `std::midpoint`.
+    ///
+    /// @note Funciona en las cuatro representaciones: la conversion al tipo sin
+    ///       signo convierte el VALOR, no los limbos (ADR-018).
+    template <std::size_t N, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, signedness::signed_type, Form, Policy>
+    midpoint(const fixed_int_t<N, signedness::signed_type, Form, Policy> &a,
+             const fixed_int_t<N, signedness::signed_type, Form, Policy> &b) noexcept
+    {
+        using T = fixed_int_t<N, signedness::signed_type, Form, Policy>;
+        using U = fixed_int_t<N, signedness::unsigned_type, representation_form::binnat, Policy>;
+
+        // `|b - a| < 2^(64N)` siempre, asi que la mitad es `< 2^(64N-1)` y cabe
+        // con signo sin desbordar. Ese es todo el truco.
+        if (a < b)
+            return a + T{U{(U{b} - U{a}) >> 1U}};
+        return a - T{U{(U{a} - U{b}) >> 1U}};
+    }
+
+    /// @name Redondeo a entero: la identidad, porque ya son enteros
+    /// @{
+    ///
+    /// Las cuatro existen **para que el codigo generico compile**. Sobre un
+    /// entero no hay nada que redondear --`floor(7) == 7`-- pero una plantilla
+    /// que sirva para enteros y para punto fijo las llama igual, y si aqui no
+    /// estan hay que escribir el caso aparte.
+    ///
+    /// En `fixed_point_t` **no son la identidad**: ahi hay parte fraccionaria y
+    /// `floor` va hacia `-infinito`, `ceil` hacia `+infinito`, `trunc` hacia
+    /// cero y `round` usa la perilla `Redondeo`. Que aqui coincidan las cuatro
+    /// es la propiedad del tipo, no una simplificacion del codigo.
+
+    /// @brief El mayor entero `<= x`. Sobre un entero, `x`.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    floor(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        return x;
+    }
+
+    /// @brief El menor entero `>= x`. Sobre un entero, `x`.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    ceil(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        return x;
+    }
+
+    /// @brief `x` truncado hacia cero. Sobre un entero, `x`.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    trunc(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        return x;
+    }
+
+    /// @brief `x` redondeado al entero mas cercano. Sobre un entero, `x`.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    round(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        return x;
+    }
+
+    /// @}
 
     /// @brief Diferencia en valor absoluto, sin signo y sin desbordar.
     /// @param a Primer valor. @param b Segundo valor.
@@ -5768,6 +6014,17 @@ namespace nstd
                 return false;
         }
         return x.popcount() == 1U;
+    }
+
+    /// @brief ¿Tiene el valor **un solo bit** puesto? Es el nombre de `<bit>`.
+    ///
+    /// `has_single_bit` es el nombre canonico (ADR-021): es el que usa
+    /// `std::has_single_bit` de `<bit>`. `is_power_of_2` se conserva porque ya
+    /// estaba publicado, y la matriz vigila que los dos den lo mismo.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr bool has_single_bit(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        return is_power_of_2(x);
     }
 
     /// @brief Signo del valor.

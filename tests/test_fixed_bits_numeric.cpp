@@ -30,6 +30,7 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <numeric>
 #include <stdexcept>
 #include <type_traits>
 
@@ -120,6 +121,39 @@ static_assert(midpoint(U2{std::uint64_t{0}}, U2{std::uint64_t{10}}) == U2{std::u
 static_assert(midpoint(U2{std::uint64_t{10}}, U2{std::uint64_t{0}}) == U2{std::uint64_t{5}});
 static_assert(midpoint(U2{std::uint64_t{3}}, U2{std::uint64_t{4}}) == U2{std::uint64_t{3}},
               "impar: redondea hacia el primero");
+
+// LA ESQUINA QUE FALTABA, Y POR ESO EL FALLO VIVIO EN VERDE.
+//
+// Arriba estaba `midpoint(3, 4)` y NO `midpoint(4, 3)`. Con `a < b` las dos
+// lecturas --hacia `a` y hacia el menor-- coinciden, asi que el test no podia
+// distinguirlas. Hasta el 23 sep, `midpoint(4, 3)` daba 3 en vez de 4 y
+// discrepaba de `std::midpoint` en 5110 de 20 000 casos al azar.
+//
+// `midpoint` NO es simetrica: [numeric.ops.midpoint] dice «rounded towards a».
+static_assert(midpoint(U2{std::uint64_t{4}}, U2{std::uint64_t{3}}) == U2{std::uint64_t{4}},
+              "impar con a > b: redondea hacia a, que es el MAYOR aqui");
+static_assert(midpoint(U2{std::uint64_t{1}}, U2{std::uint64_t{0}}) == U2{std::uint64_t{1}},
+              "midpoint(1, 0) es 1, no 0");
+static_assert(midpoint(U2{std::uint64_t{5}}, U2{std::uint64_t{2}}) == U2{std::uint64_t{4}},
+              "midpoint(5, 2) es 4, no 3");
+
+// Y con signo, que es nuevo (E3). El caso que justifica que la diferencia se
+// calcule SIN signo: `max - min` no cabe con signo.
+static_assert(midpoint(I2{-10}, I2{10}) == I2{0});
+static_assert(midpoint(I2{10}, I2{-10}) == I2{0});
+static_assert(midpoint(I2{-5}, I2{-4}) == I2{-5}, "hacia a");
+static_assert(midpoint(I2{-4}, I2{-5}) == I2{-4}, "hacia a, al reves");
+static_assert(midpoint(I2::min(), I2::max()) == I2{-1},
+              "min y max: la diferencia NO cabe con signo, y aun asi no desborda");
+static_assert(midpoint(I2::max(), I2::min()) == I2{}, "y al reves redondea hacia el maximo: da cero");
+
+// La identidad sobre enteros: existen para que el codigo generico compile.
+static_assert(floor(I2{-7}) == I2{-7});
+static_assert(ceil(I2{-7}) == I2{-7});
+static_assert(trunc(I2{-7}) == I2{-7});
+static_assert(round(I2{-7}) == I2{-7});
+static_assert(floor(U2{std::uint64_t{7}}) == U2{std::uint64_t{7}});
+static_assert(ceil(U2{std::uint64_t{7}}) == U2{std::uint64_t{7}});
 
 // EL CASO QUE JUSTIFICA QUE `midpoint` EXISTA: `(a + b) / 2` desbordaria.
 static_assert(midpoint(U2::max(), U2::max()) == U2::max());
@@ -388,6 +422,53 @@ int main()
         const U4 x{static_cast<std::uint64_t>(v)};
         ok("rotl/rotr se invierten tambien en ejecucion (N=4)", rotr(rotl(x, 137), 137) == x);
         ok("rotar 256 en N=4 es la identidad", rotl(x, 256) == x);
+    }
+
+    // ------------------------------------------------------------------
+    // `midpoint` contra `std::midpoint`, que es el oraculo de verdad
+    // ------------------------------------------------------------------
+    //
+    // Los `static_assert` de arriba comprueban esquinas elegidas; esto cruza
+    // contra la implementacion del estandar sobre 20 000 pares, en los dos
+    // signos y en las cuatro representaciones. Un `static_assert` puede estar
+    // de acuerdo con una lectura equivocada -- que es exactamente lo que paso.
+    {
+        std::uint64_t sem = 0x11D00117ULL;
+        auto siguiente = [&sem]()
+        {
+            sem ^= sem << 13;
+            sem ^= sem >> 7;
+            sem ^= sem << 17;
+            return sem;
+        };
+
+        int mal_u = 0, mal_s = 0, mal_ms = 0, mal_ek = 0;
+        using MS = fixed_int_t<2, signedness::signed_type, representation_form::magnitude_sign>;
+        using EK = fixed_int_t<2, signedness::signed_type, representation_form::excess_k>;
+
+        for (int i = 0; i < 20000; ++i)
+        {
+            // Sin signo: valores de 63 bits para que `std::midpoint` los admita.
+            const std::uint64_t ua = siguiente() >> 1;
+            const std::uint64_t ub = siguiente() >> 1;
+            if (midpoint(U2{ua}, U2{ub}).to_string() != std::to_string(std::midpoint(ua, ub)))
+                ++mal_u;
+
+            // Con signo, incluidos los extremos de 64 bits.
+            const auto sa = static_cast<std::int64_t>(siguiente());
+            const auto sb = static_cast<std::int64_t>(siguiente());
+            const std::string esp = std::to_string(std::midpoint(sa, sb));
+            if (midpoint(I2{sa}, I2{sb}).to_string() != esp)
+                ++mal_s;
+            if (midpoint(MS{sa}, MS{sb}).to_string() != esp)
+                ++mal_ms;
+            if (midpoint(EK{sa}, EK{sb}).to_string() != esp)
+                ++mal_ek;
+        }
+        ok("midpoint sin signo coincide con std::midpoint (20.000 pares)", mal_u == 0);
+        ok("midpoint con signo coincide con std::midpoint (20.000 pares)", mal_s == 0);
+        ok("midpoint en Magnitud-Signo coincide (ADR-018)", mal_ms == 0);
+        ok("midpoint en Exceso-K coincide (ADR-018)", mal_ek == 0);
     }
 
     std::printf("\n====================================================================\n");

@@ -244,6 +244,21 @@ namespace nstd
      * @note For EK: Result is meaningless - use conversion to TC first
      */
     template <signedness S, representation_form F>
+    inline constexpr bool is_power_of_2(const int128_param_t<S, F> &value) noexcept;
+
+    /**
+     * @brief Un solo bit puesto. **Nombre canonico** (ADR-021).
+     *
+     * Es el nombre de `std::has_single_bit`, de `<bit>`. `is_power_of_2` se
+     * conserva porque ya estaba publicado.
+     */
+    template <signedness S, representation_form F>
+    inline constexpr bool has_single_bit(const int128_param_t<S, F> &value) noexcept
+    {
+        return is_power_of_2(value);
+    }
+
+    template <signedness S, representation_form F>
     inline constexpr bool is_power_of_2(const int128_param_t<S, F> &value) noexcept
     {
         if (value.is_zero())

@@ -62,6 +62,19 @@ namespace nstd
         return algorithms::karatsuba_full_mul(a, b);
     }
 
+    /**
+     * @brief Producto de doble anchura. **Nombre canonico** (ADR-021).
+     *
+     * `mul_wide` es como se llama esta operacion en `fixed_int_t`, y es el
+     * nombre que se elige para las dos familias. `widening_mul` es el antiguo
+     * de esta y se conserva porque ya estaba publicado; hacen lo mismo.
+     *
+     * No se anade `widening_mul` a `fixed_int_t`: un segundo nombre para la
+     * misma operacion es deuda recien estrenada. El canonico existe en los dos
+     * sitios, el antiguo se queda solo donde ya estaba.
+     */
+    inline uint256_t mul_wide(const uint128_t &a, const uint128_t &b) noexcept { return widening_mul(a, b); }
+
     // ========================================================================
     // mulhi — Upper 128 bits of 128×128→256 multiplication
     // ========================================================================

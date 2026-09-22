@@ -201,6 +201,16 @@ PENDIENTES = [
     # `++` suma UNO (ADR-020), asi que donde no hay uno tampoco hay `++`.
     ("++ con F == N", False,
      _FP_SOLO % "nstd::ufixed_point_t<1, 1> x{}; ++x;"),
+    # E6: las funciones libres que necesitan el uno tampoco existen con F == N,
+    # por la misma razon que `one()` y `++`.
+    ("ceil con F == N", False,
+     _FP_SOLO % "(void)nstd::ceil(nstd::ufixed_point_t<1, 1>{});"),
+    ("pow con F == N", False,
+     _FP_SOLO % "(void)nstd::pow(nstd::ufixed_point_t<1, 1>{}, 2U);"),
+    # Pero `floor` y `trunc` SI valen ahi: su resultado siempre cabe en [0,1).
+    ("floor y trunc con F == N", True,
+     _FP_SOLO % "const nstd::ufixed_point_t<1, 1> x{}; "
+                "(void)nstd::floor(x); (void)nstd::trunc(x);"),
     ("mas fraccion que total (F > N)", False,
      _FP_SOLO % "const nstd::ufixed_point_t<2, 3> x{}; (void)x;"),
 ]
@@ -318,7 +328,9 @@ CAPACIDADES = [
          cuerpo="const T a{std::uint64_t{3}};\n"
                 "    (void)nstd::pow(a, typename nstd::make_unsigned<T>::type{std::uint64_t{5}});",
          incluye=['#include "fixed_int_traits_specializations.hpp"']),
-    dict(grupo="Aritmetica", nombre="sqrt", espera=SIN_SIGNO,
+    # Era SIN_SIGNO hasta el 23 sep. ADR-021 le dio version con signo, y esta
+    # fila **se puso roja al hacerlo**, que es para lo que esta declarada.
+    dict(grupo="Aritmetica", nombre="sqrt", espera=TODAS,
          cuerpo="(void)nstd::sqrt(T{std::uint64_t{144}});"),
     dict(grupo="Aritmetica", nombre="gcd / lcm", espera=TODAS,
          cuerpo="const T a{std::uint64_t{12}}, b{std::uint64_t{18}};\n"
@@ -386,6 +398,55 @@ CAPACIDADES = [
     # Se prueba con `T` dentro para que la celda falle si alguna combinacion de
     # signo y politica dejara de ser trivialmente copiable: `std::atomic<T>` lo
     # exige, y sin el la clase no compila en ESA celda y solo en esa.
+
+    # --- E3: lo que faltaba para 24/24 en los enteros ----------------------
+    #
+    # `midpoint` existia solo sin signo. Y la version sin signo redondeaba hacia
+    # el MENOR en vez de hacia `a`: discrepaba de `std::midpoint` en 5110 de
+    # 20 000 casos. El test tenia `midpoint(3,4)` y no `midpoint(4,3)`.
+    dict(grupo="E3", nombre="midpoint, y redondea hacia a", espera=TODAS,
+         cuerpo="const T a{std::uint64_t{5}}, b{std::uint64_t{2}};\n"
+                "    if (nstd::midpoint(a, b) != T{std::uint64_t{4}}) return 1;\n"
+                "    if (nstd::midpoint(b, a) != T{std::uint64_t{3}}) return 1;"),
+    # Sobre un entero son la identidad, y existen para que el codigo generico
+    # compile. En `fixed_point_t` NO son la identidad.
+    dict(grupo="E3", nombre="floor/ceil/round/trunc (identidad)", espera=TODAS,
+         cuerpo="const T x{std::uint64_t{7}};\n"
+                "    if (nstd::floor(x) != x || nstd::ceil(x) != x) return 1;\n"
+                "    if (nstd::trunc(x) != x || nstd::round(x) != x) return 1;"),
+
+    # --- nombres canonicos (ADR-021) y ranges (E2) -------------------------
+    #
+    # `sqrt` y `pow` estaban solo para el tipo SIN SIGNO: el verificador del
+    # acompanamiento lo saco --verde en `uint`, rojo en las tres con signo-- y
+    # se arreglo en E1. Aqui quedan vigiladas por representacion, que es el eje
+    # que esta matriz cubre y el otro no.
+    dict(grupo="Nombres canonicos", nombre="sqrt (las dos firmas)", espera=TODAS,
+         cuerpo="const T x{std::uint64_t{144}};\n"
+                "    if (nstd::sqrt(x) != T{std::uint64_t{12}}) return 1;"),
+    dict(grupo="Nombres canonicos", nombre="pow(T, unsigned)", espera=TODAS,
+         cuerpo="const T b{std::uint64_t{2}};\n"
+                "    if (nstd::pow(b, 10U) != T{std::uint64_t{1024}}) return 1;"),
+    dict(grupo="Nombres canonicos", nombre="pow(T, T)", espera=TODAS,
+         cuerpo="const T b{std::uint64_t{2}};\n"
+                "    if (nstd::pow(b, T{std::uint64_t{10}}) != T{std::uint64_t{1024}}) return 1;"),
+    # No basta con que los dos nombres compilen: tienen que dar LO MISMO. Un
+    # alias que se desincroniza compila igual (ADR-021, decision 2).
+    dict(grupo="Nombres canonicos", nombre="has_single_bit == is_power_of_2", espera=TODAS,
+         cuerpo="const T x = T::one() << 70U;\n"
+                "    if (nstd::has_single_bit(x) != nstd::is_power_of_2(x)) return 1;\n"
+                "    if (!nstd::has_single_bit(x)) return 1;"),
+    dict(grupo="ranges", nombre="difference_type y weakly_incrementable", espera=TODAS,
+         incluye=["#include <iterator>", "#include <cstddef>"],
+         cuerpo="static_assert(std::is_same_v<typename T::difference_type, std::ptrdiff_t>);\n"
+                "    static_assert(std::weakly_incrementable<T>);"),
+    dict(grupo="ranges", nombre="views::iota recorre", espera=TODAS,
+         incluye=["#include <ranges>"],
+         cuerpo="int n = 0;\n"
+                "    for (auto v : std::views::iota(T{std::uint64_t{0}}, T{std::uint64_t{5}}))\n"
+                "    { (void)v; ++n; }\n"
+                "    if (n != 5) return 1;"),
+
     dict(grupo="Atomico", nombre="atomic_fixed_int_t (load/store)", espera=TODAS,
          incluye=['#include "fixed_int_atomic.hpp"'],
          cuerpo="nstd::atomic_fixed_int_t<T::num_limbs, T::sign, T::form, T::policy> a{T{std::uint64_t{7}}};\n"

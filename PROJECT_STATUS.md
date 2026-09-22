@@ -1,6 +1,6 @@
 # PROJECT STATUS
 
-**Last Updated:** 22 September 2026
+**Last Updated:** 23 September 2026
 **Versión:** v1.90.4 · **rama** `phase-1.80` · árbol limpio, todo en `origin`
 
 > Instantánea **del estado actual**, y solo eso. No acumula historia: lo ya hecho
@@ -43,21 +43,21 @@ en `include/algorithms/mul_kernels.hpp` —escolar desenrollado, Karatsuba con
 reparto equilibrado, cuadrado y Toom-3— **con cada umbral medido**, y la mitad
 alta del rango admitido (N = 64…4096) cubierta por primera vez.
 
-## Verificación — 22 September 2026
+## Verificación — 23 September 2026
 
 | Comprobación | Resultado |
 |---|---|
-| `python make.py test gcc release-O2` | **66/66 ficheros** (GCC 16.2 ucrt64, libstdc++) |
-| `python make.py test clang release-O2` | **66/66 ficheros** (clang 22.1.8 clang64, **libc++**) |
-| `python make.py test clang-libstdcxx release-O2` | **66/66 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
-| `python make.py test msvc release-O2` | **66/66 ficheros** |
-| `python make.py test intel release-O2` | **66/66 ficheros** (oneAPI 2026.1) |
+| `python make.py test gcc release-O2` | **69/69 ficheros** (GCC 16.2 ucrt64, libstdc++) |
+| `python make.py test clang release-O2` | **69/69 ficheros** (clang 22.1.8 clang64, **libc++**) |
+| `python make.py test clang-libstdcxx release-O2` | **69/69 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
+| `python make.py test msvc release-O2` | **69/69 ficheros** |
+| `python make.py test intel release-O2` | **69/69 ficheros** (oneAPI 2026.1) |
 | CI sobre `21e9301` | **24/24 jobs, cero fallos** (21 sep 2026), matriz completa: gcc-13/14/15/16, clang-18/19/20/21/22, ARM64, arm32, riscv64, i686 e **Intel ICX**. La cifra anterior citaba `f959f53`, **58 commits atrás**, y en ese intervalo el CI estuvo cuatro días en rojo sin que nadie lo mirara |
-| `scripts/check_headers_selfcontained.py` | **35/35** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
+| `scripts/check_headers_selfcontained.py` | **40/40** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
 | `clang-format --dry-run --Werror`, 131 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
 | `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
-| `python make.py wsl` | **66/66 en las tres familias**: g++ 15.2 (317 s), clang 23 (326 s) e **Intel oneAPI 2026.0** (606 s) |
-| `scripts/check_matriz_paridad.py` | **297/297 celdas** (47 capacidades × **6** columnas, más 2 políticas reservadas y **13 sondas del punto fijo**, ocho que tienen que compilar y cinco que no), todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
+| `python make.py wsl` | **69/69 en las tres familias**: g++ 15.2 (317 s), clang 23 (326 s) e **Intel oneAPI 2026.0** (606 s) |
+| `scripts/check_matriz_paridad.py` | **348/348 celdas** (47 capacidades × **6** columnas, más 2 políticas reservadas y **13 sondas del punto fijo**, ocho que tienen que compilar y cinco que no), todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
 | Avisos de cobertura de Doxygen desde `include/` | **512** (local, doxygen 1.18.0), de los que **466 cuentan** contra el techo de ADR-014 y 46 son de headers internos, fuera del ámbito. El tipo nuevo trajo 22 y **se documentaron los 22**: el techo no se ha subido |
 
 > **La cifra de Doxygen no ha empeorado: antes no se medía.** Hasta el 25 ago el

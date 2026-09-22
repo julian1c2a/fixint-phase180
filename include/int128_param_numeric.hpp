@@ -186,6 +186,20 @@ namespace nstd
      *       Convert to TC for semantic correctness.
      */
     template <signedness S, representation_form F>
+    int128_param_t<S, F> isqrt(const int128_param_t<S, F> &x) noexcept;
+
+    /// @brief Raiz cuadrada entera. **Nombre canonico** (ADR-021).
+    ///
+    /// `sqrt` es como se llama esta operacion en `fixed_int_t` y en `std::`.
+    /// `isqrt` es el nombre antiguo de esta familia y se conserva porque ya
+    /// estaba publicado; los dos hacen exactamente lo mismo.
+    template <signedness S, representation_form F>
+    int128_param_t<S, F> sqrt(const int128_param_t<S, F> &x) noexcept
+    {
+        return isqrt(x);
+    }
+
+    template <signedness S, representation_form F>
     int128_param_t<S, F> isqrt(const int128_param_t<S, F> &x) noexcept
     {
         if (x.is_zero())

@@ -402,10 +402,8 @@ Deliberately absent, and tracked:
 |---|---|
 | Operations between different `F` | Promote to the wider one, forbid, or require an explicit conversion? Affects ergonomics more than correctness. Open in ADR-019. |
 | Conversion to and from floating point | Has its own rounding and its own odd cases (infinities, NaN); the integer type already had a bug there (T2.2). |
-| `sqrt` and the numeric functions | `sqrt` in fixed point is not the integer's: the scale enters the root. |
-| `std::numeric_limits` specialisation | The integer has one in `fixed_int_limits.hpp`; the fixed point does not yet. |
-| `<cmath>`-style free functions | `ceil`, `round`, `trunc`, `abs` — `suelo()` covers `floor` only. |
-| iostreams and `std::formatter` | The integer has both; the fixed point does not yet. |
+| `to_chars` / `from_chars` | Missing for both families, not only this type. |
+| Reading more decimal digits than the integer part can hold | `operator>>` uses only the digits whose `10^k` fits in the integer part; with `F == N` that is none. Documented on the operator. |
 
 ---
 

@@ -90,6 +90,10 @@ namespace
             mal(nombre, "EK", a, b, en_tc ? "true" : "false", en_ek ? "true" : "false");
     }
 
+    // Declarado aqui porque `todas_las_operaciones` lo llama y se define abajo,
+    // junto al resto de ayudantes del recuento de bits.
+    void cruza_bits(long long v);
+
     void todas_las_operaciones(long long a, long long b)
     {
         // Construir el mismo numero en las tres tiene que dar el mismo numero.
@@ -163,11 +167,110 @@ namespace
             }
         }
 
+        // El RECUENTO DE BITS, que es lo que a este test le faltaba.
+        //
+        // El tramo 3 cruzo la aritmetica, los desplazamientos, los bitwise, el
+        // orden y `to_string`. No cruzo esto, y ahi habia un fallo de verdad:
+        // `popcount` contaba los limbos guardados, no el valor, asi que en
+        // Exceso-K contaba ademas el bit del sesgo y en Magnitud-Signo el del
+        // signo. Discrepaba en 194 de 400 valores en MS y en los 400 en EK.
+        cruza_bits(a);
+        cruza_bits(b);
+
         // El orden, que es la decision 3.
         cruza_bool("<", a, b, [](auto x, auto y) { return x < y; });
         cruza_bool("==", a, b, [](auto x, auto y) { return x == y; });
         cruza_bool("is_negative", a, b, [](auto x, auto) { return x.is_negative(); });
         cruza_bool("is_zero", a, b, [](auto x, auto) { return x.is_zero(); });
+    }
+
+    /// Cruza el recuento de bits contra complemento a dos.
+    ///
+    /// Se comparan NUMEROS, no propiedades. `popcount(x) == popcount(x)` seria
+    /// una identidad estructural de las que este fichero rechaza en su
+    /// encabezado: se cumple con basura.
+    void cruza_bits(long long v)
+    {
+        const TC t{v};
+        const MS m{v};
+        const EK e{v};
+
+        struct Op
+        {
+            const char *nombre;
+            unsigned (*f)(const TC &);
+            unsigned (*g)(const MS &);
+            unsigned (*h)(const EK &);
+        };
+
+        ++casos;
+        if (m.popcount() != t.popcount() || e.popcount() != t.popcount())
+            mal("popcount", "MS/EK", v, 0, std::to_string(t.popcount()),
+                std::to_string(m.popcount()) + "/" + std::to_string(e.popcount()));
+
+        ++casos;
+        if (m.bit_width() != t.bit_width() || e.bit_width() != t.bit_width())
+            mal("bit_width", "MS/EK", v, 0, std::to_string(t.bit_width()),
+                std::to_string(m.bit_width()) + "/" + std::to_string(e.bit_width()));
+
+        ++casos;
+        if (m.count_leading_zeros() != t.count_leading_zeros() ||
+            e.count_leading_zeros() != t.count_leading_zeros())
+            mal("count_leading_zeros", "MS/EK", v, 0, std::to_string(t.count_leading_zeros()),
+                std::to_string(m.count_leading_zeros()));
+
+        ++casos;
+        if (m.count_trailing_zeros() != t.count_trailing_zeros() ||
+            e.count_trailing_zeros() != t.count_trailing_zeros())
+            mal("count_trailing_zeros", "MS/EK", v, 0, std::to_string(t.count_trailing_zeros()),
+                std::to_string(m.count_trailing_zeros()));
+
+        // Y `is_power_of_2`, que es donde se vio. OJO: con valores al azar esta
+        // comprobacion NO PUEDE FALLAR --un numero de 128 bits al azar no es
+        // potencia de dos nunca-- asi que las potencias se construyen aparte,
+        // abajo, en `potencias_de_dos()`.
+        ++casos;
+        const bool pt = nstd::is_power_of_2(t);
+        if (nstd::is_power_of_2(m) != pt || nstd::is_power_of_2(e) != pt)
+            mal("is_power_of_2", "MS/EK", v, 0, pt ? "1" : "0", "distinto");
+    }
+
+    /// Las potencias de dos, a mano.
+    ///
+    /// Es la parte que los aleatorios no dan: `is_power_of_2` salio con **cero
+    /// discrepancias sobre 400 valores al azar** estando rota para todas las
+    /// potencias de dos.
+    void potencias_de_dos()
+    {
+        for (unsigned b = 0; b < 126; ++b)
+        {
+            const TC t = TC::one() << b;
+            const MS m = MS::one() << b;
+            const EK e = EK::one() << b;
+
+            ++casos;
+            if (!nstd::is_power_of_2(t) || !nstd::is_power_of_2(m) || !nstd::is_power_of_2(e))
+            {
+                std::printf("  [FALLA] 2^%u no se reconoce como potencia de dos en las tres\n", b);
+                ++fallos;
+            }
+
+            ++casos;
+            if (m.popcount() != 1U || e.popcount() != 1U || t.popcount() != 1U)
+            {
+                std::printf("  [FALLA] popcount(2^%u) no es 1: TC=%u MS=%u EK=%u\n", b, t.popcount(),
+                            m.popcount(), e.popcount());
+                ++fallos;
+            }
+
+            ++casos;
+            if (m.bit_width() != t.bit_width() || e.bit_width() != t.bit_width())
+            {
+                std::printf("  [FALLA] bit_width(2^%u) discrepa: TC=%u MS=%u EK=%u\n", b, t.bit_width(),
+                            m.bit_width(), e.bit_width());
+                ++fallos;
+            }
+        }
     }
 
     struct xorshift
@@ -196,6 +299,10 @@ int main()
     for (long long a : esquinas)
         for (long long b : esquinas)
             todas_las_operaciones(a, b);
+
+    // Las potencias de dos, que los aleatorios no dan nunca.
+    std::printf("-- potencias de dos (lo que los aleatorios no generan)\n");
+    potencias_de_dos();
 
     // Y aleatorios, que cubren el caso comun.
     std::printf("-- aleatorios\n");

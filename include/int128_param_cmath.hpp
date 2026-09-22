@@ -327,6 +327,46 @@ namespace nstd
      * @pre exponent >= 0
      */
     template <signedness S, representation_form F>
+    constexpr int128_param_t<S, F> pow(const int128_param_t<S, F> &base, unsigned int exponent) noexcept;
+
+    /**
+     * @brief Potencia con el exponente **del mismo tipo que la base**.
+     *
+     * Va junto a la de `unsigned` porque ninguna firma es mejor: el exponente
+     * natural es un entero pequeno, pero en codigo generico sobre `T` lo que se
+     * tiene a mano es un `T` (ADR-021, decision 4).
+     *
+     * Un exponente negativo daria un racional, que no es representable: se
+     * devuelve uno.
+     */
+    template <signedness S, representation_form F>
+    constexpr int128_param_t<S, F> pow(const int128_param_t<S, F> &base,
+                                       const int128_param_t<S, F> &exponent) noexcept
+    {
+        int128_param_t<S, F> result{0, 1};
+        if constexpr (S == signedness::signed_type)
+        {
+            if (exponent.is_negative())
+            {
+                return result;
+            }
+        }
+        int128_param_t<S, F> e = exponent;
+        int128_param_t<S, F> current_base = base;
+        const int128_param_t<S, F> uno{0, 1};
+        while (!e.is_zero())
+        {
+            if (!(e & uno).is_zero())
+            {
+                result *= current_base;
+            }
+            current_base *= current_base;
+            e >>= 1;
+        }
+        return result;
+    }
+
+    template <signedness S, representation_form F>
     constexpr int128_param_t<S, F> pow(const int128_param_t<S, F> &base, unsigned int exponent) noexcept
     {
         if (exponent == 0)

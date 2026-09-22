@@ -1,3 +1,252 @@
+## [sin publicar] - 2026-09-23 - P4 E3/E4/E5/E6: **24 de 24 en las seis celdas**
+
+`fixed_int_t` en sus cuatro representaciones y `fixed_point_t` con y sin signo
+tienen el acompanamiento completo de `std`. Medido por
+`scripts/check_acompanamiento_std.py`, que compila 24 capacidades contra cada
+una de las seis celdas.
+
+| | Al empezar el dia | Ahora |
+|---|---|---|
+| `uint` | 22/24 | **24/24** |
+| `int/C2`, `int/MS`, `int/EK` | 19/24 | **24/24** |
+| `fijo/u`, `fijo/s` | 8/24 | **24/24** |
+| matriz de paridad | 297 | **348 celdas** |
+
+### TRES FALLOS REALES EN EL ENTERO, y los tres de la familia de ADR-018
+
+Salieron de escribir los tests del punto fijo, no de buscarlos.
+
+| Que | Estaba mal | Medido |
+|---|---|---|
+| `min()` en Magnitud-Signo | devolvia **0**, el cero negativo | -- |
+| `min()` y `max()` en Exceso-K | **0** y **-1** | -- |
+| `popcount`, `bit_width`, `countl_zero` | contaban los bits **guardados** | 194/400 en MS, **400/400** en EK |
+
+ADR-018 no admite lectura: «dan lo mismo en TODO, y se distinguen solo por lo
+que devuelven `limb()` y `limbs()`». El tramo 3 ruto las **operaciones** por el
+puente `a_c2()`; las **constantes** y el **recuento de bits** se quedaron, y
+nadie los cruzo.
+
+La asimetria de MS --su `min()` es `-(2^127 - 1)`, uno mas alto que el de
+complemento a dos-- **sale sola** de la conversion, porque `c2_a_ms` satura. Lo
+decidio ADR-017 y no hay que escribir un caso aparte.
+
+Cruzado ahora en `test_fixed_ms_ek.cpp`: **16 624 -> 24 412** comprobaciones.
+
+#### Dos cosas que ensenaron los arreglos
+
+**`is_power_of_2` salio con cero discrepancias sobre 400 valores al azar**,
+estando rota para toda potencia de dos. Un numero de 128 bits al azar no es
+potencia de dos nunca. Las potencias hay que construirlas.
+
+**Y `count_trailing_zeros` se ruto «por si acaso»**, con el argumento de que
+coincidia. Al falsificar, desrutarlo da **42 fallos** -- exactamente 21x2, las
+esquinas del test: **el cero**, donde Exceso-K guarda `2^127` y cuenta 127 en
+vez de 128. El razonamiento era incompleto.
+
+### Y un cuarto: `midpoint` no redondeaba hacia `a`
+
+Al ir a escribir la version con signo se miro la que habia, porque su
+documentacion decia «hacia `a`» y el codigo hacia `b + (a-b)/2` cuando `a > b`.
+Contra `std::midpoint`:
+
+    midpoint(4, 1)   std=3  nstd=2
+    midpoint(1, 0)   std=1  nstd=0
+    20 000 al azar:  discrepan 5110
+
+El estandar es explicito --[numeric.ops.midpoint]: «if the sum is odd, the
+result is rounded towards a»-- y por tanto **`midpoint` no es simetrica**.
+
+**Por que vivio en verde:** el test tenia `midpoint(3, 4)` y **nunca
+`midpoint(4, 3)`**. Con `a < b` las dos lecturas coinciden.
+
+### E3 -- los enteros a 24/24
+
+- `midpoint` arreglado y con version **con signo**. La diferencia se calcula
+  **sin signo** porque `max - min` no cabe con signo.
+- `floor`, `ceil`, `round` y `trunc`: la **identidad** sobre enteros, y
+  documentado que existen para que el codigo generico compile.
+
+> **Y una pregunta que merecia medirse:** ¿no seria `midpoint` simplemente
+> `(a+b)/2`? No: la suma envuelve y el acarreo se pierde --discrepa en 12 451 de
+> 20 000--. Pero **si hay una forma sin resta**: `(a & b) + ((a ^ b) >> 1)` no
+> desborda nunca. Lo que le falta es el redondeo, porque da el suelo y no «hacia
+> `a`»; con una correccion de paridad da 0 discrepancias. Las tres estan
+> anotadas en el codigo.
+
+### E4 -- `numeric_limits` del punto fijo (ADR-022)
+
+La regla que resolvio casi todo: **donde el tipo ya publica un miembro,
+`numeric_limits` tiene que coincidir con el**.
+
+- **`min()` es el mas negativo**, como en los enteros. Un algoritmo generico que
+  lo use como «el mas pequeno» hara cosas distintas segun la respuesta **y
+  compilara en los dos casos**.
+- **`is_integer` falso, `is_exact` cierto.** No son lo mismo: `is_exact` habla
+  de la representacion, no de las operaciones.
+- **`epsilon()` es absoluto**, no relativo, y coincide con el valor positivo mas
+  pequeno y con `denorm_min()`.
+- **`round_style` lee la perilla**, y el enum del estandar **no distingue los
+  dos modos «al mas cercano»**.
+- **`is_modulo` sale de la politica**, no del signo: aqui `wrap` esta definido
+  tambien con signo.
+
+**El test corrigio el ADR.** Se escribio que `round_error()` devolvia «medio
+ulp». Fallo en una linea: **medio ulp no es representable**, porque el ulp ES el
+valor positivo mas pequeno. Se mide **en ULPs** --0,5 y 1-- igual que
+`numeric_limits<float>::round_error()` vale 0,5.
+
+### E5 -- traits, hash, format, iostreams
+
+Cinco cabeceras nuevas. Lo que tiene decision:
+
+- `is_integral_v` **falso** y `is_arithmetic_v` cierto; se anade
+  `nstd::is_fixed_point_v`, que es la pregunta que el codigo generico quiere
+  hacer.
+- `make_unsigned` **conserva la escala**: el hermano de un Q64.64 es otro
+  Q64.64.
+- `common_type` con un entero da el **punto fijo**, como `common_type<double,
+  int>` da `double`.
+- `operator>>` **se apoya en `operator/`**, que ya redondea segun la perilla:
+  reimplementarlo seria arriesgarse a que las dos copias se separen.
+
+### E6 -- las funciones libres, y aqui NO son la identidad
+
+`floor`, `ceil`, `trunc` y `round` van cada una a un sitio distinto, y **solo
+`round` consulta la perilla**. Se escribe como `(x >> k) << k`, que reusa el
+redondeo que ya estaba en vez de copiarlo.
+
+`sqrt` **lleva la escala dentro**: `sqrt(x/2^k) = sqrt(x*2^k)/2^k`. Y **no tiene
+empates**: la raiz exacta cae en la mitad cuando `v = q^2 + q + 1/4`, que no es
+entero, asi que los dos modos «al mas cercano» coinciden.
+
+`gcd` y `lcm` van **en unidades de `epsilon`**: todo valor es multiplo entero de
+`epsilon`, asi que su maximo comun divisor existe y es exacto.
+
+### Verificado
+
+- **69/69 en las cinco configuraciones de Windows y en las tres familias de WSL**
+- **348/348** celdas de la matriz, **40/40** cabeceras aisladas, **69** ficheros
+  sin romper la precondicion, **9/9** en el armonizador con `--doxygen`
+- Doxygen vuelve a **466**, el techo: los 34 avisos nuevos se documentaron en vez
+  de subirlo
+- clang-format **21 y 22** de acuerdo sobre todo el arbol
+- **Ocho averias falsificadas, ocho detectadas.** La ultima --`gcd` ignorando el
+  signo-- no la cogia nadie hasta anadir casos negativos
+
+---
+
+## [sin publicar] - 2026-09-23 - P4 E0/E1/E2: el verificador, los nombres y `std::ranges`
+
+### E0 -- `check_acompanamiento_std.py`, para poder tachar
+
+24 capacidades x 6 celdas --las cuatro representaciones del entero y las dos
+del punto fijo--, **comprobadas compilando**. Con sonda de arranque y con
+**autoprueba**: antes de informar, compila una llamada a una funcion que no
+existe y exige que falle. Un verificador que no sabe decir «no» convierte cada
+tachon en una promesa sin respaldo.
+
+Se escribio despues de que la auditoria a mano se equivocara **dos veces**, las
+dos por medir una cosa e ir a informar de otra: incluia solo la cabecera
+principal --y asi `std::hash` salia «no existe» habiendo un
+`fixed_int_hash.hpp`-- y tres de sus sondas **no podian dar «no»**, porque
+`numeric_limits<T>::epsilon()`, `common_type_t<T,T>` y `std::swap` compilan para
+cualquier tipo por la plantilla primaria.
+
+Tambien declara el **«no aplica»**: `popcount` y `rotl` no tienen sentido en
+punto fijo --los bits no son el valor-- y eso cuenta como respondido, no como
+hueco. Es lo que ADR-020 razono para los bitwise.
+
+### E1 -- un nombre por operacion (ADR-021)
+
+Medido llamando a 43 nombres contra las dos familias: **tres divergencias, no
+una**, y una cuarta contra el propio `<bit>`.
+
+| Operacion | 1.75 | limbos | Canonico |
+|---|---|---|---|
+| raiz entera | `isqrt` | `sqrt` | **`sqrt`** |
+| producto ancho | `widening_mul` | `mul_wide` | **`mul_wide`** |
+| potencia | `pow(T, unsigned)` | `pow(T, T)` | **las dos firmas** |
+| potencia de dos | `is_power_of_2` | `is_power_of_2` | **`has_single_bit`** |
+
+**No son alias en las dos direcciones.** El propio codigo ya llevaba escrito por
+que `widening_mul` no se porto --«un segundo nombre para la misma operacion es
+deuda recien estrenada»-- y ese razonamiento descarta la solucion ingenua. Lo
+que se hace es: **un canonico que existe en las dos familias**, y el antiguo se
+queda solo donde ya estaba.
+
+Y sin `[[deprecated]]`: el CI compila con `-Werror` y la propia biblioteca usa
+`is_power_of_2`. Se documentan y **la matriz vigila que den el mismo valor**, que
+es lo que hace de un alias un alias.
+
+De paso, `sqrt` **acepta con signo**, cosa que no hacia. El verificador lo saco:
+verde en `uint`, rojo en las tres con signo.
+
+### E2 -- `std::ranges`, y costaba una linea
+
+`difference_type = std::ptrdiff_t` en los dos tipos. Con eso
+`std::weakly_incrementable` es cierto y `views::iota(a, b)` recorre las seis
+celdas.
+
+La duda era si `difference_type` podia ser el propio tipo. **No puede**: el
+estandar exige `is-signed-integer-like`, y eso solo lo cumplen los enteros con
+signo del lenguaje y los *integer-class types*, que son **definidos por la
+implementacion**. Un tipo de usuario no puede serlo por mucho que se parezca a
+un entero. Comprobado especializando `std::incrementable_traits` desde fuera
+antes de tocar ninguna cabecera.
+
+No convierte los tipos en iteradores --`input_or_output_iterator` sigue siendo
+falso-- y esta bien: a un numero le falta `operator*`.
+
+### Y un fallo de verdad que salio por el camino
+
+El test de `has_single_bit` fallo en Exceso-K. Medido sobre 400 valores al azar,
+contra complemento a dos:
+
+| | MS | EK |
+|---|---|---|
+| `popcount` | **194/400** | **400/400** |
+| `count_leading_zeros` | 0 | **400/400** |
+| `bit_width` | 0 | **400/400** |
+
+**Viola ADR-018**, que no admite lectura: «dan lo mismo en TODO, y se distinguen
+solo por lo que devuelven `limb()` y `limbs()`». El recuento leia los limbos
+guardados, asi que en Exceso-K contaba ademas el bit del sesgo y en
+Magnitud-Signo el del signo.
+
+El tramo 3 cruzo la aritmetica, los desplazamientos, los bitwise, el orden y
+`to_string`. **No cruzo el recuento de bits**, y ahi se quedo el hueco.
+
+Arreglado pasando por el puente `a_c2()`, y **cruzado ahora en
+`test_fixed_ms_ek.cpp`**: 16 624 -> 24 412 comprobaciones.
+
+#### Dos cosas que ensena el arreglo
+
+**`is_power_of_2` salio con CERO discrepancias sobre 400 valores al azar**,
+estando rota para todas las potencias de dos. Un numero de 128 bits al azar no
+es potencia de dos nunca. Las potencias hay que construirlas, y ahora estan.
+
+**Y `count_trailing_zeros` se ruto «por si acaso»**, con el argumento de que
+coincidia --los ceros de la derecha de `2^n - m` son los de `m`--. Al
+falsificar, desrutarlo da **42 fallos**: exactamente 21x2, las esquinas del
+test, o sea **el cero**, donde Exceso-K guarda `2^127` y cuenta 127 en vez de
+128. El razonamiento era incompleto y la sonda al azar tampoco lo veia.
+
+### Como quedan las cifras
+
+| | Antes | Ahora |
+|---|---|---|
+| `uint` | 22/24 | **23/24** |
+| `int/C2`, `int/MS`, `int/EK` | 19/24 | **22/24** |
+| `fijo/u`, `fijo/s` | 8/24 | **9/24** |
+| sondas de `<bit>` pendientes | 20 | 16 |
+| matriz de paridad | 297 | **333 celdas** |
+
+Lo que queda para 24/24 en los enteros: `floor/ceil/round/trunc` y `midpoint`
+con signo. Son E3.
+
+---
+
 ## [sin publicar] - 2026-09-22 - P1.6 segunda entrega: el redondeo, y `*` `/` `%`
 
 La perilla `Redondeo` existe, y con ella `*`, `/`, `%`, `*=`, `/=`, `%=`,
