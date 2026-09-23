@@ -396,15 +396,8 @@ namespace nstd
 
     // Two's Complement (backward compatible)
     using uint128_tc_t = int128_param_t<signedness::unsigned_type, representation_form::twos_complement>;
-    using int128_tc_t = int128_param_t<signedness::signed_type, representation_form::twos_complement>;
-
-    // Magnitude-Sign
-    using uint128_ms_t = int128_param_t<signedness::unsigned_type, representation_form::magnitude_sign>;
-    using int128_ms_t = int128_param_t<signedness::signed_type, representation_form::magnitude_sign>;
-
-    // Excess-K
-    using uint128_ek_t = int128_param_t<signedness::unsigned_type, representation_form::excess_k>;
-    using int128_ek_t = int128_param_t<signedness::signed_type, representation_form::excess_k>;
+    // Los alias locales se retiraron: ya los da `int128_parameterized.hpp`,
+    // y redeclararlos aqui sin la marca de deprecacion la perdia.
 
 } // namespace nstd
 

@@ -55,11 +55,14 @@ namespace nstd
             /// @brief Su negacion.
             constexpr bool operator!=(const uint256_result &other) const noexcept = default;
 
-            /// Lower 128 bits as uint128_t
-            inline uint128_t low128() const noexcept { return uint128_t{limbs[1], limbs[0]}; }
+            /// Lower 128 bits as uint128_interno_t
+            inline uint128_interno_t low128() const noexcept { return uint128_interno_t{limbs[1], limbs[0]}; }
 
-            /// Upper 128 bits as uint128_t
-            inline uint128_t high128() const noexcept { return uint128_t{limbs[3], limbs[2]}; }
+            /// Upper 128 bits as uint128_interno_t
+            inline uint128_interno_t high128() const noexcept
+            {
+                return uint128_interno_t{limbs[3], limbs[2]};
+            }
 
             /// Check if zero
             constexpr bool is_zero() const noexcept
@@ -83,7 +86,8 @@ namespace nstd
          * @param b Second 128-bit operand
          * @return Full 256-bit product
          */
-        inline uint256_result schoolbook_full_mul(const uint128_t &a, const uint128_t &b) noexcept
+        inline uint256_result schoolbook_full_mul(const uint128_interno_t &a,
+                                                  const uint128_interno_t &b) noexcept
         {
             const uint64_t a_L{a.low()};
             const uint64_t a_H{a.high()};
@@ -156,7 +160,8 @@ namespace nstd
          * @param b Second 128-bit operand
          * @return Full 256-bit product
          */
-        inline uint256_result karatsuba_full_mul(const uint128_t &a, const uint128_t &b) noexcept
+        inline uint256_result karatsuba_full_mul(const uint128_interno_t &a,
+                                                 const uint128_interno_t &b) noexcept
         {
             const uint64_t a_L{a.low()};
             const uint64_t a_H{a.high()};

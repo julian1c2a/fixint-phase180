@@ -52,6 +52,28 @@
 // Consteval/constexpr Granlund-Montgomery division by compile-time constants
 #if __has_include("int128_param_divmod.hpp")
 #include "int128_param_divmod.hpp"
+
+// =============================================================================
+// P1.5 tramo 2 -- la marca de deprecacion, y como callarla
+// =============================================================================
+//
+// `[[deprecated]]` NO rompe la compilacion: en este proyecto ningun job compila
+// con `-Werror` --comprobado el 23 sep 2026: el unico `-Werror` del repo es el
+// de `clang-format`--. Asi que avisa y deja pasar, que es lo que debe hacer un
+// tramo 2.
+//
+// Quien este migrando y no quiera el ruido define
+// `NSTD_SILENCIA_INT128_PARAM_DEPRECADO` antes de incluir. Lo hacen tambien los
+// 21 `tests/test_param_*.cpp`, que existen precisamente para probar el tipo que
+// se retira: avisarles no informa de nada.
+#if defined(NSTD_SILENCIA_INT128_PARAM_DEPRECADO)
+#define NSTD_INT128_PARAM_DEPRECADO
+#else
+#define NSTD_INT128_PARAM_DEPRECADO                                                                         \
+    [[deprecated("int128_param_t se retira en la 2.0 (ADR-006). Sustitutos en "                             \
+                 "docs/MIGRACION_int128_param.md; define NSTD_SILENCIA_INT128_PARAM_DEPRECADO para callar " \
+                 "este aviso mientras migras.")]]
+#endif
 #endif
 
 namespace nstd
@@ -1010,7 +1032,7 @@ namespace nstd
             // chunk with native 64-bit modulo (~1 cyc/digit vs ~30 cyc mulhi_128).
             // MAX128 ~ 3.4e38, so at most 3 chunks (2 full + 1 partial top).
 
-            char buf[40]; // max 39 digits for uint128_t
+            char buf[40]; // max 39 digits for uint128_interno_t
             int pos{39};
 
             if (n_hi == 0)
@@ -4915,17 +4937,69 @@ namespace nstd
     // Type Aliases
     // =============================================================================
 
-    // Unsigned (binnat only)
-    using uint128_t = int128_param_t<signedness::unsigned_type, representation_form::binnat>;
+    /// @name Alias internos, **sin marcar**
+    ///
+    /// Los usan las capas que se retiran junto con este tipo
+    /// --`algorithms/div_by_const.hpp` y `algorithms/karatsuba.hpp`--, que no
+    /// forman parte del camino de `fixed_int_t`: preprocesando
+    /// `fixed_width_int_t.hpp` no aparece ninguna de las dos.
+    ///
+    /// Existen para que la deprecacion avise a **quien usa la biblioteca** sin
+    /// llenar de avisos la compilacion del propio proyecto. Marcar un nombre
+    /// que la biblioteca todavia gasta pone el arbol en amarillo sin que nadie
+    /// haya hecho nada mal; es el mismo razonamiento de
+    /// [ADR-021](docs/decisions/ADR-021-un-nombre-por-operacion.md), decision 2.
+    ///
+    /// **No son API**: desaparecen con el tipo en la 2.0.
+    /// @{
+    using uint128_interno_t = int128_param_t<signedness::unsigned_type, representation_form::binnat>;
+    using int128_tc_interno_t = int128_param_t<signedness::signed_type, representation_form::twos_complement>;
+    using int128_ms_interno_t = int128_param_t<signedness::signed_type, representation_form::magnitude_sign>;
+    using int128_ek_interno_t = int128_param_t<signedness::signed_type, representation_form::excess_k>;
+    /// @}
 
-    // Signed (TC, MS, EK)
-    using int128_t = int128_param_t<signedness::signed_type, representation_form::twos_complement>;
-    using int128_tc_t = int128_param_t<signedness::signed_type, representation_form::twos_complement>;
-    using int128_ms_t = int128_param_t<signedness::signed_type, representation_form::magnitude_sign>;
-    using int128_ek_t = int128_param_t<signedness::signed_type, representation_form::excess_k>;
+    /// @name `int128_param_t`: DEPRECADO, se retira en la 2.0
+    ///
+    /// Marcados segun el tramo 2 de
+    /// [ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md).
+    /// La sustitucion esta escrita en
+    /// [docs/MIGRACION_int128_param.md](docs/MIGRACION_int128_param.md), y la
+    /// equivalencia es exacta: `fixed_int_t` se comporta igual en todo y se
+    /// distingue solo por lo que devuelven `limb()` y `limbs()`
+    /// ([ADR-018](docs/decisions/ADR-018-la-representacion-no-es-observable.md)).
+    ///
+    /// Para silenciar el aviso mientras se migra, definir
+    /// `NSTD_SILENCIA_INT128_PARAM_DEPRECADO` antes de incluir.
+    /// @{
 
-    // Legacy aliases (backward compatible)
-    using uint128_bn_t = uint128_t; // Binario Natural = default unsigned
+    /// @brief **Deprecado.** Usa `nstd::uint128_fixed_t`.
+    using uint128_t NSTD_INT128_PARAM_DEPRECADO = uint128_interno_t;
+
+    /// @brief **Deprecado.** Usa `nstd::int128_fixed_t`.
+    ///
+    /// @warning Este nombre **no se reapunta** al tipo nuevo, aunque el tramo 2
+    ///          de ADR-006 lo diera por libre: ya estaba ocupado por el tipo
+    ///          viejo desde antes. Reapuntarlo cambiaria el tipo bajo los pies
+    ///          del codigo existente sin que el compilador dijera nada, que es
+    ///          lo contrario de lo que una deprecacion debe hacer.
+    using int128_t NSTD_INT128_PARAM_DEPRECADO = int128_tc_interno_t;
+
+    /// @brief **Deprecado.** Usa `nstd::int128_fixed_t`.
+    using int128_tc_t NSTD_INT128_PARAM_DEPRECADO = int128_tc_interno_t;
+
+    /// @brief **Deprecado.** Usa
+    ///        `nstd::fixed_int_t<2, signedness::signed_type, representation_form::magnitude_sign>`.
+    using int128_ms_t NSTD_INT128_PARAM_DEPRECADO =
+        int128_param_t<signedness::signed_type, representation_form::magnitude_sign>;
+
+    /// @brief **Deprecado.** Usa
+    ///        `nstd::fixed_int_t<2, signedness::signed_type, representation_form::excess_k>`.
+    using int128_ek_t NSTD_INT128_PARAM_DEPRECADO =
+        int128_param_t<signedness::signed_type, representation_form::excess_k>;
+
+    /// @brief **Deprecado.** Usa `nstd::uint128_fixed_t`.
+    using uint128_bn_t NSTD_INT128_PARAM_DEPRECADO = uint128_interno_t;
+    /// @}
 
 } // namespace nstd
 

@@ -57,7 +57,7 @@ namespace nstd
      * // result.high128() == 1      (upper 128 bits)
      * @endcode
      */
-    inline uint256_t widening_mul(const uint128_t &a, const uint128_t &b) noexcept
+    inline uint256_t widening_mul(const uint128_interno_t &a, const uint128_interno_t &b) noexcept
     {
         return algorithms::karatsuba_full_mul(a, b);
     }
@@ -73,7 +73,10 @@ namespace nstd
      * misma operacion es deuda recien estrenada. El canonico existe en los dos
      * sitios, el antiguo se queda solo donde ya estaba.
      */
-    inline uint256_t mul_wide(const uint128_t &a, const uint128_t &b) noexcept { return widening_mul(a, b); }
+    inline uint256_t mul_wide(const uint128_interno_t &a, const uint128_interno_t &b) noexcept
+    {
+        return widening_mul(a, b);
+    }
 
     // ========================================================================
     // mulhi — Upper 128 bits of 128×128→256 multiplication
@@ -97,7 +100,7 @@ namespace nstd
      * // hi == MAX - 1 (upper half of MAX*MAX)
      * @endcode
      */
-    inline uint128_t mulhi(const uint128_t &a, const uint128_t &b) noexcept
+    inline uint128_interno_t mulhi(const uint128_interno_t &a, const uint128_interno_t &b) noexcept
     {
         return algorithms::karatsuba_full_mul(a, b).high128();
     }
@@ -116,7 +119,10 @@ namespace nstd
      * @param b Second 128-bit operand
      * @return Lower 128 bits of the 256-bit product
      */
-    inline uint128_t mullo(const uint128_t &a, const uint128_t &b) noexcept { return a * b; }
+    inline uint128_interno_t mullo(const uint128_interno_t &a, const uint128_interno_t &b) noexcept
+    {
+        return a * b;
+    }
 
 } // namespace nstd
 

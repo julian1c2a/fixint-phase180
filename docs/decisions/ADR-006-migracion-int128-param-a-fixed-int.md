@@ -253,3 +253,77 @@ momento de introducirla, antes de replicar la superficie del tipo viejo.
 - `docs/API_parameterized.md`: la que hay que replicar.
 - `AI_PROMPT/GENERAL_GUIDES/Explicación_del_Proyecto.md`: los 12 objetivos, entre
   ellos las cuatro representaciones.
+- [`docs/MIGRACION_int128_param.md`](../MIGRACION_int128_param.md): la guía de
+  migración que el tramo 2 exige, escrita el 23 sep 2026.
+
+---
+
+## Enmienda (23 sep 2026) — lo que el tramo 2 encontro al ejecutarse
+
+El tramo 2 se ejecuto el 23 sep 2026. Tres cosas que este ADR daba por hechas
+resultaron no serlo, y quedan aqui para que la 2.0 no las repita.
+
+### 1. El alias `int128_t` ya estaba ocupado
+
+El tramo 2, tal como esta escrito mas arriba, manda crear «un alias
+`int128_t = fixed_int_t<2, ...>` para que el codigo existente siga compilando».
+
+**Ese nombre ya existia, y apuntaba al tipo viejo**
+(`int128_parameterized.hpp`), desde antes de que se escribiera este ADR.
+
+Reapuntarlo habria cambiado el tipo bajo los pies del codigo existente **sin que
+el compilador dijera nada**: misma sintaxis, otro tipo, otra superficie de
+miembros --`high()`/`low()` frente a `limb(i)`--. Es lo contrario de lo que una
+deprecacion debe hacer.
+
+**Decidido:** `int128_t` se queda apuntando al tipo viejo y se depreca con los
+demas. El sustituto se llama `int128_fixed_t`, que es el nombre que la
+biblioteca ya usaba.
+
+### 2. El motivo por el que ADR-021 no uso `[[deprecated]]` no existe
+
+[ADR-021](ADR-021-un-nombre-por-operacion.md), decision 2, dice que los nombres
+antiguos no se marcan porque «el CI compila con `-Werror` en varios jobs».
+
+**Comprobado el 23 sep 2026: no hay un solo `-Werror` de compilacion en el
+repositorio.** El unico esta en la invocacion de `clang-format`. Ningun job de
+C++ lo usa.
+
+Eso no invalida ADR-021 --su segundo motivo,
+[ADR-012](ADR-012-no-se-mueve-un-tag-publicado.md), sigue en pie-- pero si
+desbloquea este tramo: `[[deprecated]]` avisa y deja pasar, que es exactamente
+lo que un tramo 2 necesita.
+
+### 3. Marcar la plantilla habria avisado a la biblioteca de si misma
+
+El problema que ADR-021 describia **si es real**, solo que estaba en otro sitio:
+la familia vieja usa sus propios alias en **128 puntos**, y dos capas de
+`algorithms/` --`div_by_const.hpp` (60 usos) y `karatsuba.hpp` (10)-- gastan
+`uint128_t`. Marcar sin mas habria puesto el arbol en amarillo sin que nadie
+hubiera hecho nada mal.
+
+**La solucion es una frontera explicita**, no una excepcion:
+
+- Cuatro alias **internos sin marcar** --`uint128_interno_t`,
+  `int128_tc_interno_t`, `int128_ms_interno_t`, `int128_ek_interno_t`-- para uso
+  **dentro** de la isla de legado.
+- Los seis alias publicos, marcados. Son lo que escribe quien **usa** la
+  biblioteca.
+- Los 128 usos internos y los 70 de las dos capas de algoritmo, reapuntados a
+  los internos. **Los comentarios no se tocaron**: ahi el nombre publico es el
+  correcto, porque describen lo que el usuario escribe.
+- Los 44 ficheros de `tests/` y `benchs/` que usan el tipo a proposito definen
+  `NSTD_SILENCIA_INT128_PARAM_DEPRECADO`. Avisarles no informa de nada y
+  enterraria los avisos de verdad.
+
+Verificado con una sonda de seis casos --con autoprueba-- que exige que el aviso
+**salte** para quien usa la biblioteca y **calle** para la biblioteca misma, el
+tipo nuevo y las capas de legado.
+
+### 4. Y una que este ADR acerto: el tipo nuevo ya estaba libre
+
+Preprocesando `fixed_width_int_t.hpp` con g++, el conjunto de cabeceras que
+arrastra contiene **cero** de la familia `int128_param`. La paridad no solo esta
+completa: la dependencia esta cortada. La retirada de la 2.0 es un borrado, no
+una cirugia.
+

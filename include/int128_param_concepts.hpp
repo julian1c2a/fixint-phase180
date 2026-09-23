@@ -70,7 +70,7 @@ namespace nstd
          * @brief Detects if a type is exactly uint128_t (unsigned binnat)
          */
         template <typename T>
-        struct is_uint128_impl : std::bool_constant<std::is_same_v<std::remove_cv_t<T>, uint128_t>>
+        struct is_uint128_impl : std::bool_constant<std::is_same_v<std::remove_cv_t<T>, uint128_interno_t>>
         {
         };
 
@@ -78,7 +78,8 @@ namespace nstd
          * @brief Detects if a type is exactly int128_tc_t (signed TC)
          */
         template <typename T>
-        struct is_int128_tc_impl : std::bool_constant<std::is_same_v<std::remove_cv_t<T>, int128_tc_t>>
+        struct is_int128_tc_impl
+            : std::bool_constant<std::is_same_v<std::remove_cv_t<T>, int128_tc_interno_t>>
         {
         };
 
@@ -86,7 +87,8 @@ namespace nstd
          * @brief Detects if a type is exactly int128_ms_t (signed MS)
          */
         template <typename T>
-        struct is_int128_ms_impl : std::bool_constant<std::is_same_v<std::remove_cv_t<T>, int128_ms_t>>
+        struct is_int128_ms_impl
+            : std::bool_constant<std::is_same_v<std::remove_cv_t<T>, int128_ms_interno_t>>
         {
         };
 
@@ -94,7 +96,8 @@ namespace nstd
          * @brief Detects if a type is exactly int128_ek_t (signed EK)
          */
         template <typename T>
-        struct is_int128_ek_impl : std::bool_constant<std::is_same_v<std::remove_cv_t<T>, int128_ek_t>>
+        struct is_int128_ek_impl
+            : std::bool_constant<std::is_same_v<std::remove_cv_t<T>, int128_ek_interno_t>>
         {
         };
 
@@ -382,77 +385,109 @@ namespace nstd
     {
 
         // --- Checks for uint128_t ---
-        static_assert(std::regular<uint128_t>, "uint128_t must satisfy std::regular");
-        static_assert(std::totally_ordered<uint128_t>, "uint128_t must satisfy std::totally_ordered");
-        static_assert(std::equality_comparable<uint128_t>, "uint128_t must be equality comparable");
-        static_assert(std::default_initializable<uint128_t>, "uint128_t must be default-constructible");
-        static_assert(std::copy_constructible<uint128_t>, "uint128_t must be copy-constructible");
-        static_assert(std::move_constructible<uint128_t>, "uint128_t must be move-constructible");
-        static_assert(std::assignable_from<uint128_t &, const uint128_t &>,
-                      "uint128_t must support assignment");
+        static_assert(std::regular<uint128_interno_t>, "uint128_interno_t must satisfy std::regular");
+        static_assert(std::totally_ordered<uint128_interno_t>,
+                      "uint128_interno_t must satisfy std::totally_ordered");
+        static_assert(std::equality_comparable<uint128_interno_t>,
+                      "uint128_interno_t must be equality comparable");
+        static_assert(std::default_initializable<uint128_interno_t>,
+                      "uint128_interno_t must be default-constructible");
+        static_assert(std::copy_constructible<uint128_interno_t>,
+                      "uint128_interno_t must be copy-constructible");
+        static_assert(std::move_constructible<uint128_interno_t>,
+                      "uint128_interno_t must be move-constructible");
+        static_assert(std::assignable_from<uint128_interno_t &, const uint128_interno_t &>,
+                      "uint128_interno_t must support assignment");
 
         // --- Checks for int128_tc_t (Two's Complement) ---
-        static_assert(std::regular<int128_tc_t>, "int128_tc_t must satisfy std::regular");
-        static_assert(std::totally_ordered<int128_tc_t>, "int128_tc_t must satisfy std::totally_ordered");
-        static_assert(std::equality_comparable<int128_tc_t>, "int128_tc_t must be equality comparable");
-        static_assert(std::default_initializable<int128_tc_t>, "int128_tc_t must be default-constructible");
-        static_assert(std::copy_constructible<int128_tc_t>, "int128_tc_t must be copy-constructible");
-        static_assert(std::move_constructible<int128_tc_t>, "int128_tc_t must be move-constructible");
-        static_assert(std::assignable_from<int128_tc_t &, const int128_tc_t &>,
-                      "int128_tc_t must support assignment");
+        static_assert(std::regular<int128_tc_interno_t>, "int128_tc_interno_t must satisfy std::regular");
+        static_assert(std::totally_ordered<int128_tc_interno_t>,
+                      "int128_tc_interno_t must satisfy std::totally_ordered");
+        static_assert(std::equality_comparable<int128_tc_interno_t>,
+                      "int128_tc_interno_t must be equality comparable");
+        static_assert(std::default_initializable<int128_tc_interno_t>,
+                      "int128_tc_interno_t must be default-constructible");
+        static_assert(std::copy_constructible<int128_tc_interno_t>,
+                      "int128_tc_interno_t must be copy-constructible");
+        static_assert(std::move_constructible<int128_tc_interno_t>,
+                      "int128_tc_interno_t must be move-constructible");
+        static_assert(std::assignable_from<int128_tc_interno_t &, const int128_tc_interno_t &>,
+                      "int128_tc_interno_t must support assignment");
 
         // --- Checks for int128_ms_t (Magnitude-Sign) ---
-        static_assert(std::regular<int128_ms_t>, "int128_ms_t must satisfy std::regular");
-        static_assert(std::totally_ordered<int128_ms_t>, "int128_ms_t must satisfy std::totally_ordered");
-        static_assert(std::equality_comparable<int128_ms_t>, "int128_ms_t must be equality comparable");
+        static_assert(std::regular<int128_ms_interno_t>, "int128_ms_interno_t must satisfy std::regular");
+        static_assert(std::totally_ordered<int128_ms_interno_t>,
+                      "int128_ms_interno_t must satisfy std::totally_ordered");
+        static_assert(std::equality_comparable<int128_ms_interno_t>,
+                      "int128_ms_interno_t must be equality comparable");
 
         // --- Size checks ---
-        static_assert(sizeof(uint128_t) == 16, "uint128_t must be 128 bits");
-        static_assert(sizeof(int128_tc_t) == 16, "int128_tc_t must be 128 bits");
-        static_assert(sizeof(int128_ms_t) == 16, "int128_ms_t must be 128 bits");
-        static_assert(sizeof(int128_ek_t) == 16, "int128_ek_t must be 128 bits");
+        static_assert(sizeof(uint128_interno_t) == 16, "uint128_interno_t must be 128 bits");
+        static_assert(sizeof(int128_tc_interno_t) == 16, "int128_tc_interno_t must be 128 bits");
+        static_assert(sizeof(int128_ms_interno_t) == 16, "int128_ms_interno_t must be 128 bits");
+        static_assert(sizeof(int128_ek_interno_t) == 16, "int128_ek_interno_t must be 128 bits");
 
         // --- Signedness checks ---
-        static_assert(int128_tc_t{-1} < int128_tc_t{0}, "int128_tc_t must handle negative values");
-        static_assert(int128_tc_t{1} > int128_tc_t{0}, "int128_tc_t must handle positive values");
-        static_assert(int128_ms_t{-1} < int128_ms_t{0}, "int128_ms_t must handle negative values");
+        static_assert(int128_tc_interno_t{-1} < int128_tc_interno_t{0},
+                      "int128_tc_interno_t must handle negative values");
+        static_assert(int128_tc_interno_t{1} > int128_tc_interno_t{0},
+                      "int128_tc_interno_t must handle positive values");
+        static_assert(int128_ms_interno_t{-1} < int128_ms_interno_t{0},
+                      "int128_ms_interno_t must handle negative values");
 
         // --- Type trait checks ---
-        static_assert(is_128bit_type_v<uint128_t>, "uint128_t must be detected as 128-bit type");
-        static_assert(is_128bit_type_v<int128_tc_t>, "int128_tc_t must be detected as 128-bit type");
-        static_assert(is_128bit_type_v<int128_ms_t>, "int128_ms_t must be detected as 128-bit type");
-        static_assert(is_128bit_type_v<int128_ek_t>, "int128_ek_t must be detected as 128-bit type");
+        static_assert(is_128bit_type_v<uint128_interno_t>,
+                      "uint128_interno_t must be detected as 128-bit type");
+        static_assert(is_128bit_type_v<int128_tc_interno_t>,
+                      "int128_tc_interno_t must be detected as 128-bit type");
+        static_assert(is_128bit_type_v<int128_ms_interno_t>,
+                      "int128_ms_interno_t must be detected as 128-bit type");
+        static_assert(is_128bit_type_v<int128_ek_interno_t>,
+                      "int128_ek_interno_t must be detected as 128-bit type");
 
-        static_assert(is_uint128_v<uint128_t>, "uint128_t must be detected as uint128");
-        static_assert(!is_uint128_v<int128_tc_t>, "int128_tc_t must not be detected as uint128");
+        static_assert(is_uint128_v<uint128_interno_t>, "uint128_interno_t must be detected as uint128");
+        static_assert(!is_uint128_v<int128_tc_interno_t>,
+                      "int128_tc_interno_t must not be detected as uint128");
 
-        static_assert(is_signed_int128_v<int128_tc_t>, "int128_tc_t must be detected as signed int128");
-        static_assert(is_signed_int128_v<int128_ms_t>, "int128_ms_t must be detected as signed int128");
-        static_assert(is_signed_int128_v<int128_ek_t>, "int128_ek_t must be detected as signed int128");
-        static_assert(!is_signed_int128_v<uint128_t>, "uint128_t must not be detected as signed int128");
+        static_assert(is_signed_int128_v<int128_tc_interno_t>,
+                      "int128_tc_interno_t must be detected as signed int128");
+        static_assert(is_signed_int128_v<int128_ms_interno_t>,
+                      "int128_ms_interno_t must be detected as signed int128");
+        static_assert(is_signed_int128_v<int128_ek_interno_t>,
+                      "int128_ek_interno_t must be detected as signed int128");
+        static_assert(!is_signed_int128_v<uint128_interno_t>,
+                      "uint128_interno_t must not be detected as signed int128");
 
         // --- Concept checks ---
-        static_assert(int128_type<uint128_t>, "uint128_t must satisfy int128_type");
-        static_assert(int128_type<int128_tc_t>, "int128_tc_t must satisfy int128_type");
-        static_assert(int128_type<int128_ms_t>, "int128_ms_t must satisfy int128_type");
-        static_assert(int128_type<int128_ek_t>, "int128_ek_t must satisfy int128_type");
+        static_assert(int128_type<uint128_interno_t>, "uint128_interno_t must satisfy int128_type");
+        static_assert(int128_type<int128_tc_interno_t>, "int128_tc_interno_t must satisfy int128_type");
+        static_assert(int128_type<int128_ms_interno_t>, "int128_ms_interno_t must satisfy int128_type");
+        static_assert(int128_type<int128_ek_interno_t>, "int128_ek_interno_t must satisfy int128_type");
 
-        static_assert(uint128_type<uint128_t>, "uint128_t must satisfy uint128_type");
-        static_assert(!uint128_type<int128_tc_t>, "int128_tc_t must not satisfy uint128_type");
+        static_assert(uint128_type<uint128_interno_t>, "uint128_interno_t must satisfy uint128_type");
+        static_assert(!uint128_type<int128_tc_interno_t>,
+                      "int128_tc_interno_t must not satisfy uint128_type");
 
-        static_assert(signed_int128_type<int128_tc_t>, "int128_tc_t must satisfy signed_int128_type");
-        static_assert(signed_int128_type<int128_ms_t>, "int128_ms_t must satisfy signed_int128_type");
-        static_assert(signed_int128_type<int128_ek_t>, "int128_ek_t must satisfy signed_int128_type");
-        static_assert(!signed_int128_type<uint128_t>, "uint128_t must not satisfy signed_int128_type");
+        static_assert(signed_int128_type<int128_tc_interno_t>,
+                      "int128_tc_interno_t must satisfy signed_int128_type");
+        static_assert(signed_int128_type<int128_ms_interno_t>,
+                      "int128_ms_interno_t must satisfy signed_int128_type");
+        static_assert(signed_int128_type<int128_ek_interno_t>,
+                      "int128_ek_interno_t must satisfy signed_int128_type");
+        static_assert(!signed_int128_type<uint128_interno_t>,
+                      "uint128_interno_t must not satisfy signed_int128_type");
 
-        static_assert(int128_tc_type<int128_tc_t>, "int128_tc_t must satisfy int128_tc_type");
-        static_assert(!int128_tc_type<int128_ms_t>, "int128_ms_t must not satisfy int128_tc_type");
+        static_assert(int128_tc_type<int128_tc_interno_t>, "int128_tc_interno_t must satisfy int128_tc_type");
+        static_assert(!int128_tc_type<int128_ms_interno_t>,
+                      "int128_ms_interno_t must not satisfy int128_tc_type");
 
-        static_assert(int128_ms_type<int128_ms_t>, "int128_ms_t must satisfy int128_ms_type");
-        static_assert(!int128_ms_type<int128_tc_t>, "int128_tc_t must not satisfy int128_ms_type");
+        static_assert(int128_ms_type<int128_ms_interno_t>, "int128_ms_interno_t must satisfy int128_ms_type");
+        static_assert(!int128_ms_type<int128_tc_interno_t>,
+                      "int128_tc_interno_t must not satisfy int128_ms_type");
 
-        static_assert(int128_ek_type<int128_ek_t>, "int128_ek_t must satisfy int128_ek_type");
-        static_assert(!int128_ek_type<int128_tc_t>, "int128_tc_t must not satisfy int128_ek_type");
+        static_assert(int128_ek_type<int128_ek_interno_t>, "int128_ek_interno_t must satisfy int128_ek_type");
+        static_assert(!int128_ek_type<int128_tc_interno_t>,
+                      "int128_tc_interno_t must not satisfy int128_ek_type");
 
     } // namespace int128_concept_checks
 

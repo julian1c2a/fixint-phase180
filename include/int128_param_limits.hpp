@@ -34,10 +34,10 @@ namespace std
     // ========================================================================
 
     template <>
-    class numeric_limits<nstd::uint128_t>
+    class numeric_limits<nstd::uint128_interno_t>
     {
     public:
-        using value_type = nstd::uint128_t;
+        using value_type = nstd::uint128_interno_t;
 
         static constexpr bool is_specialized = true;
         static constexpr bool is_signed = false;
@@ -79,10 +79,10 @@ namespace std
     // ========================================================================
 
     template <>
-    class numeric_limits<nstd::int128_tc_t>
+    class numeric_limits<nstd::int128_tc_interno_t>
     {
     public:
-        using value_type = nstd::int128_tc_t;
+        using value_type = nstd::int128_tc_interno_t;
 
         static constexpr bool is_specialized = true;
         static constexpr bool is_signed = true;
@@ -133,10 +133,10 @@ namespace std
     // ========================================================================
 
     template <>
-    class numeric_limits<nstd::int128_ms_t>
+    class numeric_limits<nstd::int128_ms_interno_t>
     {
     public:
-        using value_type = nstd::int128_ms_t;
+        using value_type = nstd::int128_ms_interno_t;
 
         static constexpr bool is_specialized = true;
         static constexpr bool is_signed = true;
@@ -189,10 +189,10 @@ namespace std
     // ========================================================================
 
     template <>
-    class numeric_limits<nstd::int128_ek_t>
+    class numeric_limits<nstd::int128_ek_interno_t>
     {
     public:
-        using value_type = nstd::int128_ek_t;
+        using value_type = nstd::int128_ek_interno_t;
 
         static constexpr bool is_specialized = true;
         static constexpr bool is_signed = true;

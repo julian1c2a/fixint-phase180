@@ -7,6 +7,10 @@
 //
 // Consolidates: test_priority5_string_io, test_priority5_string
 // =============================================================================
+// `int128_param_t` esta deprecado (P1.5 tramo 2, ADR-006) y este fichero lo usa
+// A PROPOSITO: prueba el tipo que se retira, o lo cruza contra el nuevo. Avisar
+// aqui no informa de nada y entierra los avisos de verdad. Se va entero en 1.90.
+#define NSTD_SILENCIA_INT128_PARAM_DEPRECADO
 
 #include "int128_parameterized.hpp"
 

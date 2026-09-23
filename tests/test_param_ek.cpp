@@ -12,6 +12,10 @@
 // Section 13 (Fase C):  EK <-> MS cross-representation round-trips
 // Section 14 (Fase C3): EK boundary values — TC_MIN/TC_MAX round-trips
 // =============================================================================
+// `int128_param_t` esta deprecado (P1.5 tramo 2, ADR-006) y este fichero lo usa
+// A PROPOSITO: prueba el tipo que se retira, o lo cruza contra el nuevo. Avisar
+// aqui no informa de nada y entierra los avisos de verdad. Se va entero en 1.90.
+#define NSTD_SILENCIA_INT128_PARAM_DEPRECADO
 
 #include "int128_parameterized.hpp"
 #include "int128_param_safe.hpp"
