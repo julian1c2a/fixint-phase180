@@ -65,12 +65,11 @@ LIVE_DOCS = ["README.md", "PROJECT_STATUS.md", "NEXT_STEPS.md", "CHANGELOG.md"]
 # Al anadir una version nueva: ejecutar `check_docs_consistency.py --doxygen`,
 # leer la cifra y apuntarla aqui con su fecha.
 DOXYGEN_BASELINE = {
-    "1.9.8":  518,   # ubuntu-24.04, la que usa el CI      — medido 26 ago 2026
-    # PENDIENTE: la de 1.9.8 sigue siendo la de agosto porque en esta maquina no
-    # hay doxygen 1.9.8 con que medirla --en WSL no esta instalado--. El CI la
-    # imprime en cada ejecucion; hay que leerla de la primera tras P3.7 y
-    # apuntarla aqui. Mientras tanto queda alta, que falla por el lado seguro:
-    # no detecta una subida, pero no deja el CI en rojo por un desfase.
+    "1.9.8":  286,   # ubuntu-24.04, la que usa el CI      — bajada 23 sep 2026 (P3.7; leida del log del CI sobre 7f37017, que es la unica forma: aqui no hay 1.9.8)
+    # La distancia entre las dos versiones NO es ruido que se pueda ignorar: 286
+    # contra 257, veintinueve avisos sobre el MISMO arbol. Por eso hay una cifra
+    # por version desde el 26 ago, cuando un unico numero absoluto dejo el CI en
+    # rojo con el arbol correcto.
     "1.18.0": 257,   # MSYS2, la de la maquina de trabajo  — bajada 23 sep 2026 (P3.7: los 209 de fixed_width_int_t y fixed_int_limits; 466-209=257)
 }
 
