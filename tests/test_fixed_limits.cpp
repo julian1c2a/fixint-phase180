@@ -50,15 +50,25 @@ static_assert(std::numeric_limits<i2>::is_exact);
 static_assert(std::numeric_limits<u2>::is_bounded);
 static_assert(std::numeric_limits<i2>::is_bounded);
 
-// is_modulo: true iff unsigned
+// is_modulo: sale de la POLITICA, no del signo (P3.8, 23 sep 2026).
+//
+// Estas ocho lineas decian `true iff unsigned`, copiando la convencion del
+// estandar. Ahi `is_modulo` es falso con signo **porque desbordar con signo es
+// comportamiento indefinido**, y de lo indefinido no se puede decir que sea
+// modular. Aqui no es indefinido: `wrap` envuelve, con signo y sin el (ADR-007).
+//
+// Estos ocho tipos son todos `wrap`, que es la politica por omision, asi que
+// los ocho son modulares. `tests/test_is_modulo.cpp` cubre la rejilla entera
+// --las dos politicas por las cuatro representaciones-- y ademas comprueba que
+// el rasgo no mienta: donde dice modular, que `max()+1` vuelva a `min()`.
 static_assert(std::numeric_limits<u1>::is_modulo);
 static_assert(std::numeric_limits<u2>::is_modulo);
 static_assert(std::numeric_limits<u4>::is_modulo);
 static_assert(std::numeric_limits<u8>::is_modulo);
-static_assert(!std::numeric_limits<i1>::is_modulo);
-static_assert(!std::numeric_limits<i2>::is_modulo);
-static_assert(!std::numeric_limits<i4>::is_modulo);
-static_assert(!std::numeric_limits<i8>::is_modulo);
+static_assert(std::numeric_limits<i1>::is_modulo);
+static_assert(std::numeric_limits<i2>::is_modulo);
+static_assert(std::numeric_limits<i4>::is_modulo);
+static_assert(std::numeric_limits<i8>::is_modulo);
 
 // radix
 static_assert(std::numeric_limits<u2>::radix == 2);

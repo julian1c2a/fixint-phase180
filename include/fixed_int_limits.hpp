@@ -44,7 +44,8 @@
 //   min() / max()  delegate to fixed_int_t<...>::min() / ::max()
 //   lowest()       = min()
 //   is_signed      true iff Sign == signed_type
-//   is_modulo      true iff Sign == unsigned_type   (signed overflow is UB)
+//   is_modulo      true iff Policy == wrap          (aqui envolver con signo
+//                                                    NO es UB: ADR-007)
 //   is_integer     true; is_exact true; is_bounded true; radix = 2
 
 #ifndef FIXED_INT_LIMITS_HPP
@@ -66,9 +67,10 @@ namespace std
     /// cualquier entero: `min()`, `max()`, `digits`, `is_signed`, etcetera. Lo
     /// unico que conviene destacar:
     ///
-    /// - `is_modulo` es **`true`** tambien para los tipos con signo. La
-    ///   aritmetica de esta biblioteca envuelve en vez de ser comportamiento
-    ///   indefinido, que es la diferencia deliberada con los `int` del lenguaje.
+    /// - `is_modulo` sale de la **politica**, no del signo: es `true` con
+    ///   `wrap` --tambien con signo, que es la diferencia deliberada con los
+    ///   `int` del lenguaje-- y `false` con `checked`, que marca en vez de
+    ///   envolver.
     /// - `digits` es `64 * N` sin signo y `64 * N - 1` con signo, descontando el
     ///   bit de signo.
     /// - No hay infinitos ni NaN: `has_infinity` y los `has_*_NaN` son `false`.
@@ -122,21 +124,28 @@ namespace std
         /// @brief Acotado por arriba y por abajo.
         static constexpr bool is_bounded = true;
 
-        /// @brief Cierto sin signo, falso con signo.
+        /// @brief Sale de la **politica**, no del signo.
         ///
-        /// @warning **Esto sigue la convencion del estandar, no el
-        ///          comportamiento de este tipo.** Ahi `is_modulo` es falso con
-        ///          signo porque desbordar con signo es comportamiento
-        ///          indefinido; **aqui no lo es**: `overflow_policy::wrap` esta
-        ///          definido y envuelve, con signo y sin el (ADR-007). Y con
-        ///          `checked` no envuelve ni con uno ni con otro: marca.
+        /// Cierto con `wrap` --con signo y sin el-- y falso con `checked`.
         ///
-        ///          Lo correcto seria `Policy == overflow_policy::wrap`, que es
-        ///          lo que hace `numeric_limits` de `fixed_point_t` (ADR-022,
-        ///          decision 6). No se cambia aqui porque es API publicada y el
-        ///          cambio merece su propia entrega; esta anotado en
-        ///          `NEXT_STEPS`.
-        static constexpr bool is_modulo = !is_signed;
+        /// @note El estandar lo pone a falso para los enteros con signo porque
+        ///       **ahi desbordar es comportamiento indefinido**, y de un
+        ///       comportamiento indefinido no se puede decir que sea modular.
+        ///       Aqui no es indefinido: `overflow_policy::wrap` esta escrito y
+        ///       envuelve modulo `2^(64N)`, tenga signo o no
+        ///       ([ADR-007](docs/decisions/ADR-007-politica-de-desbordamiento-como-parametro.md)).
+        ///       Copiar la convencion sin copiar el motivo es lo que hacia esta
+        ///       linea hasta el 23 sep 2026.
+        ///
+        /// @note Y con `checked` es **falso tambien sin signo**, que es la otra
+        ///       mitad del arreglo: ahi no se envuelve, se marca. Un tipo que
+        ///       marca en vez de envolver no es modular por mucho que no tenga
+        ///       signo.
+        ///
+        /// Coincide ahora con `numeric_limits` de `fixed_point_t`, que ya lo
+        /// hacia bien ([ADR-022](docs/decisions/ADR-022-numeric-limits-del-punto-fijo.md),
+        /// decision 6).
+        static constexpr bool is_modulo = (Policy == ::nstd::overflow_policy::wrap);
 
         /// @brief Bits de valor: `64*N`, menos uno si hay signo.
         static constexpr int digits = static_cast<int>(64 * N) - (is_signed ? 1 : 0);

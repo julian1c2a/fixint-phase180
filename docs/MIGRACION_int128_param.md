@@ -56,9 +56,11 @@ tiene nombre propio: `int128_fixed_t`.
 
 ---
 
-## Lo que cambia en el comportamiento: nada
+## Lo que cambia en el comportamiento: casi nada
 
-`fixed_int_t<2, S, F>` se comporta **igual que `int128_param_t<S, F>` en todo**.
+`fixed_int_t<2, S, F>` **calcula** igual que `int128_param_t<S, F>` en todo. Solo
+hay una diferencia, y es en un **rasgo**, no en una operacion: `is_modulo`,
+justo debajo.
 No es una promesa de diseño: está comprobado. `tests/test_fixed_vs_param.cpp`
 cruza los dos tipos operación por operación exigiendo resultados idénticos bit a
 bit, y `tests/test_fixed_differential.cpp` cruza el tipo nuevo contra un oráculo
@@ -67,6 +69,26 @@ independiente con **46.800 comprobaciones**.
 Las cuatro representaciones se comportan igual entre sí y **se distinguen solo
 por lo que devuelven `limb()` y `limbs()`**
 ([ADR-018](decisions/ADR-018-la-representacion-no-es-observable.md)).
+
+### Una cosa que **sí** cambia: `numeric_limits::is_modulo`
+
+Añadido el 23 sep 2026 (P3.8).
+
+| | `int128_param_t` | `fixed_int_t` |
+|---|---|---|
+| sin signo, `wrap` | `true` | `true` |
+| **con signo**, `wrap` | **`false`** | **`true`** |
+| cualquiera, `checked` | no existe la política | **`false`** |
+
+El tipo viejo copia la convención del estándar, donde `is_modulo` es falso con
+signo **porque desbordar con signo es comportamiento indefinido**. Aquí no lo
+es: `wrap` está escrito y envuelve, tenga signo o no
+([ADR-007](decisions/ADR-007-politica-de-desbordamiento-como-parametro.md)). El
+tipo nuevo dice la verdad sobre sí mismo.
+
+**Si tu código se ramifica sobre `is_modulo`**, míralo al migrar. Es el único
+sitio donde el tipo nuevo responde distinto, y responde distinto porque el viejo
+respondía mal.
 
 ### La única asimetría real
 
