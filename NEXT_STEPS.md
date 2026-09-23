@@ -29,6 +29,27 @@
 | **Paridad de parámetros** | ✅ **348/348 celdas** en la [matriz de paridad](docs/MATRIZ_DE_PARIDAD.md): 47 capacidades × **6** columnas —las de MS y EK se abrieron el 22 sep—, más las sondas del punto fijo, comprobadas **compilando** |
 | **ADR** | **22** registros, ninguna decisión sin documentar |
 
+> ## ⚠️ AL RETOMAR (24 sep 2026): hay un commit LOCAL SIN SUBIR
+>
+> `f1e9de5` (**P3.8**, `is_modulo`) está commiteado en local y **no está en
+> `origin`**. `origin/phase-1.80` va por `e5f8b75`.
+>
+> **Por qué no se subió:** la sesión se cerró por tiempo con la matriz a medias.
+> Solo pasó **gcc (72/72)** y el armonizador (9/9). Faltan clang, clang+libstdc++,
+> MSVC, Intel y WSL.
+>
+> **Lo primero, entonces, es terminar de verificarlo** --`python make.py test
+> <compilador> release-O2` para los cuatro que faltan, y `python make.py wsl`--
+> y, si sale verde, `git push origin phase-1.80` y vigilar el CI.
+>
+> Si algo falla, el sitio más probable es otro test que fije por escrito el
+> contrato viejo, como pasó con `tests/test_fixed_limits.cpp`. `test_param_*`
+> **no** debería fallar: son del tipo viejo, que conserva la convención del
+> estándar a propósito.
+>
+> Falta además la entrada de P3.8 en el CHANGELOG: está todo en el mensaje del
+> commit, no se ha perdido nada.
+
 **Lo primero al retomar: `python scripts/check_docs_consistency.py --doxygen`.**
 Con `--doxygen`, que es la orden que corre el CI; sin el flag son 7
 comprobaciones en vez de 9 y no sirve de nada.
@@ -239,7 +260,7 @@ el punto fijo.
 | **P3.5** | Documentar `int128_param_*` (**257** avisos) | **Caduca hacia atrás**: baja sola con P1.5. Desde P3.7 (23 sep) son **el techo entero**: los otros 209 ya están escritos. No se documenta lo que se va a borrar |
 | **P3.6** | Decidir si Intel sale de la matriz de release | Se cae solo si P0.6 sale bien |
 | ~~P3.7~~ | ~~**Documentar el tipo NUEVO: 209 miembros públicos sin `@brief`**~~ | ✅ **hecho (23 sep)**. Techo **466 → 257**, y los 257 restantes son **todos** de `int128_param_*`. De paso, dos defectos de marcado que hacían **perder documentación ya escrita** —un `@def` sin argumento y un `@example` en línea— y 45 avisos más en `intrinsics/`+`algorithms/`, que no cuentan contra el techo pero son el código que ejecutan los núcleos |
-| **P3.8** | **`numeric_limits<fixed_int_t>::is_modulo` miente**: vale `!is_signed`, copiando la convención del estándar, donde es falso con signo **porque desbordar con signo es UB**. Aquí no lo es: `wrap` está definido y envuelve con signo igual que sin él, y `checked` no envuelve ninguno de los dos. Lo correcto es `Policy == overflow_policy::wrap`, que es lo que ya hace el punto fijo ([ADR-022](docs/decisions/ADR-022-numeric-limits-del-punto-fijo.md), decisión 6) | Salió de P3.7, que lo dejó **documentado con un `@warning` y sin tocar**: es un cambio de comportamiento en API publicada y no cabía en una entrega de documentación |
+| **P3.8** 🔸 | *(hecho en local, `f1e9de5`, **sin subir**: falta la matriz)* — **`numeric_limits<fixed_int_t>::is_modulo` miente**: vale `!is_signed`, copiando la convención del estándar, donde es falso con signo **porque desbordar con signo es UB**. Aquí no lo es: `wrap` está definido y envuelve con signo igual que sin él, y `checked` no envuelve ninguno de los dos. Lo correcto es `Policy == overflow_policy::wrap`, que es lo que ya hace el punto fijo ([ADR-022](docs/decisions/ADR-022-numeric-limits-del-punto-fijo.md), decisión 6) | Salió de P3.7, que lo dejó **documentado con un `@warning` y sin tocar**: es un cambio de comportamiento en API publicada y no cabía en una entrega de documentación |
 | ~~P3.9~~ | ~~**Medir el techo de doxygen en 1.9.8**, la versión del CI~~ | ✅ **hecho (23 sep)**: **286**, leída del log del CI sobre `7f37017`. Llevaba en 518 desde agosto. La distancia con la local (257) son **29 avisos sobre el mismo árbol**, que es justo por lo que hay una cifra por versión |
 
 > ### ✅ P3.7 — «P3.5 caduca hacia atrás» era sólo medio cierto (21 sep 2026, cerrado el 23)
