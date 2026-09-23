@@ -194,20 +194,23 @@ se puede reordenar.
       rojo
 - [x] Documentado que `input_or_output_iterator` es falso **a propósito**
 
-## E3 — Cerrar los limbos: `<bit>` y `to_chars`
+## E3 — Cerrar los limbos: `<bit>` y `to_chars` ✅ **hecho (23 sep)**
 
 Lo que falta para que `fixed_int_t` llegue a 24/24.
 
-- [ ] `countl_one`, `countr_one`
-- [ ] `bit_ceil`, `bit_floor`, `has_single_bit`
-- [ ] `byteswap`
+- [x] `countl_one`, `countr_one` — sobre el patron en **complemento a dos**, no sobre los limbos guardados
+- [x] `bit_ceil`, `bit_floor`, `has_single_bit` — los negativos dan `0` y `1`, que es la extension coherente
+- [x] `byteswap` — y **no es involucion en Magnitud-Signo** cuando el intermedio cae en `-2^127`, que MS no puede guardar
 - [x] `midpoint` **con signo** — y de paso se arregló: no redondeaba hacia `a` (existe sin signo; el verificador lo sacó)
 - [x] `floor`, `ceil`, `round`, `trunc` **también para los enteros** — son la
       identidad, pero código genérico los llama y hoy no existen en ninguna forma
 - [x] ~~`sqrt` con signo~~ — hecho en E1 (ADR-021, decisión 3)
-- [ ] `to_chars` / `from_chars` con base, para las dos familias
-- [ ] Todos en las **cuatro** representaciones, cruzados contra complemento a
-      dos como fijó [ADR-018](decisions/ADR-018-la-representacion-no-es-observable.md)
+- [x] `to_chars` / `from_chars` con base — en `nstd::`, porque anadir sobrecargas a `std::` es UB, pero con **sus tipos de resultado**. `to_chars` saca las letras en **minuscula**, como `std::`, y `to_string` en mayuscula
+- [x] Todos en las **cuatro** representaciones, cruzados contra complemento a
+      dos como fijó [ADR-018](decisions/ADR-018-la-representacion-no-es-observable.md).
+      El cruce saco un **defecto real** --`from_string` perdia el signo al saturar
+      en Magnitud-Signo-- y **el alcance exacto** del ADR, que ahora esta escrito:
+      vale para todo valor que las cuatro puedan representar, y hay uno que no
 
 ## E4 — `numeric_limits` del punto fijo · **ADR-022** ✅ **hecho (23 sep)**
 

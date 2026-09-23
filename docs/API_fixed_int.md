@@ -417,6 +417,65 @@ aceptan ambos.
 
 ---
 
+## `<charconv>`: `to_chars` y `from_chars` (E3)
+
+**Viven en `nstd::`, no en `std::`.** No es una eleccion de estilo:
+`std::to_chars` y `std::from_chars` son funciones libres del estandar, y anadirles
+sobrecargas para un tipo propio es comportamiento indefinido. Lo que si se
+reutiliza son sus **tipos de resultado** --`std::to_chars_result` y
+`std::from_chars_result`, que son structs corrientes-- para que el codigo que ya
+los maneje no note la diferencia.
+
+| Funcion | Firma |
+|---|---|
+| `to_chars` | `(char* first, char* last, const T& v, int base = 10) -> std::to_chars_result` |
+| `from_chars` | `(const char* first, const char* last, T& v, int base = 10) -> std::from_chars_result` |
+
+### `to_chars`
+
+| Caso | `ptr` | `ec` |
+|---|---|---|
+| cabe | una posicion **despues** del ultimo escrito | `{}` |
+| no cabe | `last` | `std::errc::value_too_large` |
+| base fuera de `[2, 36]` | `first` | `std::errc::invalid_argument` |
+
+**No escribe terminador nulo**, igual que `std::to_chars`. Los negativos llevan
+`-`; nunca se escribe `+` ni prefijo de base.
+
+> **Las letras salen en MINUSCULA, y `to_string(base)` las saca en MAYUSCULA.**
+> Los dos son deliberados: esta funcion imita a `<charconv>`, donde el estandar
+> manda minusculas para las bases mayores que 10, y `to_string` conserva lo que
+> ya estaba publicado ([ADR-012](decisions/ADR-012-no-se-mueve-un-tag-publicado.md)).
+> Si hace falta mayuscula, `to_string` la da.
+>
+> Salio de comparar contra `std::to_chars` **de verdad** en las 35 bases. Contra
+> lo que uno recuerda del estandar, no habria salido.
+
+### `from_chars`
+
+| Caso | `ptr` | `ec` |
+|---|---|---|
+| bien | primer caracter **no consumido** | `{}` |
+| ni un digito valido | `first` | `std::errc::invalid_argument` |
+| no cabe en `64*N` bits | tras los digitos | `std::errc::result_out_of_range` |
+
+- **No salta espacios** y **no acepta `+`**, igual que `std::from_chars`. Un `-`
+  si, si el tipo tiene signo.
+- **No hace falta terminador nulo**: respeta `last`, asi que se le puede dar un
+  trozo de una cadena mayor.
+- **Si falla, no toca `v`.**
+- Para en el primer caracter que no vale **en esa base**: `"1234abc"` consume 4
+  caracteres en base 10 y los 7 en base 16.
+
+> **Un solo analizador, dos puertas.** `from_chars` normaliza el rango a un
+> buffer de pila acotado por el tipo --nunca por la entrada-- y llama a
+> `try_from_string`. Escribir un segundo analizador le habria dado una segunda
+> casa a los fallos del primero, y el primero tuvo uno que costo encontrar:
+> **perdia el signo al saturar en Magnitud-Signo**, devolviendo `+max` en vez de
+> `min` para `-2^(64N-1)`. Un valor entre `2^128`.
+
+---
+
 ## Desplazamientos con contador `fixed_int_t`
 
 El contador se satura a `64*N` cuando no cabe en `[0, 64N)` o es negativo, que es
@@ -456,6 +515,11 @@ En las firmas, `T` es `fixed_int_t<N, Sign, Form, Policy>` con cualquier signo, 
 | `bit_width` | `(const T& x) -> unsigned` | Bits necesarios para representarlo; 0 si es cero. | O(N) |
 | `has_single_bit` | `(const T& x) -> bool` | Un solo bit a uno **y no negativo**. Es el nombre de `<bit>` y el **canonico** (ADR-021). | O(N) |
 | `is_power_of_2` | `(const T& x) -> bool` | Lo mismo. Nombre anterior, conservado porque ya estaba publicado. | O(N) |
+| `countl_one` | `(const T& x) -> unsigned` | Unos por delante, sobre el patron en **complemento a dos**; `64*N` si todos son unos. Sin equivalente anterior (E3). | O(N) |
+| `countr_one` | `(const T& x) -> unsigned` | Unos por detras, mismo criterio. | O(N) |
+| `bit_floor` | `(const T& x) -> T` | Mayor potencia de dos que no pasa de `x`; **cero** si `x` es cero o negativo. **No puede desbordar.** | O(N) |
+| `bit_ceil` | `(const T& x) -> T` | Menor potencia de dos que llega a `x`; **uno** si `x` es cero o negativo. **Puede desbordar**, y manda `Policy`. | O(N) |
+| `byteswap` | `(const T& x) -> T` | Invierte los `8*N` bytes **del valor**, no de los limbos guardados. | O(N) |
 
 `rotl` y `rotr` rotan el patron de bits completo, sin tratar el signo aparte. El
 `rotl` de `int128_param_t` si lo trataba en Magnitud-Signo, pero eso es propio de
@@ -469,8 +533,22 @@ complemento a dos ([ADR-011](decisions/ADR-011-sin-signo-equivale-a-binnat.md)).
 
 > **Los dos nombres dan el mismo valor, y la matriz lo vigila.** Un alias que se
 > desincroniza compila igual, asi que la sonda no comprueba que los dos existan
-> sino que **coinciden** (ADR-021, decision 2). No llevan `[[deprecated]]`: el
-> CI compila con `-Werror` y la propia biblioteca usa `is_power_of_2`.
+> sino que **coinciden** (ADR-021, decision 2). No llevan `[[deprecated]]`
+> porque la propia biblioteca usa `is_power_of_2` y porque lo publicado no se
+> mueve ([ADR-012](decisions/ADR-012-no-se-mueve-un-tag-publicado.md)).
+>
+> Hasta el 23 sep 2026 esta nota decia ademas «el CI compila con `-Werror`».
+> **No es cierto**: el unico `-Werror` del repositorio es el de `clang-format`,
+> y ningun job de C++ lo usa. Lo destapo el tramo 2 de P1.5, que necesitaba
+> saberlo para poder marcar `int128_param_t`.
+
+> **`bit_ceil`, `byteswap` y el unico valor que Magnitud-Signo no tiene.**
+> `bit_ceil` al desbordar cae justo en `-2^(64N-1)`, y `byteswap(128)` da
+> exactamente ese valor. Complemento a dos y Exceso-K lo representan;
+> **Magnitud-Signo no** --su minimo es uno mas alto-- y satura. Por eso
+> `byteswap` **no es involucion en MS** para esas entradas. No es un fallo: es
+> el alcance exacto de ADR-018, que vale para todo valor que las cuatro
+> representaciones puedan tener, y hay **uno** que no.
 
 > **El recuento de bits opera sobre el VALOR, no sobre los limbos guardados**
 > (ADR-018). Hasta el 23 sep no era asi: `popcount` contaba ademas el bit del

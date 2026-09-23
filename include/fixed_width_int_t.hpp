@@ -89,6 +89,7 @@
 #include <algorithm>
 #include <array>
 #include <bitset>
+#include <charconv> // to_chars_result / from_chars_result (E3)
 #include <cmath>
 #include <compare>
 #include <cstddef>
@@ -3320,8 +3321,27 @@ namespace nstd
                 if (negative ? (mag > limit_neg) : (mag > limit_pos))
                     return {parse_error::overflow, fixed_int_t{}, static_cast<std::size_t>(p - s - 1)};
 
-                const fixed_int_t value{mag};
-                return {parse_error::success, negative ? -value : value, std::string::npos};
+                // EL VALOR SE CONSTRUYE EN COMPLEMENTO A DOS Y SE RECODIFICA.
+                //
+                // Construirlo en la representacion destino y negar despues se
+                // rompe en el limite. Con `mag == 2^(64N-1)` y signo negativo
+                // --el unico valor de los 2^128 donde pasa-- en Magnitud-Signo
+                // la magnitud NO CABE: satura al construir, la negacion opera
+                // ya sobre un valor mutilado, y el resultado salia `+max` en
+                // vez de `min`. **El signo se perdia.**
+                //
+                // En complemento a dos ese caso es natural: el patron de
+                // `2^(64N-1)` ES `min()`, y `-min()` envuelve a `min()`, que es
+                // justo lo que se quiere. Luego `desde_c2` satura al lado
+                // correcto --a `-(2^(64N-1) - 1)`-- porque eso ya lo resolvio
+                // ADR-017 y esta comprobado.
+                //
+                // Lo encontro el cruce de las cuatro representaciones de E3
+                // (ADR-018). Ningun valor al azar lo habria encontrado: es UNO
+                // entre 2^128.
+                using c2_t = tipo_en_c2;
+                const c2_t value{mag};
+                return {parse_error::success, desde_c2(negative ? -value : value), std::string::npos};
             }
             else
             {
@@ -6133,6 +6153,286 @@ namespace nstd
     [[nodiscard]] constexpr unsigned bit_width(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
     {
         return x.bit_width();
+    }
+
+    /// @brief Unos por delante. Nombre de `<bit>`, sin equivalente previo.
+    /// @param x Valor a examinar.
+    /// @return Cuantos bits a uno hay antes del primer cero, contando desde el
+    ///         bit mas significativo. `64*N` si todos son unos.
+    ///
+    /// @warning Cuenta sobre el patron en **complemento a dos**, no sobre los
+    ///          bits guardados. En Magnitud-Signo y Exceso-K no son lo mismo
+    ///          ([ADR-018](docs/decisions/ADR-018-la-representacion-no-es-observable.md)),
+    ///          y confundirlos costo seis fallos reales en el tramo 3 de P1.5.
+    ///
+    /// @note Con un tipo sin signo, `countl_one(max())` vale `64*N`. Con signo,
+    ///       vale `64*N` para `-1`, que es el que tiene todos los bits a uno.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr unsigned countl_one(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        return (~x.a_c2()).count_leading_zeros();
+    }
+
+    /// @brief Unos por detras. Nombre de `<bit>`, sin equivalente previo.
+    /// @param x Valor a examinar.
+    /// @return Cuantos bits a uno hay antes del primer cero, contando desde el
+    ///         bit menos significativo. `64*N` si todos son unos.
+    ///
+    /// @warning Igual que `countl_one`: cuenta sobre el patron en complemento a
+    ///          dos, no sobre los bits guardados.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr unsigned countr_one(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        return (~x.a_c2()).count_trailing_zeros();
+    }
+
+    /// @brief La mayor potencia de dos que **no pasa** de `x`. Nombre de `<bit>`.
+    /// @param x Valor a examinar.
+    /// @return `2^floor(log2(x))`, o **cero** si `x` es cero o negativo.
+    ///
+    /// @note `std::bit_floor` solo acepta tipos **sin signo**; aqui se acepta
+    ///       con signo y **los negativos dan cero**, que es la extension
+    ///       coherente: no hay ninguna potencia de dos --que son todas
+    ///       positivas-- por debajo de un numero negativo. Es la misma
+    ///       convencion que ya seguia `is_power_of_2`, que devuelve `false`
+    ///       para todo negativo ([ADR-021](docs/decisions/ADR-021-un-nombre-por-operacion.md)).
+    ///
+    /// @note **No puede desbordar**: el resultado nunca pasa de `x`.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    bit_floor(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        using T = fixed_int_t<N, Sign, Form, Policy>;
+        if (x.is_zero())
+            return T::zero();
+        if constexpr (Sign == signedness::signed_type)
+        {
+            if (x.is_negative())
+                return T::zero();
+        }
+        return T::one() << (x.bit_width() - 1U);
+    }
+
+    /// @brief La menor potencia de dos que **llega** a `x`. Nombre de `<bit>`.
+    /// @param x Valor a examinar.
+    /// @return `2^ceil(log2(x))`; **uno** si `x` es cero, negativo o uno.
+    ///
+    /// @note Los negativos dan `1` por la misma razon que en `bit_floor` dan
+    ///       `0`: `1` es la menor potencia de dos, y toda potencia de dos supera
+    ///       a cualquier negativo. Coincide ademas con `std::bit_ceil(0) == 1`.
+    ///
+    /// @warning **Si puede desbordar**, a diferencia de `bit_floor`. Cuando `x`
+    ///          pasa de la mayor potencia de dos representable, el resultado no
+    ///          cabe. `std::bit_ceil` llama a eso comportamiento indefinido;
+    ///          **aqui no lo es**: manda `Policy`
+    ///          ([ADR-007](docs/decisions/ADR-007-politica-de-desbordamiento-como-parametro.md)),
+    ///          porque el desplazamiento que lo calcula ya la respeta. Con
+    ///          `wrap` envuelve, con `checked` marca y con `saturate` satura.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    bit_ceil(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        using T = fixed_int_t<N, Sign, Form, Policy>;
+        if (x.is_zero())
+            return T::one();
+        if constexpr (Sign == signedness::signed_type)
+        {
+            if (x.is_negative())
+                return T::one();
+        }
+        if (is_power_of_2(x))
+            return x;
+        return T::one() << x.bit_width();
+    }
+
+    /// @brief Invierte el orden de los `8*N` bytes. Nombre de `<bit>`.
+    /// @param x Valor a invertir.
+    /// @return El valor cuyo byte `i` es el byte `8*N-1-i` de `x`.
+    ///
+    /// @warning Invierte los bytes del **valor en complemento a dos**, y
+    ///          recodifica al volver. No invierte los bytes guardados: en
+    ///          Magnitud-Signo y Exceso-K eso daria otra cosa, y la
+    ///          representacion no es observable (ADR-018).
+    ///
+    /// @note `byteswap(byteswap(x)) == x` para todo `x`. Es la unica propiedad
+    ///       que lo define sin ambiguedad, y la que comprueba el test.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    [[nodiscard]] constexpr fixed_int_t<N, Sign, Form, Policy>
+    byteswap(const fixed_int_t<N, Sign, Form, Policy> &x) noexcept
+    {
+        using T = fixed_int_t<N, Sign, Form, Policy>;
+        auto c2 = x.a_c2();
+        typename T::tipo_en_c2 r{};
+        for (std::size_t i = 0; i < N; ++i)
+        {
+            std::uint64_t v = c2.limb(N - 1U - i);
+            // invertir los 8 bytes del limbo
+            v = ((v & 0x00000000FFFFFFFFULL) << 32) | ((v & 0xFFFFFFFF00000000ULL) >> 32);
+            v = ((v & 0x0000FFFF0000FFFFULL) << 16) | ((v & 0xFFFF0000FFFF0000ULL) >> 16);
+            v = ((v & 0x00FF00FF00FF00FFULL) << 8) | ((v & 0xFF00FF00FF00FF00ULL) >> 8);
+            r.set_limb(i, v);
+        }
+        return T::desde_c2(r);
+    }
+    /// @}
+
+    /// @name `<charconv>`: conversion sin asignar memoria
+    ///
+    /// **Van en `nstd::`, no en `std::`**, y no es una eleccion: `std::to_chars`
+    /// y `std::from_chars` son funciones libres del estandar y anadirles
+    /// sobrecargas para un tipo propio es comportamiento indefinido. Lo que si
+    /// se reutiliza son sus **tipos de resultado**, que son structs corrientes,
+    /// para que el codigo que ya los maneje no note la diferencia.
+    ///
+    /// Se comportan como las del estandar salvo en una cosa: aceptan `base`,
+    /// como las de `std::` para enteros.
+    /// @{
+
+    /// @brief Escribe `value` en `[first, last)` sin asignar memoria.
+    ///
+    /// @param first Principio del hueco donde escribir.
+    /// @param last  Final del hueco, sin incluir.
+    /// @param value Valor a escribir.
+    /// @param base  Base de 2 a 36; 10 por omision.
+    ///
+    /// @return Un `std::to_chars_result`:
+    ///         - si cabe, `ptr` apunta **una posicion despues** del ultimo
+    ///           caracter escrito y `ec` vale `{}`;
+    ///         - si no cabe, `ptr == last` y `ec` vale
+    ///           `std::errc::value_too_large`, y **lo escrito no sirve**;
+    ///         - si la base no es valida, `ec` vale
+    ///           `std::errc::invalid_argument`.
+    ///
+    /// @note **No escribe terminador nulo**, igual que `std::to_chars`. Quien
+    ///       necesite una cadena lo pone a mano en `ptr`.
+    ///
+    /// @note Los negativos llevan `-` delante. No se escribe nunca `+`, ni
+    ///       prefijo de base: eso es tarea de quien llama.
+    ///
+    /// @warning **Las letras salen en minuscula**, como en `std::to_chars`, y
+    ///          **no como en `to_string(base)`, que las saca en mayuscula**. Los
+    ///          dos son deliberados: esta funcion imita a `<charconv>` y
+    ///          `to_string` conserva lo que ya estaba publicado (ADR-012). Si
+    ///          hace falta mayuscula, `to_string` la da.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    std::to_chars_result to_chars(char *first, char *last, const fixed_int_t<N, Sign, Form, Policy> &value,
+                                  int base = 10) noexcept
+    {
+        if (base < 2 || base > 36)
+            return {first, std::errc::invalid_argument};
+
+        const std::string s = value.to_string(base);
+        const std::size_t n = s.size();
+        if (static_cast<std::size_t>(last - first) < n)
+            return {last, std::errc::value_too_large};
+
+        // MINUSCULAS, porque `std::to_chars` las usa para las bases mayores que
+        // 10 y esta funcion existe para ser su homologa. `to_string` emite
+        // MAYUSCULAS y se queda como esta: lleva publicado desde antes y
+        // [ADR-012](docs/decisions/ADR-012-no-se-mueve-un-tag-publicado.md) dice
+        // que lo publicado no se mueve.
+        //
+        // Lo destapo comparar contra `std::to_chars` de verdad en las 35 bases,
+        // no contra lo que uno recuerda del estandar.
+        for (std::size_t i = 0; i < n; ++i)
+        {
+            const char c = s[i];
+            first[i] = (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
+        }
+        return {first + n, std::errc{}};
+    }
+
+    /// @brief Lee un valor de `[first, last)`.
+    ///
+    /// @param first Principio del texto.
+    /// @param last  Final del texto, sin incluir. **No hace falta que este
+    ///              terminado en nulo.**
+    /// @param value Donde dejar el resultado. **No se toca si falla.**
+    /// @param base  Base de 2 a 36; 10 por omision.
+    ///
+    /// @return Un `std::from_chars_result`:
+    ///         - si va bien, `ptr` apunta al primer caracter **no consumido** y
+    ///           `ec` vale `{}`;
+    ///         - si no hay ni un digito valido, `ptr == first` y `ec` vale
+    ///           `std::errc::invalid_argument`;
+    ///         - si el valor no cabe en `64*N` bits, `ec` vale
+    ///           `std::errc::result_out_of_range` y `value` **no se toca**.
+    ///
+    /// @note **No salta espacios** y **no acepta `+`**, igual que
+    ///       `std::from_chars`. Un `-` sí, si el tipo tiene signo.
+    ///
+    /// @warning El analisis lo hace `try_from_string`, que es el mismo de
+    ///          siempre. **Es a proposito**: escribir un segundo analizador
+    ///          daria una segunda casa a los fallos del primero, y el primero
+    ///          tuvo uno --perdia el signo al saturar en Magnitud-Signo-- que
+    ///          costo encontrar. Un solo analizador, dos puertas.
+    template <std::size_t N, signedness Sign, representation_form Form, overflow_policy Policy>
+    std::from_chars_result from_chars(const char *first, const char *last,
+                                      fixed_int_t<N, Sign, Form, Policy> &value, int base = 10) noexcept
+    {
+        using T = fixed_int_t<N, Sign, Form, Policy>;
+
+        if (base < 2 || base > 36 || first == nullptr || last < first)
+            return {first, std::errc::invalid_argument};
+
+        const char *p = first;
+        const bool negativo = (p != last && *p == '-' && Sign == signedness::signed_type);
+        if (negativo)
+            ++p;
+
+        // Cuantos digitos consume: hasta el primero que no valga en esta base.
+        const char *fin = p;
+        while (fin != last)
+        {
+            const char c = *fin;
+            unsigned d;
+            if (c >= '0' && c <= '9')
+                d = static_cast<unsigned>(c - '0');
+            else if (c >= 'a' && c <= 'z')
+                d = static_cast<unsigned>(c - 'a') + 10U;
+            else if (c >= 'A' && c <= 'Z')
+                d = static_cast<unsigned>(c - 'A') + 10U;
+            else
+                break;
+            if (d >= static_cast<unsigned>(base))
+                break;
+            ++fin;
+        }
+        if (fin == p)
+            return {first, std::errc::invalid_argument};
+
+        // Los ceros de delante no cuentan para saber si cabe, y quitarlos es lo
+        // que permite acotar el buffer: sin ellos, mas digitos que los que caben
+        // en `64*N` bits en la base mas corta significa que NO cabe, seguro.
+        const char *d0 = p;
+        while (d0 + 1 < fin && *d0 == '0')
+            ++d0;
+
+        // Cota: en base 2 hacen falta 64*N digitos, y ninguna base necesita mas.
+        constexpr std::size_t kMaxDigitos = 64U * N;
+        const std::size_t ndig = static_cast<std::size_t>(fin - d0);
+        if (ndig > kMaxDigitos)
+            return {fin, std::errc::result_out_of_range};
+
+        // Se normaliza a una cadena terminada para reutilizar `try_from_string`.
+        // El buffer es de pila y su tamaño esta acotado por el tipo, no por la
+        // entrada: +2 por el signo y el terminador.
+        char buf[kMaxDigitos + 2];
+        std::size_t k = 0;
+        if (negativo)
+            buf[k++] = '-';
+        for (const char *q = d0; q != fin; ++q)
+            buf[k++] = *q;
+        buf[k] = '\0';
+
+        const parse_result<T> r = T::try_from_string(buf, base);
+        if (r.error == parse_error::overflow)
+            return {fin, std::errc::result_out_of_range};
+        if (!r.success())
+            return {first, std::errc::invalid_argument};
+
+        value = r.value;
+        return {fin, std::errc{}};
     }
     /// @}
 

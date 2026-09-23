@@ -97,6 +97,54 @@ distinta, y el test cruza las dos formas para comprobar que coinciden.
 Magnitud-Signo **no** tiene esa propiedad: `-1` es `0x8…01` y `-2` es `0x8…02`,
 así que por representación saldría `-1 < -2`, que es falso. Ahí se decodifica.
 
+
+### El alcance exacto: «en todo» significa **para todo valor que las cuatro tengan**
+
+Añadido el 23 sep 2026, al escribir E3.
+
+La frase de arriba --«dan lo mismo en todo»-- es la premisa sobre la que
+descansa **toda la disciplina de cruce** de este proyecto: cada test nuevo
+compara las cuatro representaciones y exige que coincidan. Conviene que diga
+exactamente lo que se puede sostener.
+
+**Magnitud-Signo no puede representar `-2^(64N-1)`.** Su mínimo es uno más alto,
+`-(2^(64N-1) - 1)`, porque el cero negativo ocupa ese hueco
+([ADR-017](ADR-017-magnitud-signo-y-exceso-k-como-codificaciones.md)). Es **un
+valor** de los `2^(64N)` posibles, y es el único.
+
+Así que la afirmación correcta es:
+
+> Las cuatro representaciones dan lo mismo **para todo valor que las cuatro
+> puedan representar**. Hay exactamente uno que no, y ahí Magnitud-Signo satura.
+
+Y eso tiene dos consecuencias que no son obvias y que hay que comprobar por
+separado, porque aparecen **en el resultado**, no en la entrada:
+
+| | Qué pasa |
+|---|---|
+| `byteswap` | **No es involución en MS** cuando el intermedio cae ahí. `byteswap(128)` da exactamente `-2^127`, que MS no tiene, así que la vuelta parte de otro número |
+| `bit_ceil` | Al desbordar cae justo en `-2^(64N-1)`: complemento a dos y Exceso-K **envuelven** hasta ese valor, Magnitud-Signo **satura** a uno más alto |
+
+**Cómo se prueba esto sin volverlo vacuo.** Un test que simplemente saltara esos
+casos estaría tapándolos. Lo que se hace es partirlo en dos:
+
+1. El cruce **salta por valor** --no por el caso concreto--: si lo que MS guarda
+   no es lo que se pidió, ese caso no entra en el cruce. Si mañana apareciera
+   otra saturación, se saltaría también y el test seguiría diciendo la verdad.
+2. Y aparte se **exige lo que sí se puede exigir**: que MS caiga en su propio
+   `min()`, con el signo puesto, y no en cualquier sitio.
+
+El test lleva además una comprobación de que **algo se salta**: si no se saltara
+nada, sería que MS representa `-2^(64N-1)`, y entonces este ADR estaría mal.
+
+**Lo destapó E3, y de paso un defecto real:** `from_string` en Magnitud-Signo
+saturaba al lado contrario --devolvía `+max` en vez de `min`, **perdiendo el
+signo**--. Construía el valor en la representación destino y negaba después;
+con esa magnitud MS satura al construir y la negación ya operaba sobre un valor
+mutilado. Ahora se construye en complemento a dos y se recodifica, que es el
+camino que `desde_c2` ya tenía bien. Es **un valor entre 2^128**: ningún
+operando aleatorio lo encuentra jamás.
+
 ## Alternativas descartadas
 
 **Operar sobre la representación** (lo que hace el tipo viejo en MS). Es más
