@@ -1,3 +1,116 @@
+## [sin publicar] - 2026-09-23 - P1.5 tramo 2: **`int128_param_t` queda deprecado**
+
+El tramo 2 de
+[ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md): se
+anuncia la retirada, **nada deja de compilar**. El borrado es el primer objetivo
+de la 1.90.
+
+`[[deprecated]]` avisa y deja pasar. En este proyecto **ningun job compila con
+`-Werror`** --comprobado: el unico del repositorio es el de `clang-format`--, asi
+que el aviso no rompe a nadie.
+
+### LA FRONTERA: DENTRO NOMBRES INTERNOS, FUERA NOMBRES MARCADOS
+
+Marcar sin mas habria puesto el arbol en amarillo sin que nadie hubiera hecho
+nada mal: la familia vieja usa sus propios alias en **128 puntos**, y dos capas
+de `algorithms/` gastan `uint128_t` en **70** mas.
+
+Eso es exactamente el problema por el que [ADR-021](docs/decisions/ADR-021-un-nombre-por-operacion.md)
+decidio no marcar los nombres antiguos. La solucion no es una excepcion, es una
+frontera:
+
+| | |
+|---|---|
+| **Dentro de la isla de legado** | cuatro alias **sin marcar**: `uint128_interno_t`, `int128_tc_interno_t`, `int128_ms_interno_t`, `int128_ek_interno_t` |
+| **Fuera** | los seis publicos, marcados: `uint128_t`, `int128_t`, `int128_tc_t`, `int128_ms_t`, `int128_ek_t`, `uint128_bn_t` |
+| **Los que lo usan a proposito** | 44 ficheros de `tests/` y `benchs/` definen `NSTD_SILENCIA_INT128_PARAM_DEPRECADO` |
+
+**Los comentarios no se tocaron.** Ahi el nombre publico es el correcto, porque
+describen lo que el usuario escribe, no lo que la biblioteca ejecuta.
+
+### SONDA CON AUTOPRUEBA: SEIS CASOS
+
+Un marcado que no avisa a nadie es peor que no marcar, porque parece hecho. La
+sonda exige las dos direcciones:
+
+| Caso | Debe avisar |
+|---|---|
+| usuario escribe `uint128_t` | **si** |
+| usuario escribe `int128_tc_t` | **si** |
+| usuario lo calla con la macro | no |
+| el tipo **nuevo**, solo | no |
+| la familia vieja entera | no |
+| las dos capas de algoritmo de legado | no |
+
+Los seis como deben. Y **la suite compila con cero avisos de deprecacion**: 69/69
+en los CINCO compiladores sin un solo `deprecat` en el log.
+
+#### Y una segunda sonda, porque la primera solo probaba g++
+
+Un atributo que un compilador ignora en silencio deja el tramo 2 en adorno para
+esos usuarios, y nada lo delata: el marcado esta puesto, la sonda en verde y el
+aviso sin salir. Asi que se comprobo **compilador por compilador** que el aviso
+salta y que la macro lo calla:
+
+| | avisa | calla con la macro |
+|---|---|---|
+| g++ | si | si |
+| clang + libc++ | si | si |
+| clang + libstdc++ | si | si |
+| **MSVC** | si (`C4996`) | si |
+| **Intel `icpx`** | si | si |
+
+MSVC **no dice «deprecated»**, dice `C4996`. Un patron que solo buscara la
+palabra habria dado «no avisa» sobre un compilador que si avisa. El patron los
+cubre a los dos.
+
+Intel fallo el primer intento por los **flags de la sonda**, no por el codigo:
+`icpx` aqui toma flags estilo GNU y se le estaban pasando los de MSVC. Lo dijo
+el propio compilador --`unknown argument: '-std:c++20'`--, que es la diferencia
+entre leer el error y leer el codigo de salida.
+
+### TRES COSAS QUE EL PLAN DABA POR HECHAS Y NO LO ESTABAN
+
+**1. El alias que ADR-006 mandaba crear ya estaba ocupado.** El tramo 2 dice
+«crear un alias `int128_t = fixed_int_t<2, ...>` para que el codigo existente
+siga compilando». **`int128_t` ya existia**, y era el tipo viejo, desde antes de
+que se escribiera el ADR. Reapuntarlo habria cambiado el tipo bajo los pies del
+codigo existente **sin que el compilador dijera nada**: misma sintaxis, otro
+tipo, otra superficie de miembros. Se queda apuntando al viejo, deprecado con
+los demas; el sustituto es `int128_fixed_t`, que ya existia.
+
+**2. El motivo por el que ADR-021 no marco los nombres antiguos no existe.** Dice
+que «el CI compila con `-Werror` en varios jobs». No hay **ninguno**. Su segundo
+motivo --ADR-012, lo publicado no se mueve-- si sigue en pie, pero el mecanico
+era falso y bloqueaba este tramo sin razon.
+
+**3. La dependencia ya estaba cortada.** Preprocesando `fixed_width_int_t.hpp`
+con g++, el conjunto de cabeceras que arrastra contiene **cero** de la familia
+`int128_param`. La unica arista de `algorithms/` al tipo viejo es
+`karatsuba.hpp`, y esa no esta en el camino nuevo. **La retirada de la 1.90 es un
+borrado, no una cirugia.**
+
+### DOCUMENTOS
+
+`docs/MIGRACION_int128_param.md` (nuevo): la tabla de sustituciones, lo que
+cambia de comportamiento (**nada**), lo que se gana al migrar, los dos miembros
+que cambian de nombre --`high()`/`low()` pasan a `limb(i)`-- y el aviso de que en
+Magnitud-Signo y Exceso-K **los limbos no son el valor**.
+
+ADR-006 gana una enmienda con los cuatro hallazgos de arriba.
+
+### VERIFICADO
+
+  - Suite en los cinco compiladores de Windows, `release-O2`: 69/69 cada uno,
+    **cero avisos de deprecacion** en la compilacion propia.
+  - `clang-format --dry-run --Werror` con la **21 y la 22** sobre los 142
+    ficheros: 0 sin formatear. Los cinco que se descolocaron --por los nombres
+    internos, mas largos-- se formatearon con la 21 primero, que es la del CI.
+  - `check_docs_consistency.py --doxygen`: 9/9, techo clavado en 257 y el
+    desglose por fichero **identico** al de antes.
+
+---
+
 ## [sin publicar] - 2026-09-23 - P3.7: **el techo de Doxygen baja de 466 a 257**
 
 Solo documentacion y dos defectos de marcado. Ni una linea de codigo cambia de
