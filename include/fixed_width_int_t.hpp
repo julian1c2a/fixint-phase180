@@ -1155,6 +1155,7 @@ namespace nstd
         // Assignment
         // =========================================================================
 
+        /// @brief Asigna un entero del lenguaje, convertido como lo haria el constructor.
         template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr fixed_int_t &operator=(T v) noexcept
@@ -1168,6 +1169,8 @@ namespace nstd
         constexpr fixed_int_t &operator=(__int128 v) noexcept { return *this = fixed_int_t{v}; }
 #endif
 
+        /// @brief Asigna desde otra anchura o forma: convierte por valor, no por limbos
+        ///        (ADR-018). Satura en Magnitud-Signo si el valor es el minimo.
         template <std::size_t M, signedness S2, representation_form F2,
                   typename = std::enable_if_t<(M != N || S2 != Sign || F2 != Form)>>
         constexpr fixed_int_t &operator=(const fixed_int_t<M, S2, F2> &o) noexcept
@@ -1175,6 +1178,7 @@ namespace nstd
             return *this = fixed_int_t{o};
         }
 
+        /// @brief Asigna desde un flotante, truncando hacia cero la parte fraccionaria.
         template <typename F, std::enable_if_t<std::is_floating_point_v<F>, int> = 0>
         fixed_int_t &operator=(F v) noexcept
         {
@@ -1263,8 +1267,11 @@ namespace nstd
         // Explicit conversions
         // =========================================================================
 
+        /// @brief Cierto si el valor no es cero. `explicit`: vale en un `if`, no en una suma.
         [[nodiscard]] explicit constexpr operator bool() const noexcept { return !is_zero(); }
 
+        /// @brief Convierte a un entero del lenguaje quedandose con los bits bajos, como
+        ///        hace una conversion estrechante del lenguaje.
         template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
         [[nodiscard]] explicit constexpr operator T() const noexcept
@@ -1272,6 +1279,7 @@ namespace nstd
             return static_cast<T>(data[0]);
         }
 
+        /// @brief Vuelca los `8N` bytes en orden **little-endian**.
         [[nodiscard]] explicit constexpr operator std::array<std::byte, N * 8>() const noexcept
         {
             std::array<std::byte, N * 8> result{};
@@ -1281,6 +1289,7 @@ namespace nstd
             return result;
         }
 
+        /// @brief Vuelca los `64N` bits, con el bit 0 en la posicion 0.
         [[nodiscard]] explicit constexpr operator std::bitset<64 *N>() const noexcept
         {
             std::bitset<64 * N> result{};
@@ -1306,6 +1315,8 @@ namespace nstd
         }
 #endif
 
+        /// @brief Convierte a flotante. Pierde precision en cuanto el valor no cabe en la
+        ///        mantisa, y por eso es `explicit`.
         template <typename F, std::enable_if_t<std::is_floating_point_v<F>, int> = 0>
         [[nodiscard]] explicit operator F() const noexcept
         {
@@ -1355,6 +1366,7 @@ namespace nstd
                 return data == o.data;
         }
 
+        /// @brief Desigualdad, negando `operator==`.
         constexpr bool operator!=(const fixed_int_t &o) const noexcept { return !(*this == o); }
 
         /// @brief Menor que, con **orden total** aunque haya invalidos.
@@ -1407,10 +1419,13 @@ namespace nstd
             return false;
         }
 
+        /// @brief Menor o igual, como `!(o < *this)`.
         constexpr bool operator<=(const fixed_int_t &o) const noexcept { return !(o < *this); }
 
+        /// @brief Estrictamente mayor, como `o < *this`.
         constexpr bool operator>(const fixed_int_t &o) const noexcept { return o < *this; }
 
+        /// @brief Mayor o igual, como `!(*this < o)`.
         constexpr bool operator>=(const fixed_int_t &o) const noexcept { return !(*this < o); }
 
         // Three-way comparison (C++20). Coexists with the 6 manual comparators
@@ -1461,6 +1476,7 @@ namespace nstd
         // El tipo viejo hacia lo contrario --operar sobre la magnitud-- y su `~`
         // estaba roto por eso: `~mag` pone a uno el bit de signo. Aqui ese error
         // no cabe, porque no se tocan los bits de la representacion.
+        /// @brief Complemento a uno de los `64N` bits **almacenados**.
         constexpr fixed_int_t operator~() const noexcept
         {
             if constexpr (representacion_codificada)
@@ -1474,6 +1490,7 @@ namespace nstd
             }
         }
 
+        /// @brief Y bit a bit, limbo a limbo.
         constexpr fixed_int_t operator&(const fixed_int_t &o) const noexcept
         {
             if constexpr (representacion_codificada)
@@ -1487,6 +1504,7 @@ namespace nstd
             }
         }
 
+        /// @brief O bit a bit, limbo a limbo.
         constexpr fixed_int_t operator|(const fixed_int_t &o) const noexcept
         {
             if constexpr (representacion_codificada)
@@ -1500,6 +1518,7 @@ namespace nstd
             }
         }
 
+        /// @brief O exclusivo bit a bit, limbo a limbo.
         constexpr fixed_int_t operator^(const fixed_int_t &o) const noexcept
         {
             if constexpr (representacion_codificada)
@@ -1513,18 +1532,21 @@ namespace nstd
             }
         }
 
+        /// @brief Y bit a bit en el sitio.
         constexpr fixed_int_t &operator&=(const fixed_int_t &o) noexcept
         {
             *this = *this & o;
             return *this;
         }
 
+        /// @brief O bit a bit en el sitio.
         constexpr fixed_int_t &operator|=(const fixed_int_t &o) noexcept
         {
             *this = *this | o;
             return *this;
         }
 
+        /// @brief O exclusivo bit a bit en el sitio.
         constexpr fixed_int_t &operator^=(const fixed_int_t &o) noexcept
         {
             *this = *this ^ o;
@@ -1594,6 +1616,8 @@ namespace nstd
         }
 
         // Right shift: logical for unsigned, arithmetic for signed
+        /// @brief Desplaza a la derecha. **Aritmetico con signo** (replica el bit alto),
+        ///        logico sin el. Un desplazamiento de `>= 64N` da 0 o -1, no es UB.
         constexpr fixed_int_t operator>>(unsigned shift) const noexcept
         {
             if constexpr (representacion_codificada)
@@ -1635,6 +1659,7 @@ namespace nstd
             }
         }
 
+        /// @brief Desplaza a la izquierda en el sitio.
         constexpr fixed_int_t &operator<<=(unsigned shift) noexcept
         {
             if constexpr (representacion_codificada)
@@ -1651,6 +1676,7 @@ namespace nstd
             return *this;
         }
 
+        /// @brief Desplaza a la derecha en el sitio.
         constexpr fixed_int_t &operator>>=(unsigned shift) noexcept
         {
             if constexpr (representacion_codificada)
@@ -1720,24 +1746,28 @@ namespace nstd
             return static_cast<unsigned>(low);
         }
 
+        /// @brief Desplaza a la izquierda tomando la cuenta de otro `fixed_int_t`.
         template <std::size_t M, signedness S2, representation_form F2>
         constexpr fixed_int_t operator<<(const fixed_int_t<M, S2, F2> &shift) const noexcept
         {
             return *this << shift_count_of(shift);
         }
 
+        /// @brief Desplaza a la derecha tomando la cuenta de otro `fixed_int_t`.
         template <std::size_t M, signedness S2, representation_form F2>
         constexpr fixed_int_t operator>>(const fixed_int_t<M, S2, F2> &shift) const noexcept
         {
             return *this >> shift_count_of(shift);
         }
 
+        /// @brief Como `operator<<`, en el sitio.
         template <std::size_t M, signedness S2, representation_form F2>
         constexpr fixed_int_t &operator<<=(const fixed_int_t<M, S2, F2> &shift) noexcept
         {
             return *this <<= shift_count_of(shift);
         }
 
+        /// @brief Como `operator>>`, en el sitio.
         template <std::size_t M, signedness S2, representation_form F2>
         constexpr fixed_int_t &operator>>=(const fixed_int_t<M, S2, F2> &shift) noexcept
         {
@@ -1759,6 +1789,7 @@ namespace nstd
         // La marca de `checked` viaja dentro del valor, asi que la propagacion y
         // la deteccion de desbordamiento siguen ocurriendo una sola vez, en el
         // camino de complemento a dos, y llegan aqui ya puestas.
+        /// @brief Suma. Envuelve o marca segun `Policy` (ADR-007).
         constexpr fixed_int_t operator+(const fixed_int_t &o) const noexcept
         {
             if constexpr (representacion_codificada)
@@ -1796,6 +1827,7 @@ namespace nstd
             return r;
         }
 
+        /// @brief Resta. Envuelve o marca segun `Policy` (ADR-007).
         constexpr fixed_int_t operator-(const fixed_int_t &o) const noexcept
         {
             if constexpr (representacion_codificada)
@@ -1861,6 +1893,7 @@ namespace nstd
         /// Unary plus — returns a copy. Mirrors built-in `+x` semantics.
         constexpr fixed_int_t operator+() const noexcept { return *this; }
 
+        /// @brief Suma en el sitio.
         constexpr fixed_int_t &operator+=(const fixed_int_t &o) noexcept
         {
             // Los compuestos tienen camino rapido propio, que manipula `data`
@@ -1896,6 +1929,7 @@ namespace nstd
             return *this;
         }
 
+        /// @brief Resta en el sitio.
         constexpr fixed_int_t &operator-=(const fixed_int_t &o) noexcept
         {
             // Los compuestos tienen camino rapido propio, que manipula `data`
@@ -1929,12 +1963,14 @@ namespace nstd
             return *this;
         }
 
+        /// @brief Preincremento: suma uno y devuelve el valor **ya incrementado**.
         constexpr fixed_int_t &operator++() noexcept
         {
             *this += one();
             return *this;
         }
 
+        /// @brief Postincremento: suma uno y devuelve el valor **anterior**.
         constexpr fixed_int_t operator++(int) noexcept
         {
             fixed_int_t tmp{*this};
@@ -1942,12 +1978,14 @@ namespace nstd
             return tmp;
         }
 
+        /// @brief Predecremento: resta uno y devuelve el valor **ya decrementado**.
         constexpr fixed_int_t &operator--() noexcept
         {
             *this -= one();
             return *this;
         }
 
+        /// @brief Postdecremento: resta uno y devuelve el valor **anterior**.
         constexpr fixed_int_t operator--(int) noexcept
         {
             fixed_int_t tmp{*this};
@@ -1980,6 +2018,7 @@ namespace nstd
         // `NSTD_TOOM3_MIN`. Cada umbral lleva su `@def` con las medidas.
         // =========================================================================
 
+        /// @brief Multiplica, quedandose con los `64N` bits bajos del producto.
         constexpr fixed_int_t operator*(const fixed_int_t &o) const noexcept
         {
             if constexpr (representacion_codificada)
@@ -2114,6 +2153,7 @@ namespace nstd
             return r;
         }
 
+        /// @brief Multiplica en el sitio.
         constexpr fixed_int_t &operator*=(const fixed_int_t &o) noexcept
         {
             // Los compuestos tienen camino rapido propio, que manipula `data`
@@ -2437,16 +2477,22 @@ namespace nstd
             return {q, fixed_int_t{r}};
         }
 
+        /// @brief Cociente truncado hacia cero. Lanza `std::domain_error` si `o` es cero
+        ///        (ADR-004): dividir por cero no es UB aqui.
         constexpr fixed_int_t operator/(const fixed_int_t &o) const { return divmod(*this, o).first; }
 
+        /// @brief Resto de esa misma division, con el signo del dividendo. Lanza
+        ///        `std::domain_error` si `o` es cero (ADR-004).
         constexpr fixed_int_t operator%(const fixed_int_t &o) const { return divmod(*this, o).second; }
 
+        /// @brief Cociente en el sitio. Lanza si `o` es cero.
         constexpr fixed_int_t &operator/=(const fixed_int_t &o)
         {
             *this = *this / o;
             return *this;
         }
 
+        /// @brief Resto en el sitio. Lanza si `o` es cero.
         constexpr fixed_int_t &operator%=(const fixed_int_t &o)
         {
             *this = *this % o;
@@ -2457,6 +2503,7 @@ namespace nstd
         // Compound assignments — mixed integral types
         // =========================================================================
 
+        /// @brief Suma en el sitio con un entero del lenguaje: `v` se convierte a `fixed_int_t` y se aplica `operator+`.
         template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr fixed_int_t &operator+=(T v) noexcept
@@ -2465,6 +2512,7 @@ namespace nstd
             return *this;
         }
 
+        /// @brief Resta en el sitio con un entero del lenguaje: `v` se convierte a `fixed_int_t` y se aplica `operator-`.
         template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr fixed_int_t &operator-=(T v) noexcept
@@ -2473,6 +2521,7 @@ namespace nstd
             return *this;
         }
 
+        /// @brief Multiplica en el sitio con un entero del lenguaje: `v` se convierte a `fixed_int_t` y se aplica `operator*`.
         template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr fixed_int_t &operator*=(T v) noexcept
@@ -2481,6 +2530,7 @@ namespace nstd
             return *this;
         }
 
+        /// @brief Cociente, truncado hacia cero en el sitio con un entero del lenguaje: `v` se convierte a `fixed_int_t` y se aplica `operator/`. Lanza si `v` es cero.
         template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr fixed_int_t &operator/=(T v)
@@ -2489,6 +2539,7 @@ namespace nstd
             return *this;
         }
 
+        /// @brief Resto de la division truncada en el sitio con un entero del lenguaje: `v` se convierte a `fixed_int_t` y se aplica `operator%`. Lanza si `v` es cero.
         template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr fixed_int_t &operator%=(T v)
@@ -2497,6 +2548,7 @@ namespace nstd
             return *this;
         }
 
+        /// @brief Y bit a bit en el sitio con un entero del lenguaje: `v` se convierte a `fixed_int_t` y se aplica `operator&`.
         template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr fixed_int_t &operator&=(T v) noexcept
@@ -2505,6 +2557,7 @@ namespace nstd
             return *this;
         }
 
+        /// @brief O bit a bit en el sitio con un entero del lenguaje: `v` se convierte a `fixed_int_t` y se aplica `operator|`.
         template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr fixed_int_t &operator|=(T v) noexcept
@@ -2513,6 +2566,7 @@ namespace nstd
             return *this;
         }
 
+        /// @brief O exclusivo bit a bit en el sitio con un entero del lenguaje: `v` se convierte a `fixed_int_t` y se aplica `operator^`.
         template <typename T, typename = std::enable_if_t<std::is_integral_v<T> &&
                                                           !std::is_same_v<std::remove_cv_t<T>, bool>>>
         constexpr fixed_int_t &operator^=(T v) noexcept
@@ -2610,48 +2664,64 @@ namespace nstd
         // Both operands promoted to the wider type; result truncated to N.
         // =========================================================================
 
+        /// @brief Suma en el sitio con la misma forma y otra anchura: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos.
         template <std::size_t M, typename = std::enable_if_t<M != N>>
         constexpr fixed_int_t &operator+=(const fixed_int_t<M, Sign, Form> &o) noexcept
         {
             constexpr std::size_t R = N > M ? N : M;
             return *this = fixed_int_t{fixed_int_t<R, Sign, Form>{*this} + fixed_int_t<R, Sign, Form>{o}};
         }
+        /// @brief Resta en el sitio con la misma forma y otra anchura: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos.
         template <std::size_t M, typename = std::enable_if_t<M != N>>
         constexpr fixed_int_t &operator-=(const fixed_int_t<M, Sign, Form> &o) noexcept
         {
             constexpr std::size_t R = N > M ? N : M;
             return *this = fixed_int_t{fixed_int_t<R, Sign, Form>{*this} - fixed_int_t<R, Sign, Form>{o}};
         }
+        /// @brief Multiplica en el sitio con la misma forma y otra anchura: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos.
         template <std::size_t M, typename = std::enable_if_t<M != N>>
         constexpr fixed_int_t &operator*=(const fixed_int_t<M, Sign, Form> &o) noexcept
         {
             constexpr std::size_t R = N > M ? N : M;
             return *this = fixed_int_t{fixed_int_t<R, Sign, Form>{*this} * fixed_int_t<R, Sign, Form>{o}};
         }
+        /// @brief Cociente, truncado hacia cero en el sitio con la misma forma y otra anchura: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos. Lanza si `o` es cero.
         template <std::size_t M, typename = std::enable_if_t<M != N>>
         constexpr fixed_int_t &operator/=(const fixed_int_t<M, Sign, Form> &o)
         {
             constexpr std::size_t R = N > M ? N : M;
             return *this = fixed_int_t{fixed_int_t<R, Sign, Form>{*this} / fixed_int_t<R, Sign, Form>{o}};
         }
+        /// @brief Resto de la division truncada en el sitio con la misma forma y otra anchura: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos. Lanza si `o` es cero.
         template <std::size_t M, typename = std::enable_if_t<M != N>>
         constexpr fixed_int_t &operator%=(const fixed_int_t<M, Sign, Form> &o)
         {
             constexpr std::size_t R = N > M ? N : M;
             return *this = fixed_int_t{fixed_int_t<R, Sign, Form>{*this} % fixed_int_t<R, Sign, Form>{o}};
         }
+        /// @brief Y bit a bit en el sitio con la misma forma y otra anchura: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos.
         template <std::size_t M, typename = std::enable_if_t<M != N>>
         constexpr fixed_int_t &operator&=(const fixed_int_t<M, Sign, Form> &o) noexcept
         {
             constexpr std::size_t R = N > M ? N : M;
             return *this = fixed_int_t{fixed_int_t<R, Sign, Form>{*this} & fixed_int_t<R, Sign, Form>{o}};
         }
+        /// @brief O bit a bit en el sitio con la misma forma y otra anchura: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos.
         template <std::size_t M, typename = std::enable_if_t<M != N>>
         constexpr fixed_int_t &operator|=(const fixed_int_t<M, Sign, Form> &o) noexcept
         {
             constexpr std::size_t R = N > M ? N : M;
             return *this = fixed_int_t{fixed_int_t<R, Sign, Form>{*this} | fixed_int_t<R, Sign, Form>{o}};
         }
+        /// @brief O exclusivo bit a bit en el sitio con la misma forma y otra anchura: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos.
         template <std::size_t M, typename = std::enable_if_t<M != N>>
         constexpr fixed_int_t &operator^=(const fixed_int_t<M, Sign, Form> &o) noexcept
         {
@@ -2666,6 +2736,8 @@ namespace nstd
         //   int  op= uint: N > M -> int wins; N <= M -> uint wins
         // =========================================================================
 
+        /// @brief Suma en el sitio con otra anchura y otra forma: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos.
         template <std::size_t M, signedness S2, representation_form F2,
                   typename = std::enable_if_t<S2 != Sign>>
         constexpr fixed_int_t &operator+=(const fixed_int_t<M, S2, F2> &o) noexcept
@@ -2685,6 +2757,8 @@ namespace nstd
                 return *this = fixed_int_t{R{*this} + R{o}};
             }
         }
+        /// @brief Resta en el sitio con otra anchura y otra forma: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos.
         template <std::size_t M, signedness S2, representation_form F2,
                   typename = std::enable_if_t<S2 != Sign>>
         constexpr fixed_int_t &operator-=(const fixed_int_t<M, S2, F2> &o) noexcept
@@ -2704,6 +2778,8 @@ namespace nstd
                 return *this = fixed_int_t{R{*this} - R{o}};
             }
         }
+        /// @brief Multiplica en el sitio con otra anchura y otra forma: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos.
         template <std::size_t M, signedness S2, representation_form F2,
                   typename = std::enable_if_t<S2 != Sign>>
         constexpr fixed_int_t &operator*=(const fixed_int_t<M, S2, F2> &o) noexcept
@@ -2723,6 +2799,8 @@ namespace nstd
                 return *this = fixed_int_t{R{*this} * R{o}};
             }
         }
+        /// @brief Cociente, truncado hacia cero en el sitio con otra anchura y otra forma: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos. Lanza si `o` es cero.
         template <std::size_t M, signedness S2, representation_form F2,
                   typename = std::enable_if_t<S2 != Sign>>
         constexpr fixed_int_t &operator/=(const fixed_int_t<M, S2, F2> &o)
@@ -2742,6 +2820,8 @@ namespace nstd
                 return *this = fixed_int_t{R{*this} / R{o}};
             }
         }
+        /// @brief Resto de la division truncada en el sitio con otra anchura y otra forma: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos. Lanza si `o` es cero.
         template <std::size_t M, signedness S2, representation_form F2,
                   typename = std::enable_if_t<S2 != Sign>>
         constexpr fixed_int_t &operator%=(const fixed_int_t<M, S2, F2> &o)
@@ -2761,6 +2841,8 @@ namespace nstd
                 return *this = fixed_int_t{R{*this} % R{o}};
             }
         }
+        /// @brief Y bit a bit en el sitio con otra anchura y otra forma: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos.
         template <std::size_t M, signedness S2, representation_form F2,
                   typename = std::enable_if_t<S2 != Sign>>
         constexpr fixed_int_t &operator&=(const fixed_int_t<M, S2, F2> &o) noexcept
@@ -2780,6 +2862,8 @@ namespace nstd
                 return *this = fixed_int_t{R{*this} & R{o}};
             }
         }
+        /// @brief O bit a bit en el sitio con otra anchura y otra forma: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos.
         template <std::size_t M, signedness S2, representation_form F2,
                   typename = std::enable_if_t<S2 != Sign>>
         constexpr fixed_int_t &operator|=(const fixed_int_t<M, S2, F2> &o) noexcept
@@ -2799,6 +2883,8 @@ namespace nstd
                 return *this = fixed_int_t{R{*this} | R{o}};
             }
         }
+        /// @brief O exclusivo bit a bit en el sitio con otra anchura y otra forma: se convierte por **valor** al tipo de `*this`
+        ///        (ADR-018), no copiando limbos.
         template <std::size_t M, signedness S2, representation_form F2,
                   typename = std::enable_if_t<S2 != Sign>>
         constexpr fixed_int_t &operator^=(const fixed_int_t<M, S2, F2> &o) noexcept
@@ -3799,154 +3885,198 @@ namespace nstd
     ///   lanzan `std::domain_error` si el divisor es cero (ADR-004).
     /// @{
 
+    /// @brief Suma: `b` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `a`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator+(const uint_fixed_t<N> &a, T b) noexcept
     {
         return a + uint_fixed_t<N>{b};
     }
+    /// @brief Suma: `a` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `b`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator+(T a, const uint_fixed_t<N> &b) noexcept
     {
         return uint_fixed_t<N>{a} + b;
     }
 
+    /// @brief Resta: `b` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `a`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator-(const uint_fixed_t<N> &a, T b) noexcept
     {
         return a - uint_fixed_t<N>{b};
     }
+    /// @brief Resta: `a` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `b`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator-(T a, const uint_fixed_t<N> &b) noexcept
     {
         return uint_fixed_t<N>{a} - b;
     }
 
+    /// @brief Multiplica: `b` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `a`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator*(const uint_fixed_t<N> &a, T b) noexcept
     {
         return a * uint_fixed_t<N>{b};
     }
+    /// @brief Multiplica: `a` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `b`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator*(T a, const uint_fixed_t<N> &b) noexcept
     {
         return uint_fixed_t<N>{a} * b;
     }
 
+    /// @brief Cociente, truncado hacia cero: `b` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `a`. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator/(const uint_fixed_t<N> &a, T b)
     {
         return a / uint_fixed_t<N>{b};
     }
+    /// @brief Cociente, truncado hacia cero: `a` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `b`. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator/(T a, const uint_fixed_t<N> &b)
     {
         return uint_fixed_t<N>{a} / b;
     }
 
+    /// @brief Resto de la division truncada: `b` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `a`. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator%(const uint_fixed_t<N> &a, T b)
     {
         return a % uint_fixed_t<N>{b};
     }
+    /// @brief Resto de la division truncada: `a` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `b`. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator%(T a, const uint_fixed_t<N> &b)
     {
         return uint_fixed_t<N>{a} % b;
     }
 
+    /// @brief Y bit a bit: `b` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `a`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator&(const uint_fixed_t<N> &a, T b) noexcept
     {
         return a & uint_fixed_t<N>{b};
     }
+    /// @brief Y bit a bit: `a` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `b`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator&(T a, const uint_fixed_t<N> &b) noexcept
     {
         return uint_fixed_t<N>{a} & b;
     }
 
+    /// @brief O bit a bit: `b` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `a`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator|(const uint_fixed_t<N> &a, T b) noexcept
     {
         return a | uint_fixed_t<N>{b};
     }
+    /// @brief O bit a bit: `a` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `b`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator|(T a, const uint_fixed_t<N> &b) noexcept
     {
         return uint_fixed_t<N>{a} | b;
     }
 
+    /// @brief O exclusivo bit a bit: `b` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `a`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator^(const uint_fixed_t<N> &a, T b) noexcept
     {
         return a ^ uint_fixed_t<N>{b};
     }
+    /// @brief O exclusivo bit a bit: `a` se lleva a `uint_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `uint_fixed_t<N>` y no el tipo de `b`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr uint_fixed_t<N> operator^(T a, const uint_fixed_t<N> &b) noexcept
     {
         return uint_fixed_t<N>{a} ^ b;
     }
 
+    /// @brief Igualdad, tras llevar `b` a `uint_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator==(const uint_fixed_t<N> &a, T b) noexcept
     {
         return a == uint_fixed_t<N>{b};
     }
+    /// @brief Igualdad, tras llevar `a` a `uint_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator==(T a, const uint_fixed_t<N> &b) noexcept
     {
         return uint_fixed_t<N>{a} == b;
     }
 
+    /// @brief Desigualdad, tras llevar `b` a `uint_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator!=(const uint_fixed_t<N> &a, T b) noexcept
     {
         return a != uint_fixed_t<N>{b};
     }
+    /// @brief Desigualdad, tras llevar `a` a `uint_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator!=(T a, const uint_fixed_t<N> &b) noexcept
     {
         return uint_fixed_t<N>{a} != b;
     }
 
+    /// @brief Estrictamente menor, tras llevar `b` a `uint_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator<(const uint_fixed_t<N> &a, T b) noexcept
     {
         return a < uint_fixed_t<N>{b};
     }
+    /// @brief Estrictamente menor, tras llevar `a` a `uint_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator<(T a, const uint_fixed_t<N> &b) noexcept
     {
         return uint_fixed_t<N>{a} < b;
     }
 
+    /// @brief Menor o igual, tras llevar `b` a `uint_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator<=(const uint_fixed_t<N> &a, T b) noexcept
     {
         return a <= uint_fixed_t<N>{b};
     }
+    /// @brief Menor o igual, tras llevar `a` a `uint_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator<=(T a, const uint_fixed_t<N> &b) noexcept
     {
         return uint_fixed_t<N>{a} <= b;
     }
 
+    /// @brief Estrictamente mayor, tras llevar `b` a `uint_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator>(const uint_fixed_t<N> &a, T b) noexcept
     {
         return a > uint_fixed_t<N>{b};
     }
+    /// @brief Estrictamente mayor, tras llevar `a` a `uint_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator>(T a, const uint_fixed_t<N> &b) noexcept
     {
         return uint_fixed_t<N>{a} > b;
     }
 
+    /// @brief Mayor o igual, tras llevar `b` a `uint_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator>=(const uint_fixed_t<N> &a, T b) noexcept
     {
         return a >= uint_fixed_t<N>{b};
     }
+    /// @brief Mayor o igual, tras llevar `a` a `uint_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator>=(T a, const uint_fixed_t<N> &b) noexcept
     {
@@ -4265,154 +4395,198 @@ namespace nstd
     /// `constexpr` todas; `noexcept` todas salvo `/` y `%`.
     /// @{
 
+    /// @brief Suma: `b` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `a`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator+(const int_fixed_t<N> &a, T b) noexcept
     {
         return a + int_fixed_t<N>{b};
     }
+    /// @brief Suma: `a` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `b`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator+(T a, const int_fixed_t<N> &b) noexcept
     {
         return int_fixed_t<N>{a} + b;
     }
 
+    /// @brief Resta: `b` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `a`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator-(const int_fixed_t<N> &a, T b) noexcept
     {
         return a - int_fixed_t<N>{b};
     }
+    /// @brief Resta: `a` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `b`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator-(T a, const int_fixed_t<N> &b) noexcept
     {
         return int_fixed_t<N>{a} - b;
     }
 
+    /// @brief Multiplica: `b` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `a`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator*(const int_fixed_t<N> &a, T b) noexcept
     {
         return a * int_fixed_t<N>{b};
     }
+    /// @brief Multiplica: `a` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `b`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator*(T a, const int_fixed_t<N> &b) noexcept
     {
         return int_fixed_t<N>{a} * b;
     }
 
+    /// @brief Cociente, truncado hacia cero: `b` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `a`. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator/(const int_fixed_t<N> &a, T b)
     {
         return a / int_fixed_t<N>{b};
     }
+    /// @brief Cociente, truncado hacia cero: `a` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `b`. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator/(T a, const int_fixed_t<N> &b)
     {
         return int_fixed_t<N>{a} / b;
     }
 
+    /// @brief Resto de la division truncada: `b` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `a`. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator%(const int_fixed_t<N> &a, T b)
     {
         return a % int_fixed_t<N>{b};
     }
+    /// @brief Resto de la division truncada: `a` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `b`. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator%(T a, const int_fixed_t<N> &b)
     {
         return int_fixed_t<N>{a} % b;
     }
 
+    /// @brief Y bit a bit: `b` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `a`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator&(const int_fixed_t<N> &a, T b) noexcept
     {
         return a & int_fixed_t<N>{b};
     }
+    /// @brief Y bit a bit: `a` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `b`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator&(T a, const int_fixed_t<N> &b) noexcept
     {
         return int_fixed_t<N>{a} & b;
     }
 
+    /// @brief O bit a bit: `b` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `a`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator|(const int_fixed_t<N> &a, T b) noexcept
     {
         return a | int_fixed_t<N>{b};
     }
+    /// @brief O bit a bit: `a` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `b`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator|(T a, const int_fixed_t<N> &b) noexcept
     {
         return int_fixed_t<N>{a} | b;
     }
 
+    /// @brief O exclusivo bit a bit: `b` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `a`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator^(const int_fixed_t<N> &a, T b) noexcept
     {
         return a ^ int_fixed_t<N>{b};
     }
+    /// @brief O exclusivo bit a bit: `a` se lleva a `int_fixed_t<N>` y la cuenta se hace en esa anchura, asi que
+    ///        el resultado es `int_fixed_t<N>` y no el tipo de `b`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr int_fixed_t<N> operator^(T a, const int_fixed_t<N> &b) noexcept
     {
         return int_fixed_t<N>{a} ^ b;
     }
 
+    /// @brief Igualdad, tras llevar `b` a `int_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator==(const int_fixed_t<N> &a, T b) noexcept
     {
         return a == int_fixed_t<N>{b};
     }
+    /// @brief Igualdad, tras llevar `a` a `int_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator==(T a, const int_fixed_t<N> &b) noexcept
     {
         return int_fixed_t<N>{a} == b;
     }
 
+    /// @brief Desigualdad, tras llevar `b` a `int_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator!=(const int_fixed_t<N> &a, T b) noexcept
     {
         return a != int_fixed_t<N>{b};
     }
+    /// @brief Desigualdad, tras llevar `a` a `int_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator!=(T a, const int_fixed_t<N> &b) noexcept
     {
         return int_fixed_t<N>{a} != b;
     }
 
+    /// @brief Estrictamente menor, tras llevar `b` a `int_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator<(const int_fixed_t<N> &a, T b) noexcept
     {
         return a < int_fixed_t<N>{b};
     }
+    /// @brief Estrictamente menor, tras llevar `a` a `int_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator<(T a, const int_fixed_t<N> &b) noexcept
     {
         return int_fixed_t<N>{a} < b;
     }
 
+    /// @brief Menor o igual, tras llevar `b` a `int_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator<=(const int_fixed_t<N> &a, T b) noexcept
     {
         return a <= int_fixed_t<N>{b};
     }
+    /// @brief Menor o igual, tras llevar `a` a `int_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator<=(T a, const int_fixed_t<N> &b) noexcept
     {
         return int_fixed_t<N>{a} <= b;
     }
 
+    /// @brief Estrictamente mayor, tras llevar `b` a `int_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator>(const int_fixed_t<N> &a, T b) noexcept
     {
         return a > int_fixed_t<N>{b};
     }
+    /// @brief Estrictamente mayor, tras llevar `a` a `int_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator>(T a, const int_fixed_t<N> &b) noexcept
     {
         return int_fixed_t<N>{a} > b;
     }
 
+    /// @brief Mayor o igual, tras llevar `b` a `int_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator>=(const int_fixed_t<N> &a, T b) noexcept
     {
         return a >= int_fixed_t<N>{b};
     }
+    /// @brief Mayor o igual, tras llevar `a` a `int_fixed_t<N>`.
     template <std::size_t N, typename T, typename = detail::if_integral<T>>
     constexpr bool operator>=(T a, const int_fixed_t<N> &b) noexcept
     {
@@ -4731,6 +4905,8 @@ namespace nstd
     /// `constexpr` todas; `noexcept` todas salvo `/` y `%`.
     /// @{
 
+    /// @brief Suma. El resultado es `uint_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr uint_fixed_t<(N > M ? N : M)> operator+(const uint_fixed_t<N> &a,
                                                       const uint_fixed_t<M> &b) noexcept
@@ -4739,6 +4915,8 @@ namespace nstd
         return uint_fixed_t<R>{a} + uint_fixed_t<R>{b};
     }
 
+    /// @brief Resta. El resultado es `uint_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr uint_fixed_t<(N > M ? N : M)> operator-(const uint_fixed_t<N> &a,
                                                       const uint_fixed_t<M> &b) noexcept
@@ -4747,6 +4925,8 @@ namespace nstd
         return uint_fixed_t<R>{a} - uint_fixed_t<R>{b};
     }
 
+    /// @brief Multiplica. El resultado es `uint_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr uint_fixed_t<(N > M ? N : M)> operator*(const uint_fixed_t<N> &a,
                                                       const uint_fixed_t<M> &b) noexcept
@@ -4755,6 +4935,8 @@ namespace nstd
         return uint_fixed_t<R>{a} * uint_fixed_t<R>{b};
     }
 
+    /// @brief Cociente, truncado hacia cero. El resultado es `uint_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr uint_fixed_t<(N > M ? N : M)> operator/(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b)
     {
@@ -4762,6 +4944,8 @@ namespace nstd
         return uint_fixed_t<R>{a} / uint_fixed_t<R>{b};
     }
 
+    /// @brief Resto de la division truncada. El resultado es `uint_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr uint_fixed_t<(N > M ? N : M)> operator%(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b)
     {
@@ -4769,6 +4953,8 @@ namespace nstd
         return uint_fixed_t<R>{a} % uint_fixed_t<R>{b};
     }
 
+    /// @brief Y bit a bit. El resultado es `uint_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr uint_fixed_t<(N > M ? N : M)> operator&(const uint_fixed_t<N> &a,
                                                       const uint_fixed_t<M> &b) noexcept
@@ -4777,6 +4963,8 @@ namespace nstd
         return uint_fixed_t<R>{a} & uint_fixed_t<R>{b};
     }
 
+    /// @brief O bit a bit. El resultado es `uint_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr uint_fixed_t<(N > M ? N : M)> operator|(const uint_fixed_t<N> &a,
                                                       const uint_fixed_t<M> &b) noexcept
@@ -4785,6 +4973,8 @@ namespace nstd
         return uint_fixed_t<R>{a} | uint_fixed_t<R>{b};
     }
 
+    /// @brief O exclusivo bit a bit. El resultado es `uint_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr uint_fixed_t<(N > M ? N : M)> operator^(const uint_fixed_t<N> &a,
                                                       const uint_fixed_t<M> &b) noexcept
@@ -4793,6 +4983,8 @@ namespace nstd
         return uint_fixed_t<R>{a} ^ uint_fixed_t<R>{b};
     }
 
+    /// @brief Igualdad. Ambos ascienden a `uint_fixed_t<max(N,M)>`, de modo que la anchura
+    ///        no altera el resultado.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr bool operator==(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
@@ -4800,6 +4992,8 @@ namespace nstd
         return uint_fixed_t<R>{a} == uint_fixed_t<R>{b};
     }
 
+    /// @brief Desigualdad. Ambos ascienden a `uint_fixed_t<max(N,M)>`, de modo que la anchura
+    ///        no altera el resultado.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr bool operator!=(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
@@ -4807,6 +5001,8 @@ namespace nstd
         return uint_fixed_t<R>{a} != uint_fixed_t<R>{b};
     }
 
+    /// @brief Estrictamente menor. Ambos ascienden a `uint_fixed_t<max(N,M)>`, de modo que la anchura
+    ///        no altera el resultado.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr bool operator<(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
@@ -4814,6 +5010,8 @@ namespace nstd
         return uint_fixed_t<R>{a} < uint_fixed_t<R>{b};
     }
 
+    /// @brief Menor o igual. Ambos ascienden a `uint_fixed_t<max(N,M)>`, de modo que la anchura
+    ///        no altera el resultado.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr bool operator<=(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
@@ -4821,6 +5019,8 @@ namespace nstd
         return uint_fixed_t<R>{a} <= uint_fixed_t<R>{b};
     }
 
+    /// @brief Estrictamente mayor. Ambos ascienden a `uint_fixed_t<max(N,M)>`, de modo que la anchura
+    ///        no altera el resultado.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr bool operator>(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
@@ -4828,6 +5028,8 @@ namespace nstd
         return uint_fixed_t<R>{a} > uint_fixed_t<R>{b};
     }
 
+    /// @brief Mayor o igual. Ambos ascienden a `uint_fixed_t<max(N,M)>`, de modo que la anchura
+    ///        no altera el resultado.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr bool operator>=(const uint_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
@@ -4850,6 +5052,8 @@ namespace nstd
     /// `constexpr` todas; `noexcept` todas salvo `/` y `%`.
     /// @{
 
+    /// @brief Suma. El resultado es `int_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr int_fixed_t<(N > M ? N : M)> operator+(const int_fixed_t<N> &a,
                                                      const int_fixed_t<M> &b) noexcept
@@ -4858,6 +5062,8 @@ namespace nstd
         return int_fixed_t<R>{a} + int_fixed_t<R>{b};
     }
 
+    /// @brief Resta. El resultado es `int_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr int_fixed_t<(N > M ? N : M)> operator-(const int_fixed_t<N> &a,
                                                      const int_fixed_t<M> &b) noexcept
@@ -4866,6 +5072,8 @@ namespace nstd
         return int_fixed_t<R>{a} - int_fixed_t<R>{b};
     }
 
+    /// @brief Multiplica. El resultado es `int_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr int_fixed_t<(N > M ? N : M)> operator*(const int_fixed_t<N> &a,
                                                      const int_fixed_t<M> &b) noexcept
@@ -4874,6 +5082,8 @@ namespace nstd
         return int_fixed_t<R>{a} * int_fixed_t<R>{b};
     }
 
+    /// @brief Cociente, truncado hacia cero. El resultado es `int_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr int_fixed_t<(N > M ? N : M)> operator/(const int_fixed_t<N> &a, const int_fixed_t<M> &b)
     {
@@ -4881,6 +5091,8 @@ namespace nstd
         return int_fixed_t<R>{a} / int_fixed_t<R>{b};
     }
 
+    /// @brief Resto de la division truncada. El resultado es `int_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr int_fixed_t<(N > M ? N : M)> operator%(const int_fixed_t<N> &a, const int_fixed_t<M> &b)
     {
@@ -4888,6 +5100,8 @@ namespace nstd
         return int_fixed_t<R>{a} % int_fixed_t<R>{b};
     }
 
+    /// @brief Y bit a bit. El resultado es `int_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr int_fixed_t<(N > M ? N : M)> operator&(const int_fixed_t<N> &a,
                                                      const int_fixed_t<M> &b) noexcept
@@ -4896,6 +5110,8 @@ namespace nstd
         return int_fixed_t<R>{a} & int_fixed_t<R>{b};
     }
 
+    /// @brief O bit a bit. El resultado es `int_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr int_fixed_t<(N > M ? N : M)> operator|(const int_fixed_t<N> &a,
                                                      const int_fixed_t<M> &b) noexcept
@@ -4904,6 +5120,8 @@ namespace nstd
         return int_fixed_t<R>{a} | int_fixed_t<R>{b};
     }
 
+    /// @brief O exclusivo bit a bit. El resultado es `int_fixed_t<max(N,M)>`: se asciende el estrecho, nunca
+    ///        se estrecha el ancho.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr int_fixed_t<(N > M ? N : M)> operator^(const int_fixed_t<N> &a,
                                                      const int_fixed_t<M> &b) noexcept
@@ -4912,6 +5130,8 @@ namespace nstd
         return int_fixed_t<R>{a} ^ int_fixed_t<R>{b};
     }
 
+    /// @brief Igualdad. Ambos ascienden a `int_fixed_t<max(N,M)>`, de modo que la anchura
+    ///        no altera el resultado.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr bool operator==(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
     {
@@ -4919,6 +5139,8 @@ namespace nstd
         return int_fixed_t<R>{a} == int_fixed_t<R>{b};
     }
 
+    /// @brief Desigualdad. Ambos ascienden a `int_fixed_t<max(N,M)>`, de modo que la anchura
+    ///        no altera el resultado.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr bool operator!=(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
     {
@@ -4926,6 +5148,8 @@ namespace nstd
         return int_fixed_t<R>{a} != int_fixed_t<R>{b};
     }
 
+    /// @brief Estrictamente menor. Ambos ascienden a `int_fixed_t<max(N,M)>`, de modo que la anchura
+    ///        no altera el resultado.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr bool operator<(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
     {
@@ -4933,6 +5157,8 @@ namespace nstd
         return int_fixed_t<R>{a} < int_fixed_t<R>{b};
     }
 
+    /// @brief Menor o igual. Ambos ascienden a `int_fixed_t<max(N,M)>`, de modo que la anchura
+    ///        no altera el resultado.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr bool operator<=(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
     {
@@ -4940,6 +5166,8 @@ namespace nstd
         return int_fixed_t<R>{a} <= int_fixed_t<R>{b};
     }
 
+    /// @brief Estrictamente mayor. Ambos ascienden a `int_fixed_t<max(N,M)>`, de modo que la anchura
+    ///        no altera el resultado.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr bool operator>(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
     {
@@ -4947,6 +5175,8 @@ namespace nstd
         return int_fixed_t<R>{a} > int_fixed_t<R>{b};
     }
 
+    /// @brief Mayor o igual. Ambos ascienden a `int_fixed_t<max(N,M)>`, de modo que la anchura
+    ///        no altera el resultado.
     template <std::size_t N, std::size_t M, typename = std::enable_if_t<N != M>>
     constexpr bool operator>=(const int_fixed_t<N> &a, const int_fixed_t<M> &b) noexcept
     {
@@ -4979,12 +5209,18 @@ namespace nstd
     /// `constexpr` todas; `noexcept` todas salvo `/` y `%`.
     /// @{
 
+    /// @brief Suma. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator+(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} + R{b};
     }
+    /// @brief Suma. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator+(const uint_fixed_t<M> &a, const int_fixed_t<N> &b) noexcept
     {
@@ -4992,12 +5228,18 @@ namespace nstd
         return R{a} + R{b};
     }
 
+    /// @brief Resta. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator-(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} - R{b};
     }
+    /// @brief Resta. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator-(const uint_fixed_t<M> &a, const int_fixed_t<N> &b) noexcept
     {
@@ -5005,12 +5247,18 @@ namespace nstd
         return R{a} - R{b};
     }
 
+    /// @brief Multiplica. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator*(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} * R{b};
     }
+    /// @brief Multiplica. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator*(const uint_fixed_t<M> &a, const int_fixed_t<N> &b) noexcept
     {
@@ -5018,12 +5266,18 @@ namespace nstd
         return R{a} * R{b};
     }
 
+    /// @brief Cociente, truncado hacia cero. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator/(const int_fixed_t<N> &a, const uint_fixed_t<M> &b)
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} / R{b};
     }
+    /// @brief Cociente, truncado hacia cero. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator/(const uint_fixed_t<M> &a, const int_fixed_t<N> &b)
     {
@@ -5031,12 +5285,18 @@ namespace nstd
         return R{a} / R{b};
     }
 
+    /// @brief Resto de la division truncada. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator%(const int_fixed_t<N> &a, const uint_fixed_t<M> &b)
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} % R{b};
     }
+    /// @brief Resto de la division truncada. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo. Lanza `std::domain_error` si el divisor es cero (ADR-004).
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator%(const uint_fixed_t<M> &a, const int_fixed_t<N> &b)
     {
@@ -5044,12 +5304,18 @@ namespace nstd
         return R{a} % R{b};
     }
 
+    /// @brief Y bit a bit. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator&(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} & R{b};
     }
+    /// @brief Y bit a bit. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator&(const uint_fixed_t<M> &a, const int_fixed_t<N> &b) noexcept
     {
@@ -5057,12 +5323,18 @@ namespace nstd
         return R{a} & R{b};
     }
 
+    /// @brief O bit a bit. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator|(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} | R{b};
     }
+    /// @brief O bit a bit. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator|(const uint_fixed_t<M> &a, const int_fixed_t<N> &b) noexcept
     {
@@ -5070,12 +5342,18 @@ namespace nstd
         return R{a} | R{b};
     }
 
+    /// @brief O exclusivo bit a bit. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator^(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} ^ R { b };
     }
+    /// @brief O exclusivo bit a bit. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
     template <std::size_t N, std::size_t M>
     constexpr detail::mixed_iu_t<N, M> operator^(const uint_fixed_t<M> &a, const int_fixed_t<N> &b) noexcept
     {
@@ -5091,6 +5369,13 @@ namespace nstd
     //
     // Constrained so it does NOT match same-type same-N (which is handled by the
     // member <=>); ambiguity would otherwise arise.
+    /// @brief Orden de tres vias entre dos `fixed_int_t` **cualesquiera**.
+    ///
+    /// Con el mismo signo asciende al mas ancho. Con signos distintos pasa
+    /// por `mixed_iu_t`, que aplica las conversiones aritmeticas usuales del
+    /// lenguaje: si el con signo no es estrictamente mas ancho, **gana el sin
+    /// signo**, y entonces `-1 > 0`. Es la misma trampa que `int` con
+    /// `unsigned`, conservada a proposito.
     template <std::size_t N1, signedness S1, representation_form F1, std::size_t N2, signedness S2,
               representation_form F2>
         requires(N1 != N2 || S1 != S2)
@@ -5117,12 +5402,26 @@ namespace nstd
         }
     }
 
+    /// @brief Igualdad. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
+    ///
+    /// @warning Con `N <= M` la comparacion se hace sin signo, y entonces un
+    ///          negativo sale **mayor** que cualquier positivo. Es el
+    ///          comportamiento de `int` contra `unsigned`, a proposito.
     template <std::size_t N, std::size_t M>
     constexpr bool operator==(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} == R{b};
     }
+    /// @brief Igualdad. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
+    ///
+    /// @warning Con `N <= M` la comparacion se hace sin signo, y entonces un
+    ///          negativo sale **mayor** que cualquier positivo. Es el
+    ///          comportamiento de `int` contra `unsigned`, a proposito.
     template <std::size_t N, std::size_t M>
     constexpr bool operator==(const uint_fixed_t<M> &a, const int_fixed_t<N> &b) noexcept
     {
@@ -5130,12 +5429,26 @@ namespace nstd
         return R{a} == R{b};
     }
 
+    /// @brief Desigualdad. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
+    ///
+    /// @warning Con `N <= M` la comparacion se hace sin signo, y entonces un
+    ///          negativo sale **mayor** que cualquier positivo. Es el
+    ///          comportamiento de `int` contra `unsigned`, a proposito.
     template <std::size_t N, std::size_t M>
     constexpr bool operator!=(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} != R{b};
     }
+    /// @brief Desigualdad. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
+    ///
+    /// @warning Con `N <= M` la comparacion se hace sin signo, y entonces un
+    ///          negativo sale **mayor** que cualquier positivo. Es el
+    ///          comportamiento de `int` contra `unsigned`, a proposito.
     template <std::size_t N, std::size_t M>
     constexpr bool operator!=(const uint_fixed_t<M> &a, const int_fixed_t<N> &b) noexcept
     {
@@ -5143,12 +5456,26 @@ namespace nstd
         return R{a} != R{b};
     }
 
+    /// @brief Estrictamente menor. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
+    ///
+    /// @warning Con `N <= M` la comparacion se hace sin signo, y entonces un
+    ///          negativo sale **mayor** que cualquier positivo. Es el
+    ///          comportamiento de `int` contra `unsigned`, a proposito.
     template <std::size_t N, std::size_t M>
     constexpr bool operator<(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} < R{b};
     }
+    /// @brief Estrictamente menor. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
+    ///
+    /// @warning Con `N <= M` la comparacion se hace sin signo, y entonces un
+    ///          negativo sale **mayor** que cualquier positivo. Es el
+    ///          comportamiento de `int` contra `unsigned`, a proposito.
     template <std::size_t N, std::size_t M>
     constexpr bool operator<(const uint_fixed_t<M> &a, const int_fixed_t<N> &b) noexcept
     {
@@ -5156,12 +5483,26 @@ namespace nstd
         return R{a} < R{b};
     }
 
+    /// @brief Menor o igual. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
+    ///
+    /// @warning Con `N <= M` la comparacion se hace sin signo, y entonces un
+    ///          negativo sale **mayor** que cualquier positivo. Es el
+    ///          comportamiento de `int` contra `unsigned`, a proposito.
     template <std::size_t N, std::size_t M>
     constexpr bool operator<=(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} <= R{b};
     }
+    /// @brief Menor o igual. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
+    ///
+    /// @warning Con `N <= M` la comparacion se hace sin signo, y entonces un
+    ///          negativo sale **mayor** que cualquier positivo. Es el
+    ///          comportamiento de `int` contra `unsigned`, a proposito.
     template <std::size_t N, std::size_t M>
     constexpr bool operator<=(const uint_fixed_t<M> &a, const int_fixed_t<N> &b) noexcept
     {
@@ -5169,12 +5510,26 @@ namespace nstd
         return R{a} <= R{b};
     }
 
+    /// @brief Estrictamente mayor. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
+    ///
+    /// @warning Con `N <= M` la comparacion se hace sin signo, y entonces un
+    ///          negativo sale **mayor** que cualquier positivo. Es el
+    ///          comportamiento de `int` contra `unsigned`, a proposito.
     template <std::size_t N, std::size_t M>
     constexpr bool operator>(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} > R{b};
     }
+    /// @brief Estrictamente mayor. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
+    ///
+    /// @warning Con `N <= M` la comparacion se hace sin signo, y entonces un
+    ///          negativo sale **mayor** que cualquier positivo. Es el
+    ///          comportamiento de `int` contra `unsigned`, a proposito.
     template <std::size_t N, std::size_t M>
     constexpr bool operator>(const uint_fixed_t<M> &a, const int_fixed_t<N> &b) noexcept
     {
@@ -5182,12 +5537,26 @@ namespace nstd
         return R{a} > R{b};
     }
 
+    /// @brief Mayor o igual. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
+    ///
+    /// @warning Con `N <= M` la comparacion se hace sin signo, y entonces un
+    ///          negativo sale **mayor** que cualquier positivo. Es el
+    ///          comportamiento de `int` contra `unsigned`, a proposito.
     template <std::size_t N, std::size_t M>
     constexpr bool operator>=(const int_fixed_t<N> &a, const uint_fixed_t<M> &b) noexcept
     {
         using R = detail::mixed_iu_t<N, M>;
         return R{a} >= R{b};
     }
+    /// @brief Mayor o igual. Los dos pasan por `mixed_iu_t<N, M>`, que aplica las conversiones
+    ///        aritmeticas usuales del lenguaje: el con signo solo gana si es
+    ///        **estrictamente** mas ancho; si no, gana el sin signo.
+    ///
+    /// @warning Con `N <= M` la comparacion se hace sin signo, y entonces un
+    ///          negativo sale **mayor** que cualquier positivo. Es el
+    ///          comportamiento de `int` contra `unsigned`, a proposito.
     template <std::size_t N, std::size_t M>
     constexpr bool operator>=(const uint_fixed_t<M> &a, const int_fixed_t<N> &b) noexcept
     {

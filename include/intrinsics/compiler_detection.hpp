@@ -68,6 +68,27 @@
 // ============================================================================
 
 // Detectar compilador antes de arquitectura (orden importa)
+/// @name Compilador detectado
+///
+/// Los cinco existen **siempre**: el detectado vale `1` y los otros `0`, para
+/// poder escribir `#if INTRINSICS_COMPILER_GCC` sin `defined()`. Exactamente
+/// uno vale `1`. El orden de la cadena importa: Intel primero porque tambien
+/// define `__clang__` o `__GNUC__`, y Clang antes que GCC por lo mismo.
+/// @{
+
+/// @def INTRINSICS_COMPILER_INTEL
+/// @brief `1` con el compilador de Intel (ICX, ICL o el clasico ICC).
+/// @def INTRINSICS_COMPILER_MSVC
+/// @brief `1` con Visual C++.
+/// @def INTRINSICS_COMPILER_CLANG
+/// @brief `1` con Clang que **no** sea el de Intel.
+/// @def INTRINSICS_COMPILER_GCC
+/// @brief `1` con GCC que no sea Clang ni Intel.
+/// @def INTRINSICS_COMPILER_UNKNOWN
+/// @brief `1` si no se reconocio ninguno. No es un error: solo significa que
+///        hay que ir por los caminos portables.
+/// @}
+
 #if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER) || defined(__ICL) || defined(__ICC)
 #define INTRINSICS_COMPILER_INTEL 1
 #elif defined(_MSC_VER)
@@ -100,6 +121,25 @@
 // ============================================================================
 // DETECCIÓN DE SISTEMA OPERATIVO
 // ============================================================================
+
+/// @name Sistema operativo detectado
+///
+/// Mismo convenio que los del compilador: los seis existen, uno vale `1`.
+/// @{
+
+/// @def INTRINSICS_OS_WINDOWS
+/// @brief `1` en Windows, de 32 o de 64 bits.
+/// @def INTRINSICS_OS_LINUX
+/// @brief `1` en Linux.
+/// @def INTRINSICS_OS_MACOS
+/// @brief `1` en macOS.
+/// @def INTRINSICS_OS_BSD
+/// @brief `1` en FreeBSD, NetBSD u OpenBSD.
+/// @def INTRINSICS_OS_UNIX
+/// @brief `1` en otro Unix no cubierto por los anteriores.
+/// @def INTRINSICS_OS_UNKNOWN
+/// @brief `1` si no se reconocio ninguno.
+/// @}
 
 #if defined(_WIN32) || defined(_WIN64) || defined(__WIN32__) || defined(__WINDOWS__)
 #define INTRINSICS_OS_WINDOWS 1
@@ -172,6 +212,31 @@
 // DETECCIÓN DE ARQUITECTURA
 // ============================================================================
 
+/// @name Arquitectura detectada
+///
+/// Mismo convenio: los ocho existen, uno vale `1`. Es lo que decide si hay
+/// intrinsecos de 128 bits, y por tanto que camino toman los nucleos.
+/// @{
+
+/// @def INTRINSICS_ARCH_X86_64
+/// @brief `1` en x86-64 / AMD64.
+/// @def INTRINSICS_ARCH_X86_32
+/// @brief `1` en x86 de 32 bits.
+/// @def INTRINSICS_ARCH_ARM64
+/// @brief `1` en AArch64.
+/// @def INTRINSICS_ARCH_ARM32
+/// @brief `1` en ARM de 32 bits.
+/// @def INTRINSICS_ARCH_RISCV64
+/// @brief `1` en RISC-V de 64 bits.
+/// @def INTRINSICS_ARCH_RISCV32
+/// @brief `1` en RISC-V de 32 bits. **No se prueba**: esa combinacion quedo
+///        fuera de la matriz de Docker.
+/// @def INTRINSICS_ARCH_PPC64
+/// @brief `1` en PowerPC de 64 bits.
+/// @def INTRINSICS_ARCH_UNKNOWN
+/// @brief `1` si no se reconocio ninguna.
+/// @}
+
 #if defined(__x86_64__) || defined(_M_X64) || defined(__amd64__)
 #define INTRINSICS_ARCH_X86_64 1
 #elif defined(__i386__) || defined(_M_IX86)
@@ -223,6 +288,28 @@
 // ============================================================================
 
 // GCC/Clang/Intel (en Linux/macOS) tienen __has_builtin
+/// @name Capacidades del compilador
+///
+/// Valen `1` o `0`, nunca quedan sin definir.
+/// @{
+
+/// @def INTRINSICS_HAS_BUILTIN
+/// @brief `__has_builtin(x)` donde exista, y `0` donde no, para poder
+///        preguntarlo sin envolver cada uso en un `#ifdef`.
+/// @def INTRINSICS_HAS_BUILTIN_POPCOUNT
+/// @brief `1` si hay `__builtin_popcountll`.
+/// @def INTRINSICS_HAS_BUILTIN_CLZ
+/// @brief `1` si hay `__builtin_clzll`.
+/// @def INTRINSICS_HAS_BUILTIN_CTZ
+/// @brief `1` si hay `__builtin_ctzll`.
+/// @def INTRINSICS_HAS_BUILTIN_BSWAP
+/// @brief `1` si hay `__builtin_bswap64`.
+/// @def INTRINSICS_HAS_BUILTIN_ADDC
+/// @brief `1` si hay `__builtin_addcll`/`__builtin_subcll` **y** se esta en
+///        x86-64 **y** no se usa la ABI de MSVC: Intel en Windows anuncia el
+///        builtin y no lo tiene.
+/// @}
+
 #ifdef __has_builtin
 #define INTRINSICS_HAS_BUILTIN(x) __has_builtin(x)
 #else
@@ -275,6 +362,21 @@
 // ============================================================================
 
 // Usar <intrin.h> para MSVC y también para Intel ICX en Windows (MSVC ABI)
+/// @name Cabecera de intrinsecos a incluir
+///
+/// **Exactamente una vale `1`**, o ninguna si la arquitectura no se reconocio.
+/// Se decide por ABI y no por compilador: Intel en Windows usa `<intrin.h>`
+/// aunque por dentro sea Clang.
+/// @{
+
+/// @def INTRINSICS_HAS_INTRIN_H
+/// @brief `1` si hay que incluir `<intrin.h>` (ABI de MSVC).
+/// @def INTRINSICS_HAS_X86INTRIN_H
+/// @brief `1` si hay que incluir `<x86intrin.h>`.
+/// @def INTRINSICS_HAS_ARM_NEON_H
+/// @brief `1` si hay que incluir `<arm_neon.h>`.
+/// @}
+
 #if INTRINSICS_USES_MSVC_ABI
 #define INTRINSICS_HAS_INTRIN_H 1
 #define INTRINSICS_HAS_X86INTRIN_H 0
@@ -315,6 +417,12 @@
 // ============================================================================
 
 #include <type_traits>
+
+/// @def INTRINSICS_HAS_IS_CONSTANT_EVALUATED
+/// @brief `1` si `std::is_constant_evaluated()` esta disponible.
+///
+/// Es lo que permite que un mismo nucleo tenga un camino con intrinsecos para
+/// ejecucion y otro portable para `constexpr`, en vez de dos funciones.
 
 #if defined(__cpp_lib_is_constant_evaluated) && __cpp_lib_is_constant_evaluated >= 201811L
 #define INTRINSICS_HAS_IS_CONSTANT_EVALUATED 1

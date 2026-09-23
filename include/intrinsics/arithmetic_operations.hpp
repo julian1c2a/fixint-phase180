@@ -659,7 +659,7 @@ namespace intrinsics
      * @note Sin __uint128_t: Retorna 0 (el caller debe usar fallback iterativo)
      * @note Esta función es esencial para big_int con arrays de uint64_t mayores
      *
-     * @example
+     * @par Ejemplo:
      * @code
      * // Dividir 0x1'0000'0000'0000'0005 / 0x2
      * uint64_t D1 = 0x1, D0 = 0x5, divisor = 0x2;

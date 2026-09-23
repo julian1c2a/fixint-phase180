@@ -654,13 +654,22 @@ namespace nstd
         ///       asi que los pasos D4 y D5 valen sin tocarlos.
         struct estimador_moller_granlund
         {
+            /// @brief El inverso aproximado de `(v1, v2)`, calculado una vez por
+            ///        division y reusado en cada digito.
             std::uint64_t inverso{0};
 
+            /// @brief Calcula el inverso. Se llama una vez, antes del bucle de
+            ///        digitos; `digitos` se ignora aqui porque este estimador no
+            ///        tiene umbral.
             constexpr void prepara(std::uint64_t v1, std::uint64_t v2, std::size_t /*digitos*/) noexcept
             {
                 inverso = detail::inverso_3por2(v1, v2);
             }
 
+            /// @brief Estima el digito de cociente de `(u0, u1, u2)` entre
+            ///        `(v1, v2)` con la 3/2 de Moller-Granlund.
+            /// @return El cociente exacto del subproblema, que como estimacion se
+            ///         pasa a lo sumo en uno: lo que D4/D5 ya saben corregir.
             [[nodiscard]] constexpr std::uint64_t operator()(std::uint64_t u0, std::uint64_t u1,
                                                              std::uint64_t u2, std::uint64_t v1,
                                                              std::uint64_t v2) const noexcept
@@ -710,14 +719,24 @@ namespace nstd
             struct vacio
             {
             };
+            /// @brief El estado cuando MG **si** cabe en esta anchura.
             struct con_inverso
             {
+                /// @brief El inverso 3/2, o `0` si esta division no va a usar MG.
                 std::uint64_t inverso{0};
+                /// @brief Si esta division tiene digitos de sobra para amortizar
+                ///        el inverso. Se decide una vez, no por digito.
                 bool usa_mg{false};
             };
 
+            /// @brief El estado, que con `alcanzable == false` es `vacio` y con
+            ///        `[[no_unique_address]]` **no ocupa nada**: el estimador
+            ///        corto queda exactamente como estaba.
             [[no_unique_address]] std::conditional_t<alcanzable, con_inverso, vacio> est{};
 
+            /// @brief Decide entre Knuth y Moller-Granlund segun `digitos`, y solo
+            ///        entonces calcula el inverso: si no se va a usar, **ni se
+            ///        calcula**, que es una division ahorrada.
             constexpr void prepara(std::uint64_t v1, std::uint64_t v2, std::size_t digitos) noexcept
             {
                 if constexpr (alcanzable)
@@ -734,6 +753,9 @@ namespace nstd
                 }
             }
 
+            /// @brief Estima el digito por el camino que `prepara` eligio. La
+            ///        rama no cambia dentro de una division, asi que el predictor
+            ///        la acierta siempre.
             [[nodiscard]] constexpr std::uint64_t operator()(std::uint64_t u0, std::uint64_t u1,
                                                              std::uint64_t u2, std::uint64_t v1,
                                                              std::uint64_t v2) const noexcept

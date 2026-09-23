@@ -45,9 +45,14 @@ namespace nstd
          */
         struct uint256_result
         {
+            /// @brief Los cuatro limbos, `limbs[0]` el menos significativo.
             std::array<uint64_t, 4> limbs{};
 
+            /// @brief Igualdad limbo a limbo. No hay representaciones distintas
+            ///        del mismo valor, asi que comparar los bits es comparar el
+            ///        numero.
             constexpr bool operator==(const uint256_result &other) const noexcept = default;
+            /// @brief Su negacion.
             constexpr bool operator!=(const uint256_result &other) const noexcept = default;
 
             /// Lower 128 bits as uint128_t

@@ -66,7 +66,12 @@ LIVE_DOCS = ["README.md", "PROJECT_STATUS.md", "NEXT_STEPS.md", "CHANGELOG.md"]
 # leer la cifra y apuntarla aqui con su fecha.
 DOXYGEN_BASELINE = {
     "1.9.8":  518,   # ubuntu-24.04, la que usa el CI      — medido 26 ago 2026
-    "1.18.0": 466,   # MSYS2, la de la maquina de trabajo  — bajada 10 sep 2026 (P3.1: los internos salen del ambito)
+    # PENDIENTE: la de 1.9.8 sigue siendo la de agosto porque en esta maquina no
+    # hay doxygen 1.9.8 con que medirla --en WSL no esta instalado--. El CI la
+    # imprime en cada ejecucion; hay que leerla de la primera tras P3.7 y
+    # apuntarla aqui. Mientras tanto queda alta, que falla por el lado seguro:
+    # no detecta una subida, pero no deja el CI en rojo por un desfase.
+    "1.18.0": 257,   # MSYS2, la de la maquina de trabajo  — bajada 23 sep 2026 (P3.7: los 209 de fixed_width_int_t y fixed_int_limits; 466-209=257)
 }
 
 # Para una version que no este en la tabla no se puede afinar, asi que se usa la

@@ -617,7 +617,8 @@ namespace nstd
         /// @tparam ToomMin Anchura a partir de la cual se usa Toom-3 en vez de
         ///         Karatsuba. Por defecto `NSTD_TOOM3_MIN`, que es el umbral de
         ///         ENTRADA; cuando la llamada viene de dentro de `toom3_full`
-        ///         vale `NSTD_TOOM3_REC`, que es mas bajo. Ver los dos @def.
+        ///         vale `NSTD_TOOM3_REC`, que es mas bajo. Las dos macros
+        ///         estan documentadas mas arriba, cada una con su medida.
         /// @param a Primer factor. @param b Segundo factor.
         /// @return El producto exacto, 2M limbos.
         template <std::size_t M, std::size_t Base, std::size_t ToomMin = NSTD_TOOM3_MIN>
@@ -1041,6 +1042,9 @@ namespace nstd
         template <std::size_t TopeDesenrollado>
         struct medio_escolar
         {
+            /// @brief `z = x * y` en media anchura: desenrollado hasta
+            ///        `TopeDesenrollado`, en bucle por encima. La decision es
+            ///        `if constexpr`, asi que no queda rama en el binario.
             template <std::size_t H>
             void operator()(const std::array<std::uint64_t, H> &x, const std::array<std::uint64_t, H> &y,
                             std::array<std::uint64_t, H> &z) const noexcept
@@ -1058,6 +1062,9 @@ namespace nstd
         template <std::size_t TopeDesenrollado, std::size_t MinKaratsuba>
         struct medio_karatsuba
         {
+            /// @brief `z = x * y` en media anchura, volviendo a Karatsuba.
+            ///        Definido fuera de la clase porque necesita ver el
+            ///        equilibrado, que se declara mas abajo.
             template <std::size_t H>
             void operator()(const std::array<std::uint64_t, H> &x, const std::array<std::uint64_t, H> &y,
                             std::array<std::uint64_t, H> &z) const noexcept;
@@ -1090,6 +1097,9 @@ namespace nstd
         template <std::size_t TopeDesenrollado, std::size_t MinKaratsuba, std::size_t Base = 8>
         struct medio_reparto
         {
+            /// @brief `z = x * y` en media anchura repartiendo otra vez, con
+            ///        `Base` arrastrada hacia abajo para que un barrido de
+            ///        umbrales mida un corte y no una mezcla.
             template <std::size_t H>
             void operator()(const std::array<std::uint64_t, H> &x, const std::array<std::uint64_t, H> &y,
                             std::array<std::uint64_t, H> &z) const noexcept
