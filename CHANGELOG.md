@@ -1,3 +1,121 @@
+## [sin publicar] - 2026-09-23 - P3.7: **el techo de Doxygen baja de 466 a 257**
+
+Solo documentacion y dos defectos de marcado. Ni una linea de codigo cambia de
+comportamiento.
+
+P3.7 estaba esperando a P1.5 tramo 3 **a proposito**: documentar antes habria
+sido documentar operaciones que ese tramo iba a reescribir. Cerrado el tramo, se
+escriben.
+
+| | Antes | Ahora |
+|---|---:|---:|
+| Avisos de doxygen **en el ambito publico** (el techo) | 466 | **257** |
+| `fixed_width_int_t.hpp` | 177 | **0** |
+| `fixed_int_limits.hpp` | 32 | **0** |
+| Avisos **totales** de doxygen | 525 | **270** |
+| Defectos de marcado (uno se presentaba **como** falta de cobertura) | 2 | **0** |
+
+**Los 257 que quedan son TODOS de `int128_param_*`**, que es la deuda de
+[ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md) y que E7
+retira. El codigo que se queda esta a cero. Eso es lo que desbloquea **P3.2**
+(`WARN_AS_ERROR = YES`): ya no depende de trabajo propio, solo de la retirada.
+
+### DOS DEFECTOS DE VERDAD, no cobertura
+
+Los dos hacian que Doxygen **perdiera documentacion ya escrita**, que es peor
+que no tenerla: el fichero parece documentado y la referencia sale vacia.
+
+| Donde | Que | Efecto |
+|---|---|---|
+| `algorithms/mul_kernels.hpp` | `@def` **sin argumento**, escrito como prosa («Ver los dos @def») | Doxygen lo lee como comando y emite `documentation for unknown define . found` |
+| `intrinsics/arithmetic_operations.hpp` | `@example` para introducir un ejemplo en linea | Significa «este comentario documenta un fichero de ejemplo»: `div128_64_composed` salia **sin documentar** teniendo un bloque de 30 lineas. Lo correcto es `@par Ejemplo:` |
+
+El segundo estaba en la lista de errores tipicos del propio comando `DOCUMENTA`,
+que lo habia destapado antes en otro fichero. Era el ultimo que quedaba: ahora
+`grep -rn '@example' include/` no da nada.
+
+### FUERA DEL AMBITO CONTADO, PERO ESCRITO
+
+[ADR-014](docs/decisions/ADR-014-cobertura-de-doxygen.md) dejo `intrinsics/` y
+`algorithms/` fuera del ambito publico, asi que sus avisos **no cuentan contra
+el techo**. Se documentaron igual los **45** que quedaban, porque son el codigo
+que de verdad ejecutan los nucleos:
+
+- **29 macros** de `compiler_detection.hpp`, con `@def`: los cinco del
+  compilador, seis del sistema, ocho de arquitectura, seis de capacidades, tres
+  de cabecera de intrinsecos y `INTRINSICS_HAS_IS_CONSTANT_EVALUATED`. Queda
+  escrito el convenio que no estaba en ninguna parte: **los del grupo existen
+  siempre, uno vale 1 y los demas 0**, para poder escribir `#if X` sin
+  `defined()`.
+- Los dos estimadores de `div_kernels.hpp` y los tres functores del termino del
+  medio de `mul_kernels.hpp`.
+- `uint256_result` de `karatsuba.hpp`.
+
+### UNA INCOHERENCIA DOCUMENTADA, NO ARREGLADA
+
+`numeric_limits<fixed_int_t>::is_modulo` vale `!is_signed`, con el comentario
+«unsigned wraps; signed overflow is UB». **Aqui no es UB**: `overflow_policy::wrap`
+esta definido y envuelve con signo igual que sin el
+([ADR-007](docs/decisions/ADR-007-politica-de-desbordamiento-como-parametro.md)),
+y con `checked` no envuelve ninguno de los dos. Lo correcto es
+`Policy == overflow_policy::wrap`, que es lo que ya hace el punto fijo
+([ADR-022](docs/decisions/ADR-022-numeric-limits-del-punto-fijo.md), decision 6).
+
+Es un cambio de comportamiento en API publicada, asi que **no entra en una
+entrega de documentacion**: queda con un `@warning` que dice exactamente lo que
+devuelve, por que esta mal y donde se arregla. Apuntado en `NEXT_STEPS.md`.
+
+### LO QUE SE MIDIO Y SE DESCARTO
+
+`DISTRIBUTE_GROUP_DOC = YES` parecia el arreglo limpio: el fichero ya esta
+escrito en estilo de grupo --**17 bloques `@name`** con la semantica comun de
+cada familia-- y ese flag reparte la documentacion del grupo a sus miembros.
+**No cambia nada**: 493 avisos con `NO` y 493 con `YES`. El aviso de cobertura
+se emite por miembro y el flag no lo toca. Descartado por medida, no por
+opinion.
+
+### EL GENERADOR SE EQUIVOCO TRES VECES, Y LA VALIDACION LO CAZO
+
+Los 177 de `fixed_width_int_t.hpp` son sobrecargas de operador --catorce
+operadores por nueve sobrecargas, mas los miembros--, asi que cada `@brief` se
+**deriva de su firma**: que lado es el tipo ancho, cual es el tipo del
+resultado, si puede lanzar. El guion valida los 177 puntos de insercion antes de
+escribir uno solo, y aborto tres veces:
+
+1. **Diez cabeceras `template` ocupan varias lineas** y el ascenso se paraba
+   dentro de la lista de parametros. Insertar ahi no compila.
+2. **Dos inserciones se enganchaban al `template` de la funcion de arriba**,
+   saltandose un `}` y una linea en blanco por el camino.
+3. La rama de «dos operandos del mismo signo» tenia el segundo operando
+   **opcional en la expresion regular**, asi que tragaba tambien los mixtos
+   `int_fixed_t<N>` con `uint_fixed_t<M>` y les ponia el texto del caso
+   homogeneo. Habria **afirmado por escrito** que ascienden a
+   `int_fixed_t<max(N,M)>` cuando pasan por `mixed_iu_t`, que es justo lo
+   contrario: si el con signo no es **estrictamente** mas ancho, gana el sin
+   signo y `-1 > 0`.
+
+El tercero es el que importa: los dos primeros rompen la compilacion y se ven
+enseguida; ese habria quedado escrito, plausible y falso. Ahora esa trampa
+--la misma que `int` contra `unsigned`, conservada a proposito-- tiene su
+`@warning` en las doce comparaciones mixtas y en `operator<=>`.
+
+### VERIFICACION
+
+- **g++ y clang-format 21 y 22** sobre los siete headers tocados: compila, y el
+  arbol sigue siendo punto fijo de las dos versiones de clang-format
+  ([ADR-013](docs/decisions/ADR-013-clang-format-local-22-ci-21.md)).
+- `check_docs_consistency.py --doxygen`: **9/9**.
+- Cobertura de comentarios de lo tocado: `fixed_int_limits` 41 %,
+  `compiler_detection` 39 %, `div_kernels` 29 %, `arithmetic_operations` 26 %,
+  `fixed_width_int_t` 24 %, `mul_kernels` 21 %, `karatsuba` 13 %.
+
+**La cifra de doxygen 1.9.8 --la del CI-- sigue siendo la de agosto (518)**
+porque en esta maquina no hay con que medirla: en WSL no esta instalado. El
+armonizador la imprime en cada ejecucion del CI; hay que leerla de la primera
+tras P3.7 y apuntarla. Queda alta, que falla por el lado seguro.
+
+---
+
 ## [sin publicar] - 2026-09-23 - P4 E3/E4/E5/E6: **24 de 24 en las seis celdas**
 
 `fixed_int_t` en sus cuatro representaciones y `fixed_point_t` con y sin signo

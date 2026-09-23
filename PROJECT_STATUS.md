@@ -52,13 +52,13 @@ alta del rango admitido (N = 64…4096) cubierta por primera vez.
 | `python make.py test clang-libstdcxx release-O2` | **69/69 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
 | `python make.py test msvc release-O2` | **69/69 ficheros** |
 | `python make.py test intel release-O2` | **69/69 ficheros** (oneAPI 2026.1) |
-| CI sobre `21e9301` | **24/24 jobs, cero fallos** (21 sep 2026), matriz completa: gcc-13/14/15/16, clang-18/19/20/21/22, ARM64, arm32, riscv64, i686 e **Intel ICX**. La cifra anterior citaba `f959f53`, **58 commits atrás**, y en ese intervalo el CI estuvo cuatro días en rojo sin que nadie lo mirara |
+| CI sobre `844fd85` | **24/24 jobs, cero fallos** (contados con `gh run view`, no supuestos), matriz completa: gcc-13/14/15/16, clang-18/19/20/21/22, ARM64, arm32, riscv64, i686 e **Intel ICX**. La cifra anterior citaba `f959f53`, **58 commits atrás**, y en ese intervalo el CI estuvo cuatro días en rojo sin que nadie lo mirara |
 | `scripts/check_headers_selfcontained.py` | **40/40** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
-| `clang-format --dry-run --Werror`, 131 ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
+| `clang-format --dry-run --Werror`, **142** ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
 | `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
 | `python make.py wsl` | **69/69 en las tres familias**: g++ 15.2 (317 s), clang 23 (326 s) e **Intel oneAPI 2026.0** (606 s) |
 | `scripts/check_matriz_paridad.py` | **348/348 celdas** (47 capacidades × **6** columnas, más 2 políticas reservadas y **13 sondas del punto fijo**, ocho que tienen que compilar y cinco que no), todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
-| Avisos de cobertura de Doxygen desde `include/` | **512** (local, doxygen 1.18.0), de los que **466 cuentan** contra el techo de ADR-014 y 46 son de headers internos, fuera del ámbito. El tipo nuevo trajo 22 y **se documentaron los 22**: el techo no se ha subido |
+| Avisos de cobertura de Doxygen desde `include/` | **257** (local, doxygen 1.18.0), y el techo de ADR-014 baja a 257 con ellos (23 sep, P3.7). **Son todos de `int128_param_*`**: el código que se queda está a **cero**, headers internos incluidos. Total de doxygen **525 → 270**, y los 13 restantes son enlaces válidos en el repo que el sitio generado no resuelve |
 
 > **La cifra de Doxygen no ha empeorado: antes no se medía.** Hasta el 25 ago el
 > `Doxyfile` tenía `EXTRACT_ALL = YES` y `WARN_IF_UNDOCUMENTED = NO`, con lo que
@@ -95,7 +95,7 @@ Compiladores: GCC 13–16, Clang 18–22, MSVC 19.5x e **Intel ICX 2026.1**
 | Tests | 65 ficheros |
 | Scripts vivos | **25** rastreados fuera de `tests/` y `benchs/`, mas 5 en `scripts/archive`. El contador decia 20 y llevaba tiempo desfasado: ahora el criterio esta dicho, que es lo que permite volver a contarlo |
 | Documentos de raíz | 12, **11.286** renglones — de los que la mayoría son el `CHANGELOG` |
-| ADR | **19**, ninguna decisión tomada sin documentar |
+| ADR | **22**, ninguna decisión tomada sin documentar |
 
 ## Cifras de la suite
 
@@ -130,14 +130,18 @@ propiedades sobre `int128_param_t`.
 
 ## Deuda anotada
 
-- `intrinsics/compiler_detection.hpp` (29 avisos) y
-  `algorithms/karatsuba.hpp` (3) están fuera del ámbito de ADR-014 pero no de
-  `int128_param_*`: habrá que decidir si entran.
-- **Los 466 avisos del ámbito público NO bajan solos a cero con P1.5.** Contado
-  el 21 sep: 257 son de `int128_param_*` —esos sí los retira P1.5— y **209 son
-  del tipo nuevo** (177 en `fixed_width_int_t.hpp`, 32 en `fixed_int_limits.hpp`).
-  Es trabajo propio que no estaba en ninguna lista, y es lo que impide que P3.2
-  se desbloquee solo. Ver **P3.7** en NEXT_STEPS.
+- ✅ `intrinsics/compiler_detection.hpp` (29 avisos) y `algorithms/karatsuba.hpp`
+  (3) estaban fuera del ámbito de ADR-014 pero no eran de `int128_param_*`. **Se
+  documentaron igual el 23 sep**, junto con `div_kernels` (9), `mul_kernels` (3)
+  y `arithmetic_operations` (1): 45 avisos que no contaban contra el techo pero
+  son el código que de verdad ejecutan los núcleos. La decisión de si entran al
+  ámbito ya no urge, porque están a cero.
+- ✅ **Los 466 avisos del ámbito público no bajaban solos a cero con P1.5**, y
+  por eso existió P3.7. Contado el 21 sep: 257 de `int128_param_*` —esos sí los
+  retira P1.5— y **209 del tipo nuevo** (177 en `fixed_width_int_t.hpp`, 32 en
+  `fixed_int_limits.hpp`), que era trabajo propio sin apuntar en ninguna lista.
+  **Escritos el 23 sep**: el techo queda en 257 y P3.2 (`WARN_AS_ERROR = YES`)
+  ya solo espera a la retirada, no a trabajo propio.
 - ✅ **`make.py build` ya detecta el fallo de enlazado** (25 ago 2026). Eran dos
   fallos en `scripts/build_generic.py`: el código de salida no se propagaba, y el
   criterio era `returncode == 0 **o** existe el binario`, con un `or` que dejaba

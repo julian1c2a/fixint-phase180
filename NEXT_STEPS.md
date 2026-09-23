@@ -15,19 +15,19 @@
 
 # 📍 POR AQUÍ VAMOS
 
-## Estado al 21 sep 2026
+## Estado al 23 sep 2026
 
 | | |
 |---|---|
 | **Release** | ✅ **v1.90.4 publicada**, la primera del proyecto: tres zips (gcc, clang, msvc) |
-| **Suite local** | ✅ **65/65 en CINCO configuraciones**: GCC+libstdc++, clang+libc++, **clang+libstdc++**, MSVC e Intel |
-| **CI** | ✅ **24/24 jobs, cero fallos** sobre `21e9301` (21 sep). Antes citaba `f959f53`, **58 commits atrás**, y en ese hueco estuvo **cuatro días en rojo** sin que nadie mirara: lo rompió el envoltorio atómico y lo tapó un `2>/dev/null` en el propio CI |
-| **Diseño de la 2.0** | ✅ cerrado. **P1.1 a P1.4 escritos**; quedan P1.5 y P1.6 |
+| **Suite local** | ✅ **69/69 en CINCO configuraciones** (`release-O2`, 23 sep): GCC+libstdc++, clang+libc++, **clang+libstdc++**, MSVC e Intel |
+| **CI** | ✅ **24/24 jobs, cero fallos** sobre `844fd85`, **contados** con `gh run view`, no supuestos. La cifra llegó a citar `f959f53`, **58 commits atrás**, y en ese hueco el CI estuvo **cuatro días en rojo** sin que nadie mirara: lo rompió el envoltorio atómico y lo tapó un `2>/dev/null` en el propio CI |
+| **Diseño de la 2.0** | ✅ cerrado, y **escrito entero**: de P1.1 a P1.6, con P1.5 tramo 3 (Magnitud-Signo y Exceso-K) y las tres entregas del punto fijo |
 | **`operator*`** | ✅ **el frente de la multiplicación, cerrado** (17 sep 2026). Cuatro algoritmos reunidos en `algorithms/mul_kernels.hpp`, cada umbral medido: escolar desenrollado ≤ 21, **Karatsuba equilibrado** ≥ 22 para *cualquier* N, **cuadrado** propio para `x*x`, y **Toom-3** ≥ 1024 |
 | **La división** | ✅ **cerrada por ahora**. Knuth D en su capa medible (`div_kernels.hpp`), `divq` en línea **1,28×–1,39×**, Möller–Granlund **2/1** (~84 → ~17 ciclos/limbo) y **3/2** (hasta **3,3×**). **P2.11 aparcado con medida** ([ADR-016](docs/decisions/ADR-016-burnikel-ziegler-aparcado-por-medida.md)): hasta N=1024 la división ya está dentro del techo de 2–4× que publica GMP |
-| **Lo siguiente** | 🔸 **el camino crítico de la 2.0**. Los tramos **2d** (atómico) y **2e** (divisor constante) cerrados el 18 sep; queda **P1.5 tramo 3** —Magnitud-Signo y Exceso-K, el de más peso— y luego **P1.6** (punto fijo). Lo fija [ADR-007](docs/decisions/ADR-007-politica-de-desbordamiento-como-parametro.md) y hacerlo al revés significa portar la API dos veces |
-| **Paridad de parámetros** | ✅ **284/284 celdas** en la [matriz de paridad](docs/MATRIZ_DE_PARIDAD.md): 47 capacidades × **6** columnas —las de MS y EK se abrieron el 22 sep—, comprobadas **compilando** |
-| **ADR** | 19 registros, ninguna decisión sin documentar |
+| **Lo siguiente** | 🔸 **el camino crítico está cerrado**, y con P4 y P3.7 también el acompañamiento de `std` (24/24 en las seis celdas) y la documentación del tipo nuevo. Lo abierto de verdad es la tabla de [ADR-019](docs/decisions/ADR-019-punto-fijo-es-un-entero-con-escala.md): operar entre tipos con **distinto `F`**, convertir **desde y hacia coma flotante**, y `sqrt` con escala. Ninguna decidida |
+| **Paridad de parámetros** | ✅ **348/348 celdas** en la [matriz de paridad](docs/MATRIZ_DE_PARIDAD.md): 47 capacidades × **6** columnas —las de MS y EK se abrieron el 22 sep—, más las sondas del punto fijo, comprobadas **compilando** |
+| **ADR** | **22** registros, ninguna decisión sin documentar |
 
 **Lo primero al retomar: `python scripts/check_docs_consistency.py --doxygen`.**
 Con `--doxygen`, que es la orden que corre el CI; sin el flag son 7
@@ -233,14 +233,16 @@ el punto fijo.
 | | Qué | Nota |
 |---|---|---|
 | ~~P3.1~~ | ~~Ámbito de Doxygen para los headers internos~~ | ✅ **decidido (10 sep)**: fuera del ámbito. Criterio: entra lo que un usuario puede incluir, o sea la raíz de `include/`; `intrinsics/` y `algorithms/` no. Desbloquea P3.2 |
-| **P3.2** | Cerrar la puerta: `WARN_AS_ERROR = YES` cuando el ámbito llegue a cero | Depende de P3.1 |
+| **P3.2** | Cerrar la puerta: `WARN_AS_ERROR = YES` cuando el ámbito llegue a cero | ✅ **desbloqueado (23 sep)** por P3.7: ya no espera trabajo propio, solo a que P1.5 retire `int128_param_*`. Los 257 que quedan son **todos** de esa familia |
 | **P3.3** | Los **8** headers sin `API_*.md` propio que señala el armonizador. Eran 9: `fixed_point_t.hpp` salió el 22 sep con [API_fixed_point.md](docs/API_fixed_point.md) | — |
 | ~~P3.4~~ | ~~`benchmark_vs_builtin` no enlaza sin GMP~~ | ✅ **hecho**: le faltaban `-lgmp`, `-lgmpxx` y `-ltommath`. Las tres bibliotecas estaban instaladas |
-| **P3.5** | Documentar `int128_param_*` (**257** avisos, contados el 21 sep) | **Caduca hacia atrás**: baja sola con P1.5. **Pero sólo esos 257**: los otros 209 del ámbito público son del tipo nuevo y no los retira nadie — ver **P3.7** |
+| **P3.5** | Documentar `int128_param_*` (**257** avisos) | **Caduca hacia atrás**: baja sola con P1.5. Desde P3.7 (23 sep) son **el techo entero**: los otros 209 ya están escritos. No se documenta lo que se va a borrar |
 | **P3.6** | Decidir si Intel sale de la matriz de release | Se cae solo si P0.6 sale bien |
-| **P3.7** | **Documentar el tipo NUEVO: 209 miembros públicos sin `@brief`** | ⚠️ **Nadie lo tenía apuntado, y es lo que impide que P3.2 se desbloquee solo** |
+| ~~P3.7~~ | ~~**Documentar el tipo NUEVO: 209 miembros públicos sin `@brief`**~~ | ✅ **hecho (23 sep)**. Techo **466 → 257**, y los 257 restantes son **todos** de `int128_param_*`. De paso, dos defectos de marcado que hacían **perder documentación ya escrita** —un `@def` sin argumento y un `@example` en línea— y 45 avisos más en `intrinsics/`+`algorithms/`, que no cuentan contra el techo pero son el código que ejecutan los núcleos |
+| **P3.8** | **`numeric_limits<fixed_int_t>::is_modulo` miente**: vale `!is_signed`, copiando la convención del estándar, donde es falso con signo **porque desbordar con signo es UB**. Aquí no lo es: `wrap` está definido y envuelve con signo igual que sin él, y `checked` no envuelve ninguno de los dos. Lo correcto es `Policy == overflow_policy::wrap`, que es lo que ya hace el punto fijo ([ADR-022](docs/decisions/ADR-022-numeric-limits-del-punto-fijo.md), decisión 6) | Salió de P3.7, que lo dejó **documentado con un `@warning` y sin tocar**: es un cambio de comportamiento en API publicada y no cabía en una entrega de documentación |
+| **P3.9** | **Medir el techo de doxygen en 1.9.8**, la versión del CI. Sigue en **518**, de agosto, porque en esta máquina no hay con qué medirla (en WSL no está doxygen instalado). El armonizador la imprime en cada ejecución | Leerla de la primera ejecución del CI tras P3.7 y apuntarla en `DOXYGEN_BASELINE` |
 
-> ### P3.7 — «P3.5 caduca hacia atrás» era sólo medio cierto (21 sep 2026)
+> ### ✅ P3.7 — «P3.5 caduca hacia atrás» era sólo medio cierto (21 sep 2026, cerrado el 23)
 >
 > P3.5 dice que documentar `int128_param_*` **baja sola** al retirar ese tipo con
 > P1.5, y de ahí se seguía que P3.2 —`WARN_AS_ERROR = YES` cuando el ámbito
@@ -271,6 +273,15 @@ el punto fijo.
 >
 > **Y el orden importa**: hacerlo antes de P1.5 tramo 3 sería documentar
 > operaciones que ese tramo va a tocar. Va **después**.
+>
+> ---
+>
+> **Cerrado el 23 sep 2026.** Los 209 escritos, techo en **257**, y la tabla de
+> arriba queda con una sola fila viva: `int128_param_*`. Lo que no se vio al
+> contar: **dos de los avisos no eran cobertura sino marcado roto**, y los dos
+> hacían que Doxygen *perdiera* documentación ya escrita —un bloque de 30 líneas
+> salía como «sin documentar»—, que es peor que no tenerla, porque el fichero
+> parece bien y la referencia sale vacía.
 
 ---
 
