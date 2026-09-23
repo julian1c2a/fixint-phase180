@@ -96,7 +96,7 @@ la ruta de inclusión.
 g++ -std=c++20 -I include mi_programa.cpp
 ```
 
-Requisitos: **C++20**. Verificada en local, **69/69 en los cinco**: GCC 16.2
+Requisitos: **C++20**. Verificada en local, **71/71 en los cinco**: GCC 16.2
 (libstdc++), Clang 22.1.8 (**libc++**), **Clang 22.1.8 (libstdc++)**, MSVC
 19.5x e Intel oneAPI 2026.1. El CI la cruza además con GCC 13–16 y Clang 18–22
 sobre x86-64, x86-32, ARM64, ARM32 y RISC-V 64, y desde el 5 sep 2026 esas
@@ -146,7 +146,7 @@ Para código nuevo, usar `fixed_int_t` y sus alias.
 
 ```
 include/          40 cabeceras; fixed_width_int_t.hpp es el tipo insignia
-tests/            69 ficheros de test
+tests/            71 ficheros de test
 benchs/           benchmarks (RDTSC, rondas intercaladas, minimo)
 demos/            ejemplos de uso
 docs/             referencia de la API y decisiones

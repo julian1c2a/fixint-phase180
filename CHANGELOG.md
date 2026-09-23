@@ -1,3 +1,138 @@
+## [sin publicar] - 2026-09-23 - E3 completo: **0 sondas pendientes**
+
+Las dieciseis que faltaban para cerrar la etapa E3 del
+[plan de acompanamiento](docs/PLAN_ACOMPANAMIENTO_STD.md), en las cuatro
+representaciones. El verificador --que es quien tacha, no la impresion de
+haberlo escrito-- pasa de «16 sondas pendientes» a **cero**.
+
+| | uint | int/C2 | int/MS | int/EK |
+|---|---|---|---|---|
+| `countl_one` / `countr_one` | si | si | si | si |
+| `bit_ceil` / `bit_floor` | si | si | si | si |
+| `byteswap` | si | si | si | si |
+| `to_chars` / `from_chars` | si | si | si | si |
+
+### UN DEFECTO REAL, Y NO ESTABA EN E3
+
+`from_string` en **Magnitud-Signo perdia el signo al saturar**:
+
+    MS::from_string("-170141183460469231731687303715884105728")
+      ->  +170141183460469231731687303715884105727     (POSITIVO)
+
+Debia dar `MS::min()`, que es negativo. La causa: el codigo construia el valor
+**en la representacion destino** y negaba despues. Con esa magnitud --`2^127`--
+Magnitud-Signo no cabe, satura al construir, y la negacion operaba ya sobre un
+valor mutilado.
+
+Ahora se construye en **complemento a dos** y se recodifica, que es el camino
+que `desde_c2` ya tenia bien: alli `2^127` ES `min()`, `-min()` envuelve a
+`min()`, y la recodificacion satura al lado correcto (ADR-017).
+
+**Es un valor entre 2^128.** Ningun operando aleatorio lo encuentra jamas. Lo
+destapo el cruce de las cuatro representaciones.
+
+### EL ALCANCE EXACTO DE ADR-018, QUE NO ESTABA ESCRITO
+
+ADR-018 dice que las cuatro representaciones «dan lo mismo en TODO». Es la
+premisa sobre la que descansa **toda la disciplina de cruce** del proyecto, asi
+que conviene que diga lo que se puede sostener:
+
+> Dan lo mismo **para todo valor que las cuatro puedan representar**. Hay
+> exactamente uno que no --`-2^(64N-1)`, que Magnitud-Signo no tiene-- y ahi
+> satura.
+
+Y eso aparece **en el resultado**, no en la entrada, que es lo que costo ver:
+
+| | Que pasa |
+|---|---|
+| `byteswap` | **no es involucion en MS** cuando el intermedio cae ahi: `byteswap(128)` da exactamente `-2^127` |
+| `bit_ceil` | al desbordar cae justo en `-2^(64N-1)`: C2 y EK **envuelven** hasta el, MS **satura** |
+
+**Como se prueba sin volverlo vacuo.** Un test que saltara esos casos los
+estaria tapando, asi que se parte en dos: el cruce **salta por valor** --si lo
+que MS guarda no es lo que se pidio, ese caso no entra-- y aparte se **exige lo
+que si se puede exigir**: que MS caiga en su propio `min()`, con el signo
+puesto. Mas una comprobacion de que **algo se salta**: si no se saltara nada,
+seria que MS representa `-2^(64N-1)` y entonces ADR-018 estaria mal.
+
+Anotado en el propio ADR-018.
+
+### `to_chars` SALE EN MINUSCULA Y `to_string` EN MAYUSCULA
+
+`std::to_chars` usa **minusculas** para las bases mayores que 10. `to_string`
+usa **mayusculas**. Los dos se quedan como estan: `nstd::to_chars` existe para
+ser la homologa de `<charconv>` y coincide con ella; `to_string` conserva lo
+publicado (ADR-012).
+
+Salio de comparar contra `std::to_chars` **de verdad**, en las 35 bases, no
+contra lo que uno recuerda del estandar. Esa comparacion es el oraculo del test.
+
+### UN SOLO ANALIZADOR, DOS PUERTAS
+
+`from_chars` **no lleva analizador propio**: normaliza el rango a un buffer de
+pila --acotado por el tipo, nunca por la entrada, y quitando los ceros de
+delante para que la cota valga-- y llama a `try_from_string`.
+
+Escribir un segundo analizador le habria dado una segunda casa al fallo de
+Magnitud-Signo que se acaba de arreglar.
+
+### FALSIFICACION: DIECIOCHO AVERIAS, TODAS EN ROJO
+
+Nueve para los nombres de `<bit>` y nueve para `charconv`. Cada una minima y
+plausible --un off-by-one, un limbo mal indexado, devolver `ptr` equivocado--,
+no un disparate que cualquier cosa detectaria.
+
+**Y dos veces el «no detectado» fue mio, no del test:**
+
+  - Una averia que era un **no-op**: pretendia romper `byteswap` y solo asignaba
+    `a_c2()` dos veces. Reescrita de verdad --leer los limbos GUARDADOS en vez
+    del valor, que es la violacion de ADR-018-- el test la caza.
+  - Y el propio arnes contaba **morir** como «no detectada»: un `noexcept` que
+    lanza termina el proceso, no imprime la linea de resultados, y el arnes lo
+    leia como silencio. Morir ES deteccion. Corregido.
+
+Sin mirar las dos, habria concluido que el test tiene agujeros que no tiene.
+
+### EL ORACULO NO COMPILABA EN MSVC, Y CUATRO COMPILADORES DECIAN QUE SI
+
+`test_e3_bits.cpp` uso `unsigned __int128` para el oraculo. **MSVC no lo tiene.**
+
+  gcc                71/71   ERROR=0
+  clang + libc++     71/71   ERROR=0
+  clang + libstdc++  71/71   ERROR=0
+  Intel              71/71   ERROR=0
+  MSVC               70/71   ERROR=3   <-- no compila
+
+Cuatro de cinco en verde no significa nada. Con un solo compilador se habria
+subido un test que no compila en **la cuarta parte de la matriz del CI**, y se
+habria descubierto en GitHub.
+
+El oraculo se reescribio como par `(hi, lo)` de `uint64_t`, con las operaciones
+que hacen falta a mano --bit, potencia de dos, mas uno, menos uno, comparar,
+invertir bytes--. **Sigue siendo independiente de la biblioteca**, que es lo
+unico que se le pide a un oraculo, y ademas compila en todas partes. Mismas 392
+esquinas, mismas 35 comprobaciones, mismos 2 casos saltados.
+
+La falsificacion se repitio **dos veces mas**: una tras cambiar el oraculo --el
+test es otro, el resultado anterior no valia-- y otra tras reformatear, porque
+las anclas del arnes son cadenas literales de la cabecera y `clang-format` las
+podria haber movido. Las nueve siguen en rojo en los dos casos.
+
+### VERIFICADO
+
+  - `tests/test_e3_bits.cpp`: **35 comprobaciones**, 392 esquinas construidas a
+    mano --las 128 potencias de dos, sus vecinas, los extremos-- porque **los
+    aleatorios aqui no valen**: `is_power_of_2` paso un barrido de 400 valores
+    al azar con cero discrepancias estando rota para toda potencia de dos.
+  - `tests/test_e3_charconv.cpp`: **29 comprobaciones**, con `std::to_chars` y
+    `std::from_chars` de oraculo donde el valor cabe en `uint64_t`.
+  - Suite en los cinco compiladores de Windows: **71/71** --los dos tests nuevos
+    entran solos en el barrido-- y `make.py wsl`.
+  - `check_acompanamiento_std.py`: 24/24 en las seis celdas y **0 sondas
+    pendientes**.
+
+---
+
 ## [sin publicar] - 2026-09-23 - P1.5 tramo 2: **`int128_param_t` queda deprecado**
 
 El tramo 2 de

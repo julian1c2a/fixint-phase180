@@ -47,16 +47,16 @@ alta del rango admitido (N = 64…4096) cubierta por primera vez.
 
 | Comprobación | Resultado |
 |---|---|
-| `python make.py test gcc release-O2` | **69/69 ficheros** (GCC 16.2 ucrt64, libstdc++) |
-| `python make.py test clang release-O2` | **69/69 ficheros** (clang 22.1.8 clang64, **libc++**) |
-| `python make.py test clang-libstdcxx release-O2` | **69/69 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
-| `python make.py test msvc release-O2` | **69/69 ficheros** |
-| `python make.py test intel release-O2` | **69/69 ficheros** (oneAPI 2026.1) |
+| `python make.py test gcc release-O2` | **71/71 ficheros** (GCC 16.2 ucrt64, libstdc++) |
+| `python make.py test clang release-O2` | **71/71 ficheros** (clang 22.1.8 clang64, **libc++**) |
+| `python make.py test clang-libstdcxx release-O2` | **71/71 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
+| `python make.py test msvc release-O2` | **71/71 ficheros** |
+| `python make.py test intel release-O2` | **71/71 ficheros** (oneAPI 2026.1) |
 | CI sobre `844fd85` | **24/24 jobs, cero fallos** (contados con `gh run view`, no supuestos), matriz completa: gcc-13/14/15/16, clang-18/19/20/21/22, ARM64, arm32, riscv64, i686 e **Intel ICX**. La cifra anterior citaba `f959f53`, **58 commits atrás**, y en ese intervalo el CI estuvo cuatro días en rojo sin que nadie lo mirara |
 | `scripts/check_headers_selfcontained.py` | **40/40** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
 | `clang-format --dry-run --Werror`, **142** ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
 | `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
-| `python make.py wsl` | **69/69 en las tres familias** (207 ficheros = 69 × 3): g++, clang e **Intel oneAPI**, y **cero avisos de deprecación** tras P1.5 tramo 2 |
+| `python make.py wsl` | **71/71 en las tres familias** (213 ficheros = 71 × 3): g++, clang e **Intel oneAPI**, y **cero avisos de deprecación** tras P1.5 tramo 2 |
 | `scripts/check_matriz_paridad.py` | **348/348 celdas** (47 capacidades × **6** columnas, más 2 políticas reservadas y **13 sondas del punto fijo**, ocho que tienen que compilar y cinco que no), todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
 | Avisos de cobertura de Doxygen desde `include/` | **257** (local, doxygen 1.18.0), y el techo de ADR-014 baja a 257 con ellos (23 sep, P3.7). **Son todos de `int128_param_*`**: el código que se queda está a **cero**, headers internos incluidos. Total de doxygen **525 → 270**, y los 13 restantes son enlaces válidos en el repo que el sitio generado no resuelve |
 
