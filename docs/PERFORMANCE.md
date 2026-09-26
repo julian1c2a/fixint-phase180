@@ -52,9 +52,14 @@ venía haciendo, da una precisión que no existe.
 Consecuencias prácticas:
 
 - El umbral de aviso de
-  [`scripts/bench_history.py`](../scripts/bench_history.py) está en **25 %**, no
-  en el 5 % que parecía razonable a ojo. Por debajo de eso serían todo falsos
-  positivos.
+  [`scripts/bench_history.py`](../scripts/bench_history.py) estuvo en **25 %**
+  para todas las medidas, y por buenas razones: por debajo de eso serían todo
+  falsos positivos. **Desde el 27 sep ya no es un número único.** Cuando las dos
+  tomas traen el recorrido de su casilla —lo mide
+  [`bench_adaptativo.hpp`](../benchs/bench_adaptativo.hpp) desde el 10 sep— la
+  barra es **la suma de los dos recorridos**, que es la comprobación que pedía
+  ese arnés y que nadie podía hacer porque el dato no llegaba al fichero. El
+  25 % queda para las medidas que no lo traen.
 - Una cifra suelta no vale: hacen falta **varias ejecuciones y el rango**.
 - Lo que sí sobrevive al ruido es **el signo y el orden de magnitud**. «Karatsuba
   gana» es sólido; «Karatsuba gana un 1,65×» no lo es tanto como parecía.
@@ -77,8 +82,17 @@ N=3: cuando se medía el último, después de N=16, daba 0,86×; al pasarlo a la
 cuarta posición dio 1,12×–1,18×. Treinta puntos porcentuales por cambiar de
 sitio, sin tocar una línea de código.
 
-El benchmark **no controla esto** hoy. Mientras no lo haga, comparar dos casos
-medidos en posiciones distintas no es legítimo.
+**Doce de los veintitrés benchmarks sí lo controlan**, y desde el 10 sep:
+`mide_entrelazado` ejecuta todas las variantes en cada ronda y **rota el orden
+una posición por ronda**, así que ninguna ocupa siempre el mismo sitio. En esos
+doce, comparar dos variantes de la misma tanda es legítimo.
+
+En los once que siguen con el arnés viejo —iteraciones fijas, una variante
+detrás de otra— no lo es, y ahí la advertencia de arriba sigue en pie.
+
+> Este párrafo decía «el benchmark **no controla esto** hoy» hasta el 27 sep,
+> catorce días después de que doce de ellos empezaran a controlarlo. Una
+> advertencia caducada no es inocua: hace descartar comparaciones que sí valen.
 
 ---
 
