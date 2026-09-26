@@ -1,3 +1,99 @@
+## [sin publicar] - 2026-09-26 - P3.8: **`is_modulo` sale de la politica, no del signo**
+
+`numeric_limits<fixed_int_t>::is_modulo` valia `!is_signed`, copiando la
+convencion del estandar. Pasa a `(Policy == overflow_policy::wrap)`, que es lo
+que `numeric_limits<fixed_point_t>` ya hacia bien
+([ADR-022](docs/decisions/ADR-022-numeric-limits-del-punto-fijo.md), decision 6).
+
+Lleva `!` porque es un rasgo publicado que cambia de valor.
+
+### POR QUE LA CONVENCION DEL ESTANDAR NO APLICA AQUI
+
+El estandar pone `is_modulo` a falso para los enteros con signo **porque ahi
+desbordar es comportamiento indefinido**, y de lo indefinido no se puede afirmar
+que sea modular. Ese es el motivo, no el signo.
+
+Aqui no es indefinido: `overflow_policy::wrap` esta escrito y envuelve modulo
+`2^(64N)`, tenga signo o no
+([ADR-007](docs/decisions/ADR-007-politica-de-desbordamiento-como-parametro.md)).
+Se copio la convencion sin copiar el motivo.
+
+### LA DOCUMENTACION DE LA CLASE YA DECIA LO CORRECTO
+
+Encima de la especializacion, desde que se escribio:
+
+> «`is_modulo` es **`true`** tambien para los tipos con signo. La aritmetica de
+> esta biblioteca envuelve en vez de ser comportamiento indefinido, que es la
+> diferencia deliberada con los `int` del lenguaje.»
+
+Y el codigo decia `!is_signed`. **Esto no cambia una decision: hace que el codigo
+cumpla su propia documentacion**, que llevaba contradiciendolo desde el primer
+dia.
+
+### ERAN DOS MITADES, NO UNA
+
+`NEXT_STEPS` lo tenia apuntado como «miente con signo». Tambien mentia **sin
+signo**:
+
+| | antes | ahora |
+|---|---|---|
+| `uint` + `wrap` | `true` | `true` |
+| **`int` + `wrap`** | **`false`** | **`true`** |
+| **`uint` + `checked`** | **`true`** | **`false`** |
+| `int` + `checked` | `false` | `false` |
+
+Con `checked` no se envuelve: **se marca**. Un tipo que marca en vez de envolver
+no es modular por mucho que no tenga signo. La linea vieja estaba mal por los dos
+lados.
+
+### EL TEST NO REPITE LA DEFINICION
+
+Lo facil seria `static_assert(is_modulo == (Policy == wrap))`. Eso no prueba
+nada: es la misma linea con otra sintaxis, y si la linea esta mal el test
+tambien.
+
+`tests/test_is_modulo.cpp` enfrenta el **rasgo** al **comportamiento**:
+
+  - donde `is_modulo` es cierto, que `max() + 1 == min()` -- en las cuatro
+    representaciones;
+  - donde es falso, que `max() + 1` **marque** y no envuelva;
+  - que el entero y el punto fijo **digan lo mismo**, para no crear una segunda
+    convencion;
+  - y que `is_signed` siga dependiendo del signo, o sea que el desacoplamiento no
+    se haya pasado de largo.
+
+13 comprobaciones. **Falsificacion 5/5 en rojo**, y la primera averia es volver a
+la linea vieja: rompe 4 `static_assert`.
+
+Nota del arnes: casi todo el test son `static_assert`, asi que las averias se
+detectan **al compilar**. Un arnes que solo mirara la linea de resultados las
+contaria como «no detectadas» -- es el mismo fallo que mordio en E3 con
+`charconv`, asi que este se escribio contemplandolo.
+
+### LA SUITE SEÑALO DONDE VIVIA EL CONTRATO VIEJO
+
+`tests/test_fixed_limits.cpp` fijaba por escrito `!is_modulo` para los cuatro
+tipos con signo: **4 `static_assert` en rojo** al compilar. No es un fallo del
+cambio, es el sitio donde estaba documentado lo que el cambio corrige.
+Actualizado con el motivo, y con un puntero al test nuevo, que cubre la rejilla
+entera.
+
+`tests/test_param_limits.cpp` **no** se toca: es del tipo viejo, que conserva la
+convencion del estandar a proposito y se retira en la 1.90.
+
+### Y UNA CORRECCION A LA GUIA DE MIGRACION, ESCRITA TRES DIAS ANTES
+
+`docs/MIGRACION_int128_param.md` decia «**lo que cambia en el comportamiento:
+nada**». Ya no es cierto del todo: el tipo viejo conserva la convencion del
+estandar y el nuevo no, asi que `is_modulo` es **el unico sitio** donde los dos
+responden distinto. La guia lleva ahora su tabla y el encabezado dice «casi
+nada».
+
+Quien se ramifique sobre `is_modulo` al migrar tiene que mirarlo. Responde
+distinto porque el viejo respondia mal.
+
+---
+
 ## [sin publicar] - 2026-09-23 - E3 completo: **0 sondas pendientes**
 
 Las dieciseis que faltaban para cerrar la etapa E3 del

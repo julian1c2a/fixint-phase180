@@ -258,15 +258,59 @@ def check_api_docs(rep: Report):
     else:
         rep.ok(f"los {len(api_docs)} ficheros API_*.md corresponden a headers")
 
-    # Headers publicos sin su API_*.md: informativo, no bloquea. Misma regla que
-    # arriba, en el otro sentido: un header esta documentado si algun API_*.md lo
-    # menciona por su nombre de fichero.
+    # Headers sin su API_*.md. SON TRES GRUPOS, NO UNO.
+    #
+    # Esto listaba los ocho juntos como «sin API_*.md propio», y los ocho lo
+    # estaban A PROPOSITO. Leerlo como deuda costo abrir una tarea (P3.3) y
+    # estar a punto de escribir ocho documentos que habrian dicho que
+    # `div_kernels.hpp` es API publica -- justo lo contrario de lo que fijo
+    # ADR-014: «entra lo que un usuario puede incluir, o sea la raiz de
+    # include/; intrinsics/ y algorithms/ no».
+    #
+    #   1. INTERNOS (intrinsics/, algorithms/): fuera del ambito publico. No
+    #      llevan API_*.md, pero **si** tienen que estar en el mapa de capas,
+    #      `docs/ARQUITECTURA_INTERNA.md`. Si uno falta, ESTO FALLA: es un
+    #      trinquete, como el techo de doxygen. Un fichero nuevo en
+    #      `intrinsics/` que nadie anote al mapa lo deja desfasado en silencio.
+    #   2. LEGADO (int128_param_*): deprecados, se borran en la 1.90 (ADR-006).
+    #      Documentar lo que se retira es trabajo tirado.
+    #   3. PUBLICOS sin documentar: **eso si** es deuda, y es lo unico que
+    #      debe leerse como tal.
     all_api_text = chr(10).join(
         d.read_text(encoding="utf-8", errors="replace") for d in api_docs)
-    sin_doc = sorted(p.name for p in (PROJECT_ROOT / "include").rglob("*.hpp")
-                     if p.name not in all_api_text)
-    if sin_doc and not rep.quiet:
-        print(f"  [nota] headers sin API_*.md propio: {', '.join(sin_doc)}")
+    mapa = PROJECT_ROOT / "docs" / "ARQUITECTURA_INTERNA.md"
+    texto_mapa = mapa.read_text(encoding="utf-8", errors="replace") if mapa.exists() else ""
+
+    internos, legado, publicos = [], [], []
+    for p in sorted((PROJECT_ROOT / "include").rglob("*.hpp")):
+        if p.name in all_api_text:
+            continue
+        if p.parent.name in ("intrinsics", "algorithms"):
+            internos.append(p.name)
+        elif p.name.startswith("int128_param"):
+            legado.append(p.name)
+        else:
+            publicos.append(p.name)
+
+    fuera_del_mapa = [n for n in internos if n not in texto_mapa]
+    if not mapa.exists():
+        rep.fail("falta docs/ARQUITECTURA_INTERNA.md, el mapa de las capas internas",
+                 f"{len(internos)} headers internos se quedan sin documentar")
+    elif fuera_del_mapa:
+        rep.fail(f"{len(fuera_del_mapa)} header(s) interno(s) fuera del mapa de capas",
+                 ", ".join(fuera_del_mapa) +
+                 " -- anyadelos a docs/ARQUITECTURA_INTERNA.md")
+    else:
+        rep.ok(f"los {len(internos)} headers internos estan en el mapa de capas "
+               f"(ARQUITECTURA_INTERNA.md); no llevan API_*.md por ADR-014")
+
+    if not rep.quiet:
+        if legado:
+            print(f"  [nota] sin API_*.md por estar deprecados, se van en 1.90: "
+                  f"{', '.join(legado)}")
+        if publicos:
+            print(f"  [nota] headers PUBLICOS sin API_*.md -- esto si es deuda: "
+                  f"{', '.join(publicos)}")
 
 
 # =============================================================================
