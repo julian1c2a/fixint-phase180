@@ -24,13 +24,21 @@ import argparse
 from pathlib import Path
 from typing import List, Tuple, Optional
 
+# P3.10: UN solo sitio decide donde se compila y donde se busca el binario.
+# Antes lo decidian ocho sitios con reglas distintas, y Windows y WSL se
+# pisaban los binarios. Ver scripts/env_setup/rutas.py.
+import sys as _sys_rutas
+from pathlib import Path as _Path_rutas
+_sys_rutas.path.insert(0, str(_Path_rutas(__file__).resolve().parent))
+from env_setup import rutas  # noqa: E402
+
 # =============================================================================
 # Configuration
 # =============================================================================
 
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 INCLUDE_DIR = PROJECT_ROOT / "include"
-BUILD_BASE = PROJECT_ROOT / "build" / "build_demos"
+BUILD_BASE = PROJECT_ROOT / "build" / "build_demos" / rutas.plataforma()
 
 DEMO_CATEGORIES = ["tutorials", "examples", "showcase", "general"]
 
@@ -98,7 +106,7 @@ def build_demo(demo_file: Path, compiler: str, mode: str) -> Tuple[bool, str]:
     output_dir.mkdir(parents=True, exist_ok=True)
     
     output_file = output_dir / demo_name
-    if sys.platform == "win32" or os.name == "nt":
+    if rutas.plataforma() == "windows":
         output_file = output_file.with_suffix(".exe")
     
     compiler_cmd = get_compiler_cmd(compiler)

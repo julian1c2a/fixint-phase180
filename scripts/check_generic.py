@@ -49,6 +49,14 @@ if sys.platform == "win32":
 # Add env_setup to path
 sys.path.insert(0, str(Path(__file__).parent / "env_setup"))
 
+# P3.10: UN solo sitio decide donde se compila y donde se busca el binario.
+# Antes lo decidian ocho sitios con reglas distintas, y Windows y WSL se
+# pisaban los binarios. Ver scripts/env_setup/rutas.py.
+import sys as _sys_rutas
+from pathlib import Path as _Path_rutas
+_sys_rutas.path.insert(0, str(_Path_rutas(__file__).resolve().parent))
+from env_setup import rutas  # noqa: E402
+
 try:
     from compiler_env import CompilerEnvironment
     USE_COMPILER_ENV = True
@@ -126,12 +134,13 @@ def check_demo_compilation(category: str, demo_file: Path, compiler: str, mode: 
             env = os.environ.copy()
         
         # Build directory
-        build_dir = project_root / "build" / "build_demos" / compiler / mode
+        build_dir = project_root / "build" / "build_demos" / rutas.plataforma() / compiler / mode
         build_dir.mkdir(parents=True, exist_ok=True)
         
-        # Output executable
+        # Output executable. `plataforma()` y no `sys.platform`: ver
+        # scripts/env_setup/rutas.py.
         output = build_dir / demo_name
-        if sys.platform == "win32":
+        if rutas.plataforma() == "windows":
             output = output.with_suffix(".exe")
         
         # Compiler command
@@ -306,7 +315,7 @@ def main():
             print("Error: TYPE debe ser 'uint128' o 'int128'")
             sys.exit(1)
         
-        build_dir = project_root / "build" / "build_tests"
+        build_dir = project_root / "build" / "build_tests" / rutas.plataforma()
         
         # Determine compilers and modes to test
         compilers = toolchains.familias_pedidas(compiler_arg)
@@ -344,20 +353,22 @@ def main():
             results[compiler] = {}
             
             for mode in modes:
-                # Executable name matches source file stem + compiler suffix
-                # e.g., test_priority5_string.cpp -> test_priority5_string_gcc
-                exe_name = f"{test_file_found.stem}_{compiler}"
-                
-                # Add .exe extension for Windows or MSVC/Intel
-                if sys.platform == "win32" or compiler in ["msvc", "intel"]:
-                    if not exe_name.endswith(".exe"):
-                        exe_name += ".exe"
-                
-                exe_path = build_dir / compiler / mode / exe_name
-                
+                # EL NOMBRE NO SE RECONSTRUYE, SE BUSCA.
+                #
+                # Antes se anadia `.exe` si `sys.platform == "win32"`. Eso no
+                # describe lo que se compilo, describe **que interprete se
+                # lanzo**: la Python de MSYS dice `cygwin`, y dejo de anadirlo de
+                # un dia para otro sin que nadie tocara nada. Y encima Cygwin
+                # resuelve `foo` como `foo.exe` de forma transparente, asi que el
+                # defecto quedaba TAPADO mientras no hubiera un fichero real sin
+                # extension. WSL dejaba los suyos justo ahi.
+                tronco = f"{test_file_found.stem}_{compiler}"
+                dir_bin = build_dir / compiler / mode
+                exe_path = rutas.resuelve_binario(dir_bin, tronco)
+
                 echo_info(f"Testing {compiler} [{mode}]...")
-                
-                if exe_path.exists():
+
+                if exe_path is not None:
                     passed = run_test(exe_path, compiler)
                     results[compiler][mode] = passed
                     
@@ -367,7 +378,7 @@ def main():
                         echo_error(f"  {compiler} [{mode}]: FAIL")
                 else:
                     echo_error(f"  {compiler} [{mode}]: NOT FOUND")
-                    echo_info(f"     Expected: {exe_path}")
+                    echo_info(f"     Expected: {dir_bin / rutas.nombre_esperado(tronco)}")
                     results[compiler][mode] = False
         
         # Summary table

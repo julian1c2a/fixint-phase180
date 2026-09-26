@@ -48,6 +48,7 @@ import sys
 import os
 import subprocess
 import shutil
+import re
 import argparse
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
@@ -96,9 +97,24 @@ def echo_warning(msg: str):
     print(f"{Colors.YELLOW}[WARN] {msg}{Colors.NC}")
 
 
+def _plataforma_real() -> str:
+    """`"windows"` o `"linux"`, preguntando a la plataforma y no al interprete.
+
+    Duplica a proposito `scripts/env_setup/rutas.plataforma()`: `make.py` vive en
+    la raiz y corre antes de que `scripts/` este en el `sys.path`. Son tres
+    lineas; importar medio arbol para esto seria peor.
+    """
+    import platform as _pl
+    return "linux" if _pl.system() == "Linux" else "windows"
+
+
 def find_bash() -> str:
-    """Encuentra un bash funcional en Windows (MSYS2 > Git Bash > sistema)."""
-    if sys.platform == "win32":
+    """Encuentra un bash funcional en Windows (MSYS2 > Git Bash > sistema).
+
+    Se pregunta por la plataforma REAL y no por `sys.platform`: con la Python de
+    MSYS esto decia `cygwin` y se saltaba los candidatos de Windows.
+    """
+    if _plataforma_real() == "windows":
         candidates = [
             r"C:\msys64\usr\bin\bash.exe",
             r"C:\msys64\bin\bash.exe",
@@ -112,12 +128,41 @@ def find_bash() -> str:
 
 
 def _win_to_wsl_path(win_path: Path) -> str:
-    """Convierte ruta Windows absoluta a formato WSL /mnt/<drive>/..."""
+    """Convierte una ruta a la forma que entiende WSL, `/mnt/<unidad>/...`.
+
+    ACEPTA LAS CUATRO FORMAS, y no es por gusto. Esta funcion solo miraba si el
+    segundo caracter era `:`, o sea solo entendia `E:/...`. Cuando el `python`
+    del PATH paso a ser el de MSYS, `PROJECT_ROOT` empezo a valer
+    `/e/Dropbox/...` y la funcion lo devolvia **sin tocar**: WSL no puede entrar
+    ahi y `make.py wsl` daba `cd: No such file or directory` en las tres
+    familias. Fallo de entorno con pinta de suite rota, otra vez (26 sep 2026).
+
+        E:\algo  o  E:/algo   ->  /mnt/e/algo     (Windows)
+        /e/algo                ->  /mnt/e/algo     (MSYS / MinGW)
+        /cygdrive/e/algo       ->  /mnt/e/algo     (Cygwin)
+        /mnt/e/algo            ->  /mnt/e/algo     (ya estaba bien)
+    """
     p = str(win_path).replace("\\", "/")
+
+    # Ya en forma WSL: no se toca.
+    if re.match(r"^/mnt/[a-zA-Z]/", p):
+        return p
+
+    # Windows: `E:/algo`
     if len(p) >= 2 and p[1] == ':':
-        drive = p[0].lower()
-        rest = p[2:].lstrip('/')
-        return f"/mnt/{drive}/{rest}"
+        return "/mnt/%s/%s" % (p[0].lower(), p[2:].lstrip('/'))
+
+    # Cygwin: `/cygdrive/e/algo`
+    m = re.match(r"^/cygdrive/([a-zA-Z])/(.*)$", p)
+    if m:
+        return "/mnt/%s/%s" % (m.group(1).lower(), m.group(2))
+
+    # MSYS / MinGW: `/e/algo`. La barra tras la letra es obligatoria, asi que
+    # `/etc/...` no casa.
+    m = re.match(r"^/([a-zA-Z])/(.*)$", p)
+    if m:
+        return "/mnt/%s/%s" % (m.group(1).lower(), m.group(2))
+
     return p
 
 

@@ -47,6 +47,14 @@ sys.path.insert(0, str(Path(__file__).parent / "env_setup"))
 
 import toolchains  # la lista de familias vive alli, no aqui
 
+# P3.10: UN solo sitio decide donde se compila y donde se busca el binario.
+# Antes lo decidian ocho sitios con reglas distintas, y Windows y WSL se
+# pisaban los binarios. Ver scripts/env_setup/rutas.py.
+import sys as _sys_rutas
+from pathlib import Path as _Path_rutas
+_sys_rutas.path.insert(0, str(_Path_rutas(__file__).resolve().parent))
+from env_setup import rutas  # noqa: E402
+
 try:
     from compiler_env import CompilerEnvironment
     USE_COMPILER_ENV = True
@@ -201,7 +209,7 @@ def main():
         mode = sys.argv[5] if len(sys.argv) > 5 else "release"
         demo_args = sys.argv[6:] if len(sys.argv) > 6 else []
         
-        build_dir = project_root / "build" / "build_demos"
+        build_dir = project_root / "build" / "build_demos" / rutas.plataforma()
         
         echo_header("=" * 70)
         echo_header(f"  DEMO EXECUTION: {category}/{demo_name}")
@@ -213,7 +221,7 @@ def main():
         # Build executable path
         exe_name = demo_name
         # In Windows, all compilers produce .exe
-        if sys.platform == "win32":
+        if rutas.plataforma() == "windows":
             exe_name += ".exe"
         elif compiler in ["msvc", "intel"]:
             exe_name += ".exe"
@@ -257,10 +265,10 @@ def main():
         is_benchmark = (project_root / "benchs" / f"benchmark_{feature}.cpp").exists()
         
         if is_benchmark:
-            build_dir = project_root / "build" / "build_benchs"
+            build_dir = project_root / "build" / "build_benchs" / rutas.plataforma()
             target_type = "benchs"
         else:
-            build_dir = project_root / "build" / "build_tests"
+            build_dir = project_root / "build" / "build_tests" / rutas.plataforma()
             target_type = "tests"
         
         # Determine compilers and modes to test
@@ -296,7 +304,7 @@ def main():
                         exe_name = f"{type_name}_{feature}_tests_{compiler}"
                 
                 # Add .exe extension for Windows or MSVC/Intel
-                if sys.platform == "win32" or compiler in ["msvc", "intel"]:
+                if rutas.plataforma() == "windows" or compiler in ["msvc", "intel"]:
                     if not exe_name.endswith(".exe"):
                         exe_name += ".exe"
                 

@@ -45,6 +45,14 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# P3.10: UN solo sitio decide donde se compila y donde se busca el binario.
+# Antes lo decidian ocho sitios con reglas distintas, y Windows y WSL se
+# pisaban los binarios. Ver scripts/env_setup/rutas.py.
+import sys as _sys_rutas
+from pathlib import Path as _Path_rutas
+_sys_rutas.path.insert(0, str(_Path_rutas(__file__).resolve().parent))
+from env_setup import rutas  # noqa: E402
+
 RAIZ = Path(__file__).resolve().parent.parent
 BENCHS = RAIZ / "benchs"
 HISTORIA = BENCHS / "history"
@@ -162,7 +170,8 @@ def ejecutar(nombre: str, compilador: str, modo: str, tmp: Path):
     if r.returncode != 0:
         return None, "no compila"
 
-    exe = RAIZ / "build" / "build_benchs" / compilador / modo / ("benchmark_%s_%s" % (nombre, compilador))
+    exe = (RAIZ / "build" / "build_benchs" / rutas.plataforma() / compilador / modo /
+           ("benchmark_%s_%s" % (nombre, compilador)))
     if not exe.exists():
         exe = Path(str(exe) + ".exe")
     if not exe.exists():

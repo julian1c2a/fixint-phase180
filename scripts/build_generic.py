@@ -48,6 +48,14 @@ sys.path.insert(0, str(Path(__file__).parent / "env_setup"))
 # el del proyecto. Ver scripts/toolchains.py.
 import toolchains
 
+# P3.10: UN solo sitio decide donde se compila y donde se busca el binario.
+# Antes lo decidian ocho sitios con reglas distintas, y Windows y WSL se
+# pisaban los binarios. Ver scripts/env_setup/rutas.py.
+import sys as _sys_rutas
+from pathlib import Path as _Path_rutas
+_sys_rutas.path.insert(0, str(_Path_rutas(__file__).resolve().parent))
+from env_setup import rutas  # noqa: E402
+
 try:
     from compiler_env import CompilerEnvironment
     USE_COMPILER_ENV = True
@@ -194,7 +202,11 @@ def compile_with_compiler(
     
     # Compile for each mode
     for mode in modes:
-        output_dir = Path(build_dir) / compiler_name / mode
+        # LA PLATAFORMA VA EN LA RUTA. Antes Windows y WSL escribian los dos
+        # en `build/build_tests/<compilador>/<modo>/`, asi que los ELF de
+        # Linux quedaban junto a los PE de Windows con el MISMO nombre y el
+        # ejecutor cogia el que no era. Ver scripts/env_setup/rutas.py.
+        output_dir = Path(build_dir) / rutas.plataforma() / compiler_name / mode
         output_dir.mkdir(parents=True, exist_ok=True)
         
         # Build output filename
@@ -206,7 +218,7 @@ def compile_with_compiler(
             output = output_dir / output_suffix
         
         # Add .exe extension for Windows compilers (MSVC and Intel-clang-cl)
-        if compiler_name == "msvc" or (compiler_name == "intel" and sys.platform == "win32"):
+        if compiler_name == "msvc" or (compiler_name == "intel" and rutas.plataforma() == "windows"):
             output = output.with_suffix(".exe")
         
         # Check if source file uses threading (for pthread flag)

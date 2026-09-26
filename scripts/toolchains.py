@@ -36,6 +36,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+# La plataforma REAL, no la que diga el interprete. Ver env_setup/rutas.py.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from env_setup import rutas  # noqa: E402
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 ENV_VARS = {
@@ -107,8 +111,13 @@ def familias_pedidas(peticion):
 
 
 def _platform_key():
-    """Clave de plataforma para toolchains.json."""
-    return "windows" if sys.platform == "win32" else "posix"
+    """Clave de plataforma para toolchains.json.
+
+    `rutas.plataforma()` y no `sys.platform`: con la Python de MSYS esto
+    devolvia `"posix"` estando en Windows, y se cargaban las rutas de
+    compilador equivocadas.
+    """
+    return "windows" if rutas.plataforma() == "windows" else "posix"
 
 
 def _load_overrides():
@@ -138,7 +147,7 @@ def _load_overrides():
                 out = compilers.get("linux", {}) or {}
             return out
         # Forma heredada: rutas sueltas, que eran de Windows.
-        return compilers if sys.platform == "win32" else {}
+        return compilers if rutas.plataforma() == "windows" else {}
     except (OSError, ValueError) as exc:
         print(f"[WARN] toolchains.json ilegible ({exc}); se ignora", file=sys.stderr)
         return {}
@@ -157,7 +166,7 @@ def resolve(name):
     candidate = overrides.get(name) or None
 
     if candidate is None:
-        defaults = DEFAULTS_WINDOWS if sys.platform == "win32" else DEFAULTS_POSIX
+        defaults = DEFAULTS_WINDOWS if rutas.plataforma() == "windows" else DEFAULTS_POSIX
         candidate = defaults[name]
 
     # Toda ruta absoluta que no exista cae al nombre pelado, venga del JSON o del

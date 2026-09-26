@@ -8,6 +8,22 @@ import subprocess
 import sys
 from pathlib import Path
 
+# La plataforma REAL, no la que diga el interprete. Ver rutas.py.
+#
+# EL IMPORT VA EN LAS DOS FORMAS, y no es paranoia: este modulo se importa de
+# dos maneras distintas en el arbol. `check_acompanamiento_std.py` lo trae como
+# `from env_setup.compiler_env import ...` --miembro del paquete-- y
+# `build_generic.py` mete `scripts/env_setup/` en el `sys.path` y hace
+# `import compiler_env` --modulo suelto--. Con solo el import relativo, la
+# segunda forma lanza `ImportError`, `build_generic` lo captura en su
+# `try/except`, pone `USE_COMPILER_ENV = False` y sigue **sin entorno aislado**:
+# el compilador queda en `cl.exe` pelado y salen 144 fallos que no tienen nada
+# que ver con la causa. Pasó el 26 sep 2026, introducido por este mismo arreglo.
+try:
+    from . import rutas
+except ImportError:  # importado como modulo suelto, con env_setup en el sys.path
+    import rutas  # type: ignore[no-redef]
+
 
 def _por_toolchains(nombre):
     """Ruta del compilador segun `scripts/toolchains.py`, o None si no se puede.
@@ -219,7 +235,15 @@ def _capture_env_from_bat(bat_path: str, args: str = "") -> dict:
           toca esta linea.
     """
     entorno = os.environ.copy()
-    if os.name == "nt":
+    # `rutas.plataforma()` y NO `os.name == "nt"`.
+    #
+    # Con la Python de MSYS, `os.name` vale `"posix"` aunque se este en Windows.
+    # Es decir: este arreglo --el de anteponer System32, escrito el 18 sep-- SE
+    # DEJO DE EJECUTAR el dia que el `python` del PATH cambio al de MSYS, y el
+    # sintoma volvio exactamente igual: MSVC e Intel con `C1034` / `cstddef not
+    # found` en los 72 ficheros, y Visual Studio perfectamente instalado.
+    # Comprobado el 26 sep 2026.
+    if rutas.plataforma() == "windows":
         sysroot = os.environ.get("SystemRoot", r"C:\Windows")
         delante = os.pathsep.join([
             os.path.join(sysroot, "System32"),
