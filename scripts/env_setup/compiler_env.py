@@ -259,6 +259,29 @@ def _capture_env_from_bat(bat_path: str, args: str = "") -> dict:
             shell=True,
             capture_output=True,
             text=True,
+            # `cmd.exe` ESCRIBE EN LA PAGINA OEM, NO EN UTF-8.
+            #
+            # `text=True` a secas decodifica con la codificacion por omision de
+            # Python --UTF-8 en 3.15-- y `set` imprime valores de variables que
+            # en un Windows en espanyol llevan acentos. Resultado:
+            #
+            #     'utf-8' codec can't decode byte 0xa2 in position 24
+            #
+            # y la captura devuelve {} sin decir por que. Visto el 26 sep 2026.
+            #
+            # No es un descuido de Microsoft: `cmd.exe` mantiene la pagina OEM
+            # --850 en espanyol, 437 en ingles-- por compatibilidad con decadas
+            # de ficheros `.bat`. Hay salidas (`chcp 65001`, la opcion de sistema
+            # de UTF-8) pero el valor por omision no cambia, y quien lee su
+            # salida tiene que decir en que codificacion lee.
+            #
+            # `"oem"` es el codec que Python trae **para esto**: mapea a la pagina
+            # OEM activa, sea la que sea. Y `errors="replace"` es el cinturon: si
+            # la pagina no fuera la esperada, se pierde un caracter en una
+            # variable que probablemente no importa, en vez de perder la captura
+            # entera y con ella los 72 ficheros.
+            encoding="oem" if rutas.plataforma() == "windows" else "utf-8",
+            errors="replace",
             timeout=60,
             env=entorno
         )
