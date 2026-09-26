@@ -213,6 +213,11 @@ static BenchResult bench_div_builtin(const char *name)
 
 static void print_bench_header(const char *section)
 {
+    // La seccion viaja con la medida. Este fichero imprime su propia tabla en
+    // vez de usar `print_result`, asi que tambien tiene que hacer su parte: sin
+    // el nombre de la operacion, las filas del historico son indistinguibles
+    // entre secciones. Es el mismo arreglo que se le hizo a `print_result`.
+    g_seccion_actual = section ? section : "";
     std::cout << "\n[" << section << "]\n";
     std::cout << "+-----------------------------------+--------------+-----------+\n";
     std::cout << "| Method                            |  cyc/op      | speedup   |\n";
@@ -221,6 +226,8 @@ static void print_bench_header(const char *section)
 
 static void print_bench_row(const BenchResult &r, double baseline)
 {
+    const std::string etiqueta = g_seccion_actual.empty() ? r.name : (g_seccion_actual + " / " + r.name);
+    bench_record(etiqueta.c_str(), r.cycles_per_op);
     const double speedup{(r.cycles_per_op > 0.0) ? baseline / r.cycles_per_op : 0.0};
     std::cout << "| " << std::left << std::setw(33) << r.name << " | " << std::right << std::fixed
               << std::setprecision(2) << std::setw(12) << r.cycles_per_op << " | " << std::fixed

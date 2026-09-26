@@ -607,6 +607,11 @@ static double median5(std::array<double, 5> &v)
 
 static void print_row(const char *label, double cyc, double baseline)
 {
+    // Al historico con el nombre de la seccion delante. Este benchmark compara
+    // el tipo nuevo con el viejo, que se borra en la 1.90: sus cifras solo se
+    // pueden tomar ANTES, y por eso conviene que queden guardadas.
+    const std::string etiqueta = g_seccion_actual.empty() ? label : (g_seccion_actual + " / " + label);
+    bench_record(etiqueta.c_str(), cyc);
     const double ratio = (baseline > 0.0) ? cyc / baseline : 0.0;
     std::printf("| %-35s | %10.2f | %8.2fx |\n", label, cyc, ratio);
 }
@@ -615,6 +620,7 @@ static void print_sep() { std::printf("+-------------------------------------+--
 
 static void print_hdr(const char *op)
 {
+    g_seccion_actual = op ? op : "";
     std::printf("\n[%s]\n", op);
     print_sep();
     std::printf("| %-35s | %10s | %8s |\n", "Type", "cyc/op", "vs u64");
@@ -623,6 +629,7 @@ static void print_hdr(const char *op)
 
 static void print_hdr_str(const char *op)
 {
+    g_seccion_actual = op ? op : "";
     std::printf("\n[%s]\n", op);
     print_sep();
     std::printf("| %-35s | %10s | %8s |\n", "Type", "cyc/op", "ratio");
@@ -746,10 +753,12 @@ int main()
     // Unsigned: to_string
     // -------------------------------------------------------------------------
     {
-        std::printf("\n[UNSIGNED TO_STRING (decimal, %zu iters)]\n", STR_ITERS);
-        print_sep();
-        std::printf("| %-35s | %10s | %8s |\n", "Type", "cyc/op", "ratio");
-        print_sep();
+        // Esta cabecera estaba escrita a mano y se saltaba `print_hdr_str`
+        // --que existia y no la llamaba nadie--, asi que las filas de esta
+        // seccion se habrian registrado bajo el nombre de la ANTERIOR.
+        char cab[72];
+        std::snprintf(cab, sizeof(cab), "UNSIGNED TO_STRING (decimal, %zu iters)", STR_ITERS);
+        print_hdr_str(cab);
 
         for (int i{0}; i < NUM_RUNS; ++i)
             r[i] = bench_old_u_tostring();

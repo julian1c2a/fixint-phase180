@@ -88,34 +88,36 @@ static void una_anchura()
             nstd::algorithms::mul_escolar_desenrollado<N>(x, x, sumidero);
         doNotOptimize(sumidero[0]);
     };
-    auto sqr_esc = [&](std::size_t k)
-    {
-        nstd::algorithms::sqr_escolar_bucle<N>(a[k % OPERANDOS], sumidero);
-        doNotOptimize(sumidero[0]);
-    };
+    // AQUI HABIA UNA TERCERA VARIANTE, `sqr_escolar_bucle`, Y SE FUE CON EL
+    // NUCLEO. Se escribio y se retiro el 16 sep 2026 tras medirla --perdia
+    // contra el producto normal en las dieciseis anchuras, de 0,35x a 0,80x--,
+    // pero la llamada se quedo aqui y este fichero llevaba desde entonces **sin
+    // compilar**. El motivo esta escrito en `mul_kernels.hpp`, junto al hueco
+    // que dejo.
     auto sqr_kar = [&](std::size_t k)
     {
         nstd::algorithms::sqr_karatsuba_equilibrado<N>(a[k % OPERANDOS], sumidero);
         doNotOptimize(sumidero[0]);
     };
 
-    const auto m = bench::mide_entrelazado(std::make_tuple(normal, sqr_esc, sqr_kar));
+    const auto m = bench::mide_entrelazado(std::make_tuple(normal, sqr_kar));
 
-    const double r_esc = m[1].minimo > 0 ? m[0].minimo / m[1].minimo : 0.0;
-    const double r_kar = m[2].minimo > 0 ? m[0].minimo / m[2].minimo : 0.0;
-    const double ruido_e = m[0].recorrido() + m[1].recorrido();
-    const double ruido_k = m[0].recorrido() + m[2].recorrido();
+    const double r_kar = m[1].minimo > 0 ? m[0].minimo / m[1].minimo : 0.0;
+    const double ruido_k = m[0].recorrido() + m[1].recorrido();
 
-    const double mejor = r_esc > r_kar ? r_esc : r_kar;
-    const char *quien = r_esc > r_kar ? "escolar" : "Karatsuba";
+    std::printf("| %4zu | %9.1f | %9.1f | %6.2fx%-2s |\n", N, m[0].minimo, m[1].minimo, r_kar,
+                (r_kar - 1.0) > ruido_k ? "" : " ?");
 
-    std::printf("| %4zu | %9.1f | %9.1f | %9.1f | %6.2fx%-2s | %6.2fx%-2s | %-9s %.2fx |\n", N, m[0].minimo,
-                m[1].minimo, m[2].minimo, r_esc, (r_esc - 1.0) > ruido_e ? "" : " ?", r_kar,
-                (r_kar - 1.0) > ruido_k ? "" : " ?", quien, mejor);
-
+    // Las dos absolutas con su ruido, y la razon aparte. La razon es la que
+    // aguanta el paso de los dias: las dos se midieron entrelazadas en la misma
+    // tanda, asi que la deriva de la maquina les toca por igual.
     char et[72];
-    std::snprintf(et, sizeof(et), "cuadrado N=%zu", N);
-    bench_record(et, mejor, "x");
+    std::snprintf(et, sizeof(et), "cuadrado N=%zu / a*a hoy", N);
+    bench::registra(et, m[0]);
+    std::snprintf(et, sizeof(et), "cuadrado N=%zu / sqr karatsuba", N);
+    bench::registra(et, m[1]);
+    std::snprintf(et, sizeof(et), "cuadrado N=%zu / razon", N);
+    bench_record(et, r_kar, "x");
 }
 
 template <std::size_t N, std::size_t Tope, std::size_t Paso>
@@ -132,20 +134,23 @@ int main()
 {
     print_header("el cuadrado como caso propio");
 
-    std::printf("\n`a*a` por el camino normal, contra los dos nucleos de cuadrado.\n"
+    std::printf("\n`a*a` por el camino normal, contra el nucleo de cuadrado.\n"
                 "El ahorro teorico es 2x en productos; la mitad se va en doblar los\n"
                 "cruzados, sumar la diagonal y arrastrar acarreos.\n\n"
-                "Protocolo: %zu repeticiones, %.0f ms cada una, las TRES entrelazadas con el\n"
+                "Hubo una tercera columna, el cuadrado escolar, y se fue con su nucleo:\n"
+                "medido el 16 sep, perdia en las dieciseis anchuras. Ver `mul_kernels.hpp`.\n\n"
+                "Protocolo: %zu repeticiones, %.0f ms cada una, las DOS entrelazadas con el\n"
                 "orden rotando. Un '?' marca una razon que no supera el ruido.\n\n",
                 bench::REPETICIONES, bench::MS_POR_CASILLA);
 
-    std::printf("|    N |  a*a hoy  |  sqr esc  |  sqr kar  |  esc/hoy    |  kar/hoy    | mejor       |\n");
-    std::printf("|-----:|----------:|----------:|----------:|------------:|------------:|-------------|\n");
+    std::printf("|    N |  a*a hoy  |  sqr kar  |  kar/hoy    |\n");
+    std::printf("|-----:|----------:|----------:|------------:|\n");
 
     barre<4, 64, 4>();
 
-    std::printf("\nLo que decide si merece la pena: si el mejor de los dos supera el ruido en\n"
-                "la mayoria de las anchuras, `operator*` debe detectar `a*a` y desviarlo.\n");
+    std::printf("\nEsto ya no DECIDE nada: `operator*` detecta `a*a` por direccion desde el\n"
+                "17 sep y lo desvia al nucleo de cuadrado. Lo que hace ahora es VIGILARLO:\n"
+                "si la razon dejara de superar el ruido, el desvio habria dejado de pagar.\n");
 
     print_footer();
     return 0;

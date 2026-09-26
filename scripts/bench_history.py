@@ -82,17 +82,46 @@ def entorno_de(compilador: str) -> dict:
     except Exception:
         return os.environ.copy()
 
-# Umbral para avisar en --compare, MEDIDO el 5 sep 2026: el mismo binario en la
-# misma maquina, dos ejecuciones seguidas sin tocar nada, da una mediana de
-# 5,1 % de diferencia, un p90 de 15,6 % y un peor caso de 25,2 %.
+# CUANTO SE TIENE QUE MOVER UNA MEDIDA PARA QUE SIGNIFIQUE ALGO. Hay dos
+# criterios, y el primero es el bueno.
 #
-# Por eso el umbral es 25 % y no el 5 % que parecia razonable a ojo: por debajo
-# de eso serian todo falsos positivos. Un aviso que salta siempre no se mira.
+# 1. EL RUIDO DE LA PROPIA MEDIDA. Desde el 10 sep el arnes adaptativo mide cada
+#    casilla diez veces con rondas entrelazadas y publica su recorrido. En esta
+#    maquina los recorridos van del 9 % al 58 % SEGUN LA CASILLA, asi que un
+#    umbral unico marca de mas en unas y de menos en otras. Cuando las dos tomas
+#    traen su recorrido, la barra es la SUMA DE LOS DOS: es la comprobacion que
+#    pide el @note de `RECORRIDO_RUIDOSO` en benchs/bench_adaptativo.hpp, que
+#    hasta ahora era imposible de hacer aqui porque el dato no llegaba al
+#    fichero.
 #
-# Sigue siendo provisional: sale de DOS ejecuciones, que es el minimo para tener
-# un rango y muy poco para fiarse. Ver docs/PERFORMANCE.md, "Cuanto se mueven
-# estas cifras".
-UMBRAL_AVISO = 0.25
+# 2. EL UMBRAL PLANO, solo para las medidas que no traen recorrido: las tomas
+#    guardadas antes de esto y los benchmarks que no usan el arnes adaptativo.
+#    MEDIDO el 5 sep 2026 con el arnes VIEJO: dos ejecuciones seguidas sin tocar
+#    nada dieron una mediana del 5,1 %, un p90 del 15,6 % y un peor caso del
+#    25,2 %. De ahi el 25 %: por debajo serian todo falsos positivos, y un aviso
+#    que salta siempre no se mira.
+UMBRAL_PLANO = 0.25
+
+# Suelo de la barra «propia». PROVISIONAL, Y PUESTO PARA MEDIRLO.
+#
+# El recorrido es la dispersion DENTRO de una ejecucion. Entre dos ejecuciones
+# hay ademas deriva --temperatura, colocacion del binario, lo que hiciera la
+# maquina-- que ninguna de las dos ve, asi que la suma de recorridos puede
+# quedarse corta para una casilla muy estable. Este suelo la tapa.
+#
+# Como se calibra, y es barato: dos tomas seguidas del MISMO commit con
+# `--compare`. Todo lo que salte ahi es falso positivo por definicion, porque no
+# ha cambiado una linea. El resumen de distribucion que imprime `comparar()` da
+# la cifra directamente.
+SUELO_ENTRE_TOMAS = 0.10
+
+
+def barra_de(antes, ahora):
+    """Barra de esta medida, y con que criterio se decidio."""
+    ra, rb = antes.get("recorrido"), ahora.get("recorrido")
+    if ra is None or rb is None:
+        return UMBRAL_PLANO, "plano"
+    return max(SUELO_ENTRE_TOMAS, ra + rb), "propio"
 
 
 def echo(msg):
@@ -202,11 +231,26 @@ def ejecutar(nombre: str, compilador: str, modo: str, tmp: Path):
     medidas = {}
     for linea in io.open(salida_tsv, encoding="utf-8", errors="replace"):
         partes = linea.rstrip("\n").split("\t")
-        if len(partes) >= 3:
+        if len(partes) < 3:
+            continue
+        try:
+            dato = {"valor": float(partes[1]), "unidad": partes[2]}
+        except ValueError:
+            continue
+        # LAS COLUMNAS DEL RUIDO SON OPCIONALES. Las escribe `bench::registra`,
+        # que es quien las sabe; un benchmark del arnes viejo no las tiene y su
+        # linea sigue siendo valida. Aqui «ausente» y «cero» tienen que quedar
+        # distintos: con cero, la barra de comparacion seria cero y saltaria
+        # todo.
+        if len(partes) >= 7:
             try:
-                medidas[partes[0]] = {"valor": float(partes[1]), "unidad": partes[2]}
+                dato["dispersion"] = float(partes[3])
+                dato["recorrido"] = float(partes[4])
+                dato["iteraciones"] = int(partes[5])
+                dato["repeticiones"] = int(partes[6])
             except ValueError:
                 pass
+        medidas[partes[0]] = dato
     return medidas, None
 
 
@@ -248,6 +292,8 @@ def comparar(actual: dict, previo_path: Path):
         echo("        se debe concluir nada de ellas.")
 
     avisos = 0
+    todos = []      # |delta| de TODAS las comparables, para la distribucion
+    con_propio = 0
     for suite, medidas in sorted(actual["suites"].items()):
         antes = previo.get("suites", {}).get(suite, {})
         filas = []
@@ -259,23 +305,41 @@ def comparar(actual: dict, previo_path: Path):
             if v_antes == 0:
                 continue
             delta = (v_ahora - v_antes) / v_antes
-            if abs(delta) >= UMBRAL_AVISO:
-                filas.append((caso, v_antes, v_ahora, delta))
+            barra, criterio = barra_de(antes[caso], dato)
+            todos.append(abs(delta))
+            if criterio == "propio":
+                con_propio += 1
+            if abs(delta) >= barra:
+                filas.append((caso, v_antes, v_ahora, delta, barra, criterio))
         if filas:
             echo("")
             echo("  %s" % suite)
-            for caso, va, vn, d in filas:
+            for caso, va, vn, d, barra, criterio in filas:
                 signo = "+" if d > 0 else ""
-                echo("    %-38s %10.2f -> %10.2f  %s%.1f %%" % (caso[:38], va, vn, signo, d * 100))
+                echo("    %-34s %9.2f -> %9.2f  %s%.1f %%   (barra %.0f %%, %s)"
+                     % (caso[:34], va, vn, signo, d * 100, barra * 100, criterio))
                 avisos += 1
+
+    # LA DISTRIBUCION, QUE ES LO QUE PERMITE CALIBRAR. Sin ella solo se ven las
+    # que saltan, y no se sabe si saltan porque hay algo o porque la barra esta
+    # mal puesta. Con dos tomas del mismo commit, todo lo de aqui es ruido.
+    echo("")
+    if todos:
+        todos.sort()
+        def pct(q):
+            return todos[min(len(todos) - 1, int(q * len(todos)))] * 100
+        echo("  %d medidas comparables (%d con su propio ruido, %d con el umbral plano)"
+             % (len(todos), con_propio, len(todos) - con_propio))
+        echo("  cuanto se mueven:  mediana %.1f %%   p90 %.1f %%   peor %.1f %%"
+             % (pct(0.5), pct(0.9), todos[-1] * 100))
 
     echo("")
     if avisos:
-        echo("  %d medida(s) se mueven mas de un %.0f %%." % (avisos, UMBRAL_AVISO * 100))
-        echo("  OJO: ese umbral NO esta calibrado. Antes de concluir que hay una")
-        echo("  regresion, repetir la medida: el ruido de maquina puede dar mas.")
+        echo("  %d medida(s) pasan su barra." % avisos)
+        echo("  Antes de concluir que hay una regresion, REPETIR LA MEDIDA: si el")
+        echo("  mismo commit medido dos veces las mueve igual, es la maquina.")
     else:
-        echo("  Ninguna medida se mueve mas de un %.0f %%." % (UMBRAL_AVISO * 100))
+        echo("  Ninguna medida pasa su barra.")
 
 
 def main():

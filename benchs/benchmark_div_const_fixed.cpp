@@ -78,6 +78,17 @@ namespace
         std::printf("| %5zu | %-14s | %10.0f | %10.0f | %6.2fx |\n", N, etiqueta, m[0].minimo, m[1].minimo,
                     m[0].minimo / m[1].minimo);
         std::fflush(stdout);
+
+        // Al historico las dos variantes Y la razon. La razon es la cifra que
+        // mejor aguanta el paso de los dias: las dos se midieron entrelazadas en
+        // la misma tanda, asi que la deriva de la maquina se les va a las dos.
+        char et[96];
+        std::snprintf(et, sizeof(et), "N=%zu d=%s / operator/", N, etiqueta);
+        bench::registra(et, m[0]);
+        std::snprintf(et, sizeof(et), "N=%zu d=%s / div<D>()", N, etiqueta);
+        bench::registra(et, m[1]);
+        std::snprintf(et, sizeof(et), "N=%zu d=%s / razon", N, etiqueta);
+        bench_record(et, m[0].minimo / m[1].minimo, "x");
     }
 } // namespace
 

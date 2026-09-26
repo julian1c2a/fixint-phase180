@@ -127,6 +127,17 @@ namespace
                     razon,
                     razon > 4.0 ? "HAY SITIO" : (razon > 3.0 ? "en el techo" : "por debajo del techo"));
         std::fflush(stdout);
+
+        // La razon es LA CIFRA de este benchmark: es la que decide si
+        // Burnikel-Ziegler tiene sitio (ADR-016). Que quede en el historico
+        // para poder responder «esto ha cambiado» sin repetir la sesion entera.
+        char et[96];
+        std::snprintf(et, sizeof(et), "N=%zu H=%zu / division", N, H);
+        bench::registra(et, m[0]);
+        std::snprintf(et, sizeof(et), "N=%zu H=%zu / multiplicacion", N, H);
+        bench::registra(et, m[1]);
+        std::snprintf(et, sizeof(et), "N=%zu H=%zu / razon div-mul", N, H);
+        bench_record(et, razon, "x");
     }
 } // namespace
 

@@ -18,6 +18,7 @@
 #ifndef BENCH_COMMON_HPP
 #define BENCH_COMMON_HPP
 
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <fstream>
@@ -170,7 +171,26 @@ static void doNotOptimize(T &val)
 // maquina, modo, commit-- NO se ponen aqui: los anade scripts/bench_history.py,
 // que es quien los sabe. Un benchmark no tiene por que saber en que commit esta.
 
-static void bench_record(const char *caso, double valor, const char *unidad = "cyc/op")
+// EL RUIDO VIAJA CON LA CIFRA, y esa es la parte que faltaba.
+//
+// Un numero solo no se puede comparar con el de manana: hace falta saber cuanto
+// se mueve esa casilla consigo misma. `bench_adaptativo.hpp` lo sabe --mide diez
+// veces y calcula dispersion y recorrido-- y esto lo tiraba, asi que
+// `bench_history.py --compare` no tenia mas remedio que decidir con UN umbral
+// plano para todas las medidas. Y ese umbral, el 25 %, salio de dos ejecuciones
+// del arnes VIEJO, el de iteraciones fijas, antes de que el adaptativo
+// existiera.
+//
+// Las cuatro columnas nuevas son OPCIONALES: quien no las sabe no las escribe, y
+// el guion del historico distingue «no lo se» de «es cero». Las lineas de tres
+// columnas se siguen leyendo igual, que es lo que permite no tocar los dieciocho
+// benchmarks que ya registraban.
+//
+//     <caso>\t<valor>\t<unidad>[\t<dispersion>\t<recorrido>\t<iters>\t<reps>]
+
+static void bench_record(const char *caso, double valor, const char *unidad = "cyc/op",
+                         double dispersion = -1.0, double recorrido = -1.0, std::size_t iteraciones = 0,
+                         std::size_t repeticiones = 0)
 {
     const char *destino = std::getenv("BENCH_OUT");
     if (destino == nullptr || *destino == '\0')
@@ -179,7 +199,10 @@ static void bench_record(const char *caso, double valor, const char *unidad = "c
     std::ofstream f(destino, std::ios::app);
     if (!f)
         return;
-    f << caso << '\t' << std::fixed << std::setprecision(4) << valor << '\t' << unidad << '\n';
+    f << caso << '\t' << std::fixed << std::setprecision(4) << valor << '\t' << unidad;
+    if (dispersion >= 0.0)
+        f << '\t' << dispersion << '\t' << recorrido << '\t' << iteraciones << '\t' << repeticiones;
+    f << '\n';
 }
 
 // ============================================================================

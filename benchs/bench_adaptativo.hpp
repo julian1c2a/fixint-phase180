@@ -282,6 +282,23 @@ namespace bench
                     rec > RECORRIDO_RUIDOSO * 100.0 ? " <-RUIDOSA" : "  ", m.iteraciones, m.repeticiones);
     }
 
+    /// @brief Deja la medida en el historico **con su ruido**.
+    ///
+    /// La alternativa --`bench_record(etiqueta, m.minimo)`-- guarda el numero y
+    /// tira lo unico que permite saber si manana significa algo. Quien compara
+    /// dos ejecuciones necesita el recorrido de las dos: es la comprobacion que
+    /// menciona el @note de `RECORRIDO_RUIDOSO` y que nadie podia hacer porque
+    /// el dato no llegaba al fichero.
+    ///
+    /// @param caso Etiqueta. Que diga la OPERACION y no solo el tipo: siete
+    ///        filas `uint64_t` indistinguibles no se comparan con nada.
+    /// @param m La medida entera, no solo su minimo.
+    /// @param unidad Por defecto cyc/op; las razones van en "x".
+    inline void registra(const char *caso, const Medida &m, const char *unidad = "cyc/op")
+    {
+        bench_record(caso, m.minimo, unidad, m.dispersion, m.recorrido(), m.iteraciones, m.repeticiones);
+    }
+
     /// @brief Cabecera de la tabla que imprime `imprime`.
     inline void imprime_cabecera()
     {

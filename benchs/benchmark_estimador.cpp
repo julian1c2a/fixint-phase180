@@ -103,6 +103,22 @@ namespace
                     N - SIG + 1, m[0].minimo, m[1].minimo, m[0].minimo / m[1].minimo, m[2].minimo,
                     m[0].minimo / m[2].minimo);
         std::fflush(stdout);
+
+        // Las tres variantes y las dos razones. El umbral de este benchmark no
+        // se mide en anchura sino en digitos de cociente, asi que la etiqueta
+        // lleva la forma del divisor: sin ella, dos filas de la misma N no se
+        // distinguen.
+        char et[96];
+        std::snprintf(et, sizeof(et), "N=%zu %s / knuth", N, forma);
+        bench::registra(et, m[0]);
+        std::snprintf(et, sizeof(et), "N=%zu %s / MG 3-2", N, forma);
+        bench::registra(et, m[1]);
+        std::snprintf(et, sizeof(et), "N=%zu %s / auto", N, forma);
+        bench::registra(et, m[2]);
+        std::snprintf(et, sizeof(et), "N=%zu %s / razon MG", N, forma);
+        bench_record(et, m[0].minimo / m[1].minimo, "x");
+        std::snprintf(et, sizeof(et), "N=%zu %s / razon auto", N, forma);
+        bench_record(et, m[0].minimo / m[2].minimo, "x");
     }
 
     void cabecera_tabla()
