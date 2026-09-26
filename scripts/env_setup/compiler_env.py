@@ -203,6 +203,40 @@ _msvc_env_cache = None
 _intel_env_cache = None
 
 
+def _codificacion_de_cmd() -> str:
+    """En que codificacion escribe `cmd.exe`.
+
+    **No es UTF-8.** `cmd.exe` usa la pagina OEM --850 en un Windows espanyol,
+    437 en uno ingles--, y `set` imprime valores con acentos. Leerlo como UTF-8
+    revienta con `'utf-8' codec can't decode byte 0xa2`, la excepcion se tragaba,
+    la captura devolvia `{}` y de ahi salian 216 errores `C1034` que no se
+    parecen en nada a la causa.
+
+    No es un descuido de Microsoft: la pagina OEM se mantiene por compatibilidad
+    con decadas de ficheros `.bat`. Quien lee su salida tiene que decir en que
+    codificacion lee.
+
+    **Se pregunta la pagina, no se usa el alias `"oem"`.** Ese alias existe en
+    CPython para Windows, pero `codecs.lookup("oem")` fallo con
+    `LookupError: unknown encoding: oem` corriendo `build_generic.py`, aun
+    funcionando en un `python -c` de la misma maquina. `GetOEMCP()` da el numero
+    y `cp<N>` es un nombre de codec de toda la vida, sin sorpresas.
+    """
+    if rutas.plataforma() != "windows":
+        return "utf-8"
+    try:
+        import ctypes
+        cp = int(ctypes.windll.kernel32.GetOEMCP())
+        import codecs
+        nombre = "cp%d" % cp
+        codecs.lookup(nombre)  # que exista, y si no que caiga al fallback
+        return nombre
+    except Exception:
+        # Si no se puede averiguar, UTF-8 con `errors="replace"` degrada a
+        # perder acentos, no a perder la captura entera.
+        return "utf-8"
+
+
 def _capture_env_from_bat(bat_path: str, args: str = "") -> dict:
     """Run a .bat file via cmd.exe and capture the resulting environment variables.
 
@@ -252,6 +286,18 @@ def _capture_env_from_bat(bat_path: str, args: str = "") -> dict:
         ])
         entorno["PATH"] = delante + os.pathsep + entorno.get("PATH", "")
 
+    # SE INVOCA CON `shell=True` Y `cmd.exe` EN LA CADENA, Y ASI SE QUEDA.
+    #
+    # El 26 sep 2026 se cambio a lista sin `shell=True`, razonando que
+    # `shell=True` ya antepone `cmd.exe /c` y que eran dos anidados. El
+    # razonamiento parecia bueno **y la evidencia era mala**: los sintomas
+    # que lo motivaron --banner interactivo, `cmd.exe` no encontrado-- se
+    # midieron en un proceso con el entorno de MSYS2 heredado, donde el PATH
+    # estaba corrompido y `MSYSTEM=MSYS` convertia argumentos.
+    #
+    # En un entorno sano esta forma FUNCIONA: `make.py test msvc release-O2`
+    # dio 72/72 el mismo dia. No se toca lo que funciona guiandose por
+    # sintomas de un entorno roto.
     cmd = f'cmd.exe /c ""{bat_path}" {args} >nul 2>&1 && set"'
     try:
         result = subprocess.run(
@@ -280,12 +326,22 @@ def _capture_env_from_bat(bat_path: str, args: str = "") -> dict:
             # la pagina no fuera la esperada, se pierde un caracter en una
             # variable que probablemente no importa, en vez de perder la captura
             # entera y con ella los 72 ficheros.
-            encoding="oem" if rutas.plataforma() == "windows" else "utf-8",
+            encoding=_codificacion_de_cmd(),
             errors="replace",
             timeout=60,
             env=entorno
         )
         if result.returncode != 0:
+            # DECIR POR QUE. Este `return {}` era mudo, y quien lo recibe solo
+            # imprime «Failed to capture MSVC environment»: un mensaje que no
+            # distingue entre «no existe el .bat», «reviento al decodificar» y
+            # «vcvarsall salio con error». El 26 sep 2026 eso costo horas
+            # persiguiendo tres causas distintas que daban el mismo texto.
+            print("[WARN] vcvarsall salio con codigo %d" % result.returncode,
+                  file=sys.stderr)
+            cola = (result.stderr or result.stdout or "").strip().splitlines()
+            for linea in cola[:3]:
+                print("       %s" % linea[:160], file=sys.stderr)
             return {}
 
         env = {}
@@ -294,8 +350,18 @@ def _capture_env_from_bat(bat_path: str, args: str = "") -> dict:
                 key, _, value = line.partition('=')
                 if key:
                     env[key] = value
+        if not env:
+            print("[WARN] vcvarsall salio bien pero no devolvio variables",
+                  file=sys.stderr)
+            print("       primeras lineas: %r" % result.stdout[:200],
+                  file=sys.stderr)
         return env
-    except Exception:
+    except Exception as e:
+        # Tampoco esto era mudo por casualidad: la excepcion que se tragaba el
+        # 26 sep era un `UnicodeDecodeError` de la pagina OEM, y sin verla el
+        # sintoma que llegaba al usuario eran 216 errores `C1034`.
+        print("[WARN] fallo al capturar el entorno: %s: %s"
+              % (type(e).__name__, e), file=sys.stderr)
         return {}
 
 

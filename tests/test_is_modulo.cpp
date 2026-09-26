@@ -56,22 +56,20 @@ static void ok(const char *que, bool cond)
 }
 
 // --- los ocho tipos: {sin signo, con signo} x {las cuatro formas} x politica --
-using U_wrap = fixed_int_t<2, signedness::unsigned_type, representation_form::binnat,
-                           overflow_policy::wrap>;
-using U_chk = fixed_int_t<2, signedness::unsigned_type, representation_form::binnat,
-                          overflow_policy::checked>;
-using I_wrap = fixed_int_t<2, signedness::signed_type, representation_form::twos_complement,
-                           overflow_policy::wrap>;
-using I_chk = fixed_int_t<2, signedness::signed_type, representation_form::twos_complement,
-                          overflow_policy::checked>;
-using MS_wrap = fixed_int_t<2, signedness::signed_type, representation_form::magnitude_sign,
-                            overflow_policy::wrap>;
-using MS_chk = fixed_int_t<2, signedness::signed_type, representation_form::magnitude_sign,
-                           overflow_policy::checked>;
-using EK_wrap = fixed_int_t<2, signedness::signed_type, representation_form::excess_k,
-                            overflow_policy::wrap>;
-using EK_chk = fixed_int_t<2, signedness::signed_type, representation_form::excess_k,
-                           overflow_policy::checked>;
+using U_wrap = fixed_int_t<2, signedness::unsigned_type, representation_form::binnat, overflow_policy::wrap>;
+using U_chk =
+    fixed_int_t<2, signedness::unsigned_type, representation_form::binnat, overflow_policy::checked>;
+using I_wrap =
+    fixed_int_t<2, signedness::signed_type, representation_form::twos_complement, overflow_policy::wrap>;
+using I_chk =
+    fixed_int_t<2, signedness::signed_type, representation_form::twos_complement, overflow_policy::checked>;
+using MS_wrap =
+    fixed_int_t<2, signedness::signed_type, representation_form::magnitude_sign, overflow_policy::wrap>;
+using MS_chk =
+    fixed_int_t<2, signedness::signed_type, representation_form::magnitude_sign, overflow_policy::checked>;
+using EK_wrap = fixed_int_t<2, signedness::signed_type, representation_form::excess_k, overflow_policy::wrap>;
+using EK_chk =
+    fixed_int_t<2, signedness::signed_type, representation_form::excess_k, overflow_policy::checked>;
 
 template <typename T>
 static constexpr bool modulo_v = std::numeric_limits<T>::is_modulo;
@@ -110,10 +108,8 @@ int main()
     // Esto es lo que separa este test de repetir la definicion: se enfrenta el
     // rasgo al comportamiento. Si alguien cambiara `wrap` para que saturase, el
     // rasgo seguiria diciendo `true` y AQUI saltaria.
-    ok("donde is_modulo es cierto, max()+1 vuelve a min(): sin signo",
-       envuelve_de_verdad<U_wrap>());
-    ok("donde is_modulo es cierto, max()+1 vuelve a min(): CON SIGNO",
-       envuelve_de_verdad<I_wrap>());
+    ok("donde is_modulo es cierto, max()+1 vuelve a min(): sin signo", envuelve_de_verdad<U_wrap>());
+    ok("donde is_modulo es cierto, max()+1 vuelve a min(): CON SIGNO", envuelve_de_verdad<I_wrap>());
     ok("... tambien en Magnitud-Signo", envuelve_de_verdad<MS_wrap>());
     ok("... tambien en Exceso-K", envuelve_de_verdad<EK_wrap>());
 
@@ -134,8 +130,7 @@ int main()
     // La linea vieja era `!is_signed`, asi que decia `true` para
     // `uint + checked`, que NO envuelve. Los dos lados estaban mal, no solo el
     // del signo.
-    ok("sin signo con checked NO es modular (la otra mitad del arreglo)",
-       !modulo_v<U_chk>);
+    ok("sin signo con checked NO es modular (la otra mitad del arreglo)", !modulo_v<U_chk>);
 
     // --- 5. coherencia con el punto fijo -------------------------------------
     //
@@ -143,10 +138,10 @@ int main()
     // la comprobacion de que el arreglo va en la direccion buena y no crea una
     // segunda convencion.
     {
-        using FPw = fixed_point_t<2, 1, signedness::signed_type,
-                                  representation_form::twos_complement, overflow_policy::wrap>;
-        using FPc = fixed_point_t<2, 1, signedness::signed_type,
-                                  representation_form::twos_complement, overflow_policy::checked>;
+        using FPw = fixed_point_t<2, 1, signedness::signed_type, representation_form::twos_complement,
+                                  overflow_policy::wrap>;
+        using FPc = fixed_point_t<2, 1, signedness::signed_type, representation_form::twos_complement,
+                                  overflow_policy::checked>;
         static_assert(std::numeric_limits<FPw>::is_modulo, "punto fijo con wrap");
         static_assert(!std::numeric_limits<FPc>::is_modulo, "punto fijo con checked");
         ok("el entero y el punto fijo dicen lo mismo, con signo y wrap",
