@@ -209,6 +209,50 @@ def version_compilador(compilador: str) -> str:
     return "desconocida"
 
 
+def condiciones_de_medida() -> dict:
+    """Estado de la maquina segun `scripts/condiciones_benchmark/`.
+
+    SOLO LEE: no para nada y no necesita elevacion.
+
+    **Se llama ANTES de la espera de maquina ociosa, nunca despues.** Arrancar
+    PowerShell cuesta uno o dos segundos de CPU, asi que una comprobacion hecha
+    al final rompe la condicion que acaba de verificar. Con la espera detras, el
+    pico se absorbe. (Visto en directo el 27 sep: la espera de una toma se
+    reinicio 30 veces porque cada sonda que se lanzaba para ver si ya habia
+    arrancado creaba el pico que lo impedia.)
+
+    Nunca aborta ni bloquea: si no se puede comprobar, lo dice y sigue. Una toma
+    sin este dato vale menos, pero vale.
+    """
+    if rutas.plataforma() != "windows":
+        return {"verdicto": "no aplica: no es Windows"}
+
+    guion = RAIZ / "scripts" / "condiciones_benchmark" / "comprueba_condiciones.ps1"
+    if not guion.exists():
+        return {"verdicto": "no se pudo comprobar: falta %s" % guion.name}
+
+    raiz_win = os.environ.get("SystemRoot", "C:/Windows")
+    exe = os.path.join(raiz_win, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
+    try:
+        r = subprocess.run([exe, "-NoProfile", "-ExecutionPolicy", "Bypass",
+                            "-File", str(guion)],
+                           capture_output=True, text=True, timeout=180,
+                           encoding="utf-8", errors="replace")
+    except Exception as e:  # noqa: BLE001
+        return {"verdicto": "no se pudo comprobar: %s" % e}
+
+    salida = {}
+    for linea in (r.stdout or "").splitlines():
+        if "=" in linea:
+            k, v = linea.split("=", 1)
+            salida[k.strip()] = v.strip()
+    if not salida:
+        pista = (r.stderr or r.stdout or "").strip().splitlines()
+        return {"verdicto": "no se pudo comprobar: sin salida%s"
+                % ((": " + pista[-1][:70]) if pista else "")}
+    return salida
+
+
 def _tiempos_cpu():
     """(ocupado, total) acumulados desde el arranque. None si no se puede.
 
@@ -530,6 +574,9 @@ def main():
                     help="que se considera tranquila, en tanto por uno (0,10)")
     ap.add_argument("--espera-max", type=float, default=1800.0,
                     help="cuanto esperar como maximo, en segundos (1800)")
+    ap.add_argument("--sin-condiciones", action="store_true",
+                    help="no comprobar el estado de la maquina (sondeadores vivos, "
+                         "exclusiones de Defender, tareas programadas)")
     args = ap.parse_args()
 
     maquina = nombre_maquina()
@@ -572,6 +619,21 @@ def main():
         echo("  [OJO] el arbol tiene cambios sin commitear: esta medida no se puede")
         echo("        atribuir al commit de arriba.")
     echo("")
+    # EN QUE ESTADO ESTABA LA MAQUINA, no solo cuanta carga tenia. Va ANTES de
+    # la espera a proposito: ver `condiciones_de_medida`.
+    if not args.sin_condiciones:
+        cond = condiciones_de_medida()
+        datos["condiciones"] = cond
+        echo("  condiciones: %s" % cond.get("verdicto", "?"))
+        vivos = cond.get("sondeadores_cuales")
+        if vivos:
+            echo("               sondeadores vivos: %s" % vivos[:96])
+        if cond.get("sondeadores_sin_resolver") not in (None, "0"):
+            echo("               [OJO] %s patron(es) de la lista no resuelven a ningun"
+                 % cond["sondeadores_sin_resolver"])
+            echo("               servicio: la lista de condiciones_benchmark/ esta desfasada")
+        echo("")
+
     # LA CONDICION, COMPROBADA EN VEZ DE RECORDADA. Y la carga queda anotada
     # en el JSON: sin ella, una toma sospechosa no se puede descartar despues
     # con ningun argumento.
