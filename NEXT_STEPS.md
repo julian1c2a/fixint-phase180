@@ -239,6 +239,7 @@ el punto fijo.
 | **P3.5** | Documentar `int128_param_*` (**257** avisos) | **Caduca hacia atrás**: baja sola con P1.5. Desde P3.7 (23 sep) son **el techo entero**: los otros 209 ya están escritos. No se documenta lo que se va a borrar |
 | **P3.6** | Decidir si Intel sale de la matriz de release | Se cae solo si P0.6 sale bien |
 | ~~P2.16~~ | ~~**El CI no compila los benchmarks**~~ | ✅ **hecho (27 sep)**: job `benchs-build`, y **no compila: pasa el front-end**. Lo que hay que cazar es una búsqueda de nombres, y eso lo ve `-fsyntax-only` — **medido**, 26 s frente a 254 s en el más pesado, 80 s los 24 ficheros en vez de ~13 min. **Falsificado contra el fichero roto de verdad** (`git show 8581ff6:`): lo rechaza en 3 s nombrando `sqr_escolar_bucle`. No enlaza, así que sólo necesita las cabeceras de GMP/TomMath/Boost |
+| **P2.19** 🔸 | **El banco de comparaciones no mide comparaciones.** Siete bucles y **dos formas distintas**: cinco usan `if (r) a += 1;` y dos —`uint64_t` y `unsigned __int128`— usan `a += r;`. Con `r` declarada `volatile`, la segunda forma mete el reenvío de almacén a carga **en la cadena de dependencia del bucle** y la primera no, así que los dos tipos nativos salen **más lentos que los de 128 bits**, que es imposible. Hay que igualar la forma de los siete y sacar el `volatile` de la cadena | Salió de dibujar la comparativa: la tabla se autodesmiente |
 | **P2.18** | **`hueco`, `equilibrado` y `barrido_desenrollado` necesitan más tiempo por casilla, no más repeticiones.** Salen las peores por **dos** caminos independientes: `limpias` (casillas con **1 vuelta limpia de 25**) y el movimiento entre tomas (`hueco N=4`, **57 %**). Con 200 ms por vuelta y N pequeña, la operación dura tan poco que una interrupción se lleva una fracción grande de la ventana | Salió de la calibración del 27 sep, con las dos medidas hechas |
 | **P2.17** | **Migrar al arnés adaptativo las once suites que quedan** (`addsub`, `bases`, `curva_n`, `div_by_const`, `divmod_algorithms`, `divmod_const`, `fixed_vs_param`, `fromstring`, `karatsuba`, `tostring`, `vs_builtin`). No es cosmético: **medido**, sus casillas se mueven diez veces más entre tomas (p90 14,0 % frente a 3,3 %) y son el origen de los **26 falsos positivos** del umbral plano | Salió de P2.5, con la medida hecha |
 | ~~P3.7~~ | ~~**Documentar el tipo NUEVO: 209 miembros públicos sin `@brief`**~~ | ✅ **hecho (23 sep)**. Techo **466 → 257**, y los 257 restantes son **todos** de `int128_param_*`. De paso, dos defectos de marcado que hacían **perder documentación ya escrita** —un `@def` sin argumento y un `@example` en línea— y 45 avisos más en `intrinsics/`+`algorithms/`, que no cuentan contra el techo pero son el código que ejecutan los núcleos |
@@ -364,6 +365,39 @@ separadas, y mezclarlas ya había costado caro en septiembre:
 llevaba diez días sin compilar y nadie lo vio. Y el barrido de la perilla `Base`
 de `rango_alto` —el banco que justifica el 8 que lleva escrito el código— **no
 registraba nada en absoluto**.
+
+---
+
+
+## Nomenclatura del punto fijo — seis decisiones tomadas (27 sep 2026)
+
+**Van en la 1.90, en la misma pasada que el renombrado de `fixed_int_t` a
+`fixed_width_int`.** Renombrar después de publicar la API cuesta mucho más, y las
+dos listas se tocan. Material de apoyo en
+[NOMENCLATURA_PUNTO_FIJO.md](docs/NOMENCLATURA_PUNTO_FIJO.md), con las seis
+fuentes leídas y marcadas por confianza.
+
+| hoy | pasa a | de dónde, y qué gana |
+|---|---|---|
+| `desde_crudo` | **`from_rep`** / **`to_rep`** | P0037 y CNL. Es el par canónico en C++ para «construir desde la representación» y su inverso, y hoy sólo existe la mitad |
+| `escala_*` | **`scale_up`** / **`scale_down`** | P0105. Y `scale_down` es el que lleva el redondeo: la misma asimetría que ya decidió [ADR-020](docs/decisions/) por otro camino |
+| los cinco modos de redondeo | **`all_*` / `tie_*`** | P0105 separa los que se aplican a **todo valor no representable** de los que sólo actúan **en el empate**. Los nuestros son cuatro `all_*` y un `tie_*`, y el nombre actual no lo distingue |
+| `overflow_policy::checked` | **`overflow::special`** | P0105. `checked` dice que se comprueba; `special` dice **qué pasa** al desbordar, que es lo que hay que saber en el punto de uso |
+| — | **`countls`** | TR 18037. Operación que **falta**, y hace falta para normalizar antes de multiplicar |
+| `F == N` | **especialización propia** | TR 18037 le da tipo propio al caso puramente fraccionario (`_Fract` frente a `_Accum`). Aquí sería `fixed_point<F, F>`, y **no es sólo un nombre**: ese caso se comporta distinto, y es justo el que tuvo el fallo de `to_string`. Con especialización, la diferencia está en la firma en vez de en un `if` |
+
+**Lo que queda por decidir: el nombre del tipo.** `fixed_point` es lo hablado,
+pero McFarlane lo abandonó: tras seis revisiones de P0037, en CNL el tipo se llama
+**`scaled_integer`** —que es literalmente la frase con la que describimos el
+diseño—.
+
+**Y una advertencia para el ADR:** Ada exige **conversión explícita al multiplicar
+dos fijos**, porque el tipo del resultado es ambiguo. Aquí decidimos lo contrario
+—promocionar parte entera y fraccionaria por separado— y la decisión se sostiene,
+porque la anchura es un parámetro de plantilla y el resultado **sí** se puede
+nombrar, mientras que en Ada el `'Small` real lo elige el compilador. Pero el ADR
+tiene que decir que Ada decidió al revés y por qué aquí no aplica: tomar la
+decisión sabiéndolo es distinto de tomarla sin saberlo.
 
 ---
 
