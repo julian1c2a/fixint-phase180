@@ -121,7 +121,7 @@ namespace
             doNotOptimize(acc);
         };
 
-        const auto m = bench::mide_entrelazado(std::make_tuple(div, mul), 20);
+        const auto m = bench::mide_entrelazado(std::make_tuple(div, mul));
         const double razon = m[0].minimo / m[1].minimo;
         std::printf("| %5zu | %5zu | %10.0f | %10.0f | %7.1fx | %s |\n", N, H, m[0].minimo, m[1].minimo,
                     razon,
@@ -145,7 +145,8 @@ int main()
 {
     print_header("cuanto hay sobre la mesa para Burnikel-Ziegler");
     std::printf("\nDivision (N, n=N/2) contra multiplicacion completa de N/2 x N/2.\n"
-                "El techo publicado de GMP es 2x-4x. Entrelazadas, 20 repeticiones.\n\n");
+                "El techo publicado de GMP es 2x-4x. Entrelazadas, %zu repeticiones.\n\n",
+                bench::REPETICIONES);
     std::printf("|     N |   N/2 |   div N/2 |    mul N/2 |   razon | veredicto |\n");
     std::printf("|------:|------:|----------:|-----------:|--------:|:----------|\n");
     mide<8>();

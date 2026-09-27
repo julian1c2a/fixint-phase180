@@ -1,3 +1,62 @@
+## [sin publicar] - 2026-09-27 - P2.16: **el CI compila los benchmarks**, y la toma profunda sube a 25 repeticiones
+
+### EL CI NO MIRABA `benchs/` MAS QUE EL FORMATO
+
+Por eso `benchmark_cuadrado.cpp` estuvo **diez dias sin compilar**. Job nuevo,
+`benchs-build`, y **no compila: pasa el front-end**.
+
+Lo que hay que cazar --«el codigo llama a algo que ya no existe»-- es una
+busqueda de nombres, y eso lo ve `-fsyntax-only`. Medido con gcc 16:
+
+| benchmark | compilar | `-fsyntax-only` |
+|---|---:|---:|
+| `barrido_desenrollado` | 254 s | **26,3 s** |
+| `hueco` | 245 s | **23,6 s** |
+| los 24 ficheros de `benchs/` | ~13 min | **80 s** |
+
+**Falsificado contra el fichero roto de verdad**, sacado con
+`git show 8581ff6:benchs/benchmark_cuadrado.cpp`: lo rechaza en 3 s nombrando
+`sqr_escolar_bucle`. Y como no enlaza, no necesita GMP ni TomMath compilados,
+solo sus cabeceras.
+
+El job va en `needs` del dashboard y en la lista de fallos criticos: si un
+benchmark se rompe, **el CI se pone rojo**.
+
+### 25 REPETICIONES, Y EN UN SOLO SITIO
+
+Las tomas profundas pasan de 10 a 25 repeticiones por casilla. Dos cosas que
+habrian salido mal si se cambia solo la constante:
+
+  - **cuatro benchmarks pasaban `20` a mano** --`div_const_fixed`, `estimador`,
+    `techo_division` y el `REPES` de `toom3`--, asi que la toma habria salido con
+    dos regimenes mezclados sin que nada lo dijera. Fuera los literales.
+  - **y dos textos impresos decian «20 repeticiones»** escritas a mano. Ahora
+    imprimen la constante.
+
+**Subir las repeticiones CAMBIA EL REGIMEN, no solo el coste**: lo que se publica
+es el minimo, y el minimo de 25 muestras es sistematicamente algo menor que el de
+10, mientras el recorrido se ensancha. Una bajada general entre dos tomas con
+distinto numero de repeticiones **no es una mejora**. `--compare` lo avisa ahora,
+sacandolo de las medidas --que lo traen una por una-- y no de un metadato.
+
+### «LA MAQUINA TIENE QUE ESTAR OCIOSA» DEJA DE SER UN RECORDATORIO
+
+`--espera-ocioso` espera a que la carga baje del 10 % y se mantenga, y **anota la
+carga que encontro**. El aviso lo lee quien lanza; la medida la hace la maquina, y
+entre una cosa y otra cabe un antivirus, un indexador o el cierre de otro editor.
+
+Sin dependencias --`GetSystemTimes` por ctypes, `/proc/stat` en Linux-- porque en
+esta maquina `wmic` y `typeperf` son justo las ordenes que no estan donde se cree.
+Sonda **falsificada**: con ocho procesos quemando CPU pasa del 49 % al 93 %.
+
+Y el primer intento de falsificarla **no probo nada y aun asi dio un veredicto**:
+los quemadores morian al arrancar --`multiprocessing` no puede picklear una
+funcion definida en `python -c`-- y la prueba concluyo «la sonda no sirve»
+habiendo medido ruido contra ruido. Ahora comprueba que los hijos esten vivos
+antes de concluir.
+
+---
+
 ## [sin publicar] - 2026-09-27 - P2.5: **el historico de benchmarks, con el ruido dentro**
 
 El historico tenia **90 medidas de 2 suites** y la ultima toma era del 9 sep.

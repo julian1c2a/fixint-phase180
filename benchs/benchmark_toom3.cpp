@@ -61,7 +61,9 @@
 
 // Pocos operandos: a M=2048 cada uno son 16 KB y el resultado 32 KB.
 static constexpr std::size_t OPERANDOS = 4;
-static constexpr std::size_t REPES = 20;
+// Las repeticiones las decide el arnes, en un solo sitio. Esto era un 20 a
+// mano, y subir `REPETICIONES` lo habria dejado atras sin que nada avisara.
+static constexpr std::size_t REPES = bench::REPETICIONES;
 
 /// Un umbral por encima de cualquier anchura medida deja a Toom-3 sin entrar:
 /// es Karatsuba puro, y sirve de linea base y de comprobacion del banco.

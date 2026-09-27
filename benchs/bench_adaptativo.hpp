@@ -73,7 +73,23 @@ namespace bench
 
     /// @brief Repeticiones por casilla. **Diez es el minimo del protocolo**, no
     ///        una sugerencia: una casilla sin dispersion no es una medida.
-    inline constexpr std::size_t REPETICIONES = 10;
+    ///
+    /// **25 desde el 27 sep 2026**, para las tomas profundas del historico. Diez
+    /// sigue siendo el minimo aceptable; veinticinco es lo que se paga cuando la
+    /// medida se va a guardar y comparar durante meses.
+    ///
+    /// @warning **Cambiar esto cambia el REGIMEN de medida, no solo su coste.**
+    ///          Lo que se publica es el MINIMO, y el minimo de 25 muestras es
+    ///          sistematicamente algo menor que el de 10 --mas tiradas, mas
+    ///          probabilidad de pillar la vuelta limpia--, mientras que el
+    ///          recorrido se ensancha. Dos tomas con distinto numero de
+    ///          repeticiones **no son estrictamente comparables**, y por eso
+    ///          `bench_history.py --compare` avisa cuando difieren.
+    ///
+    /// @note El coste crece lineal: cada casilla son `REPETICIONES` x
+    ///       `MS_POR_CASILLA` por variante. De 10 a 25 la sesion se multiplica
+    ///       por 2,5 en los doce benchmarks de este arnes.
+    inline constexpr std::size_t REPETICIONES = 25;
 
     /// @brief Lo que sale de medir una casilla.
     struct Medida

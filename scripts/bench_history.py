@@ -42,6 +42,7 @@ import os
 import platform
 import subprocess
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -208,6 +209,95 @@ def version_compilador(compilador: str) -> str:
     return "desconocida"
 
 
+def _tiempos_cpu():
+    """(ocupado, total) acumulados desde el arranque. None si no se puede.
+
+    Sin dependencias a proposito: en esta maquina `wmic` esta deprecado y
+    `typeperf` no siempre esta, y una sonda que falla en silencio devolveria
+    «maquina ociosa» justo cuando no lo esta.
+    """
+    if rutas.plataforma() == "windows":
+        import ctypes  # noqa: PLC0415
+        from ctypes import wintypes  # noqa: PLC0415
+
+        class FT(ctypes.Structure):
+            _fields_ = [("lo", wintypes.DWORD), ("hi", wintypes.DWORD)]
+
+        def val(f):
+            return (f.hi << 32) | f.lo
+
+        idle, kern, user = FT(), FT(), FT()
+        try:
+            ok = ctypes.windll.kernel32.GetSystemTimes(
+                ctypes.byref(idle), ctypes.byref(kern), ctypes.byref(user))
+        except Exception:
+            return None
+        if not ok:
+            return None
+        # OJO: el tiempo de KERNEL **incluye** el de idle. Restarlo aparte es el
+        # error clasico de esta API, y da cargas negativas en reposo.
+        total = val(kern) + val(user)
+        return total - val(idle), total
+
+    try:
+        with open("/proc/stat", encoding="ascii") as f:
+            campos = [int(x) for x in f.readline().split()[1:]]
+    except (OSError, ValueError):
+        return None
+    if len(campos) < 4:
+        return None
+    total = sum(campos)
+    parado = campos[3] + (campos[4] if len(campos) > 4 else 0)  # idle + iowait
+    return total - parado, total
+
+
+def carga_ahora(intervalo: float = 1.0):
+    """Fraccion de CPU ocupada durante `intervalo` segundos. None si no se sabe."""
+    a = _tiempos_cpu()
+    if a is None:
+        return None
+    time.sleep(intervalo)
+    b = _tiempos_cpu()
+    if b is None:
+        return None
+    d_total = b[1] - a[1]
+    if d_total <= 0:
+        return None
+    return max(0.0, min(1.0, (b[0] - a[0]) / d_total))
+
+
+def espera_ocioso(umbral: float, quieto: float, limite: float):
+    """Espera a que la maquina lleve `quieto` segundos por debajo de `umbral`.
+
+    Devuelve (carga_final, esperado_segundos, se_consiguio).
+
+    POR QUE ESPERAR Y NO SOLO AVISAR: el aviso lo lee quien lanza, pero la
+    medida la hace la maquina. Entre lanzar y empezar a medir puede haber un
+    antivirus, un indexador o el cierre de otro editor. Esperar mueve la
+    condicion de «acuerdate» a «comprobado».
+
+    NO se aborta si no se consigue: se sigue y se ANOTA. Una toma con carga
+    conocida vale mas que ninguna toma, siempre que la carga quede escrita.
+    """
+    t0 = time.time()
+    seguidos = 0.0
+    ultima = None
+    while time.time() - t0 < limite:
+        c = carga_ahora(1.0)
+        if c is None:
+            return None, time.time() - t0, False
+        ultima = c
+        if c <= umbral:
+            seguidos += 1.0
+            if seguidos >= quieto:
+                return c, time.time() - t0, True
+        else:
+            if seguidos > 0:
+                echo("  [espera] la carga subio al %.0f %%; el contador vuelve a cero" % (c * 100))
+            seguidos = 0.0
+    return ultima, time.time() - t0, False
+
+
 def benchmarks_disponibles():
     return sorted(f.stem[len("benchmark_"):]
                   for f in BENCHS.glob("benchmark_*.cpp"))
@@ -317,6 +407,24 @@ def comparar(actual: dict, previo_path: Path):
         echo("        las cifras NO son comparables; se muestran igual, pero no")
         echo("        se debe concluir nada de ellas.")
 
+    # EL NUMERO DE REPETICIONES TAMBIEN ROMPE LA COMPARABILIDAD, y esto no lo
+    # miraba nadie. Lo que se publica es el MINIMO: el de 25 muestras es
+    # sistematicamente algo menor que el de 10, asi que subir las repeticiones
+    # aparenta una mejora en TODAS las casillas a la vez. Se saca de las medidas,
+    # que lo traen una por una, y no de ningun metadato.
+    def _reps(d):
+        return sorted({m.get("repeticiones") for s in d.get("suites", {}).values()
+                       for m in s.values() if m.get("repeticiones")})
+
+    r_antes, r_ahora = _reps(previo), _reps(actual)
+    if r_antes and r_ahora and r_antes != r_ahora:
+        echo("  [OJO] repeticiones por casilla distintas: %s -> %s"
+             % (r_antes, r_ahora))
+        echo("        Lo que se publica es el MINIMO, y el minimo de mas muestras")
+        echo("        es menor por construccion. Una bajada general aqui NO es una")
+        echo("        mejora: es el cambio de regimen. Ver REPETICIONES en")
+        echo("        benchs/bench_adaptativo.hpp.")
+
     avisos = 0
     todos = []      # |delta| de TODAS las comparables, para la distribucion
     con_propio = 0
@@ -375,6 +483,14 @@ def main():
     ap.add_argument("--only", action="append", help="solo estos benchmarks")
     ap.add_argument("--compare", action="store_true", help="comparar con la ejecucion anterior")
     ap.add_argument("--list", action="store_true", help="listar lo guardado")
+    ap.add_argument("--espera-ocioso", nargs="?", type=float, const=60.0, default=None,
+                    metavar="SEG",
+                    help="esperar a que la maquina lleve SEG segundos tranquila antes de "
+                         "medir (por defecto 60 si se pone el flag sin valor)")
+    ap.add_argument("--umbral-carga", type=float, default=0.10,
+                    help="que se considera tranquila, en tanto por uno (0,10)")
+    ap.add_argument("--espera-max", type=float, default=1800.0,
+                    help="cuanto esperar como maximo, en segundos (1800)")
     args = ap.parse_args()
 
     maquina = nombre_maquina()
@@ -417,6 +533,36 @@ def main():
         echo("  [OJO] el arbol tiene cambios sin commitear: esta medida no se puede")
         echo("        atribuir al commit de arriba.")
     echo("")
+    # LA CONDICION, COMPROBADA EN VEZ DE RECORDADA. Y la carga queda anotada
+    # en el JSON: sin ella, una toma sospechosa no se puede descartar despues
+    # con ningun argumento.
+    if args.espera_ocioso:
+        echo("  Esperando a que la maquina lleve %.0f s por debajo del %.0f %% "
+             "(maximo %.0f min)..." % (args.espera_ocioso, args.umbral_carga * 100,
+                                       args.espera_max / 60.0))
+        carga, esperado, logrado = espera_ocioso(args.umbral_carga, args.espera_ocioso,
+                                                 args.espera_max)
+        if carga is None:
+            echo("  [OJO] no se pudo medir la carga; se sigue sin esperar.")
+        elif logrado:
+            echo("  Maquina tranquila (%.0f %%) tras %.0f s de espera. Empezamos."
+                 % (carga * 100, esperado))
+        else:
+            echo("  [OJO] se agoto la espera con la carga al %.0f %%. SE MIDE IGUAL,"
+                 % (carga * 100))
+            echo("        pero la cifra queda anotada en el JSON: esta toma es")
+            echo("        sospechosa y se puede descartar por ese dato.")
+        datos["carga_al_empezar"] = carga
+        datos["espera_ocioso_s"] = round(esperado, 1)
+        datos["maquina_tranquila"] = bool(logrado)
+    else:
+        c = carga_ahora(1.0)
+        datos["carga_al_empezar"] = c
+        if c is not None:
+            echo("  carga ahora  : %.0f %%%s" % (c * 100,
+                 "   <-- DEMASIADO ALTA, esta toma va a salir movida"
+                 if c > 0.10 else ""))
+
     echo("  [OJO] LA MAQUINA TIENE QUE ESTAR OCIOSA mientras esto corre.")
     echo("        Compilar otra cosa a la vez, o cualquier carga de fondo, mueve")
     echo("        las cifras mas que casi cualquier cambio de codigo. Medido el")

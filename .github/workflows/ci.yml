@@ -777,12 +777,69 @@ jobs:
           if [ $FAIL -gt 0 ]; then exit 1; fi
 
   # ============================================================================
+  # Los benchmarks COMPILAN (P2.16)
+  #
+  # De `benchs/` este CI solo miraba el formato, y asi `benchmark_cuadrado.cpp`
+  # estuvo DIEZ DIAS sin compilar: llamaba a `sqr_escolar_bucle`, un nucleo que
+  # se retiro por medida el 16 sep 2026. Un benchmark roto no rompe nada -- hasta
+  # el dia que hace falta la medida.
+  #
+  # `-fsyntax-only` porque lo que hay que cazar es una busqueda de nombres, que
+  # la ve el front-end: medido, 26 s frente a 254 s en el mas pesado, y
+  # falsificado contra el fichero roto de verdad, que rechaza en 3 s.
+  # ============================================================================
+  benchs-build:
+    name: "los benchmarks compilan"
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install g++-14, clang-19 y las cabeceras de terceros
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc >/dev/null 2>&1 || true
+          sudo add-apt-repository -y "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main" 2>/dev/null || true
+          sudo apt-get update -qq
+          # Solo cabeceras: no se enlaza, asi que no hace falta nada compilado.
+          sudo apt-get install -y -qq g++-14 clang-19 libgmp-dev libtommath-dev libboost-dev
+
+      - name: Los 23 benchmarks pasan el front-end
+        run: |
+          FAIL=0; TOTAL=0
+          for CXX in g++-14 clang++-19; do
+            echo "=== $CXX ==="
+            $CXX --version | head -1
+            for f in benchs/*.cpp; do
+              TOTAL=$((TOTAL + 1))
+              printf '  %-44s' "$(basename $f)"
+              # OJO: el `if` es obligatorio. Los `run:` de Actions van con
+              # `bash -e`, y un fallo fuera de un `if` mata el paso en el acto,
+              # asi que solo se veria el PRIMER benchmark roto.
+              if $CXX -fsyntax-only -std=c++20 -Iinclude -Ibenchs "$f" 2>/tmp/syn.err; then
+                echo "ok"
+              else
+                echo "FALLA"
+                head -25 /tmp/syn.err | sed 's/^/        /'
+                FAIL=$((FAIL + 1))
+              fi
+            done
+          done
+          echo ""
+          echo "=== $((TOTAL - FAIL))/$TOTAL pasan el front-end ==="
+          if [ $FAIL -gt 0 ]; then
+            echo "$FAIL fichero(s) de benchs/ no compilan."
+            echo "Un benchmark que no compila no puede estar en el historico, y"
+            echo "nadie se entera hasta que hace falta la medida. Ver P2.16."
+            exit 1
+          fi
+
+  # ============================================================================
   # CI Dashboard Summary
   # ============================================================================
   ci-summary:
     name: CI Dashboard
     runs-on: ubuntu-latest
-    needs: [native-linux, native-arm64, native-windows, cross-arm64, cross-arm32, cross-riscv64, cross-x86-32, sanitizers, clang-no-flags, format-and-docs, static-cppcheck, static-clang-tidy]
+    needs: [native-linux, native-arm64, native-windows, cross-arm64, cross-arm32, cross-riscv64, cross-x86-32, sanitizers, clang-no-flags, format-and-docs, static-cppcheck, static-clang-tidy, benchs-build]
     if: always()
 
     steps:
@@ -811,6 +868,7 @@ jobs:
           echo "| ASan + UBSan | ${{ needs.sanitizers.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| cppcheck | ${{ needs.static-cppcheck.result == 'success' && 'PASS' || 'WARN' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| clang-tidy | ${{ needs.static-clang-tidy.result == 'success' && 'PASS' || 'WARN' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| los benchmarks compilan | ${{ needs.benchs-build.result == 'success' && 'PASS' || 'FAIL' }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: Fail on critical errors
         if: |
@@ -823,5 +881,6 @@ jobs:
           needs.cross-x86-32.result == 'failure' ||
           needs.sanitizers.result == 'failure' ||
           needs.clang-no-flags.result == 'failure' ||
-          needs.format-and-docs.result == 'failure'
+          needs.format-and-docs.result == 'failure' ||
+          needs.benchs-build.result == 'failure'
         run: exit 1

@@ -74,7 +74,7 @@ namespace
             doNotOptimize(q);
         };
 
-        const auto m = bench::mide_entrelazado(std::make_tuple(normal, constante), 20);
+        const auto m = bench::mide_entrelazado(std::make_tuple(normal, constante));
         std::printf("| %5zu | %-14s | %10.0f | %10.0f | %6.2fx |\n", N, etiqueta, m[0].minimo, m[1].minimo,
                     m[0].minimo / m[1].minimo);
         std::fflush(stdout);
@@ -96,7 +96,8 @@ int main()
 {
     print_header("div<D>() contra operator/");
     std::printf("\nMismo bucle; lo unico que cambia es que el preambulo se resuelve en\n"
-                "compilacion. Entrelazadas, 20 repeticiones, minimo.\n\n");
+                "compilacion. Entrelazadas, %zu repeticiones, minimo.\n\n",
+                bench::REPETICIONES);
     std::printf("|     N | divisor        | operator/  |   div<D>() |  razon |\n");
     std::printf("|------:|:---------------|-----------:|-----------:|-------:|\n");
 

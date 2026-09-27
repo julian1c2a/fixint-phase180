@@ -98,7 +98,7 @@ namespace
             doNotOptimize(q[0]);
         };
 
-        const auto m = bench::mide_entrelazado(std::make_tuple(knuth, mg, autom), 20);
+        const auto m = bench::mide_entrelazado(std::make_tuple(knuth, mg, autom));
         std::printf("| %5zu | %-7s | %7zu | %10.0f | %10.0f | %6.2fx | %9.0f | %6.2fx |\n", N, forma,
                     N - SIG + 1, m[0].minimo, m[1].minimo, m[0].minimo / m[1].minimo, m[2].minimo,
                     m[0].minimo / m[2].minimo);

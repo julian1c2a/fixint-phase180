@@ -99,6 +99,28 @@ hiciera falta: con suelo cero también salen cero falsos positivos. Es un seguro
 que no tapa nada, porque por debajo del 5 % ningún cambio real se distingue del
 ruido en esta máquina.
 
+> **Las cifras de esta sección son del régimen de 10 repeticiones.** Desde el 27
+> sep las tomas profundas usan **25**, y eso **cambia el régimen, no sólo el
+> coste**: lo que se publica es el *mínimo*, y el mínimo de 25 muestras es
+> sistemáticamente algo menor que el de 10, mientras que el recorrido se
+> ensancha. Dos tomas con distinto número de repeticiones **no son estrictamente
+> comparables**, y `bench_history.py --compare` avisa cuando difieren —el dato
+> viaja en cada medida, no en un metadato—.
+
+### Y «la máquina tiene que estar ociosa» dejó de ser un recordatorio
+
+`bench_history.py --espera-ocioso` **espera** a que la carga baje del 10 % y se
+mantenga ahí el tiempo que se le diga antes de empezar a medir, y **anota la
+carga que encontró** en el JSON. Sin ese dato una toma sospechosa no se puede
+descartar después con ningún argumento.
+
+La carga se mide sin dependencias —`GetSystemTimes` por ctypes en Windows,
+`/proc/stat` en Linux— y la sonda está **falsificada**: con ocho procesos
+quemando CPU pasa del 49 % al 93 %. El primer intento de falsificarla no probó
+nada (los quemadores morían al arrancar por un fallo de `multiprocessing` en
+Windows) y aun así dio un veredicto: es la razón por la que la prueba comprueba
+ahora que los hijos están vivos antes de concluir.
+
 #### Y una cifra de la documentación que era de una sola muestra
 
 Aquí se decía que los recorridos «caen entre el 9 % y el 58 % **en todas** las
