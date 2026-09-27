@@ -77,7 +77,7 @@ if (-not $soyAdmin) {
   exit 1
 }
 
-function Sin-Tildes([string]$s) {
+function ConvertTo-SinTildes([string]$s) {
   if (-not $s) { return '' }
   $d = $s.Normalize([Text.NormalizationForm]::FormD)
   -join ($d.ToCharArray() | Where-Object {
@@ -131,8 +131,8 @@ function Para-Servicios($nombres, $etiqueta) {
   Write-Host ''
   Write-Host "=== $etiqueta ===" -ForegroundColor Cyan
   foreach ($n in $nombres) {
-    $patron = Sin-Tildes $n
-    $svc = Get-Service | Where-Object { (Sin-Tildes $_.DisplayName) -like "*$patron*" }
+    $patron = ConvertTo-SinTildes $n
+    $svc = Get-Service | Where-Object { (ConvertTo-SinTildes $_.DisplayName) -like "*$patron*" }
     if (-not $svc) {
       Write-Host ("  [NO RESUELVE]  {0}" -f $n) -ForegroundColor Yellow
       $script:noResuelven += $n
@@ -192,10 +192,14 @@ Write-Host '     mas que todos los servicios de esta lista juntos.'
 Write-Host '  4. Cierra Docker Desktop si no lo necesitas: son siete procesos'
 Write-Host '     mas una maquina virtual (vmmemWSL) que puede despertarse.'
 Write-Host ''
-Write-Host '  Y mira si hay tareas programadas a punto de disparar:' -ForegroundColor Cyan
-Write-Host '    Get-ScheduledTask | ? State -eq ''Ready'' | Get-ScheduledTaskInfo |'
-Write-Host '      ? { $_.NextRunTime -and $_.NextRunTime -lt (Get-Date).AddHours(3) } |'
-Write-Host '      Sort NextRunTime | Select TaskName, NextRunTime -First 20'
+# LA TUBERIA LARGA QUE HABIA AQUI SE FUE, y por una razon concreta: se pego dos
+# veces por accidente --el segundo `Get-ScheduledTask` ignora lo que le llega y
+# vuelve a listar TODAS-- y produjo un volcado de cientos de tareas. Una orden de
+# seis lineas en un texto de ayuda es una trampa. El comprobador ya da la
+# respuesta hecha.
+Write-Host '  Y para ver las tareas programadas que van a saltar:' -ForegroundColor Cyan
+Write-Host '    .\comprueba_condiciones.ps1      # mira las lineas tareas_en_2h y'
+Write-Host '                                     # tareas_cuales, y mantenimiento_corriendo'
 
 if ($noResuelven.Count -gt 0) {
   Write-Host ''

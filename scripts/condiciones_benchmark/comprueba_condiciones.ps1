@@ -19,7 +19,7 @@
 
 $ErrorActionPreference = 'SilentlyContinue'
 
-function Sin-Tildes([string]$s) {
+function ConvertTo-SinTildes([string]$s) {
   if (-not $s) { return '' }
   $d = $s.Normalize([Text.NormalizationForm]::FormD)
   -join ($d.ToCharArray() | Where-Object {
@@ -60,8 +60,8 @@ $todos = Get-Service
 $vivos = @()
 $sin_resolver = 0
 foreach ($p in $sondeadores) {
-  $pn = Sin-Tildes $p
-  $m = $todos | Where-Object { (Sin-Tildes $_.DisplayName) -like "*$pn*" }
+  $pn = ConvertTo-SinTildes $p
+  $m = $todos | Where-Object { (ConvertTo-SinTildes $_.DisplayName) -like "*$pn*" }
   if (-not $m) { $sin_resolver++; continue }
   foreach ($s in @($m)) {
     if ($s.Status -eq 'Running') { $vivos += $s.Name }
@@ -85,11 +85,27 @@ foreach ($n in $ruidosos) {
 Write-Output ("procesos_ruidosos=" + ($proc_vivos -join ','))
 
 # --- Defender: exclusiones puestas? ----------------------------------------
+#
+# OJO: `Get-MpPreference` DEVUELVE LA LISTA DE EXCLUSIONES VACIA A QUIEN NO ES
+# ADMINISTRADOR, sin dar ningun error. Asi que sin elevacion no se puede
+# distinguir «no hay exclusiones» de «no me dejan verlas», y responder `false`
+# seria mentir: es exactamente lo que paso el 27 sep, cuando dijo `false` con las
+# exclusiones ya puestas.
+#
+# Tres valores, no dos: `true`, `false` y `desconocido`.
 $excl = @()
-try { $excl = (Get-MpPreference).ExclusionPath } catch { }
+$fallo = $false
+try { $excl = (Get-MpPreference).ExclusionPath } catch { $fallo = $true }
 $tiene_build = $false
 foreach ($e in @($excl)) { if ($e -like '*fixint-phase180*') { $tiene_build = $true } }
-Write-Output ("defender_excluye_build=" + $tiene_build.ToString().ToLower())
+
+if ($tiene_build) {
+  Write-Output 'defender_excluye_build=true'
+} elseif (-not $soyAdmin -or $fallo) {
+  Write-Output 'defender_excluye_build=desconocido'
+} else {
+  Write-Output 'defender_excluye_build=false'
+}
 
 # --- Tareas programadas a punto de disparar --------------------------------
 # LA CAUSA CLASICA DE LOS PICOS RAROS, y la que no se ve en ninguna lista de
@@ -112,12 +128,57 @@ try {
 Write-Output ("tareas_en_2h=" + $pronto)
 Write-Output ("tareas_cuales=" + (($cuales | Select-Object -First 12) -join ','))
 
+# --- EL MANTENIMIENTO POR INACTIVIDAD, QUE ES EL RIESGO DE VERDAD ----------
+#
+# Las tareas con `NextRunTime` no son las peligrosas: son pequenas y se las ve
+# venir. Las gordas de Windows **no tienen hora**: se disparan CUANDO LA MAQUINA
+# ESTA OCIOSA. Y aqui hay una ironia que conviene tener presente: la espera de
+# `--espera-ocioso` crea a proposito noventa segundos de inactividad, que es
+# exactamente la invitacion que estas esperan.
+#
+# Las de la lista salen del volcado del 27 sep 2026, y son las que pueden mover
+# una medida de verdad: `StartComponentCleanup` (limpieza de WinSxS),
+# `SilentCleanup` (liberador de espacio), los dos `NGEN` (recompilan ensamblados
+# de .NET), `WinSAT` (que es literalmente un banco de pruebas del sistema),
+# `RegIdleBackup`, el indexador, `ProactiveScan` de chkdsk, el escaneo de
+# integridad de datos y el escaneo programado de Defender.
+$pesadas = @(
+  'StartComponentCleanup', 'SilentCleanup', '.NET Framework NGEN v4.0.30319',
+  '.NET Framework NGEN v4.0.30319 64', 'WinSAT', 'RegIdleBackup',
+  'IndexerAutomaticMaintenance', 'ProactiveScan', 'Data Integrity Scan',
+  'Data Integrity Check And Scan', 'Windows Defender Scheduled Scan',
+  'Windows Defender Cache Maintenance', 'Consolidator', 'ResPriStaticDbSync',
+  'Idle Maintenance', 'Regular Maintenance', 'Manual Maintenance'
+)
+$corriendo = @()
+try {
+  foreach ($t in (Get-ScheduledTask | Where-Object { $pesadas -contains $_.TaskName })) {
+    if ($t.State -eq 'Running') { $corriendo += $t.TaskName }
+  }
+} catch { }
+Write-Output ("mantenimiento_corriendo=" + ($corriendo -join ','))
+
+# --- Y el veredicto tiene que verlo tambien --------------------------------
+$hayMantenimiento = ($corriendo.Count -gt 0)
+
 # --- El veredicto, en una linea -------------------------------------------
 $puntos = @()
 if ($vivos.Count -gt 8) { $puntos += ("{0} sondeadores vivos" -f $vivos.Count) }
 if ($proc_vivos -contains 'Dropbox') { $puntos += 'Dropbox activo sobre el repo' }
-if (-not $tiene_build) { $puntos += 'Defender sin excluir build/' }
+# Solo se afirma lo que se sabe: con `desconocido` no se puede decir que
+# falte la exclusion. Ver arriba, `Get-MpPreference` sin elevacion.
+if (-not $tiene_build -and $soyAdmin -and -not $fallo) {
+  $puntos += 'Defender sin excluir build/'
+} elseif (-not $tiene_build) {
+  $puntos += 'no se pudo comprobar la exclusion de Defender (hace falta elevacion)'
+}
 if ($pronto -gt 3) { $puntos += ("{0} tareas programadas en 2 h" -f $pronto) }
+if ($hayMantenimiento) {
+  # Va primero porque es el unico que invalida la toma AHORA MISMO, no «a lo
+  # mejor»: si el limpiador de WinSxS o el NGEN estan corriendo, medir es tirar
+  # el tiempo.
+  $puntos = @(("MANTENIMIENTO DE WINDOWS EN MARCHA: " + ($corriendo -join ','))) + $puntos
+}
 if ($puntos.Count -eq 0) {
   Write-Output 'verdicto=preparada'
 } else {

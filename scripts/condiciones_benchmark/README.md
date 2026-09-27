@@ -8,9 +8,21 @@ Intel DSA y National Instruments instalados); en otra hay que rehacer las listas
 
 | | qué hace | admin | cuándo |
 |---|---|---|---|
-| [`comprueba_condiciones.ps1`](comprueba_condiciones.ps1) | **sólo lee**: qué sondeadores están vivos, qué procesos ruidosos, si Defender excluye `build/`, cuántas tareas programadas disparan en 2 h | no | automático, en cada toma |
-| [`silencia_maquina.ps1`](silencia_maquina.ps1) | para los sondeadores y pone las exclusiones de Defender | **sí** | a mano, antes de una sesión |
-| [`restaura_maquina.ps1`](restaura_maquina.ps1) | los vuelve a arrancar y quita las exclusiones | **sí** | a mano, después |
+| [`sesion_medicion.ps1`](sesion_medicion.ps1) | **el que se usa**: comprueba, silencia, vuelve a comprobar, y lo deja **todo en un log**. Se eleva solo | se eleva él | a mano, antes de una sesión |
+| [`comprueba_condiciones.ps1`](comprueba_condiciones.ps1) | **sólo lee**: sondeadores vivos, procesos ruidosos, exclusiones de Defender, tareas programadas y **mantenimiento de Windows en marcha** | no | automático, en cada toma |
+| [`silencia_maquina.ps1`](silencia_maquina.ps1) | para los sondeadores y pone las exclusiones de Defender | **sí** | lo llama el de arriba |
+| [`restaura_maquina.ps1`](restaura_maquina.ps1) | los vuelve a arrancar y quita las exclusiones | **sí** | `-Accion restaurar` |
+
+```powershell
+.\sesion_medicion.ps1                    # comprobar -> silenciar -> comprobar
+.\sesion_medicion.ps1 -Accion comprobar  # sólo mirar
+.\sesion_medicion.ps1 -Accion restaurar  # devolverlo todo
+```
+
+Todo va a `%USERPROFILE%\condiciones_benchmark.log`, **añadiendo**, con fecha y
+máquina en cada bloque. Se comprueba **antes y después** a propósito: un guion que
+dice «he parado 24 servicios» no demuestra que la máquina esté preparada; dos
+comprobaciones con el estado a los dos lados, sí.
 
 ## Por qué esto no es paranoia
 
@@ -73,3 +85,39 @@ espera detrás, ese pico se absorbe.
 Es el mismo efecto que se vio en directo el 27 sep: la espera de la toma se
 reinició **30 veces** porque cada sonda que se lanzaba para ver si ya había
 arrancado creaba el pico que lo impedía.
+
+## Dos formas de mentir que se arreglaron el 27 sep, las dos el mismo día
+
+**Un guion que necesita permisos y no los comprueba.** `silencia_maquina.ps1`,
+lanzado desde el terminal de VS Code —que no está elevado— falló **26 veces** con
+`Cannot open 'DoSvc' service`, no pudo poner las exclusiones, y terminó con un
+tranquilizador «Lo parado queda apuntado en...». Para saber que no había
+funcionado había que leerse las 26 líneas. Ahora comprueba la elevación al
+principio, aborta con `rc=1`, y `sesion_medicion.ps1` se eleva él solo.
+
+**Un `false` que significaba «no me dejan ver».** `Get-MpPreference` devuelve la
+lista de exclusiones **vacía** a quien no es administrador, sin dar ningún error,
+así que el comprobador decía `defender_excluye_build=false` con las exclusiones ya
+puestas. Ahora hay tres valores —`true`, `false` y `desconocido`— y el veredicto
+**no afirma lo que no sabe**.
+
+La misma familia que el `texto.count("")` del parcheador y que el `2>/dev/null`
+del CI: el fallo no es equivocarse, es equivocarse **en el sentido tranquilizador**.
+
+## El riesgo que no está en ninguna lista de servicios
+
+Las tareas programadas con hora no son las peligrosas: son pequeñas y se las ve
+venir. Las gordas de Windows **no tienen hora** —se disparan cuando la máquina
+está ociosa—, y ahí hay una ironía que conviene tener presente: **la espera de
+`--espera-ocioso` crea a propósito noventa segundos de inactividad, que es
+exactamente la invitación que esas tareas esperan.**
+
+Las que pueden mover una medida de verdad, sacadas del volcado del 27 sep:
+`StartComponentCleanup` (limpieza de WinSxS), `SilentCleanup`, los dos `NGEN` de
+.NET, **`WinSAT` —que es literalmente un banco de pruebas del sistema—**,
+`RegIdleBackup`, el indexador, `ProactiveScan` de chkdsk, el escaneo de integridad
+de datos y el escaneo programado de Defender.
+
+El comprobador publica `mantenimiento_corriendo=` con las que estén **en marcha**,
+y si hay alguna el veredicto lo pone **primero**: es el único punto que invalida la
+toma *ahora mismo* y no «a lo mejor».
