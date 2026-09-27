@@ -134,11 +134,40 @@ SUELO_ENTRE_TOMAS = 0.05
 
 
 def barra_de(antes, ahora):
-    """Barra de esta medida, y con que criterio se decidio."""
+    """Barra de esta medida, y con que criterio se decidio. TRES, en orden.
+
+    1. **COLA BAJA**, el bueno, activo desde el 27 sep. La cifra que se publica es
+       el minimo, o sea un estimador de la cola de ABAJO, asi que su
+       incertidumbre es la de esa cola. `dispersion_baja` la mide.
+
+    2. **RECORRIDO**, para las medidas que traen dispersion pero no cola baja
+       (tomas guardadas entre el 26 y el 27 sep). Es `max - min`, dominado por la
+       contaminacion de ARRIBA -- que no toca al minimo --, asi que sale enorme:
+       mediana del 52 % frente al 5 % de la cola baja. Detecta poco, pero no
+       miente.
+
+    3. **PLANO**, para las que no traen nada de ruido: el arnes viejo.
+
+    MEDIDO con el par limpio del 27 sep --dos tomas en las mismas condiciones y
+    con el mismo codigo, 216 casillas--:
+
+        criterio                        falsos positivos
+        recorrido                             0 de 216
+        cola baja, suelo 0 %                165 de 216
+        cola baja, suelo 5 %                  0 de 216
+
+    O sea que la cola baja SIN SUELO no sirve: mide la estabilidad DENTRO de una
+    tanda (0,8 % de mediana) y lo que hace falta es la reproducibilidad ENTRE
+    tandas (1,28 % de mediana, 4,31 % en el peor caso). Se diferencian en un
+    factor de cuatro o cinco, y el suelo es lo que cubre esa diferencia.
+    """
+    ba, bb = antes.get("dispersion_baja"), ahora.get("dispersion_baja")
+    if ba is not None and bb is not None:
+        return max(SUELO_ENTRE_TOMAS, ba + bb), "cola baja"
     ra, rb = antes.get("recorrido"), ahora.get("recorrido")
-    if ra is None or rb is None:
-        return UMBRAL_PLANO, "plano"
-    return max(SUELO_ENTRE_TOMAS, ra + rb), "propio"
+    if ra is not None and rb is not None:
+        return max(SUELO_ENTRE_TOMAS, ra + rb), "recorrido"
+    return UMBRAL_PLANO, "plano"
 
 
 def echo(msg):
@@ -323,22 +352,38 @@ def espera_ocioso(umbral: float, quieto: float, limite: float):
     NO se aborta si no se consigue: se sigue y se ANOTA. Una toma con carga
     conocida vale mas que ninguna toma, siempre que la carga quede escrita.
     """
+    # LA MEDIA DE LA VENTANA, NO TODAS LAS MUESTRAS.
+    #
+    # Antes exigia que NINGUNA muestra de un segundo pasara del umbral durante
+    # `quieto` segundos seguidos, y eso es imposible de cumplir en una maquina
+    # real: la toma 5 agoto los 45 minutos de espera **con la maquina al 2 %**,
+    # porque basta un pico de un segundo --el propio Windows, o alguien mirando
+    # el log-- para volver el contador a cero. Se conto 35 reinicios en otra.
+    #
+    # Lo que se quiere saber es si la maquina esta tranquila, no si hubo un
+    # segundo agitado. Con la media de la ventana, un pico aislado se diluye y
+    # una carga sostenida no.
     t0 = time.time()
-    seguidos = 0.0
+    ventana = []
+    n_ventana = max(3, int(quieto))
     ultima = None
+    avisado = False
     while time.time() - t0 < limite:
         c = carga_ahora(1.0)
         if c is None:
             return None, time.time() - t0, False
         ultima = c
-        if c <= umbral:
-            seguidos += 1.0
-            if seguidos >= quieto:
-                return c, time.time() - t0, True
-        else:
-            if seguidos > 0:
-                echo("  [espera] la carga subio al %.0f %%; el contador vuelve a cero" % (c * 100))
-            seguidos = 0.0
+        ventana.append(c)
+        if len(ventana) > n_ventana:
+            ventana.pop(0)
+        if len(ventana) >= n_ventana:
+            media = sum(ventana) / len(ventana)
+            if media <= umbral:
+                return media, time.time() - t0, True
+            if not avisado:
+                echo("  [espera] la media de los ultimos %d s va al %.0f %%; sigo esperando"
+                     % (n_ventana, media * 100))
+                avisado = True
     return ultima, time.time() - t0, False
 
 
@@ -484,9 +529,9 @@ def comparar(actual: dict, previo_path: Path):
 
     avisos = 0
     todos = []      # |delta| de TODAS las comparables, para la distribucion
-    con_propio = 0
-    # Para decidir --midiendo-- si la barra debe salir de la cola baja en vez
-    # del recorrido. Cada entrada: (|delta|, barra_recorrido, barra_cola_baja).
+    por_criterio = {}
+    # Para seguir viendo el CONTRASTE con el criterio viejo: cada entrada es
+    # (|delta|, barra_en_uso, barra_del_recorrido).
     ensayo_baja = []
     for suite, medidas in sorted(actual["suites"].items()):
         antes = previo.get("suites", {}).get(suite, {})
@@ -501,11 +546,10 @@ def comparar(actual: dict, previo_path: Path):
             delta = (v_ahora - v_antes) / v_antes
             barra, criterio = barra_de(antes[caso], dato)
             todos.append(abs(delta))
-            if criterio == "propio":
-                con_propio += 1
-            db_a, db_b = antes[caso].get("dispersion_baja"), dato.get("dispersion_baja")
-            if db_a is not None and db_b is not None:
-                ensayo_baja.append((abs(delta), barra, db_a + db_b))
+            por_criterio[criterio] = por_criterio.get(criterio, 0) + 1
+            ra, rb = antes[caso].get("recorrido"), dato.get("recorrido")
+            if criterio == "cola baja" and ra is not None and rb is not None:
+                ensayo_baja.append((abs(delta), barra, max(SUELO_ENTRE_TOMAS, ra + rb)))
             if abs(delta) >= barra:
                 filas.append((caso, v_antes, v_ahora, delta, barra, criterio))
         if filas:
@@ -525,8 +569,8 @@ def comparar(actual: dict, previo_path: Path):
         todos.sort()
         def pct(q):
             return todos[min(len(todos) - 1, int(q * len(todos)))] * 100
-        echo("  %d medidas comparables (%d con su propio ruido, %d con el umbral plano)"
-             % (len(todos), con_propio, len(todos) - con_propio))
+        detalle = ", ".join("%d por %s" % (n, c) for c, n in sorted(por_criterio.items()))
+        echo("  %d medidas comparables (%s)" % (len(todos), detalle))
         echo("  cuanto se mueven:  mediana %.1f %%   p90 %.1f %%   peor %.1f %%"
              % (pct(0.5), pct(0.9), todos[-1] * 100))
 
@@ -535,20 +579,21 @@ def comparar(actual: dict, previo_path: Path):
     # No se cambia el criterio a fe. Aqui se cuenta que pasaria con cada uno, y
     # con dos tomas del MISMO codigo todo lo que salte es falso positivo por
     # definicion. Cuando haya numeros, se decide -- igual que con el suelo.
+    # EL CONTRASTE CON EL CRITERIO VIEJO. Se conserva porque es lo que justifica
+    # el cambio cada vez que alguien lee una comparacion: no basta con que la
+    # barra nueva sea mas estrecha, hay que ver CUANTO se dejaba pasar antes.
     if ensayo_baja:
         n = len(ensayo_baja)
-        salta_rec = sum(1 for d, br, _ in ensayo_baja if d >= br)
-        salta_baja = sum(1 for d, _, bb in ensayo_baja if d >= bb)
-        bar_rec = sorted(br for _, br, _ in ensayo_baja)
-        bar_baja = sorted(bb for _, _, bb in ensayo_baja)
+        salta_ahora = sum(1 for d, ba, _ in ensayo_baja if d >= ba)
+        salta_antes = sum(1 for d, _, br in ensayo_baja if d >= br)
+        b_ahora = sorted(ba for _, ba, _ in ensayo_baja)
+        b_antes = sorted(br for _, _, br in ensayo_baja)
         echo("")
-        echo("  ENSAYO de la barra de cola baja (no esta activa; esto solo mide)")
-        echo("    %d medidas traen dispersion de cola baja" % n)
-        echo("    barra actual (suma de recorridos):   mediana %5.1f %%   saltan %d"
-             % (bar_rec[n // 2] * 100, salta_rec))
-        echo("    barra de cola baja:                  mediana %5.1f %%   saltan %d"
-             % (bar_baja[n // 2] * 100, salta_baja))
-        echo("    Con dos tomas del mismo codigo, lo que salte es falso positivo.")
+        echo("  CONTRASTE con el criterio viejo, en las %d medidas con cola baja:" % n)
+        echo("    barra de cola baja (en uso):   mediana %5.1f %%   marca %d"
+             % (b_ahora[n // 2] * 100, salta_ahora))
+        echo("    barra del recorrido (vieja):   mediana %5.1f %%   marca %d"
+             % (b_antes[n // 2] * 100, salta_antes))
 
     echo("")
     if avisos:

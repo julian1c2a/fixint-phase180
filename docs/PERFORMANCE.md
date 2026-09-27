@@ -146,6 +146,56 @@ construidos a mano —cinco limpias y veinte contaminadas, todas iguales, una so
 vuelta, el vector vacío— porque ninguno de esos casos sale de un operando
 aleatorio.
 
+#### La calibración, y por qué la cola baja **sola** no sirve
+
+Dos tomas seguidas en las mismas condiciones y con el mismo código —27 sep, 216
+casillas con cola baja—, así que todo lo que se mueve es ruido por definición:
+
+| | mediana | p75 | p90 | p99 | peor |
+|---|---:|---:|---:|---:|---:|
+| `\|delta\|` entre las dos tomas | **1,28 %** | 1,88 % | 2,36 % | 4,12 % | **4,31 %** |
+
+Y los falsos positivos de cada criterio sobre esas mismas 216:
+
+| criterio | marca |
+|---|---:|
+| recorrido (`max − min`) | **0** |
+| cola baja, **sin suelo** | **165** |
+| cola baja, suelo 2 % | 44 |
+| cola baja, suelo 3 % | 11 |
+| **cola baja, suelo 5 %** | **0** |
+
+**La cola baja sin suelo no sirve, y el motivo es conceptual:** mide la
+estabilidad *dentro* de una tanda (0,8 % de mediana) y lo que hace falta es la
+reproducibilidad *entre* tandas (1,28 % de mediana, 4,31 % en el peor caso). Se
+diferencian en un factor de cuatro o cinco. El suelo cubre esa diferencia, y el
+**5 %** es el más bajo que da cero —justo por encima del peor caso observado—.
+
+Con eso, `bench_history.py --compare` usa **tres criterios en orden**: cola baja
+con suelo, recorrido para las medidas que no la traen, y el plano del 25 % para
+las que no traen ruido de ninguna clase. La barra baja de una mediana del **52 %
+a una del 5 %**: diez veces más capacidad de detección, con cero falsos positivos
+medidos.
+
+Lo que eso cambia en la práctica, en una casilla real construida a mano:
+
+```
+ruidosa fuera, quieta dentro   100.00 -> 110.00  +10.0 %   (barra 5 %, cola baja)
+  barra de cola baja (en uso):  mediana   5.0 %   marca 1
+  barra del recorrido (vieja):  mediana  80.0 %   marca 0
+```
+
+Un 10 % de subida que la barra vieja **no veía**, porque su barra era del 80 %.
+
+#### Y la puerta del «máquina ociosa» estaba mal planteada
+
+Exigía que **ninguna** muestra de un segundo pasara del umbral durante 120 s
+seguidos. La toma 5 agotó los 45 minutos de espera **con la máquina al 2 %**:
+basta un pico de un segundo —el propio Windows, o alguien mirando el log— para
+volver el contador a cero; en otra toma se contaron **35 reinicios**. Ahora mira
+la **media de la ventana**, que es lo que la pregunta quería decir: un pico
+aislado se diluye y una carga sostenida no.
+
 ### Y «la máquina tiene que estar ociosa» dejó de ser un recordatorio
 
 `bench_history.py --espera-ocioso` **espera** a que la carga baje del 10 % y se

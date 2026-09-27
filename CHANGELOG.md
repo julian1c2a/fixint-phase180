@@ -1,3 +1,76 @@
+## [sin publicar] - 2026-09-27 - **la barra de comparacion pasa del 52 % al 5 %**
+
+Idea del autor --«aprovechar que son 25 para tomar un conjunto de minimos y sacar
+algun indice de dispersion de la parte baja»-- calibrada y activada. Y el camino
+hasta aqui desmintio dos cosas que yo daba por buenas.
+
+### LO QUE SE ACTIVA
+
+`--compare` decide con TRES criterios en orden:
+
+  1. **cola baja** con suelo: `max(5 %, dispersion_baja_a + dispersion_baja_b)`;
+  2. **recorrido** para las medidas que no traen cola baja;
+  3. **plano** del 25 % para las que no traen ruido de ninguna clase.
+
+La barra baja de una mediana del **52 % al 5 %** con **cero falsos positivos
+medidos**. En una casilla construida a mano: un +10 % que la barra vieja no veia
+--su barra eran 80 %-- ahora se marca.
+
+### LA CALIBRACION, CON UN PAR LIMPIO
+
+Dos tomas seguidas, mismas condiciones, mismo codigo, 216 casillas con cola baja:
+
+| |delta| entre tomas | mediana 1,28 % | p90 2,36 % | p99 4,12 % | peor 4,31 % |
+
+    falsos positivos:  recorrido 0    cola baja sin suelo 165
+                       suelo 2 % 44   suelo 3 % 11   SUELO 5 % -> 0
+
+**Y LA COLA BAJA SOLA NO SIRVE**, que es lo que no esperaba: mide la estabilidad
+DENTRO de una tanda (0,8 %) y lo que hace falta es la reproducibilidad ENTRE
+tandas (1,28 %, y 4,31 % en el peor caso). Sin suelo marcaria 165 de 216. El 5 %
+es el mas bajo que da cero, y coincide con el que ya se habia calibrado por otra
+via esa misma manana.
+
+### DOS PARES DE TOMAS, Y SOLO UNO VALE
+
+El par (3, 4) mezclaba el efecto de silenciar la maquina con el ruido entre
+tomas: p90 del 12,4 % y peor caso del 57 %. El par limpio (4, 5) da p90 2,36 % y
+peor 4,31 %. **Seis veces menos dispersion, y trece en el peor caso**, solo por
+medir en las mismas condiciones. Calibrar con el par confundido habria dado un
+suelo del 15 % o mas, y con el la barra no habria servido para nada.
+
+### LA PUERTA DEL «MAQUINA OCIOSA», MAL PLANTEADA DESDE QUE SE ESCRIBIO
+
+Exigia que NINGUNA muestra de un segundo pasara del umbral durante 120 s
+seguidos. La toma 5 agoto los 45 minutos de espera **con la maquina al 2 %**, y
+en otra se contaron 35 reinicios: basta un pico de un segundo para volver el
+contador a cero. Ahora mira la MEDIA de la ventana, que es lo que la pregunta
+queria decir.
+
+### LAS TRES SUITES RUIDOSAS, SENYALADAS POR DOS CAMINOS
+
+`hueco`, `equilibrado` y `barrido_desenrollado` salen las peores tanto por
+`limpias` --casillas con 1 vuelta limpia de 25-- como por el movimiento entre
+tomas (`hueco N=4` se mueve un 57 % en el par confundido). Con 200 ms por vuelta y
+N pequena, la operacion medida dura tan poco que cualquier interrupcion se lleva
+una fraccion grande de la ventana: lo que les hace falta es **mas tiempo por
+casilla, no mas repeticiones**. Queda apuntado, con medida propia, para P2.18.
+
+### LAS TOMAS
+
+`2026-09-27-a014469-gcc.json`: 1496 medidas, 23 suites, maquina al **1 %** --la
+mejor de las cuatro-- y con las condiciones dentro del fichero: los sondeadores
+que quedaban vivos, las tareas programadas de las dos horas siguientes y el
+mantenimiento en marcha.
+
+`2026-09-27-e59774c-gcc.json`: 319 medidas, 7 suites, el par de calibracion.
+
+Y las pruebas de la barra, reescritas: trece casos construidos a mano, porque las
+del contrato viejo --dos criterios-- fallaron cuatro al activarse el tercero. Los
+cuatro fallos eran correctos: el contrato cambio y las pruebas no.
+
+---
+
 ## [sin publicar] - 2026-09-27 - P2.16: **el CI compila los benchmarks**, y la toma profunda sube a 25 repeticiones
 
 ### EL CI NO MIRABA `benchs/` MAS QUE EL FORMATO

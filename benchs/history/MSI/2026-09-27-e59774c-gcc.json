@@ -1,0 +1,3046 @@
+{
+  "fecha": "2026-09-27T14:12:36+00:00",
+  "commit": "e59774c",
+  "arbol_limpio": true,
+  "maquina": "MSI",
+  "so": "Windows 11",
+  "cpu": "Intel64 Family 6 Model 165 Stepping 2, GenuineIntel",
+  "compilador_pedido": "gcc",
+  "compilador": "g++.exe (Rev4, Built by MSYS2 project) 16.2.0",
+  "modo": "release-O2",
+  "suites": {
+    "cuadrado": {
+      "cuadrado N=4 / a*a hoy": {
+        "valor": 16.4098,
+        "unidad": "cyc/op",
+        "dispersion": 0.1037,
+        "recorrido": 0.3288,
+        "iteraciones": 42099190,
+        "repeticiones": 25,
+        "suelo": 16.4849,
+        "dispersion_baja": 0.0046,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "cuadrado N=4 / sqr karatsuba": {
+        "valor": 24.3451,
+        "unidad": "cyc/op",
+        "dispersion": 0.0956,
+        "recorrido": 0.3277,
+        "iteraciones": 28496729,
+        "repeticiones": 25,
+        "suelo": 24.5407,
+        "dispersion_baja": 0.008,
+        "limpias": 0.28,
+        "k_suelo": 5
+      },
+      "cuadrado N=4 / razon": {
+        "valor": 0.674,
+        "unidad": "x"
+      },
+      "cuadrado N=8 / a*a hoy": {
+        "valor": 68.1101,
+        "unidad": "cyc/op",
+        "dispersion": 0.0887,
+        "recorrido": 0.3283,
+        "iteraciones": 9983327,
+        "repeticiones": 25,
+        "suelo": 68.1879,
+        "dispersion_baja": 0.0011,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "cuadrado N=8 / sqr karatsuba": {
+        "valor": 94.8027,
+        "unidad": "cyc/op",
+        "dispersion": 0.103,
+        "recorrido": 0.3064,
+        "iteraciones": 7201759,
+        "repeticiones": 25,
+        "suelo": 94.9577,
+        "dispersion_baja": 0.0016,
+        "limpias": 0.6,
+        "k_suelo": 5
+      },
+      "cuadrado N=8 / razon": {
+        "valor": 0.7184,
+        "unidad": "x"
+      },
+      "cuadrado N=12 / a*a hoy": {
+        "valor": 159.499,
+        "unidad": "cyc/op",
+        "dispersion": 0.106,
+        "recorrido": 0.3417,
+        "iteraciones": 4352449,
+        "repeticiones": 25,
+        "suelo": 161.2287,
+        "dispersion_baja": 0.0108,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "cuadrado N=12 / sqr karatsuba": {
+        "valor": 160.5319,
+        "unidad": "cyc/op",
+        "dispersion": 0.0918,
+        "recorrido": 0.2819,
+        "iteraciones": 3137059,
+        "repeticiones": 25,
+        "suelo": 161.0696,
+        "dispersion_baja": 0.0033,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "cuadrado N=12 / razon": {
+        "valor": 0.9936,
+        "unidad": "x"
+      },
+      "cuadrado N=16 / a*a hoy": {
+        "valor": 333.9479,
+        "unidad": "cyc/op",
+        "dispersion": 0.1244,
+        "recorrido": 0.3268,
+        "iteraciones": 2022263,
+        "repeticiones": 25,
+        "suelo": 334.5447,
+        "dispersion_baja": 0.0018,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "cuadrado N=16 / sqr karatsuba": {
+        "valor": 281.7411,
+        "unidad": "cyc/op",
+        "dispersion": 0.1176,
+        "recorrido": 0.3289,
+        "iteraciones": 2375432,
+        "repeticiones": 25,
+        "suelo": 283.5625,
+        "dispersion_baja": 0.0065,
+        "limpias": 0.28,
+        "k_suelo": 5
+      },
+      "cuadrado N=16 / razon": {
+        "valor": 1.1853,
+        "unidad": "x"
+      },
+      "cuadrado N=20 / a*a hoy": {
+        "valor": 537.5051,
+        "unidad": "cyc/op",
+        "dispersion": 0.093,
+        "recorrido": 0.2864,
+        "iteraciones": 1210244,
+        "repeticiones": 25,
+        "suelo": 539.2235,
+        "dispersion_baja": 0.0032,
+        "limpias": 0.68,
+        "k_suelo": 5
+      },
+      "cuadrado N=20 / sqr karatsuba": {
+        "valor": 429.0252,
+        "unidad": "cyc/op",
+        "dispersion": 0.0807,
+        "recorrido": 0.2663,
+        "iteraciones": 1225139,
+        "repeticiones": 25,
+        "suelo": 430.175,
+        "dispersion_baja": 0.0027,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "cuadrado N=20 / razon": {
+        "valor": 1.2529,
+        "unidad": "x"
+      },
+      "cuadrado N=24 / a*a hoy": {
+        "valor": 992.8801,
+        "unidad": "cyc/op",
+        "dispersion": 0.0614,
+        "recorrido": 0.2718,
+        "iteraciones": 638504,
+        "repeticiones": 25,
+        "suelo": 994.8473,
+        "dispersion_baja": 0.002,
+        "limpias": 0.76,
+        "k_suelo": 5
+      },
+      "cuadrado N=24 / sqr karatsuba": {
+        "valor": 674.6409,
+        "unidad": "cyc/op",
+        "dispersion": 0.0694,
+        "recorrido": 0.2674,
+        "iteraciones": 819275,
+        "repeticiones": 25,
+        "suelo": 677.4828,
+        "dispersion_baja": 0.0042,
+        "limpias": 0.68,
+        "k_suelo": 5
+      },
+      "cuadrado N=24 / razon": {
+        "valor": 1.4717,
+        "unidad": "x"
+      },
+      "cuadrado N=28 / a*a hoy": {
+        "valor": 1420.0249,
+        "unidad": "cyc/op",
+        "dispersion": 0.0902,
+        "recorrido": 0.2723,
+        "iteraciones": 440883,
+        "repeticiones": 25,
+        "suelo": 1421.2843,
+        "dispersion_baja": 0.0009,
+        "limpias": 0.72,
+        "k_suelo": 5
+      },
+      "cuadrado N=28 / sqr karatsuba": {
+        "valor": 932.0907,
+        "unidad": "cyc/op",
+        "dispersion": 0.0823,
+        "recorrido": 0.3164,
+        "iteraciones": 690925,
+        "repeticiones": 25,
+        "suelo": 935.7804,
+        "dispersion_baja": 0.004,
+        "limpias": 0.6,
+        "k_suelo": 5
+      },
+      "cuadrado N=28 / razon": {
+        "valor": 1.5235,
+        "unidad": "x"
+      },
+      "cuadrado N=32 / a*a hoy": {
+        "valor": 1782.9181,
+        "unidad": "cyc/op",
+        "dispersion": 0.1069,
+        "recorrido": 0.2995,
+        "iteraciones": 377251,
+        "repeticiones": 25,
+        "suelo": 1790.7536,
+        "dispersion_baja": 0.0044,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "cuadrado N=32 / sqr karatsuba": {
+        "valor": 1200.4576,
+        "unidad": "cyc/op",
+        "dispersion": 0.113,
+        "recorrido": 0.363,
+        "iteraciones": 557866,
+        "repeticiones": 25,
+        "suelo": 1202.7584,
+        "dispersion_baja": 0.0019,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "cuadrado N=32 / razon": {
+        "valor": 1.4852,
+        "unidad": "x"
+      },
+      "cuadrado N=36 / a*a hoy": {
+        "valor": 2781.8086,
+        "unidad": "cyc/op",
+        "dispersion": 0.0954,
+        "recorrido": 0.2804,
+        "iteraciones": 244810,
+        "repeticiones": 25,
+        "suelo": 2792.515,
+        "dispersion_baja": 0.0038,
+        "limpias": 0.8,
+        "k_suelo": 5
+      },
+      "cuadrado N=36 / sqr karatsuba": {
+        "valor": 1880.9143,
+        "unidad": "cyc/op",
+        "dispersion": 0.0796,
+        "recorrido": 0.2735,
+        "iteraciones": 364487,
+        "repeticiones": 25,
+        "suelo": 1890.934,
+        "dispersion_baja": 0.0053,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "cuadrado N=36 / razon": {
+        "valor": 1.479,
+        "unidad": "x"
+      },
+      "cuadrado N=40 / a*a hoy": {
+        "valor": 3596.952,
+        "unidad": "cyc/op",
+        "dispersion": 0.0703,
+        "recorrido": 0.2835,
+        "iteraciones": 185773,
+        "repeticiones": 25,
+        "suelo": 3625.7564,
+        "dispersion_baja": 0.008,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "cuadrado N=40 / sqr karatsuba": {
+        "valor": 2087.984,
+        "unidad": "cyc/op",
+        "dispersion": 0.0686,
+        "recorrido": 0.3059,
+        "iteraciones": 326505,
+        "repeticiones": 25,
+        "suelo": 2093.5389,
+        "dispersion_baja": 0.0027,
+        "limpias": 0.68,
+        "k_suelo": 5
+      },
+      "cuadrado N=40 / razon": {
+        "valor": 1.7227,
+        "unidad": "x"
+      },
+      "cuadrado N=44 / a*a hoy": {
+        "valor": 5410.1418,
+        "unidad": "cyc/op",
+        "dispersion": 0.0797,
+        "recorrido": 0.2698,
+        "iteraciones": 119671,
+        "repeticiones": 25,
+        "suelo": 5421.617,
+        "dispersion_baja": 0.0021,
+        "limpias": 0.6,
+        "k_suelo": 5
+      },
+      "cuadrado N=44 / sqr karatsuba": {
+        "valor": 4226.4317,
+        "unidad": "cyc/op",
+        "dispersion": 0.0826,
+        "recorrido": 0.2593,
+        "iteraciones": 158743,
+        "repeticiones": 25,
+        "suelo": 4265.7874,
+        "dispersion_baja": 0.0093,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "cuadrado N=44 / razon": {
+        "valor": 1.2801,
+        "unidad": "x"
+      },
+      "cuadrado N=48 / a*a hoy": {
+        "valor": 6146.0506,
+        "unidad": "cyc/op",
+        "dispersion": 0.0953,
+        "recorrido": 0.2945,
+        "iteraciones": 87781,
+        "repeticiones": 25,
+        "suelo": 6213.8836,
+        "dispersion_baja": 0.011,
+        "limpias": 0.16,
+        "k_suelo": 5
+      },
+      "cuadrado N=48 / sqr karatsuba": {
+        "valor": 4871.2581,
+        "unidad": "cyc/op",
+        "dispersion": 0.0925,
+        "recorrido": 0.2689,
+        "iteraciones": 111691,
+        "repeticiones": 25,
+        "suelo": 4898.415,
+        "dispersion_baja": 0.0056,
+        "limpias": 0.2,
+        "k_suelo": 5
+      },
+      "cuadrado N=48 / razon": {
+        "valor": 1.2617,
+        "unidad": "x"
+      },
+      "cuadrado N=52 / a*a hoy": {
+        "valor": 7776.3238,
+        "unidad": "cyc/op",
+        "dispersion": 0.0934,
+        "recorrido": 0.2557,
+        "iteraciones": 87306,
+        "repeticiones": 25,
+        "suelo": 7791.0317,
+        "dispersion_baja": 0.0019,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "cuadrado N=52 / sqr karatsuba": {
+        "valor": 5748.2855,
+        "unidad": "cyc/op",
+        "dispersion": 0.0955,
+        "recorrido": 0.2601,
+        "iteraciones": 115398,
+        "repeticiones": 25,
+        "suelo": 5770.9147,
+        "dispersion_baja": 0.0039,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "cuadrado N=52 / razon": {
+        "valor": 1.3528,
+        "unidad": "x"
+      },
+      "cuadrado N=56 / a*a hoy": {
+        "valor": 10492.5699,
+        "unidad": "cyc/op",
+        "dispersion": 0.0819,
+        "recorrido": 0.2807,
+        "iteraciones": 66847,
+        "repeticiones": 25,
+        "suelo": 10513.4139,
+        "dispersion_baja": 0.002,
+        "limpias": 0.72,
+        "k_suelo": 5
+      },
+      "cuadrado N=56 / sqr karatsuba": {
+        "valor": 6377.2363,
+        "unidad": "cyc/op",
+        "dispersion": 0.0815,
+        "recorrido": 0.2631,
+        "iteraciones": 105444,
+        "repeticiones": 25,
+        "suelo": 6398.467,
+        "dispersion_baja": 0.0033,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "cuadrado N=56 / razon": {
+        "valor": 1.6453,
+        "unidad": "x"
+      },
+      "cuadrado N=60 / a*a hoy": {
+        "valor": 12349.3027,
+        "unidad": "cyc/op",
+        "dispersion": 0.1024,
+        "recorrido": 0.2638,
+        "iteraciones": 44411,
+        "repeticiones": 25,
+        "suelo": 12466.1805,
+        "dispersion_baja": 0.0095,
+        "limpias": 0.28,
+        "k_suelo": 5
+      },
+      "cuadrado N=60 / sqr karatsuba": {
+        "valor": 7639.7791,
+        "unidad": "cyc/op",
+        "dispersion": 0.1056,
+        "recorrido": 0.2546,
+        "iteraciones": 70679,
+        "repeticiones": 25,
+        "suelo": 7654.9312,
+        "dispersion_baja": 0.002,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "cuadrado N=60 / razon": {
+        "valor": 1.6164,
+        "unidad": "x"
+      },
+      "cuadrado N=64 / a*a hoy": {
+        "valor": 13497.0131,
+        "unidad": "cyc/op",
+        "dispersion": 0.0757,
+        "recorrido": 0.3029,
+        "iteraciones": 41294,
+        "repeticiones": 25,
+        "suelo": 13512.4622,
+        "dispersion_baja": 0.0011,
+        "limpias": 0.72,
+        "k_suelo": 5
+      },
+      "cuadrado N=64 / sqr karatsuba": {
+        "valor": 8569.5757,
+        "unidad": "cyc/op",
+        "dispersion": 0.0825,
+        "recorrido": 0.2944,
+        "iteraciones": 63030,
+        "repeticiones": 25,
+        "suelo": 8582.0554,
+        "dispersion_baja": 0.0015,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "cuadrado N=64 / razon": {
+        "valor": 1.575,
+        "unidad": "x"
+      }
+    },
+    "div_const_fixed": {
+      "N=1 d=10 / operator/": {
+        "valor": 17.3144,
+        "unidad": "cyc/op",
+        "dispersion": 0.0686,
+        "recorrido": 0.2244,
+        "iteraciones": 38322600,
+        "repeticiones": 25,
+        "suelo": 17.3483,
+        "dispersion_baja": 0.002,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "N=1 d=10 / div<D>()": {
+        "valor": 4.9165,
+        "unidad": "cyc/op",
+        "dispersion": 0.0728,
+        "recorrido": 0.2506,
+        "iteraciones": 113253827,
+        "repeticiones": 25,
+        "suelo": 4.9297,
+        "dispersion_baja": 0.0027,
+        "limpias": 0.6,
+        "k_suelo": 5
+      },
+      "N=1 d=10 / razon": {
+        "valor": 3.5217,
+        "unidad": "x"
+      },
+      "N=2 d=10 / operator/": {
+        "valor": 83.1892,
+        "unidad": "cyc/op",
+        "dispersion": 0.0367,
+        "recorrido": 0.1357,
+        "iteraciones": 91295037,
+        "repeticiones": 25,
+        "suelo": 83.7163,
+        "dispersion_baja": 0.0063,
+        "limpias": 0.32,
+        "k_suelo": 5
+      },
+      "N=2 d=10 / div<D>()": {
+        "valor": 11.6869,
+        "unidad": "cyc/op",
+        "dispersion": 0.0616,
+        "recorrido": 0.2059,
+        "iteraciones": 49953816,
+        "repeticiones": 25,
+        "suelo": 11.7566,
+        "dispersion_baja": 0.006,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=2 d=10 / razon": {
+        "valor": 7.1182,
+        "unidad": "x"
+      },
+      "N=3 d=10 / operator/": {
+        "valor": 89.6307,
+        "unidad": "cyc/op",
+        "dispersion": 0.0643,
+        "recorrido": 0.2122,
+        "iteraciones": 7927161,
+        "repeticiones": 25,
+        "suelo": 89.9685,
+        "dispersion_baja": 0.0038,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=3 d=10 / div<D>()": {
+        "valor": 25.6744,
+        "unidad": "cyc/op",
+        "dispersion": 0.0669,
+        "recorrido": 0.1986,
+        "iteraciones": 21757151,
+        "repeticiones": 25,
+        "suelo": 25.7963,
+        "dispersion_baja": 0.0048,
+        "limpias": 0.24,
+        "k_suelo": 5
+      },
+      "N=3 d=10 / razon": {
+        "valor": 3.4911,
+        "unidad": "x"
+      },
+      "N=4 d=10 / operator/": {
+        "valor": 128.0547,
+        "unidad": "cyc/op",
+        "dispersion": 0.056,
+        "recorrido": 0.1794,
+        "iteraciones": 6225086,
+        "repeticiones": 25,
+        "suelo": 128.5009,
+        "dispersion_baja": 0.0035,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=4 d=10 / div<D>()": {
+        "valor": 30.8348,
+        "unidad": "cyc/op",
+        "dispersion": 0.0676,
+        "recorrido": 0.2298,
+        "iteraciones": 19358110,
+        "repeticiones": 25,
+        "suelo": 30.9965,
+        "dispersion_baja": 0.0052,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=4 d=10 / razon": {
+        "valor": 4.1529,
+        "unidad": "x"
+      },
+      "N=8 d=10 / operator/": {
+        "valor": 185.3262,
+        "unidad": "cyc/op",
+        "dispersion": 0.0645,
+        "recorrido": 0.2084,
+        "iteraciones": 3524130,
+        "repeticiones": 25,
+        "suelo": 186.5341,
+        "dispersion_baja": 0.0065,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=8 d=10 / div<D>()": {
+        "valor": 70.2467,
+        "unidad": "cyc/op",
+        "dispersion": 0.0702,
+        "recorrido": 0.2613,
+        "iteraciones": 9095906,
+        "repeticiones": 25,
+        "suelo": 70.8432,
+        "dispersion_baja": 0.0085,
+        "limpias": 0.32,
+        "k_suelo": 5
+      },
+      "N=8 d=10 / razon": {
+        "valor": 2.6382,
+        "unidad": "x"
+      },
+      "N=16 d=10 / operator/": {
+        "valor": 256.9172,
+        "unidad": "cyc/op",
+        "dispersion": 0.0596,
+        "recorrido": 0.1781,
+        "iteraciones": 2581267,
+        "repeticiones": 25,
+        "suelo": 259.484,
+        "dispersion_baja": 0.01,
+        "limpias": 0.16,
+        "k_suelo": 5
+      },
+      "N=16 d=10 / div<D>()": {
+        "valor": 152.1922,
+        "unidad": "cyc/op",
+        "dispersion": 0.0538,
+        "recorrido": 0.1501,
+        "iteraciones": 4161377,
+        "repeticiones": 25,
+        "suelo": 152.8963,
+        "dispersion_baja": 0.0046,
+        "limpias": 0.28,
+        "k_suelo": 5
+      },
+      "N=16 d=10 / razon": {
+        "valor": 1.6881,
+        "unidad": "x"
+      },
+      "N=32 d=10 / operator/": {
+        "valor": 495.3404,
+        "unidad": "cyc/op",
+        "dispersion": 0.0582,
+        "recorrido": 0.1953,
+        "iteraciones": 1287361,
+        "repeticiones": 25,
+        "suelo": 497.8883,
+        "dispersion_baja": 0.0051,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=32 d=10 / div<D>()": {
+        "valor": 320.5931,
+        "unidad": "cyc/op",
+        "dispersion": 0.0544,
+        "recorrido": 0.169,
+        "iteraciones": 2090766,
+        "repeticiones": 25,
+        "suelo": 322.0487,
+        "dispersion_baja": 0.0045,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=32 d=10 / razon": {
+        "valor": 1.5451,
+        "unidad": "x"
+      },
+      "N=64 d=10 / operator/": {
+        "valor": 959.8538,
+        "unidad": "cyc/op",
+        "dispersion": 0.0587,
+        "recorrido": 0.1919,
+        "iteraciones": 728885,
+        "repeticiones": 25,
+        "suelo": 964.1957,
+        "dispersion_baja": 0.0045,
+        "limpias": 0.32,
+        "k_suelo": 5
+      },
+      "N=64 d=10 / div<D>()": {
+        "valor": 650.2359,
+        "unidad": "cyc/op",
+        "dispersion": 0.0525,
+        "recorrido": 0.1524,
+        "iteraciones": 897978,
+        "repeticiones": 25,
+        "suelo": 655.3105,
+        "dispersion_baja": 0.0078,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=64 d=10 / razon": {
+        "valor": 1.4762,
+        "unidad": "x"
+      },
+      "N=128 d=10 / operator/": {
+        "valor": 1826.6163,
+        "unidad": "cyc/op",
+        "dispersion": 0.0404,
+        "recorrido": 0.1505,
+        "iteraciones": 387346,
+        "repeticiones": 25,
+        "suelo": 1831.7597,
+        "dispersion_baja": 0.0028,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=128 d=10 / div<D>()": {
+        "valor": 1303.5691,
+        "unidad": "cyc/op",
+        "dispersion": 0.0467,
+        "recorrido": 0.1463,
+        "iteraciones": 502157,
+        "repeticiones": 25,
+        "suelo": 1308.2263,
+        "dispersion_baja": 0.0036,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=128 d=10 / razon": {
+        "valor": 1.4012,
+        "unidad": "x"
+      },
+      "N=4 d=3 / operator/": {
+        "valor": 127.8303,
+        "unidad": "cyc/op",
+        "dispersion": 0.0605,
+        "recorrido": 0.1636,
+        "iteraciones": 6569128,
+        "repeticiones": 25,
+        "suelo": 128.5396,
+        "dispersion_baja": 0.0055,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=4 d=3 / div<D>()": {
+        "valor": 28.9902,
+        "unidad": "cyc/op",
+        "dispersion": 0.0731,
+        "recorrido": 0.2075,
+        "iteraciones": 19941799,
+        "repeticiones": 25,
+        "suelo": 29.1335,
+        "dispersion_baja": 0.0049,
+        "limpias": 0.32,
+        "k_suelo": 5
+      },
+      "N=4 d=3 / razon": {
+        "valor": 4.4094,
+        "unidad": "x"
+      },
+      "N=4 d=7 / operator/": {
+        "valor": 127.7277,
+        "unidad": "cyc/op",
+        "dispersion": 0.0445,
+        "recorrido": 0.1555,
+        "iteraciones": 6177079,
+        "repeticiones": 25,
+        "suelo": 128.0292,
+        "dispersion_baja": 0.0024,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=4 d=7 / div<D>()": {
+        "valor": 28.4645,
+        "unidad": "cyc/op",
+        "dispersion": 0.0484,
+        "recorrido": 0.1937,
+        "iteraciones": 20751181,
+        "repeticiones": 25,
+        "suelo": 28.5931,
+        "dispersion_baja": 0.0045,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "N=4 d=7 / razon": {
+        "valor": 4.4873,
+        "unidad": "x"
+      },
+      "N=4 d=1e9+7 / operator/": {
+        "valor": 128.653,
+        "unidad": "cyc/op",
+        "dispersion": 0.0695,
+        "recorrido": 0.2629,
+        "iteraciones": 7527368,
+        "repeticiones": 25,
+        "suelo": 129.3571,
+        "dispersion_baja": 0.0055,
+        "limpias": 0.24,
+        "k_suelo": 5
+      },
+      "N=4 d=1e9+7 / div<D>()": {
+        "valor": 31.0137,
+        "unidad": "cyc/op",
+        "dispersion": 0.0864,
+        "recorrido": 0.2541,
+        "iteraciones": 21468633,
+        "repeticiones": 25,
+        "suelo": 31.0801,
+        "dispersion_baja": 0.0021,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=4 d=1e9+7 / razon": {
+        "valor": 4.1483,
+        "unidad": "x"
+      },
+      "N=4 d=1e19 / operator/": {
+        "valor": 124.8308,
+        "unidad": "cyc/op",
+        "dispersion": 0.0417,
+        "recorrido": 0.1438,
+        "iteraciones": 6296035,
+        "repeticiones": 25,
+        "suelo": 125.3507,
+        "dispersion_baja": 0.0042,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "N=4 d=1e19 / div<D>()": {
+        "valor": 29.1162,
+        "unidad": "cyc/op",
+        "dispersion": 0.0562,
+        "recorrido": 0.213,
+        "iteraciones": 20234968,
+        "repeticiones": 25,
+        "suelo": 29.1897,
+        "dispersion_baja": 0.0025,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "N=4 d=1e19 / razon": {
+        "valor": 4.2873,
+        "unidad": "x"
+      },
+      "N=4 d=2^63  (s=0) / operator/": {
+        "valor": 124.3169,
+        "unidad": "cyc/op",
+        "dispersion": 0.0492,
+        "recorrido": 0.1482,
+        "iteraciones": 6619495,
+        "repeticiones": 25,
+        "suelo": 124.7757,
+        "dispersion_baja": 0.0037,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "N=4 d=2^63  (s=0) / div<D>()": {
+        "valor": 28.6335,
+        "unidad": "cyc/op",
+        "dispersion": 0.0693,
+        "recorrido": 0.2333,
+        "iteraciones": 20901595,
+        "repeticiones": 25,
+        "suelo": 28.7862,
+        "dispersion_baja": 0.0053,
+        "limpias": 0.28,
+        "k_suelo": 5
+      },
+      "N=4 d=2^63  (s=0) / razon": {
+        "valor": 4.3417,
+        "unidad": "x"
+      },
+      "N=4 d=2^64-1 (s=0) / operator/": {
+        "valor": 76.9659,
+        "unidad": "cyc/op",
+        "dispersion": 0.0768,
+        "recorrido": 0.2233,
+        "iteraciones": 11411097,
+        "repeticiones": 25,
+        "suelo": 77.339,
+        "dispersion_baja": 0.0048,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "N=4 d=2^64-1 (s=0) / div<D>()": {
+        "valor": 21.1759,
+        "unidad": "cyc/op",
+        "dispersion": 0.0588,
+        "recorrido": 0.1781,
+        "iteraciones": 31864568,
+        "repeticiones": 25,
+        "suelo": 21.2656,
+        "dispersion_baja": 0.0042,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=4 d=2^64-1 (s=0) / razon": {
+        "valor": 3.6346,
+        "unidad": "x"
+      }
+    },
+    "division": {
+      "divmod peor caso N=4": {
+        "valor": 162.5495,
+        "unidad": "cyc"
+      },
+      "divmod N=4 n=1": {
+        "valor": 116.7619,
+        "unidad": "cyc/op",
+        "dispersion": 0.0675,
+        "recorrido": 0.2436,
+        "iteraciones": 5666358,
+        "repeticiones": 25,
+        "suelo": 116.9516,
+        "dispersion_baja": 0.0016,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "divmod N=4 n=2": {
+        "valor": 162.5495,
+        "unidad": "cyc/op",
+        "dispersion": 0.0769,
+        "recorrido": 0.2627,
+        "iteraciones": 4163660,
+        "repeticiones": 25,
+        "suelo": 162.8972,
+        "dispersion_baja": 0.0021,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "divmod N=4 n=N/2": {
+        "valor": 161.0673,
+        "unidad": "cyc/op",
+        "dispersion": 0.0837,
+        "recorrido": 0.2524,
+        "iteraciones": 4081507,
+        "repeticiones": 25,
+        "suelo": 161.8196,
+        "dispersion_baja": 0.0047,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "divmod N=4 n=N": {
+        "valor": 53.2448,
+        "unidad": "cyc/op",
+        "dispersion": 0.0924,
+        "recorrido": 0.2624,
+        "iteraciones": 12914655,
+        "repeticiones": 25,
+        "suelo": 53.4278,
+        "dispersion_baja": 0.0034,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "divmod peor caso N=8": {
+        "valor": 250.9659,
+        "unidad": "cyc"
+      },
+      "divmod N=8 n=1": {
+        "valor": 167.1986,
+        "unidad": "cyc/op",
+        "dispersion": 0.0564,
+        "recorrido": 0.177,
+        "iteraciones": 4178987,
+        "repeticiones": 25,
+        "suelo": 168.4357,
+        "dispersion_baja": 0.0074,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "divmod N=8 n=2": {
+        "valor": 243.381,
+        "unidad": "cyc/op",
+        "dispersion": 0.1043,
+        "recorrido": 0.3288,
+        "iteraciones": 2728807,
+        "repeticiones": 25,
+        "suelo": 245.1548,
+        "dispersion_baja": 0.0073,
+        "limpias": 0.28,
+        "k_suelo": 5
+      },
+      "divmod N=8 n=N/2": {
+        "valor": 250.9659,
+        "unidad": "cyc/op",
+        "dispersion": 0.0902,
+        "recorrido": 0.2738,
+        "iteraciones": 2784243,
+        "repeticiones": 25,
+        "suelo": 252.8096,
+        "dispersion_baja": 0.0073,
+        "limpias": 0.24,
+        "k_suelo": 5
+      },
+      "divmod N=8 n=N": {
+        "valor": 44.8757,
+        "unidad": "cyc/op",
+        "dispersion": 0.0881,
+        "recorrido": 0.2667,
+        "iteraciones": 15165983,
+        "repeticiones": 25,
+        "suelo": 45.1403,
+        "dispersion_baja": 0.0059,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "divmod peor caso N=16": {
+        "valor": 505.2267,
+        "unidad": "cyc"
+      },
+      "divmod N=16 n=1": {
+        "valor": 266.6879,
+        "unidad": "cyc/op",
+        "dispersion": 0.0809,
+        "recorrido": 0.31,
+        "iteraciones": 2570223,
+        "repeticiones": 25,
+        "suelo": 267.949,
+        "dispersion_baja": 0.0047,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "divmod N=16 n=2": {
+        "valor": 416.7078,
+        "unidad": "cyc/op",
+        "dispersion": 0.1181,
+        "recorrido": 0.5053,
+        "iteraciones": 1656319,
+        "repeticiones": 25,
+        "suelo": 419.3686,
+        "dispersion_baja": 0.0064,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "divmod N=16 n=N/2": {
+        "valor": 505.2267,
+        "unidad": "cyc/op",
+        "dispersion": 0.0849,
+        "recorrido": 0.2679,
+        "iteraciones": 1389653,
+        "repeticiones": 25,
+        "suelo": 508.0286,
+        "dispersion_baja": 0.0055,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "divmod N=16 n=N": {
+        "valor": 157.2208,
+        "unidad": "cyc/op",
+        "dispersion": 0.0961,
+        "recorrido": 0.284,
+        "iteraciones": 4314934,
+        "repeticiones": 25,
+        "suelo": 157.7075,
+        "dispersion_baja": 0.0031,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "divmod peor caso N=32": {
+        "valor": 1404.1955,
+        "unidad": "cyc"
+      },
+      "divmod N=32 n=1": {
+        "valor": 493.7712,
+        "unidad": "cyc/op",
+        "dispersion": 0.0574,
+        "recorrido": 0.1688,
+        "iteraciones": 1232724,
+        "repeticiones": 25,
+        "suelo": 496.4411,
+        "dispersion_baja": 0.0054,
+        "limpias": 0.32,
+        "k_suelo": 5
+      },
+      "divmod N=32 n=2": {
+        "valor": 793.5241,
+        "unidad": "cyc/op",
+        "dispersion": 0.1033,
+        "recorrido": 0.2741,
+        "iteraciones": 764634,
+        "repeticiones": 25,
+        "suelo": 795.1363,
+        "dispersion_baja": 0.002,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "divmod N=32 n=N/2": {
+        "valor": 1404.1955,
+        "unidad": "cyc/op",
+        "dispersion": 0.0977,
+        "recorrido": 0.2877,
+        "iteraciones": 385259,
+        "repeticiones": 25,
+        "suelo": 1413.5225,
+        "dispersion_baja": 0.0066,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "divmod N=32 n=N": {
+        "valor": 215.9228,
+        "unidad": "cyc/op",
+        "dispersion": 0.084,
+        "recorrido": 0.2363,
+        "iteraciones": 2921266,
+        "repeticiones": 25,
+        "suelo": 216.7147,
+        "dispersion_baja": 0.0037,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "divmod peor caso N=64": {
+        "valor": 4882.8638,
+        "unidad": "cyc"
+      },
+      "divmod N=64 n=1": {
+        "valor": 879.8119,
+        "unidad": "cyc/op",
+        "dispersion": 0.0675,
+        "recorrido": 0.1971,
+        "iteraciones": 779988,
+        "repeticiones": 25,
+        "suelo": 883.1848,
+        "dispersion_baja": 0.0038,
+        "limpias": 0.32,
+        "k_suelo": 5
+      },
+      "divmod N=64 n=2": {
+        "valor": 1671.1735,
+        "unidad": "cyc/op",
+        "dispersion": 0.1006,
+        "recorrido": 0.2794,
+        "iteraciones": 343598,
+        "repeticiones": 25,
+        "suelo": 1681.8996,
+        "dispersion_baja": 0.0064,
+        "limpias": 0.28,
+        "k_suelo": 5
+      },
+      "divmod N=64 n=N/2": {
+        "valor": 4882.8638,
+        "unidad": "cyc/op",
+        "dispersion": 0.1045,
+        "recorrido": 0.2746,
+        "iteraciones": 109963,
+        "repeticiones": 25,
+        "suelo": 4930.6353,
+        "dispersion_baja": 0.0098,
+        "limpias": 0.2,
+        "k_suelo": 5
+      },
+      "divmod N=64 n=N": {
+        "valor": 414.606,
+        "unidad": "cyc/op",
+        "dispersion": 0.1026,
+        "recorrido": 0.2696,
+        "iteraciones": 1296296,
+        "repeticiones": 25,
+        "suelo": 415.3229,
+        "dispersion_baja": 0.0017,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "divmod peor caso N=128": {
+        "valor": 16184.8551,
+        "unidad": "cyc"
+      },
+      "divmod N=128 n=1": {
+        "valor": 1709.3344,
+        "unidad": "cyc/op",
+        "dispersion": 0.0452,
+        "recorrido": 0.1878,
+        "iteraciones": 337082,
+        "repeticiones": 25,
+        "suelo": 1713.1222,
+        "dispersion_baja": 0.0022,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "divmod N=128 n=2": {
+        "valor": 3600.2387,
+        "unidad": "cyc/op",
+        "dispersion": 0.0679,
+        "recorrido": 0.2723,
+        "iteraciones": 163211,
+        "repeticiones": 25,
+        "suelo": 3604.2787,
+        "dispersion_baja": 0.0011,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "divmod N=128 n=N/2": {
+        "valor": 16184.8551,
+        "unidad": "cyc/op",
+        "dispersion": 0.0666,
+        "recorrido": 0.2576,
+        "iteraciones": 33512,
+        "repeticiones": 25,
+        "suelo": 16246.1453,
+        "dispersion_baja": 0.0038,
+        "limpias": 0.68,
+        "k_suelo": 5
+      },
+      "divmod N=128 n=N": {
+        "valor": 264.6503,
+        "unidad": "cyc/op",
+        "dispersion": 0.0469,
+        "recorrido": 0.2282,
+        "iteraciones": 2198793,
+        "repeticiones": 25,
+        "suelo": 264.9626,
+        "dispersion_baja": 0.0012,
+        "limpias": 0.88,
+        "k_suelo": 5
+      },
+      "divmod peor caso N=256": {
+        "valor": 58692.5113,
+        "unidad": "cyc"
+      },
+      "divmod N=256 n=1": {
+        "valor": 3416.3993,
+        "unidad": "cyc/op",
+        "dispersion": 0.0493,
+        "recorrido": 0.1725,
+        "iteraciones": 203487,
+        "repeticiones": 25,
+        "suelo": 3421.0894,
+        "dispersion_baja": 0.0014,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "divmod N=256 n=2": {
+        "valor": 8134.1611,
+        "unidad": "cyc/op",
+        "dispersion": 0.0854,
+        "recorrido": 0.2707,
+        "iteraciones": 70721,
+        "repeticiones": 25,
+        "suelo": 8164.5616,
+        "dispersion_baja": 0.0037,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "divmod N=256 n=N/2": {
+        "valor": 58692.5113,
+        "unidad": "cyc/op",
+        "dispersion": 0.098,
+        "recorrido": 0.2657,
+        "iteraciones": 9165,
+        "repeticiones": 25,
+        "suelo": 59127.1864,
+        "dispersion_baja": 0.0074,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "divmod N=256 n=N": {
+        "valor": 2521.8467,
+        "unidad": "cyc/op",
+        "dispersion": 0.0801,
+        "recorrido": 0.2371,
+        "iteraciones": 214594,
+        "repeticiones": 25,
+        "suelo": 2540.0866,
+        "dispersion_baja": 0.0072,
+        "limpias": 0.4,
+        "k_suelo": 5
+      }
+    },
+    "estimador": {
+      "N=2 n=N / knuth": {
+        "valor": 53.9319,
+        "unidad": "cyc/op",
+        "dispersion": 0.0678,
+        "recorrido": 0.1915,
+        "iteraciones": 12438893,
+        "repeticiones": 25,
+        "suelo": 54.029,
+        "dispersion_baja": 0.0018,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "N=2 n=N / MG 3-2": {
+        "valor": 93.818,
+        "unidad": "cyc/op",
+        "dispersion": 0.0629,
+        "recorrido": 0.2042,
+        "iteraciones": 7238276,
+        "repeticiones": 25,
+        "suelo": 94.0956,
+        "dispersion_baja": 0.003,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=2 n=N / auto": {
+        "valor": 54.0462,
+        "unidad": "cyc/op",
+        "dispersion": 0.076,
+        "recorrido": 0.2038,
+        "iteraciones": 12397170,
+        "repeticiones": 25,
+        "suelo": 54.3895,
+        "dispersion_baja": 0.0064,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=2 n=N / razon MG": {
+        "valor": 0.5749,
+        "unidad": "x"
+      },
+      "N=2 n=N / razon auto": {
+        "valor": 0.9979,
+        "unidad": "x"
+      },
+      "N=3 n=2 / knuth": {
+        "valor": 147.4631,
+        "unidad": "cyc/op",
+        "dispersion": 0.0588,
+        "recorrido": 0.175,
+        "iteraciones": 4743361,
+        "repeticiones": 25,
+        "suelo": 147.8445,
+        "dispersion_baja": 0.0026,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=3 n=2 / MG 3-2": {
+        "valor": 133.6418,
+        "unidad": "cyc/op",
+        "dispersion": 0.0654,
+        "recorrido": 0.1857,
+        "iteraciones": 4288240,
+        "repeticiones": 25,
+        "suelo": 133.7442,
+        "dispersion_baja": 0.0008,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=3 n=2 / auto": {
+        "valor": 145.6703,
+        "unidad": "cyc/op",
+        "dispersion": 0.0595,
+        "recorrido": 0.1684,
+        "iteraciones": 3933949,
+        "repeticiones": 25,
+        "suelo": 145.9144,
+        "dispersion_baja": 0.0017,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "N=3 n=2 / razon MG": {
+        "valor": 1.1034,
+        "unidad": "x"
+      },
+      "N=3 n=2 / razon auto": {
+        "valor": 1.0123,
+        "unidad": "x"
+      },
+      "N=3 n=N / knuth": {
+        "valor": 87.339,
+        "unidad": "cyc/op",
+        "dispersion": 0.1001,
+        "recorrido": 0.3183,
+        "iteraciones": 8042125,
+        "repeticiones": 25,
+        "suelo": 87.5234,
+        "dispersion_baja": 0.0021,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=3 n=N / MG 3-2": {
+        "valor": 124.999,
+        "unidad": "cyc/op",
+        "dispersion": 0.0786,
+        "recorrido": 0.2203,
+        "iteraciones": 5405437,
+        "repeticiones": 25,
+        "suelo": 125.1804,
+        "dispersion_baja": 0.0015,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=3 n=N / auto": {
+        "valor": 86.4606,
+        "unidad": "cyc/op",
+        "dispersion": 0.0759,
+        "recorrido": 0.2215,
+        "iteraciones": 8093590,
+        "repeticiones": 25,
+        "suelo": 87.1232,
+        "dispersion_baja": 0.0077,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=3 n=N / razon MG": {
+        "valor": 0.6987,
+        "unidad": "x"
+      },
+      "N=3 n=N / razon auto": {
+        "valor": 1.0102,
+        "unidad": "x"
+      },
+      "N=4 n=2 / knuth": {
+        "valor": 213.9244,
+        "unidad": "cyc/op",
+        "dispersion": 0.0656,
+        "recorrido": 0.1905,
+        "iteraciones": 2866386,
+        "repeticiones": 25,
+        "suelo": 214.4439,
+        "dispersion_baja": 0.0024,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=4 n=2 / MG 3-2": {
+        "valor": 175.3619,
+        "unidad": "cyc/op",
+        "dispersion": 0.0841,
+        "recorrido": 0.3635,
+        "iteraciones": 3929874,
+        "repeticiones": 25,
+        "suelo": 176.2626,
+        "dispersion_baja": 0.0051,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=4 n=2 / auto": {
+        "valor": 161.682,
+        "unidad": "cyc/op",
+        "dispersion": 0.0765,
+        "recorrido": 0.2572,
+        "iteraciones": 4188578,
+        "repeticiones": 25,
+        "suelo": 161.9568,
+        "dispersion_baja": 0.0017,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "N=4 n=2 / razon MG": {
+        "valor": 1.2199,
+        "unidad": "x"
+      },
+      "N=4 n=2 / razon auto": {
+        "valor": 1.3231,
+        "unidad": "x"
+      },
+      "N=4 n=N / knuth": {
+        "valor": 86.9903,
+        "unidad": "cyc/op",
+        "dispersion": 0.0975,
+        "recorrido": 0.3035,
+        "iteraciones": 7250287,
+        "repeticiones": 25,
+        "suelo": 87.5158,
+        "dispersion_baja": 0.006,
+        "limpias": 0.32,
+        "k_suelo": 5
+      },
+      "N=4 n=N / MG 3-2": {
+        "valor": 147.1086,
+        "unidad": "cyc/op",
+        "dispersion": 0.0756,
+        "recorrido": 0.2649,
+        "iteraciones": 4588918,
+        "repeticiones": 25,
+        "suelo": 147.5558,
+        "dispersion_baja": 0.003,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=4 n=N / auto": {
+        "valor": 86.5549,
+        "unidad": "cyc/op",
+        "dispersion": 0.1098,
+        "recorrido": 0.3697,
+        "iteraciones": 7701358,
+        "repeticiones": 25,
+        "suelo": 87.5641,
+        "dispersion_baja": 0.0117,
+        "limpias": 0.16,
+        "k_suelo": 5
+      },
+      "N=4 n=N / razon MG": {
+        "valor": 0.5913,
+        "unidad": "x"
+      },
+      "N=4 n=N / razon auto": {
+        "valor": 1.005,
+        "unidad": "x"
+      },
+      "N=5 n=N / knuth": {
+        "valor": 109.2971,
+        "unidad": "cyc/op",
+        "dispersion": 0.0633,
+        "recorrido": 0.2369,
+        "iteraciones": 5923307,
+        "repeticiones": 25,
+        "suelo": 109.6789,
+        "dispersion_baja": 0.0035,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=5 n=N / MG 3-2": {
+        "valor": 157.9829,
+        "unidad": "cyc/op",
+        "dispersion": 0.0612,
+        "recorrido": 0.2085,
+        "iteraciones": 3664114,
+        "repeticiones": 25,
+        "suelo": 159.0329,
+        "dispersion_baja": 0.0066,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=5 n=N / auto": {
+        "valor": 109.0627,
+        "unidad": "cyc/op",
+        "dispersion": 0.0757,
+        "recorrido": 0.2681,
+        "iteraciones": 5877878,
+        "repeticiones": 25,
+        "suelo": 110.0083,
+        "dispersion_baja": 0.0087,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=5 n=N / razon MG": {
+        "valor": 0.6918,
+        "unidad": "x"
+      },
+      "N=5 n=N / razon auto": {
+        "valor": 1.0021,
+        "unidad": "x"
+      },
+      "N=6 n=N/2 / knuth": {
+        "valor": 293.5934,
+        "unidad": "cyc/op",
+        "dispersion": 0.0613,
+        "recorrido": 0.2096,
+        "iteraciones": 1968801,
+        "repeticiones": 25,
+        "suelo": 294.7723,
+        "dispersion_baja": 0.004,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=6 n=N/2 / MG 3-2": {
+        "valor": 170.0353,
+        "unidad": "cyc/op",
+        "dispersion": 0.0697,
+        "recorrido": 0.2346,
+        "iteraciones": 3444320,
+        "repeticiones": 25,
+        "suelo": 170.4189,
+        "dispersion_baja": 0.0023,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "N=6 n=N/2 / auto": {
+        "valor": 171.1852,
+        "unidad": "cyc/op",
+        "dispersion": 0.0774,
+        "recorrido": 0.2493,
+        "iteraciones": 2941233,
+        "repeticiones": 25,
+        "suelo": 171.7397,
+        "dispersion_baja": 0.0032,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "N=6 n=N/2 / razon MG": {
+        "valor": 1.7267,
+        "unidad": "x"
+      },
+      "N=6 n=N/2 / razon auto": {
+        "valor": 1.7151,
+        "unidad": "x"
+      },
+      "N=6 n=N / knuth": {
+        "valor": 117.3729,
+        "unidad": "cyc/op",
+        "dispersion": 0.0672,
+        "recorrido": 0.2164,
+        "iteraciones": 5958557,
+        "repeticiones": 25,
+        "suelo": 117.6517,
+        "dispersion_baja": 0.0024,
+        "limpias": 0.28,
+        "k_suelo": 5
+      },
+      "N=6 n=N / MG 3-2": {
+        "valor": 135.4711,
+        "unidad": "cyc/op",
+        "dispersion": 0.0624,
+        "recorrido": 0.2608,
+        "iteraciones": 4926846,
+        "repeticiones": 25,
+        "suelo": 136.2119,
+        "dispersion_baja": 0.0055,
+        "limpias": 0.28,
+        "k_suelo": 5
+      },
+      "N=6 n=N / auto": {
+        "valor": 118.8326,
+        "unidad": "cyc/op",
+        "dispersion": 0.0681,
+        "recorrido": 0.2203,
+        "iteraciones": 5222371,
+        "repeticiones": 25,
+        "suelo": 119.6817,
+        "dispersion_baja": 0.0071,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=6 n=N / razon MG": {
+        "valor": 0.8664,
+        "unidad": "x"
+      },
+      "N=6 n=N / razon auto": {
+        "valor": 0.9877,
+        "unidad": "x"
+      },
+      "N=7 n=N / knuth": {
+        "valor": 133.0166,
+        "unidad": "cyc/op",
+        "dispersion": 0.0752,
+        "recorrido": 0.231,
+        "iteraciones": 5090894,
+        "repeticiones": 25,
+        "suelo": 133.6816,
+        "dispersion_baja": 0.005,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "N=7 n=N / MG 3-2": {
+        "valor": 157.202,
+        "unidad": "cyc/op",
+        "dispersion": 0.0726,
+        "recorrido": 0.2213,
+        "iteraciones": 4146005,
+        "repeticiones": 25,
+        "suelo": 157.6419,
+        "dispersion_baja": 0.0028,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "N=7 n=N / auto": {
+        "valor": 125.684,
+        "unidad": "cyc/op",
+        "dispersion": 0.0796,
+        "recorrido": 0.3145,
+        "iteraciones": 5221614,
+        "repeticiones": 25,
+        "suelo": 126.3071,
+        "dispersion_baja": 0.005,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "N=7 n=N / razon MG": {
+        "valor": 0.8462,
+        "unidad": "x"
+      },
+      "N=7 n=N / razon auto": {
+        "valor": 1.0583,
+        "unidad": "x"
+      },
+      "N=8 n=2 / knuth": {
+        "valor": 482.6366,
+        "unidad": "cyc/op",
+        "dispersion": 0.0584,
+        "recorrido": 0.225,
+        "iteraciones": 1400397,
+        "repeticiones": 25,
+        "suelo": 484.5371,
+        "dispersion_baja": 0.0039,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "N=8 n=2 / MG 3-2": {
+        "valor": 211.0979,
+        "unidad": "cyc/op",
+        "dispersion": 0.0884,
+        "recorrido": 0.2374,
+        "iteraciones": 3153922,
+        "repeticiones": 25,
+        "suelo": 212.6973,
+        "dispersion_baja": 0.0076,
+        "limpias": 0.24,
+        "k_suelo": 5
+      },
+      "N=8 n=2 / auto": {
+        "valor": 215.6253,
+        "unidad": "cyc/op",
+        "dispersion": 0.0928,
+        "recorrido": 0.3103,
+        "iteraciones": 2718926,
+        "repeticiones": 25,
+        "suelo": 217.3355,
+        "dispersion_baja": 0.0079,
+        "limpias": 0.24,
+        "k_suelo": 5
+      },
+      "N=8 n=2 / razon MG": {
+        "valor": 2.2863,
+        "unidad": "x"
+      },
+      "N=8 n=2 / razon auto": {
+        "valor": 2.2383,
+        "unidad": "x"
+      },
+      "N=8 n=N/2 / knuth": {
+        "valor": 384.7746,
+        "unidad": "cyc/op",
+        "dispersion": 0.0622,
+        "recorrido": 0.1821,
+        "iteraciones": 1629660,
+        "repeticiones": 25,
+        "suelo": 385.934,
+        "dispersion_baja": 0.003,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "N=8 n=N/2 / MG 3-2": {
+        "valor": 223.5004,
+        "unidad": "cyc/op",
+        "dispersion": 0.0786,
+        "recorrido": 0.2495,
+        "iteraciones": 2544459,
+        "repeticiones": 25,
+        "suelo": 223.9425,
+        "dispersion_baja": 0.002,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=8 n=N/2 / auto": {
+        "valor": 225.6034,
+        "unidad": "cyc/op",
+        "dispersion": 0.0924,
+        "recorrido": 0.2885,
+        "iteraciones": 3110260,
+        "repeticiones": 25,
+        "suelo": 226.3858,
+        "dispersion_baja": 0.0035,
+        "limpias": 0.28,
+        "k_suelo": 5
+      },
+      "N=8 n=N/2 / razon MG": {
+        "valor": 1.7216,
+        "unidad": "x"
+      },
+      "N=8 n=N/2 / razon auto": {
+        "valor": 1.7055,
+        "unidad": "x"
+      },
+      "N=8 n=N / knuth": {
+        "valor": 108.9496,
+        "unidad": "cyc/op",
+        "dispersion": 0.0766,
+        "recorrido": 0.3224,
+        "iteraciones": 6455882,
+        "repeticiones": 25,
+        "suelo": 109.4166,
+        "dispersion_baja": 0.0043,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "N=8 n=N / MG 3-2": {
+        "valor": 136.3317,
+        "unidad": "cyc/op",
+        "dispersion": 0.0868,
+        "recorrido": 0.292,
+        "iteraciones": 5016151,
+        "repeticiones": 25,
+        "suelo": 136.8105,
+        "dispersion_baja": 0.0035,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "N=8 n=N / auto": {
+        "valor": 109.6951,
+        "unidad": "cyc/op",
+        "dispersion": 0.0813,
+        "recorrido": 0.3021,
+        "iteraciones": 6372843,
+        "repeticiones": 25,
+        "suelo": 110.1013,
+        "dispersion_baja": 0.0037,
+        "limpias": 0.6,
+        "k_suelo": 5
+      },
+      "N=8 n=N / razon MG": {
+        "valor": 0.7992,
+        "unidad": "x"
+      },
+      "N=8 n=N / razon auto": {
+        "valor": 0.9932,
+        "unidad": "x"
+      },
+      "N=16 n=2 / knuth": {
+        "valor": 1012.7508,
+        "unidad": "cyc/op",
+        "dispersion": 0.0537,
+        "recorrido": 0.1868,
+        "iteraciones": 551133,
+        "repeticiones": 25,
+        "suelo": 1015.4503,
+        "dispersion_baja": 0.0027,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "N=16 n=2 / MG 3-2": {
+        "valor": 359.7065,
+        "unidad": "cyc/op",
+        "dispersion": 0.0983,
+        "recorrido": 0.3279,
+        "iteraciones": 1702839,
+        "repeticiones": 25,
+        "suelo": 361.4065,
+        "dispersion_baja": 0.0047,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "N=16 n=2 / auto": {
+        "valor": 368.0963,
+        "unidad": "cyc/op",
+        "dispersion": 0.0793,
+        "recorrido": 0.3073,
+        "iteraciones": 1857023,
+        "repeticiones": 25,
+        "suelo": 369.1672,
+        "dispersion_baja": 0.0029,
+        "limpias": 0.6,
+        "k_suelo": 5
+      },
+      "N=16 n=2 / razon MG": {
+        "valor": 2.8155,
+        "unidad": "x"
+      },
+      "N=16 n=2 / razon auto": {
+        "valor": 2.7513,
+        "unidad": "x"
+      },
+      "N=16 n=N/2 / knuth": {
+        "valor": 757.876,
+        "unidad": "cyc/op",
+        "dispersion": 0.056,
+        "recorrido": 0.1922,
+        "iteraciones": 888153,
+        "repeticiones": 25,
+        "suelo": 763.1789,
+        "dispersion_baja": 0.007,
+        "limpias": 0.24,
+        "k_suelo": 5
+      },
+      "N=16 n=N/2 / MG 3-2": {
+        "valor": 398.4885,
+        "unidad": "cyc/op",
+        "dispersion": 0.0967,
+        "recorrido": 0.2911,
+        "iteraciones": 1512772,
+        "repeticiones": 25,
+        "suelo": 400.1588,
+        "dispersion_baja": 0.0042,
+        "limpias": 0.32,
+        "k_suelo": 5
+      },
+      "N=16 n=N/2 / auto": {
+        "valor": 402.094,
+        "unidad": "cyc/op",
+        "dispersion": 0.0833,
+        "recorrido": 0.253,
+        "iteraciones": 1355017,
+        "repeticiones": 25,
+        "suelo": 403.5361,
+        "dispersion_baja": 0.0036,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=16 n=N/2 / razon MG": {
+        "valor": 1.9019,
+        "unidad": "x"
+      },
+      "N=16 n=N/2 / razon auto": {
+        "valor": 1.8848,
+        "unidad": "x"
+      },
+      "N=16 n=N / knuth": {
+        "valor": 178.2829,
+        "unidad": "cyc/op",
+        "dispersion": 0.1016,
+        "recorrido": 0.3321,
+        "iteraciones": 3209689,
+        "repeticiones": 25,
+        "suelo": 179.0133,
+        "dispersion_baja": 0.0041,
+        "limpias": 0.32,
+        "k_suelo": 5
+      },
+      "N=16 n=N / MG 3-2": {
+        "valor": 213.2295,
+        "unidad": "cyc/op",
+        "dispersion": 0.091,
+        "recorrido": 0.2763,
+        "iteraciones": 2624303,
+        "repeticiones": 25,
+        "suelo": 213.7454,
+        "dispersion_baja": 0.0024,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=16 n=N / auto": {
+        "valor": 179.3304,
+        "unidad": "cyc/op",
+        "dispersion": 0.0966,
+        "recorrido": 0.275,
+        "iteraciones": 3110260,
+        "repeticiones": 25,
+        "suelo": 179.6911,
+        "dispersion_baja": 0.002,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=16 n=N / razon MG": {
+        "valor": 0.8361,
+        "unidad": "x"
+      },
+      "N=16 n=N / razon auto": {
+        "valor": 0.9942,
+        "unidad": "x"
+      },
+      "N=32 n=2 / knuth": {
+        "valor": 2114.6932,
+        "unidad": "cyc/op",
+        "dispersion": 0.0608,
+        "recorrido": 0.2141,
+        "iteraciones": 310706,
+        "repeticiones": 25,
+        "suelo": 2131.2852,
+        "dispersion_baja": 0.0078,
+        "limpias": 0.28,
+        "k_suelo": 5
+      },
+      "N=32 n=2 / MG 3-2": {
+        "valor": 738.2944,
+        "unidad": "cyc/op",
+        "dispersion": 0.0848,
+        "recorrido": 0.326,
+        "iteraciones": 963791,
+        "repeticiones": 25,
+        "suelo": 741.9066,
+        "dispersion_baja": 0.0049,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "N=32 n=2 / auto": {
+        "valor": 696.8618,
+        "unidad": "cyc/op",
+        "dispersion": 0.1138,
+        "recorrido": 0.3077,
+        "iteraciones": 988504,
+        "repeticiones": 25,
+        "suelo": 698.1525,
+        "dispersion_baja": 0.0019,
+        "limpias": 0.68,
+        "k_suelo": 5
+      },
+      "N=32 n=2 / razon MG": {
+        "valor": 2.8643,
+        "unidad": "x"
+      },
+      "N=32 n=2 / razon auto": {
+        "valor": 3.0346,
+        "unidad": "x"
+      },
+      "N=32 n=N/2 / knuth": {
+        "valor": 1879.0044,
+        "unidad": "cyc/op",
+        "dispersion": 0.0549,
+        "recorrido": 0.1936,
+        "iteraciones": 375827,
+        "repeticiones": 25,
+        "suelo": 1883.8505,
+        "dispersion_baja": 0.0026,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "N=32 n=N/2 / MG 3-2": {
+        "valor": 1183.1689,
+        "unidad": "cyc/op",
+        "dispersion": 0.0789,
+        "recorrido": 0.2616,
+        "iteraciones": 582571,
+        "repeticiones": 25,
+        "suelo": 1186.0978,
+        "dispersion_baja": 0.0025,
+        "limpias": 0.6,
+        "k_suelo": 5
+      },
+      "N=32 n=N/2 / auto": {
+        "valor": 1147.5596,
+        "unidad": "cyc/op",
+        "dispersion": 0.0763,
+        "recorrido": 0.2656,
+        "iteraciones": 467411,
+        "repeticiones": 25,
+        "suelo": 1151.6113,
+        "dispersion_baja": 0.0035,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "N=32 n=N/2 / razon MG": {
+        "valor": 1.5881,
+        "unidad": "x"
+      },
+      "N=32 n=N/2 / razon auto": {
+        "valor": 1.6374,
+        "unidad": "x"
+      },
+      "N=32 n=N / knuth": {
+        "valor": 344.2606,
+        "unidad": "cyc/op",
+        "dispersion": 0.0975,
+        "recorrido": 0.2779,
+        "iteraciones": 2018865,
+        "repeticiones": 25,
+        "suelo": 345.7015,
+        "dispersion_baja": 0.0042,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "N=32 n=N / MG 3-2": {
+        "valor": 405.1045,
+        "unidad": "cyc/op",
+        "dispersion": 0.0761,
+        "recorrido": 0.2351,
+        "iteraciones": 1652624,
+        "repeticiones": 25,
+        "suelo": 407.5244,
+        "dispersion_baja": 0.006,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=32 n=N / auto": {
+        "valor": 356.7926,
+        "unidad": "cyc/op",
+        "dispersion": 0.102,
+        "recorrido": 0.3045,
+        "iteraciones": 1670675,
+        "repeticiones": 25,
+        "suelo": 360.4874,
+        "dispersion_baja": 0.0104,
+        "limpias": 0.2,
+        "k_suelo": 5
+      },
+      "N=32 n=N / razon MG": {
+        "valor": 0.8498,
+        "unidad": "x"
+      },
+      "N=32 n=N / razon auto": {
+        "valor": 0.9649,
+        "unidad": "x"
+      },
+      "N=64 n=2 / knuth": {
+        "valor": 4384.547,
+        "unidad": "cyc/op",
+        "dispersion": 0.0484,
+        "recorrido": 0.1769,
+        "iteraciones": 158169,
+        "repeticiones": 25,
+        "suelo": 4392.5103,
+        "dispersion_baja": 0.0018,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=64 n=2 / MG 3-2": {
+        "valor": 1377.2579,
+        "unidad": "cyc/op",
+        "dispersion": 0.0916,
+        "recorrido": 0.274,
+        "iteraciones": 417089,
+        "repeticiones": 25,
+        "suelo": 1381.5114,
+        "dispersion_baja": 0.0031,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "N=64 n=2 / auto": {
+        "valor": 1414.2811,
+        "unidad": "cyc/op",
+        "dispersion": 0.0957,
+        "recorrido": 0.2729,
+        "iteraciones": 388314,
+        "repeticiones": 25,
+        "suelo": 1419.2259,
+        "dispersion_baja": 0.0035,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=64 n=2 / razon MG": {
+        "valor": 3.1835,
+        "unidad": "x"
+      },
+      "N=64 n=2 / razon auto": {
+        "valor": 3.1002,
+        "unidad": "x"
+      },
+      "N=64 n=N/2 / knuth": {
+        "valor": 5623.5295,
+        "unidad": "cyc/op",
+        "dispersion": 0.0821,
+        "recorrido": 0.1986,
+        "iteraciones": 120691,
+        "repeticiones": 25,
+        "suelo": 5640.7938,
+        "dispersion_baja": 0.0031,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "N=64 n=N/2 / MG 3-2": {
+        "valor": 4080.736,
+        "unidad": "cyc/op",
+        "dispersion": 0.0961,
+        "recorrido": 0.2605,
+        "iteraciones": 163698,
+        "repeticiones": 25,
+        "suelo": 4146.8433,
+        "dispersion_baja": 0.0162,
+        "limpias": 0.12,
+        "k_suelo": 5
+      },
+      "N=64 n=N/2 / auto": {
+        "valor": 4231.6443,
+        "unidad": "cyc/op",
+        "dispersion": 0.0975,
+        "recorrido": 0.2494,
+        "iteraciones": 160239,
+        "repeticiones": 25,
+        "suelo": 4253.9567,
+        "dispersion_baja": 0.0053,
+        "limpias": 0.2,
+        "k_suelo": 5
+      },
+      "N=64 n=N/2 / razon MG": {
+        "valor": 1.3781,
+        "unidad": "x"
+      },
+      "N=64 n=N/2 / razon auto": {
+        "valor": 1.3289,
+        "unidad": "x"
+      },
+      "N=64 n=N / knuth": {
+        "valor": 731.0049,
+        "unidad": "cyc/op",
+        "dispersion": 0.0979,
+        "recorrido": 0.303,
+        "iteraciones": 939230,
+        "repeticiones": 25,
+        "suelo": 736.7333,
+        "dispersion_baja": 0.0078,
+        "limpias": 0.24,
+        "k_suelo": 5
+      },
+      "N=64 n=N / MG 3-2": {
+        "valor": 774.0798,
+        "unidad": "cyc/op",
+        "dispersion": 0.1,
+        "recorrido": 0.2726,
+        "iteraciones": 847316,
+        "repeticiones": 25,
+        "suelo": 775.178,
+        "dispersion_baja": 0.0014,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "N=64 n=N / auto": {
+        "valor": 740.9123,
+        "unidad": "cyc/op",
+        "dispersion": 0.0974,
+        "recorrido": 0.2846,
+        "iteraciones": 723617,
+        "repeticiones": 25,
+        "suelo": 742.8265,
+        "dispersion_baja": 0.0026,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=64 n=N / razon MG": {
+        "valor": 0.9444,
+        "unidad": "x"
+      },
+      "N=64 n=N / razon auto": {
+        "valor": 0.9866,
+        "unidad": "x"
+      },
+      "N=128 n=2 / knuth": {
+        "valor": 8701.7957,
+        "unidad": "cyc/op",
+        "dispersion": 0.0625,
+        "recorrido": 0.2568,
+        "iteraciones": 68974,
+        "repeticiones": 25,
+        "suelo": 8785.0447,
+        "dispersion_baja": 0.0096,
+        "limpias": 0.24,
+        "k_suelo": 5
+      },
+      "N=128 n=2 / MG 3-2": {
+        "valor": 2949.1148,
+        "unidad": "cyc/op",
+        "dispersion": 0.0726,
+        "recorrido": 0.2674,
+        "iteraciones": 201846,
+        "repeticiones": 25,
+        "suelo": 2962.3428,
+        "dispersion_baja": 0.0045,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=128 n=2 / auto": {
+        "valor": 3052.6775,
+        "unidad": "cyc/op",
+        "dispersion": 0.106,
+        "recorrido": 0.3923,
+        "iteraciones": 177989,
+        "repeticiones": 25,
+        "suelo": 3059.7512,
+        "dispersion_baja": 0.0023,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=128 n=2 / razon MG": {
+        "valor": 2.9506,
+        "unidad": "x"
+      },
+      "N=128 n=2 / razon auto": {
+        "valor": 2.8505,
+        "unidad": "x"
+      },
+      "N=128 n=N/2 / knuth": {
+        "valor": 16524.4277,
+        "unidad": "cyc/op",
+        "dispersion": 0.0732,
+        "recorrido": 0.2383,
+        "iteraciones": 37107,
+        "repeticiones": 25,
+        "suelo": 16590.2288,
+        "dispersion_baja": 0.004,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "N=128 n=N/2 / MG 3-2": {
+        "valor": 13759.8031,
+        "unidad": "cyc/op",
+        "dispersion": 0.0766,
+        "recorrido": 0.2898,
+        "iteraciones": 41161,
+        "repeticiones": 25,
+        "suelo": 13876.4782,
+        "dispersion_baja": 0.0085,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=128 n=N/2 / auto": {
+        "valor": 13992.5317,
+        "unidad": "cyc/op",
+        "dispersion": 0.083,
+        "recorrido": 0.2769,
+        "iteraciones": 39504,
+        "repeticiones": 25,
+        "suelo": 14002.4517,
+        "dispersion_baja": 0.0007,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=128 n=N/2 / razon MG": {
+        "valor": 1.2009,
+        "unidad": "x"
+      },
+      "N=128 n=N/2 / razon auto": {
+        "valor": 1.1809,
+        "unidad": "x"
+      },
+      "N=128 n=N / knuth": {
+        "valor": 981.2832,
+        "unidad": "cyc/op",
+        "dispersion": 0.1032,
+        "recorrido": 0.3378,
+        "iteraciones": 662969,
+        "repeticiones": 25,
+        "suelo": 984.5031,
+        "dispersion_baja": 0.0033,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "N=128 n=N / MG 3-2": {
+        "valor": 1014.406,
+        "unidad": "cyc/op",
+        "dispersion": 0.099,
+        "recorrido": 0.2826,
+        "iteraciones": 664936,
+        "repeticiones": 25,
+        "suelo": 1020.5029,
+        "dispersion_baja": 0.006,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=128 n=N / auto": {
+        "valor": 990.3847,
+        "unidad": "cyc/op",
+        "dispersion": 0.0928,
+        "recorrido": 0.2464,
+        "iteraciones": 717796,
+        "repeticiones": 25,
+        "suelo": 994.6799,
+        "dispersion_baja": 0.0043,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "N=128 n=N / razon MG": {
+        "valor": 0.9673,
+        "unidad": "x"
+      },
+      "N=128 n=N / razon auto": {
+        "valor": 0.9908,
+        "unidad": "x"
+      },
+      "N=16  / knuth": {
+        "valor": 656.2415,
+        "unidad": "cyc/op",
+        "dispersion": 0.056,
+        "recorrido": 0.1999,
+        "iteraciones": 903356,
+        "repeticiones": 25,
+        "suelo": 658.5674,
+        "dispersion_baja": 0.0035,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=16  / MG 3-2": {
+        "valor": 394.3343,
+        "unidad": "cyc/op",
+        "dispersion": 0.0754,
+        "recorrido": 0.2466,
+        "iteraciones": 1347218,
+        "repeticiones": 25,
+        "suelo": 396.8007,
+        "dispersion_baja": 0.0063,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=16  / auto": {
+        "valor": 406.2867,
+        "unidad": "cyc/op",
+        "dispersion": 0.0832,
+        "recorrido": 0.2914,
+        "iteraciones": 1348074,
+        "repeticiones": 25,
+        "suelo": 408.2293,
+        "dispersion_baja": 0.0048,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "N=16  / razon MG": {
+        "valor": 1.6642,
+        "unidad": "x"
+      },
+      "N=16  / razon auto": {
+        "valor": 1.6152,
+        "unidad": "x"
+      },
+      "N=64  / knuth": {
+        "valor": 2219.1623,
+        "unidad": "cyc/op",
+        "dispersion": 0.083,
+        "recorrido": 0.2861,
+        "iteraciones": 285517,
+        "repeticiones": 25,
+        "suelo": 2235.6382,
+        "dispersion_baja": 0.0074,
+        "limpias": 0.16,
+        "k_suelo": 5
+      },
+      "N=64  / MG 3-2": {
+        "valor": 1897.4144,
+        "unidad": "cyc/op",
+        "dispersion": 0.0837,
+        "recorrido": 0.2392,
+        "iteraciones": 337309,
+        "repeticiones": 25,
+        "suelo": 1900.4086,
+        "dispersion_baja": 0.0016,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=64  / auto": {
+        "valor": 1918.7114,
+        "unidad": "cyc/op",
+        "dispersion": 0.1009,
+        "recorrido": 0.3116,
+        "iteraciones": 303367,
+        "repeticiones": 25,
+        "suelo": 1925.4853,
+        "dispersion_baja": 0.0035,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "N=64  / razon MG": {
+        "valor": 1.1696,
+        "unidad": "x"
+      },
+      "N=64  / razon auto": {
+        "valor": 1.1566,
+        "unidad": "x"
+      }
+    },
+    "techo_division": {
+      "N=8 H=4 / division": {
+        "valor": 241.9301,
+        "unidad": "cyc/op",
+        "dispersion": 0.0132,
+        "recorrido": 0.0613,
+        "iteraciones": 2765020,
+        "repeticiones": 25,
+        "suelo": 243.0568,
+        "dispersion_baja": 0.0047,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=8 H=4 / multiplicacion": {
+        "valor": 66.325,
+        "unidad": "cyc/op",
+        "dispersion": 0.0395,
+        "recorrido": 0.1681,
+        "iteraciones": 10049408,
+        "repeticiones": 25,
+        "suelo": 66.5133,
+        "dispersion_baja": 0.0028,
+        "limpias": 0.8,
+        "k_suelo": 5
+      },
+      "N=8 H=4 / razon div-mul": {
+        "valor": 3.6476,
+        "unidad": "x"
+      },
+      "N=16 H=8 / division": {
+        "valor": 428.4791,
+        "unidad": "cyc/op",
+        "dispersion": 0.0681,
+        "recorrido": 0.2336,
+        "iteraciones": 1661511,
+        "repeticiones": 25,
+        "suelo": 429.3449,
+        "dispersion_baja": 0.002,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "N=16 H=8 / multiplicacion": {
+        "valor": 221.9217,
+        "unidad": "cyc/op",
+        "dispersion": 0.11,
+        "recorrido": 0.3199,
+        "iteraciones": 3228086,
+        "repeticiones": 25,
+        "suelo": 223.5603,
+        "dispersion_baja": 0.0074,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "N=16 H=8 / razon div-mul": {
+        "valor": 1.9308,
+        "unidad": "x"
+      },
+      "N=32 H=16 / division": {
+        "valor": 1168.1121,
+        "unidad": "cyc/op",
+        "dispersion": 0.0892,
+        "recorrido": 0.2626,
+        "iteraciones": 547927,
+        "repeticiones": 25,
+        "suelo": 1170.651,
+        "dispersion_baja": 0.0022,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "N=32 H=16 / multiplicacion": {
+        "valor": 853.859,
+        "unidad": "cyc/op",
+        "dispersion": 0.0946,
+        "recorrido": 0.2681,
+        "iteraciones": 826110,
+        "repeticiones": 25,
+        "suelo": 855.7312,
+        "dispersion_baja": 0.0022,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "N=32 H=16 / razon div-mul": {
+        "valor": 1.368,
+        "unidad": "x"
+      },
+      "N=64 H=32 / division": {
+        "valor": 4165.2182,
+        "unidad": "cyc/op",
+        "dispersion": 0.0915,
+        "recorrido": 0.2527,
+        "iteraciones": 168965,
+        "repeticiones": 25,
+        "suelo": 4181.9273,
+        "dispersion_baja": 0.004,
+        "limpias": 0.24,
+        "k_suelo": 5
+      },
+      "N=64 H=32 / multiplicacion": {
+        "valor": 2966.3511,
+        "unidad": "cyc/op",
+        "dispersion": 0.0986,
+        "recorrido": 0.2874,
+        "iteraciones": 194745,
+        "repeticiones": 25,
+        "suelo": 2995.3075,
+        "dispersion_baja": 0.0098,
+        "limpias": 0.2,
+        "k_suelo": 5
+      },
+      "N=64 H=32 / razon div-mul": {
+        "valor": 1.4042,
+        "unidad": "x"
+      },
+      "N=128 H=64 / division": {
+        "valor": 13569.5982,
+        "unidad": "cyc/op",
+        "dispersion": 0.0776,
+        "recorrido": 0.2663,
+        "iteraciones": 48729,
+        "repeticiones": 25,
+        "suelo": 13586.8164,
+        "dispersion_baja": 0.0013,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "N=128 H=64 / multiplicacion": {
+        "valor": 9863.3472,
+        "unidad": "cyc/op",
+        "dispersion": 0.0725,
+        "recorrido": 0.2923,
+        "iteraciones": 69358,
+        "repeticiones": 25,
+        "suelo": 9872.9874,
+        "dispersion_baja": 0.001,
+        "limpias": 0.8,
+        "k_suelo": 5
+      },
+      "N=128 H=64 / razon div-mul": {
+        "valor": 1.3758,
+        "unidad": "x"
+      },
+      "N=256 H=128 / division": {
+        "valor": 48284.0513,
+        "unidad": "cyc/op",
+        "dispersion": 0.097,
+        "recorrido": 0.2462,
+        "iteraciones": 12231,
+        "repeticiones": 25,
+        "suelo": 48524.0689,
+        "dispersion_baja": 0.005,
+        "limpias": 0.32,
+        "k_suelo": 5
+      },
+      "N=256 H=128 / multiplicacion": {
+        "valor": 31472.2979,
+        "unidad": "cyc/op",
+        "dispersion": 0.1126,
+        "recorrido": 0.2967,
+        "iteraciones": 17735,
+        "repeticiones": 25,
+        "suelo": 31570.3003,
+        "dispersion_baja": 0.0031,
+        "limpias": 0.44,
+        "k_suelo": 5
+      },
+      "N=256 H=128 / razon div-mul": {
+        "valor": 1.5342,
+        "unidad": "x"
+      },
+      "N=512 H=256 / division": {
+        "valor": 184307.6859,
+        "unidad": "cyc/op",
+        "dispersion": 0.0718,
+        "recorrido": 0.2961,
+        "iteraciones": 3680,
+        "repeticiones": 25,
+        "suelo": 185180.4872,
+        "dispersion_baja": 0.0047,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "N=512 H=256 / multiplicacion": {
+        "valor": 99186.8639,
+        "unidad": "cyc/op",
+        "dispersion": 0.0842,
+        "recorrido": 0.2979,
+        "iteraciones": 6751,
+        "repeticiones": 25,
+        "suelo": 99854.2332,
+        "dispersion_baja": 0.0067,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=512 H=256 / razon div-mul": {
+        "valor": 1.8582,
+        "unidad": "x"
+      },
+      "N=1024 H=512 / division": {
+        "valor": 712473.0885,
+        "unidad": "cyc/op",
+        "dispersion": 0.0418,
+        "recorrido": 0.1625,
+        "iteraciones": 949,
+        "repeticiones": 25,
+        "suelo": 717180.9924,
+        "dispersion_baja": 0.0066,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "N=1024 H=512 / multiplicacion": {
+        "valor": 308634.4417,
+        "unidad": "cyc/op",
+        "dispersion": 0.0861,
+        "recorrido": 0.2838,
+        "iteraciones": 2257,
+        "repeticiones": 25,
+        "suelo": 309296.5878,
+        "dispersion_baja": 0.0021,
+        "limpias": 0.8,
+        "k_suelo": 5
+      },
+      "N=1024 H=512 / razon div-mul": {
+        "valor": 2.3085,
+        "unidad": "x"
+      },
+      "N=2048 H=1024 / division": {
+        "valor": 2818500.7754,
+        "unidad": "cyc/op",
+        "dispersion": 0.0708,
+        "recorrido": 0.2432,
+        "iteraciones": 236,
+        "repeticiones": 25,
+        "suelo": 2831132.2136,
+        "dispersion_baja": 0.0045,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "N=2048 H=1024 / multiplicacion": {
+        "valor": 798904.2933,
+        "unidad": "cyc/op",
+        "dispersion": 0.0564,
+        "recorrido": 0.2941,
+        "iteraciones": 883,
+        "repeticiones": 25,
+        "suelo": 802893.3803,
+        "dispersion_baja": 0.005,
+        "limpias": 0.8,
+        "k_suelo": 5
+      },
+      "N=2048 H=1024 / razon div-mul": {
+        "valor": 3.528,
+        "unidad": "x"
+      }
+    },
+    "toom3": {
+      "toom3 mejor umbral M=512": {
+        "valor": 1.0212,
+        "unidad": "x"
+      },
+      "toom3 M=512 / umbral 0": {
+        "valor": 314843.3413,
+        "unidad": "cyc/op",
+        "dispersion": 0.0825,
+        "recorrido": 0.2817,
+        "iteraciones": 2186,
+        "repeticiones": 25,
+        "suelo": 317257.9935,
+        "dispersion_baja": 0.0077,
+        "limpias": 0.48,
+        "k_suelo": 5
+      },
+      "toom3 M=512 / umbral 96": {
+        "valor": 308299.8621,
+        "unidad": "cyc/op",
+        "dispersion": 0.1129,
+        "recorrido": 0.3699,
+        "iteraciones": 2168,
+        "repeticiones": 25,
+        "suelo": 310799.3491,
+        "dispersion_baja": 0.0081,
+        "limpias": 0.6,
+        "k_suelo": 5
+      },
+      "toom3 M=512 / umbral 256": {
+        "valor": 308326.0791,
+        "unidad": "cyc/op",
+        "dispersion": 0.1015,
+        "recorrido": 0.3206,
+        "iteraciones": 2199,
+        "repeticiones": 25,
+        "suelo": 310957.2473,
+        "dispersion_baja": 0.0085,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "toom3 M=512 / umbral 512": {
+        "valor": 309940.1958,
+        "unidad": "cyc/op",
+        "dispersion": 0.1033,
+        "recorrido": 0.2703,
+        "iteraciones": 2196,
+        "repeticiones": 25,
+        "suelo": 311076.7405,
+        "dispersion_baja": 0.0037,
+        "limpias": 0.68,
+        "k_suelo": 5
+      },
+      "toom3 M=512 / umbral 1024": {
+        "valor": 317012.6222,
+        "unidad": "cyc/op",
+        "dispersion": 0.0883,
+        "recorrido": 0.2664,
+        "iteraciones": 2070,
+        "repeticiones": 25,
+        "suelo": 318063.7465,
+        "dispersion_baja": 0.0033,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "toom3 mejor umbral M=1024": {
+        "valor": 1.1011,
+        "unidad": "x"
+      },
+      "toom3 M=1024 / umbral 0": {
+        "valor": 958310.9262,
+        "unidad": "cyc/op",
+        "dispersion": 0.1252,
+        "recorrido": 0.465,
+        "iteraciones": 691,
+        "repeticiones": 25,
+        "suelo": 962111.8616,
+        "dispersion_baja": 0.004,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "toom3 M=1024 / umbral 96": {
+        "valor": 872559.6303,
+        "unidad": "cyc/op",
+        "dispersion": 0.1263,
+        "recorrido": 0.504,
+        "iteraciones": 779,
+        "repeticiones": 25,
+        "suelo": 875296.6809,
+        "dispersion_baja": 0.0031,
+        "limpias": 0.64,
+        "k_suelo": 5
+      },
+      "toom3 M=1024 / umbral 256": {
+        "valor": 870317.3402,
+        "unidad": "cyc/op",
+        "dispersion": 0.0977,
+        "recorrido": 0.2755,
+        "iteraciones": 779,
+        "repeticiones": 25,
+        "suelo": 876409.5379,
+        "dispersion_baja": 0.007,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "toom3 M=1024 / umbral 512": {
+        "valor": 872042.5365,
+        "unidad": "cyc/op",
+        "dispersion": 0.0984,
+        "recorrido": 0.2702,
+        "iteraciones": 712,
+        "repeticiones": 25,
+        "suelo": 876857.1073,
+        "dispersion_baja": 0.0055,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "toom3 M=1024 / umbral 1024": {
+        "valor": 871142.7618,
+        "unidad": "cyc/op",
+        "dispersion": 0.0975,
+        "recorrido": 0.2777,
+        "iteraciones": 613,
+        "repeticiones": 25,
+        "suelo": 874237.6914,
+        "dispersion_baja": 0.0036,
+        "limpias": 0.56,
+        "k_suelo": 5
+      },
+      "toom3 mejor umbral M=1536": {
+        "valor": 1.2061,
+        "unidad": "x"
+      },
+      "toom3 M=1536 / umbral 0": {
+        "valor": 1913347.2604,
+        "unidad": "cyc/op",
+        "dispersion": 0.063,
+        "recorrido": 0.2596,
+        "iteraciones": 288,
+        "repeticiones": 25,
+        "suelo": 1918986.7,
+        "dispersion_baja": 0.0029,
+        "limpias": 0.76,
+        "k_suelo": 5
+      },
+      "toom3 M=1536 / umbral 96": {
+        "valor": 1586432.4239,
+        "unidad": "cyc/op",
+        "dispersion": 0.066,
+        "recorrido": 0.2758,
+        "iteraciones": 335,
+        "repeticiones": 25,
+        "suelo": 1607443.8764,
+        "dispersion_baja": 0.0132,
+        "limpias": 0.24,
+        "k_suelo": 5
+      },
+      "toom3 M=1536 / umbral 256": {
+        "valor": 1610184.1235,
+        "unidad": "cyc/op",
+        "dispersion": 0.0669,
+        "recorrido": 0.2595,
+        "iteraciones": 340,
+        "repeticiones": 25,
+        "suelo": 1613413.2671,
+        "dispersion_baja": 0.002,
+        "limpias": 0.84,
+        "k_suelo": 5
+      },
+      "toom3 M=1536 / umbral 512": {
+        "valor": 1611120.9648,
+        "unidad": "cyc/op",
+        "dispersion": 0.0801,
+        "recorrido": 0.2736,
+        "iteraciones": 341,
+        "repeticiones": 25,
+        "suelo": 1613388.624,
+        "dispersion_baja": 0.0014,
+        "limpias": 0.8,
+        "k_suelo": 5
+      },
+      "toom3 M=1536 / umbral 1024": {
+        "valor": 1601786.9588,
+        "unidad": "cyc/op",
+        "dispersion": 0.0752,
+        "recorrido": 0.2656,
+        "iteraciones": 340,
+        "repeticiones": 25,
+        "suelo": 1609652.3376,
+        "dispersion_baja": 0.0049,
+        "limpias": 0.52,
+        "k_suelo": 5
+      },
+      "toom3 mejor umbral M=2048": {
+        "valor": 1.1641,
+        "unidad": "x"
+      },
+      "toom3 M=2048 / umbral 0": {
+        "valor": 2934941.5578,
+        "unidad": "cyc/op",
+        "dispersion": 0.1071,
+        "recorrido": 0.3274,
+        "iteraciones": 199,
+        "repeticiones": 25,
+        "suelo": 2953851.7025,
+        "dispersion_baja": 0.0064,
+        "limpias": 0.4,
+        "k_suelo": 5
+      },
+      "toom3 M=2048 / umbral 96": {
+        "valor": 2521260.535,
+        "unidad": "cyc/op",
+        "dispersion": 0.1004,
+        "recorrido": 0.3153,
+        "iteraciones": 200,
+        "repeticiones": 25,
+        "suelo": 2538178.98,
+        "dispersion_baja": 0.0067,
+        "limpias": 0.28,
+        "k_suelo": 5
+      },
+      "toom3 M=2048 / umbral 256": {
+        "valor": 2532234.7583,
+        "unidad": "cyc/op",
+        "dispersion": 0.0993,
+        "recorrido": 0.3112,
+        "iteraciones": 211,
+        "repeticiones": 25,
+        "suelo": 2548780.7194,
+        "dispersion_baja": 0.0065,
+        "limpias": 0.32,
+        "k_suelo": 5
+      },
+      "toom3 M=2048 / umbral 512": {
+        "valor": 2539203.4332,
+        "unidad": "cyc/op",
+        "dispersion": 0.1065,
+        "recorrido": 0.3159,
+        "iteraciones": 217,
+        "repeticiones": 25,
+        "suelo": 2544866.6147,
+        "dispersion_baja": 0.0022,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "toom3 M=2048 / umbral 1024": {
+        "valor": 2543002.4057,
+        "unidad": "cyc/op",
+        "dispersion": 0.0939,
+        "recorrido": 0.3045,
+        "iteraciones": 212,
+        "repeticiones": 25,
+        "suelo": 2546263.3057,
+        "dispersion_baja": 0.0013,
+        "limpias": 0.32,
+        "k_suelo": 5
+      }
+    },
+    "nucleos": {
+      "nucleo bucle N=16": {
+        "valor": 884.5889,
+        "unidad": "cyc/op",
+        "dispersion": 0.0655,
+        "recorrido": 0.2592,
+        "iteraciones": 668686,
+        "repeticiones": 25,
+        "suelo": 889.3719,
+        "dispersion_baja": 0.0054,
+        "limpias": 0.6,
+        "k_suelo": 5
+      },
+      "nucleo desenrollado N=16": {
+        "valor": 331.8135,
+        "unidad": "cyc/op",
+        "dispersion": 0.0821,
+        "recorrido": 0.2892,
+        "iteraciones": 2136495,
+        "repeticiones": 25,
+        "suelo": 332.252,
+        "dispersion_baja": 0.0013,
+        "limpias": 0.72,
+        "k_suelo": 5
+      },
+      "nucleo bucle N=20": {
+        "valor": 1612.3644,
+        "unidad": "cyc/op",
+        "dispersion": 0.0463,
+        "recorrido": 0.2449,
+        "iteraciones": 337271,
+        "repeticiones": 25,
+        "suelo": 1615.1973,
+        "dispersion_baja": 0.0018,
+        "limpias": 0.76,
+        "k_suelo": 5
+      },
+      "nucleo desenrollado N=20": {
+        "valor": 536.9448,
+        "unidad": "cyc/op",
+        "dispersion": 0.0263,
+        "recorrido": 0.1413,
+        "iteraciones": 1008275,
+        "repeticiones": 25,
+        "suelo": 538.8641,
+        "dispersion_baja": 0.0036,
+        "limpias": 0.84,
+        "k_suelo": 5
+      },
+      "nucleo bucle N=24": {
+        "valor": 2683.3275,
+        "unidad": "cyc/op",
+        "dispersion": 0.0142,
+        "recorrido": 0.0736,
+        "iteraciones": 247011,
+        "repeticiones": 25,
+        "suelo": 2697.7685,
+        "dispersion_baja": 0.0054,
+        "limpias": 0.68,
+        "k_suelo": 5
+      },
+      "nucleo desenrollado N=24": {
+        "valor": 806.7603,
+        "unidad": "cyc/op",
+        "dispersion": 0.0604,
+        "recorrido": 0.3133,
+        "iteraciones": 820536,
+        "repeticiones": 25,
+        "suelo": 809.9787,
+        "dispersion_baja": 0.004,
+        "limpias": 0.36,
+        "k_suelo": 5
+      },
+      "nucleo bucle N=28": {
+        "valor": 3707.0754,
+        "unidad": "cyc/op",
+        "dispersion": 0.0946,
+        "recorrido": 0.2438,
+        "iteraciones": 165806,
+        "repeticiones": 25,
+        "suelo": 3725.2087,
+        "dispersion_baja": 0.0049,
+        "limpias": 0.32,
+        "k_suelo": 5
+      },
+      "nucleo desenrollado N=28": {
+        "valor": 1707.5378,
+        "unidad": "cyc/op",
+        "dispersion": 0.1035,
+        "recorrido": 0.2797,
+        "iteraciones": 352993,
+        "repeticiones": 25,
+        "suelo": 1713.511,
+        "dispersion_baja": 0.0035,
+        "limpias": 0.24,
+        "k_suelo": 5
+      },
+      "nucleo bucle N=32": {
+        "valor": 4880.3938,
+        "unidad": "cyc/op",
+        "dispersion": 0.0768,
+        "recorrido": 0.2601,
+        "iteraciones": 110275,
+        "repeticiones": 25,
+        "suelo": 4948.5926,
+        "dispersion_baja": 0.014,
+        "limpias": 0.12,
+        "k_suelo": 5
+      },
+      "nucleo desenrollado N=32": {
+        "valor": 2921.7678,
+        "unidad": "cyc/op",
+        "dispersion": 0.0641,
+        "recorrido": 0.2573,
+        "iteraciones": 218920,
+        "repeticiones": 25,
+        "suelo": 2966.9771,
+        "dispersion_baja": 0.0155,
+        "limpias": 0.12,
+        "k_suelo": 5
+      }
+    }
+  },
+  "condiciones": {
+    "elevado": "false",
+    "sondeadores_vivos": "3",
+    "sondeadores_cuales": "UsoSvc,DPS,lfsvc",
+    "sondeadores_sin_resolver": "1",
+    "procesos_ruidosos": "",
+    "defender_excluye_build": "desconocido",
+    "tareas_en_2h": "6",
+    "tareas_cuales": "SoftLandingDeferralTask-{2024c98a-5964-4d8f-949c-865f598593d1}@16:17,SoftLandingDeferralTask-{aaed6b55-8eca-4787-adea-fa6ae38eb683}@16:18,ZoomUpdateTaskUser-S-1-5-21-3627971976-3149724318-3445346616-1001@16:39,BackgroundDownload@16:45,Office Actions Server@17:00,Consolidator@18:00",
+    "mantenimiento_corriendo": "",
+    "verdicto": "exclusion de Defender sin verificar (hace falta elevacion); 6 tareas programadas en 2 h"
+  },
+  "carga_al_empezar": 0.015625,
+  "espera_ocioso_s": 2700.4,
+  "maquina_tranquila": false
+}
