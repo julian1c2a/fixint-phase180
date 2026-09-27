@@ -1,6 +1,6 @@
 # 🔮 NEXT STEPS
 
-**Last Updated:** 23 September 2026
+**Last Updated:** 27 September 2026
 **Versión:** **v1.90.4** publicada · **rama** `phase-1.90` *(abierta el 27 sep)* · árbol limpio · todo en `origin`
 
 > ### Esta rama empieza por la fase 0: **afinar el banco**
@@ -30,7 +30,7 @@
 | | |
 |---|---|
 | **Release** | ✅ **v1.90.4 publicada**, la primera del proyecto: tres zips (gcc, clang, msvc) |
-| **Suite local** | ✅ **71/71 en CINCO configuraciones** (`release-O2`, 23 sep): GCC+libstdc++, clang+libc++, **clang+libstdc++**, MSVC e Intel |
+| **Suite local** | ✅ **72/72 en CINCO configuraciones** (`release-O2`): GCC+libstdc++ **medido el 27 sep** (294 s), y clang+libc++, **clang+libstdc++**, MSVC e Intel el 26 sep, sobre un árbol cuyos `include/` y `tests/` no han cambiado desde entonces |
 | **CI** | ✅ **24/24 jobs, cero fallos** sobre `844fd85`, **contados** con `gh run view`, no supuestos. La cifra llegó a citar `f959f53`, **58 commits atrás**, y en ese hueco el CI estuvo **cuatro días en rojo** sin que nadie mirara: lo rompió el envoltorio atómico y lo tapó un `2>/dev/null` en el propio CI |
 | **Diseño de la 2.0** | ✅ cerrado, y **escrito entero**: de P1.1 a P1.6, con P1.5 tramo 3 (Magnitud-Signo y Exceso-K) y las tres entregas del punto fijo |
 | **`operator*`** | ✅ **el frente de la multiplicación, cerrado** (17 sep 2026). Cuatro algoritmos reunidos en `algorithms/mul_kernels.hpp`, cada umbral medido: escolar desenrollado ≤ 21, **Karatsuba equilibrado** ≥ 22 para *cualquier* N, **cuadrado** propio para `x*x`, y **Toom-3** ≥ 1024 |

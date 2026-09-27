@@ -1,3 +1,55 @@
+## [sin publicar] - 2026-09-27 - **las condiciones de medida entran en el repo**
+
+`scripts/condiciones_benchmark/`: cuatro guiones para que «la maquina tiene que
+estar ociosa» deje de ser una frase en un comentario.
+
+`sesion_medicion.ps1` se eleva solo, comprueba, silencia y vuelve a comprobar, y
+lo deja **todo en un log de ruta fija**. `comprueba_condiciones.ps1` solo lee
+--sondeadores vivos, procesos ruidosos, exclusiones de Defender, tareas
+programadas y mantenimiento de Windows en marcha-- y `bench_history.py` lo llama
+en cada toma y **guarda el resultado en el JSON**. Porque «la carga era del 2 %»
+es cierto y no dice nada de un `CCleaner` parado a las 11:40 y arrancado a las
+12:00.
+
+### LO QUE VALE, MEDIDO
+
+Dos tomas del mismo codigo y con 25 vueltas; la diferencia es que en la primera
+quedaban 26 servicios sondeando:
+
+| | vueltas limpias | dispersion de cola baja |
+|---|---:|---:|
+| con 26 sondeadores | 32 % | 0,68 % |
+| silenciada | **56 %** | **0,36 %** |
+
+Las cifras medias se mueven poco; lo que se estrecha es la **incertidumbre**, que
+es lo que decide que regresion se puede detectar.
+
+### TRES FORMAS DE MENTIR, ARREGLADAS
+
+  - **Un guion que necesita permisos y no los comprueba.** Lanzado sin elevar,
+    fallo 26 veces y termino con un tranquilizador «Lo parado queda apuntado
+    en...». Ahora comprueba la elevacion, aborta con rc=1 y da la orden exacta
+    para relanzarse.
+  - **Un `false` que significaba «no me dejan ver».** `Get-MpPreference` devuelve
+    la lista de exclusiones VACIA a quien no es administrador, sin error, asi que
+    el comprobador decia `defender_excluye_build=false` con las exclusiones ya
+    puestas. Ahora son tres valores: `true`, `false` y `desconocido`.
+  - **Un patron que no pesca nada** se achacaba a que la lista estuviera
+    desfasada. Tambien puede ser que el software no este instalado --desinstalar
+    Gaming Services deja su patron sin nada que pescar-- y desde aqui no se
+    distinguen. El mensaje dice las dos.
+
+### Y EL RIESGO QUE NO ESTA EN NINGUNA LISTA DE SERVICIOS
+
+Las tareas programadas con hora son las pequenas. Las gordas de Windows NO TIENEN
+HORA: se disparan cuando la maquina esta ociosa --`StartComponentCleanup`,
+`SilentCleanup`, los NGEN de .NET, `WinSAT`, que es literalmente un banco de
+pruebas del sistema--. Y `--espera-ocioso` crea a proposito noventa segundos de
+inactividad, que es justo la invitacion que esperan. El comprobador publica
+`mantenimiento_corriendo=` y, si hay alguna, el veredicto la pone primero.
+
+---
+
 ## [sin publicar] - 2026-09-27 - **la barra de comparacion pasa del 52 % al 5 %**
 
 Idea del autor --«aprovechar que son 25 para tomar un conjunto de minimos y sacar
