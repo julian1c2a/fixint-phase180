@@ -170,7 +170,10 @@ if ($proc_vivos -contains 'Dropbox') { $puntos += 'Dropbox activo sobre el repo'
 if (-not $tiene_build -and $soyAdmin -and -not $fallo) {
   $puntos += 'Defender sin excluir build/'
 } elseif (-not $tiene_build) {
-  $puntos += 'no se pudo comprobar la exclusion de Defender (hace falta elevacion)'
+  # NO empezar por «no se pudo comprobar»: esa frase la usa el lado de Python
+  # para decir que la comprobacion ENTERA fallo, y en el JSON de una toma las
+  # dos serian indistinguibles.
+  $puntos += 'exclusion de Defender sin verificar (hace falta elevacion)'
 }
 if ($pronto -gt 3) { $puntos += ("{0} tareas programadas en 2 h" -f $pronto) }
 if ($hayMantenimiento) {
