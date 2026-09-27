@@ -631,7 +631,8 @@ def main():
         if cond.get("sondeadores_sin_resolver") not in (None, "0"):
             echo("               [OJO] %s patron(es) de la lista no resuelven a ningun"
                  % cond["sondeadores_sin_resolver"])
-            echo("               servicio: la lista de condiciones_benchmark/ esta desfasada")
+            echo("               servicio: o ese software no esta instalado, o la lista de")
+            echo("               condiciones_benchmark/ esta desfasada")
         echo("")
 
     # LA CONDICION, COMPROBADA EN VEZ DE RECORDADA. Y la carga queda anotada

@@ -205,8 +205,10 @@ if ($noResuelven.Count -gt 0) {
   Write-Host ''
   Write-Host ("[OJO] {0} patron(es) no resolvieron a ningun servicio:" -f $noResuelven.Count) -ForegroundColor Yellow
   foreach ($n in $noResuelven) { Write-Host ("       - {0}" -f $n) -ForegroundColor Yellow }
-  Write-Host '      Eso NO significa que el servicio no exista: significa que la'
-  Write-Host '      lista de este guion esta desfasada. Comprobarlo a mano.'
+  Write-Host '      Dos explicaciones posibles y no se distinguen desde aqui: o ese'
+  Write-Host '      software no esta instalado --desinstalar Gaming Services deja su'
+  Write-Host '      patron sin nada que pescar-- o la lista de este guion esta'
+  Write-Host '      desfasada. Comprobarlo a mano.'
 }
 
 # --- EL RESUMEN, que es lo unico que se lee de verdad -----------------------
