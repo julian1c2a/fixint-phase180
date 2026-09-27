@@ -138,6 +138,10 @@ static void una_anchura()
     char et[72];
     std::snprintf(et, sizeof(et), "rango alto equil vs bucle N=%zu", N);
     bench_record(et, razon, "x");
+    std::snprintf(et, sizeof(et), "rango alto N=%zu / bucle", N);
+    bench::registra(et, m[0]);
+    std::snprintf(et, sizeof(et), "rango alto N=%zu / equilibrado", N);
+    bench::registra(et, m[1]);
 }
 
 // =============================================================================
@@ -188,6 +192,18 @@ static void barre_base()
                 m[1].minimo, m[2].minimo, m[3].minimo, m[4].minimo, bases[mejor], gana,
                 (gana - 1.0) > ruido ? "" : " ?");
     std::fflush(stdout);
+
+    // ESTE BANCO NO REGISTRABA NADA. Es el barrido de la perilla `Base`, o sea
+    // el que justifica el 8 que lleva escrito el codigo: conviene poder
+    // responder «esto sigue siendo cierto» sin repetir la sesion entera.
+    char et[72];
+    for (int i = 0; i < 5; ++i)
+    {
+        std::snprintf(et, sizeof(et), "base N=%zu / Base=%d", N, bases[i]);
+        bench::registra(et, m[i]);
+    }
+    std::snprintf(et, sizeof(et), "base N=%zu / mejor sobre Base=8", N);
+    bench_record(et, gana, "x");
 }
 
 int main()

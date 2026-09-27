@@ -141,6 +141,8 @@ static void una_anchura()
         char et[80];
         std::snprintf(et, sizeof(et), "  %s", quien[i]);
         bench::imprime(et, m[i]);
+        std::snprintf(et, sizeof(et), "N=%zu / %s", N, quien[i]);
+        bench::registra(et, m[i]);
     }
     veredicto(quien, m.data());
 

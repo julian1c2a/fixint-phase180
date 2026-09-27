@@ -132,6 +132,15 @@ static void barre()
     char et[80];
     std::snprintf(et, sizeof(et), "toom3 mejor umbral M=%zu", M);
     bench_record(et, m[0].minimo / m[mejor].minimo, "x");
+
+    // Los cinco umbrales, cada uno con su ruido. La razon de arriba dice cuanto
+    // gana el mejor; esto dice cuanto cuesta cada uno, que es lo que hace falta
+    // para volver a decidir si el 1024 sigue siendo el sitio.
+    for (int i = 0; i < 5; ++i)
+    {
+        std::snprintf(et, sizeof(et), "toom3 M=%zu / umbral %d", M, umbrales[i]);
+        bench::registra(et, m[i]);
+    }
 }
 
 int main()

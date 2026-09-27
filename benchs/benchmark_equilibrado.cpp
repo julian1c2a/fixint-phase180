@@ -108,6 +108,10 @@ static void una_anchura()
     char et[72];
     std::snprintf(et, sizeof(et), "equilibrado vs bucle N=%zu", N);
     bench_record(et, razon, "x");
+    std::snprintf(et, sizeof(et), "equilibrado N=%zu / bucle", N);
+    bench::registra(et, m[0]);
+    std::snprintf(et, sizeof(et), "equilibrado N=%zu / equilibrado", N);
+    bench::registra(et, m[1]);
 }
 
 template <std::size_t N, std::size_t Tope>

@@ -102,18 +102,34 @@ def entorno_de(compilador: str) -> dict:
 #    que salta siempre no se mira.
 UMBRAL_PLANO = 0.25
 
-# Suelo de la barra «propia». PROVISIONAL, Y PUESTO PARA MEDIRLO.
+# Suelo de la barra «propia». MEDIDO el 27 sep 2026, no elegido a ojo.
 #
 # El recorrido es la dispersion DENTRO de una ejecucion. Entre dos ejecuciones
 # hay ademas deriva --temperatura, colocacion del binario, lo que hiciera la
-# maquina-- que ninguna de las dos ve, asi que la suma de recorridos puede
-# quedarse corta para una casilla muy estable. Este suelo la tapa.
+# maquina-- que ninguna de las dos ve. La pregunta era si esa deriva se come la
+# barra en las casillas muy quietas.
 #
-# Como se calibra, y es barato: dos tomas seguidas del MISMO commit con
-# `--compare`. Todo lo que salte ahi es falso positivo por definicion, porque no
-# ha cambiado una linea. El resumen de distribucion que imprime `comparar()` da
-# la cifra directamente.
-SUELO_ENTRE_TOMAS = 0.10
+# LA CALIBRACION: dos tomas seguidas del mismo codigo, 975 medidas comparables.
+# Todo lo que se mueva ahi es ruido por definicion.
+#
+#                           mediana    p90     p99    peor
+#     con ruido propio        1,3 %   3,3 %   4,5 %   8,9 %
+#     sin ruido propio        3,5 %  14,0 %  42,0 %  95,5 %
+#
+#     falsos positivos, umbral plano 25 %       26 de 975
+#     falsos positivos, suma de recorridos       0 de 158  (con CUALQUIER
+#                                                           suelo de 0 a 20 %)
+#
+# O sea que con suelo CERO ya salen cero falsos positivos: la suma de recorridos
+# se basta. El 5 % se deja como seguro barato --esta justo por encima del p99--
+# porque por debajo de esa cifra ningun cambio real se distingue del ruido en
+# esta maquina, asi que no tapa nada que se pudiera ver.
+#
+# Y un hallazgo que no se buscaba: el arnes adaptativo no solo MIDE el ruido,
+# lo REDUCE. Sus casillas se mueven diez veces menos entre tomas que las del
+# arnes viejo (p90 3,3 % frente a 14,0 %). Por eso conviene migrar los que
+# quedan.
+SUELO_ENTRE_TOMAS = 0.05
 
 
 def barra_de(antes, ahora):
@@ -138,10 +154,20 @@ def commit_actual() -> str:
 
 
 def arbol_limpio() -> bool:
+    """Si el arbol tiene cambios, la medida no se puede atribuir al commit.
+
+    SALVO EL PROPIO HISTORICO. Este guion escribe en `benchs/history/`, asi que
+    la toma anterior deja un fichero sin commitear y la siguiente se declaraba
+    «sucia» por culpa de su predecesora. Paso en la calibracion del 27 sep: la
+    segunda toma se guardo con `arbol_limpio: false` teniendo el codigo intacto,
+    que es justo la clase de metadato que luego se lee mal.
+    """
     try:
         r = subprocess.run(["git", "status", "--porcelain"],
                            cwd=RAIZ, capture_output=True, text=True)
-        return r.stdout.strip() == ""
+        sucios = [l for l in r.stdout.splitlines()
+                  if l.strip() and "benchs/history/" not in l.replace(chr(92), "/")]
+        return not sucios
     except Exception:
         return False
 

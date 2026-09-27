@@ -1,0 +1,4591 @@
+{
+  "fecha": "2026-09-26T22:20:01+00:00",
+  "commit": "f55ed4c",
+  "arbol_limpio": true,
+  "maquina": "MSI",
+  "so": "Windows 11",
+  "cpu": "Intel64 Family 6 Model 165 Stepping 2, GenuineIntel",
+  "compilador_pedido": "gcc",
+  "compilador": "g++.exe (Rev4, Built by MSYS2 project) 16.2.0",
+  "modo": "release-O2",
+  "suites": {
+    "addsub": {
+      "sub uint64_t": {
+        "valor": 1.0971,
+        "unidad": "cyc/op"
+      },
+      "add uint64_t": {
+        "valor": 1.2105,
+        "unidad": "cyc/op"
+      },
+      "sub nstd::uint128_t": {
+        "valor": 2.2318,
+        "unidad": "cyc/op"
+      },
+      "add nstd::uint128_t": {
+        "valor": 2.0533,
+        "unidad": "cyc/op"
+      },
+      "sub unsigned __int128": {
+        "valor": 2.5563,
+        "unidad": "cyc/op"
+      },
+      "add unsigned __int128": {
+        "valor": 2.4689,
+        "unidad": "cyc/op"
+      }
+    },
+    "barrido_desenrollado": {
+      "barrido desenrollado N=1": {
+        "valor": 0.9881,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=2": {
+        "valor": 1.5577,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=3": {
+        "valor": 2.1979,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=4": {
+        "valor": 3.1781,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=5": {
+        "valor": 2.6245,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=6": {
+        "valor": 2.1032,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=7": {
+        "valor": 2.3409,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=8": {
+        "valor": 2.2528,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=9": {
+        "valor": 2.1446,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=10": {
+        "valor": 2.1624,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=11": {
+        "valor": 2.1806,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=12": {
+        "valor": 2.4706,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=13": {
+        "valor": 2.5452,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=14": {
+        "valor": 2.7489,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=15": {
+        "valor": 2.6615,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=16": {
+        "valor": 2.9377,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=17": {
+        "valor": 2.9013,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=18": {
+        "valor": 2.8382,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=19": {
+        "valor": 3.0465,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=20": {
+        "valor": 3.3105,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=21": {
+        "valor": 2.9364,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=22": {
+        "valor": 3.0688,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=23": {
+        "valor": 3.0235,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=24": {
+        "valor": 2.9663,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=25": {
+        "valor": 2.5947,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=26": {
+        "valor": 2.3722,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=27": {
+        "valor": 2.182,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=28": {
+        "valor": 1.9679,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=29": {
+        "valor": 1.9243,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=30": {
+        "valor": 1.8331,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=31": {
+        "valor": 1.6765,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=32": {
+        "valor": 1.6601,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=33": {
+        "valor": 1.5418,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=34": {
+        "valor": 1.4664,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=35": {
+        "valor": 1.4083,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=36": {
+        "valor": 1.3768,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=37": {
+        "valor": 1.3745,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=38": {
+        "valor": 1.3365,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=39": {
+        "valor": 1.3664,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=40": {
+        "valor": 1.32,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=44": {
+        "valor": 1.1468,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=48": {
+        "valor": 1.1103,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=52": {
+        "valor": 1.0864,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=56": {
+        "valor": 1.0577,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=60": {
+        "valor": 0.9714,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=64": {
+        "valor": 0.9422,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=68": {
+        "valor": 0.9038,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=72": {
+        "valor": 0.8264,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=76": {
+        "valor": 0.7467,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=80": {
+        "valor": 0.7179,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=84": {
+        "valor": 0.6752,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=88": {
+        "valor": 0.6502,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=92": {
+        "valor": 0.6255,
+        "unidad": "x sobre bucle"
+      },
+      "barrido desenrollado N=96": {
+        "valor": 0.6032,
+        "unidad": "x sobre bucle"
+      }
+    },
+    "barrido_karatsuba": {
+      "karatsuba vs mejor escolar N=4": {
+        "valor": 0.612,
+        "unidad": "x"
+      },
+      "karatsuba vs mejor escolar N=8": {
+        "valor": 0.5446,
+        "unidad": "x"
+      },
+      "karatsuba vs mejor escolar N=16": {
+        "valor": 0.5873,
+        "unidad": "x"
+      },
+      "karatsuba vs mejor escolar N=32": {
+        "valor": 1.0555,
+        "unidad": "x"
+      },
+      "karatsuba vs mejor escolar N=64": {
+        "valor": 1.3877,
+        "unidad": "x"
+      },
+      "karatsuba vs mejor escolar N=128": {
+        "valor": 1.7399,
+        "unidad": "x"
+      }
+    },
+    "bases": {
+      "to_string N=2 base 2": {
+        "valor": 1543.2782,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 2": {
+        "valor": 1179.981,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 3": {
+        "valor": 3607.7764,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 3": {
+        "valor": 821.6357,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 4": {
+        "valor": 992.726,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 4": {
+        "valor": 801.6548,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 5": {
+        "valor": 2691.6591,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 5": {
+        "valor": 520.8587,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 6": {
+        "valor": 2395.8533,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 6": {
+        "valor": 644.1753,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 7": {
+        "valor": 2230.5491,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 7": {
+        "valor": 610.8632,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 8": {
+        "valor": 722.3607,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 8": {
+        "valor": 615.8808,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 9": {
+        "valor": 1931.0726,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 9": {
+        "valor": 513.9004,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 10": {
+        "valor": 406.9572,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 10": {
+        "valor": 569.0995,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 11": {
+        "valor": 1778.8324,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 11": {
+        "valor": 582.9234,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 12": {
+        "valor": 1865.102,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 12": {
+        "valor": 689.2334,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 13": {
+        "valor": 1759.3805,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 13": {
+        "valor": 650.5575,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 14": {
+        "valor": 1771.1667,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 14": {
+        "valor": 739.2589,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 15": {
+        "valor": 1816.6064,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 15": {
+        "valor": 688.2754,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 16": {
+        "valor": 806.2304,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 16": {
+        "valor": 688.2545,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 17": {
+        "valor": 1891.5691,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 17": {
+        "valor": 698.6293,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 18": {
+        "valor": 1559.6537,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 18": {
+        "valor": 759.7261,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 19": {
+        "valor": 1450.7285,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 19": {
+        "valor": 687.1989,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 20": {
+        "valor": 1593.4025,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 20": {
+        "valor": 744.5159,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 21": {
+        "valor": 1540.6165,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 21": {
+        "valor": 749.4665,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 22": {
+        "valor": 1740.5629,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 22": {
+        "valor": 811.74,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 23": {
+        "valor": 1374.8167,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 23": {
+        "valor": 641.8678,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 24": {
+        "valor": 1466.3604,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 24": {
+        "valor": 790.3362,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 25": {
+        "valor": 1355.2229,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 25": {
+        "valor": 656.2817,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 26": {
+        "valor": 1585.159,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 26": {
+        "valor": 746.5797,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 27": {
+        "valor": 1576.0105,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 27": {
+        "valor": 732.8564,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 28": {
+        "valor": 1435.2357,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 28": {
+        "valor": 640.4979,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 29": {
+        "valor": 1410.7661,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 29": {
+        "valor": 656.5341,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 30": {
+        "valor": 1459.5343,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 30": {
+        "valor": 681.4934,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 31": {
+        "valor": 1364.9662,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 31": {
+        "valor": 638.8438,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 32": {
+        "valor": 641.0278,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 32": {
+        "valor": 632.6654,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 33": {
+        "valor": 1459.3525,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 33": {
+        "valor": 622.073,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 34": {
+        "valor": 1570.6285,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 34": {
+        "valor": 699.5758,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 35": {
+        "valor": 1443.196,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 35": {
+        "valor": 578.7151,
+        "unidad": "cyc/op"
+      },
+      "to_string N=2 base 36": {
+        "valor": 1403.5951,
+        "unidad": "cyc/op"
+      },
+      "from_string N=2 base 36": {
+        "valor": 589.3276,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 2": {
+        "valor": 3993.0703,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 2": {
+        "valor": 9023.0274,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 3": {
+        "valor": 6183.2398,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 3": {
+        "valor": 5530.728,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 4": {
+        "valor": 2115.4448,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 4": {
+        "valor": 4558.8421,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 5": {
+        "valor": 4619.7507,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 5": {
+        "valor": 3821.7328,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 6": {
+        "valor": 4176.3557,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 6": {
+        "valor": 3453.5599,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 7": {
+        "valor": 3771.162,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 7": {
+        "valor": 3186.3383,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 8": {
+        "valor": 1642.8694,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 8": {
+        "valor": 2986.891,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 9": {
+        "valor": 3675.4374,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 9": {
+        "valor": 2794.1134,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 10": {
+        "valor": 1004.6069,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 10": {
+        "valor": 2532.2353,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 11": {
+        "valor": 3386.8479,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 11": {
+        "valor": 2556.651,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 12": {
+        "valor": 3379.0705,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 12": {
+        "valor": 2445.2288,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 13": {
+        "valor": 3413.9126,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 13": {
+        "valor": 2610.6245,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 14": {
+        "valor": 3181.6065,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 14": {
+        "valor": 2466.6395,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 15": {
+        "valor": 3064.9204,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 15": {
+        "valor": 2337.8526,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 16": {
+        "valor": 1826.3558,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 16": {
+        "valor": 2355.5493,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 17": {
+        "valor": 3115.9931,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 17": {
+        "valor": 2531.6706,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 18": {
+        "valor": 2951.6822,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 18": {
+        "valor": 2334.8142,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 19": {
+        "valor": 2824.0601,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 19": {
+        "valor": 2515.133,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 20": {
+        "valor": 3127.4601,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 20": {
+        "valor": 2171.846,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 21": {
+        "valor": 3102.4192,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 21": {
+        "valor": 2362.0289,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 22": {
+        "valor": 2682.044,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 22": {
+        "valor": 2025.8522,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 23": {
+        "valor": 3128.9988,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 23": {
+        "valor": 2273.3791,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 24": {
+        "valor": 2878.5885,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 24": {
+        "valor": 2078.4237,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 25": {
+        "valor": 2891.3203,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 25": {
+        "valor": 1948.4778,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 26": {
+        "valor": 2847.2081,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 26": {
+        "valor": 2022.6181,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 27": {
+        "valor": 2781.9605,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 27": {
+        "valor": 1894.1201,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 28": {
+        "valor": 2893.3118,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 28": {
+        "valor": 1991.3806,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 29": {
+        "valor": 2662.9331,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 29": {
+        "valor": 1896.4627,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 30": {
+        "valor": 2670.8373,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 30": {
+        "valor": 2189.7926,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 31": {
+        "valor": 2586.7625,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 31": {
+        "valor": 1928.8369,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 32": {
+        "valor": 1400.3432,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 32": {
+        "valor": 1858.4416,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 33": {
+        "valor": 2780.7258,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 33": {
+        "valor": 1924.1151,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 34": {
+        "valor": 2604.8529,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 34": {
+        "valor": 1891.4708,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 35": {
+        "valor": 2608.9768,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 35": {
+        "valor": 1924.4715,
+        "unidad": "cyc/op"
+      },
+      "to_string N=4 base 36": {
+        "valor": 2860.5601,
+        "unidad": "cyc/op"
+      },
+      "from_string N=4 base 36": {
+        "valor": 1868.8751,
+        "unidad": "cyc/op"
+      }
+    },
+    "cuadrado": {
+      "cuadrado N=4 / a*a hoy": {
+        "valor": 22.4518,
+        "unidad": "cyc/op",
+        "dispersion": 0.0331,
+        "recorrido": 0.1178,
+        "iteraciones": 33078108,
+        "repeticiones": 10
+      },
+      "cuadrado N=4 / sqr karatsuba": {
+        "valor": 33.9177,
+        "unidad": "cyc/op",
+        "dispersion": 0.0496,
+        "recorrido": 0.1569,
+        "iteraciones": 18383756,
+        "repeticiones": 10
+      },
+      "cuadrado N=4 / razon": {
+        "valor": 0.6619,
+        "unidad": "x"
+      },
+      "cuadrado N=8 / a*a hoy": {
+        "valor": 93.5828,
+        "unidad": "cyc/op",
+        "dispersion": 0.031,
+        "recorrido": 0.0933,
+        "iteraciones": 7098578,
+        "repeticiones": 10
+      },
+      "cuadrado N=8 / sqr karatsuba": {
+        "valor": 132.5202,
+        "unidad": "cyc/op",
+        "dispersion": 0.0213,
+        "recorrido": 0.0605,
+        "iteraciones": 4781254,
+        "repeticiones": 10
+      },
+      "cuadrado N=8 / razon": {
+        "valor": 0.7062,
+        "unidad": "x"
+      },
+      "cuadrado N=12 / a*a hoy": {
+        "valor": 230.0562,
+        "unidad": "cyc/op",
+        "dispersion": 0.0262,
+        "recorrido": 0.0783,
+        "iteraciones": 3415922,
+        "repeticiones": 10
+      },
+      "cuadrado N=12 / sqr karatsuba": {
+        "valor": 228.5774,
+        "unidad": "cyc/op",
+        "dispersion": 0.0183,
+        "recorrido": 0.0535,
+        "iteraciones": 2978330,
+        "repeticiones": 10
+      },
+      "cuadrado N=12 / razon": {
+        "valor": 1.0065,
+        "unidad": "x"
+      },
+      "cuadrado N=16 / a*a hoy": {
+        "valor": 463.103,
+        "unidad": "cyc/op",
+        "dispersion": 0.0446,
+        "recorrido": 0.1433,
+        "iteraciones": 1534867,
+        "repeticiones": 10
+      },
+      "cuadrado N=16 / sqr karatsuba": {
+        "valor": 393.3592,
+        "unidad": "cyc/op",
+        "dispersion": 0.0394,
+        "recorrido": 0.1236,
+        "iteraciones": 1682372,
+        "repeticiones": 10
+      },
+      "cuadrado N=16 / razon": {
+        "valor": 1.1773,
+        "unidad": "x"
+      },
+      "cuadrado N=20 / a*a hoy": {
+        "valor": 777.6038,
+        "unidad": "cyc/op",
+        "dispersion": 0.0088,
+        "recorrido": 0.0272,
+        "iteraciones": 935962,
+        "repeticiones": 10
+      },
+      "cuadrado N=20 / sqr karatsuba": {
+        "valor": 626.1984,
+        "unidad": "cyc/op",
+        "dispersion": 0.0225,
+        "recorrido": 0.0884,
+        "iteraciones": 1051435,
+        "repeticiones": 10
+      },
+      "cuadrado N=20 / razon": {
+        "valor": 1.2418,
+        "unidad": "x"
+      },
+      "cuadrado N=24 / a*a hoy": {
+        "valor": 1361.3398,
+        "unidad": "cyc/op",
+        "dispersion": 0.0333,
+        "recorrido": 0.1121,
+        "iteraciones": 467120,
+        "repeticiones": 10
+      },
+      "cuadrado N=24 / sqr karatsuba": {
+        "valor": 961.6264,
+        "unidad": "cyc/op",
+        "dispersion": 0.0948,
+        "recorrido": 0.2572,
+        "iteraciones": 710215,
+        "repeticiones": 10
+      },
+      "cuadrado N=24 / razon": {
+        "valor": 1.4157,
+        "unidad": "x"
+      },
+      "cuadrado N=28 / a*a hoy": {
+        "valor": 1830.045,
+        "unidad": "cyc/op",
+        "dispersion": 0.0429,
+        "recorrido": 0.1571,
+        "iteraciones": 312944,
+        "repeticiones": 10
+      },
+      "cuadrado N=28 / sqr karatsuba": {
+        "valor": 1324.8779,
+        "unidad": "cyc/op",
+        "dispersion": 0.0291,
+        "recorrido": 0.0971,
+        "iteraciones": 529884,
+        "repeticiones": 10
+      },
+      "cuadrado N=28 / razon": {
+        "valor": 1.3813,
+        "unidad": "x"
+      },
+      "cuadrado N=32 / a*a hoy": {
+        "valor": 2634.3735,
+        "unidad": "cyc/op",
+        "dispersion": 0.039,
+        "recorrido": 0.1329,
+        "iteraciones": 282165,
+        "repeticiones": 10
+      },
+      "cuadrado N=32 / sqr karatsuba": {
+        "valor": 1660.6625,
+        "unidad": "cyc/op",
+        "dispersion": 0.0459,
+        "recorrido": 0.153,
+        "iteraciones": 381782,
+        "repeticiones": 10
+      },
+      "cuadrado N=32 / razon": {
+        "valor": 1.5863,
+        "unidad": "x"
+      },
+      "cuadrado N=36 / a*a hoy": {
+        "valor": 3963.8646,
+        "unidad": "cyc/op",
+        "dispersion": 0.0348,
+        "recorrido": 0.1264,
+        "iteraciones": 195505,
+        "repeticiones": 10
+      },
+      "cuadrado N=36 / sqr karatsuba": {
+        "valor": 2539.7565,
+        "unidad": "cyc/op",
+        "dispersion": 0.0296,
+        "recorrido": 0.117,
+        "iteraciones": 250703,
+        "repeticiones": 10
+      },
+      "cuadrado N=36 / razon": {
+        "valor": 1.5607,
+        "unidad": "x"
+      },
+      "cuadrado N=40 / a*a hoy": {
+        "valor": 5395.6829,
+        "unidad": "cyc/op",
+        "dispersion": 0.0281,
+        "recorrido": 0.1007,
+        "iteraciones": 120188,
+        "repeticiones": 10
+      },
+      "cuadrado N=40 / sqr karatsuba": {
+        "valor": 2962.2655,
+        "unidad": "cyc/op",
+        "dispersion": 0.0331,
+        "recorrido": 0.0991,
+        "iteraciones": 263309,
+        "repeticiones": 10
+      },
+      "cuadrado N=40 / razon": {
+        "valor": 1.8215,
+        "unidad": "x"
+      },
+      "cuadrado N=44 / a*a hoy": {
+        "valor": 7502.085,
+        "unidad": "cyc/op",
+        "dispersion": 0.0188,
+        "recorrido": 0.0573,
+        "iteraciones": 95389,
+        "repeticiones": 10
+      },
+      "cuadrado N=44 / sqr karatsuba": {
+        "valor": 5806.006,
+        "unidad": "cyc/op",
+        "dispersion": 0.0192,
+        "recorrido": 0.0611,
+        "iteraciones": 105203,
+        "repeticiones": 10
+      },
+      "cuadrado N=44 / razon": {
+        "valor": 1.2921,
+        "unidad": "x"
+      },
+      "cuadrado N=48 / a*a hoy": {
+        "valor": 8653.9386,
+        "unidad": "cyc/op",
+        "dispersion": 0.0394,
+        "recorrido": 0.1477,
+        "iteraciones": 71835,
+        "repeticiones": 10
+      },
+      "cuadrado N=48 / sqr karatsuba": {
+        "valor": 6819.4415,
+        "unidad": "cyc/op",
+        "dispersion": 0.0332,
+        "recorrido": 0.1154,
+        "iteraciones": 94911,
+        "repeticiones": 10
+      },
+      "cuadrado N=48 / razon": {
+        "valor": 1.269,
+        "unidad": "x"
+      },
+      "cuadrado N=52 / a*a hoy": {
+        "valor": 10813.9664,
+        "unidad": "cyc/op",
+        "dispersion": 0.0283,
+        "recorrido": 0.1012,
+        "iteraciones": 61584,
+        "repeticiones": 10
+      },
+      "cuadrado N=52 / sqr karatsuba": {
+        "valor": 8218.3206,
+        "unidad": "cyc/op",
+        "dispersion": 0.0302,
+        "recorrido": 0.1046,
+        "iteraciones": 79082,
+        "repeticiones": 10
+      },
+      "cuadrado N=52 / razon": {
+        "valor": 1.3158,
+        "unidad": "x"
+      },
+      "cuadrado N=56 / a*a hoy": {
+        "valor": 14369.3054,
+        "unidad": "cyc/op",
+        "dispersion": 0.0211,
+        "recorrido": 0.0692,
+        "iteraciones": 49709,
+        "repeticiones": 10
+      },
+      "cuadrado N=56 / sqr karatsuba": {
+        "valor": 8850.9468,
+        "unidad": "cyc/op",
+        "dispersion": 0.0169,
+        "recorrido": 0.0512,
+        "iteraciones": 87430,
+        "repeticiones": 10
+      },
+      "cuadrado N=56 / razon": {
+        "valor": 1.6235,
+        "unidad": "x"
+      },
+      "cuadrado N=60 / a*a hoy": {
+        "valor": 17033.8433,
+        "unidad": "cyc/op",
+        "dispersion": 0.0211,
+        "recorrido": 0.0711,
+        "iteraciones": 41224,
+        "repeticiones": 10
+      },
+      "cuadrado N=60 / sqr karatsuba": {
+        "valor": 10369.2899,
+        "unidad": "cyc/op",
+        "dispersion": 0.0198,
+        "recorrido": 0.0599,
+        "iteraciones": 64609,
+        "repeticiones": 10
+      },
+      "cuadrado N=60 / razon": {
+        "valor": 1.6427,
+        "unidad": "x"
+      },
+      "cuadrado N=64 / a*a hoy": {
+        "valor": 18597.847,
+        "unidad": "cyc/op",
+        "dispersion": 0.0229,
+        "recorrido": 0.0801,
+        "iteraciones": 41537,
+        "repeticiones": 10
+      },
+      "cuadrado N=64 / sqr karatsuba": {
+        "valor": 11898.0723,
+        "unidad": "cyc/op",
+        "dispersion": 0.0198,
+        "recorrido": 0.0598,
+        "iteraciones": 56475,
+        "repeticiones": 10
+      },
+      "cuadrado N=64 / razon": {
+        "valor": 1.5631,
+        "unidad": "x"
+      }
+    },
+    "curva_n": {
+      "add N=1": {
+        "valor": 1.4102,
+        "unidad": "cyc/op"
+      },
+      "sub N=1": {
+        "valor": 1.4102,
+        "unidad": "cyc/op"
+      },
+      "mul N=1": {
+        "valor": 2.1164,
+        "unidad": "cyc/op"
+      },
+      "div N=1": {
+        "valor": 11.4861,
+        "unidad": "cyc/op"
+      },
+      "shl N=1": {
+        "valor": 1.4101,
+        "unidad": "cyc/op"
+      },
+      "cmp N=1": {
+        "valor": 2.5266,
+        "unidad": "cyc/op"
+      },
+      "add N=2": {
+        "valor": 2.2167,
+        "unidad": "cyc/op"
+      },
+      "sub N=2": {
+        "valor": 2.2171,
+        "unidad": "cyc/op"
+      },
+      "mul N=2": {
+        "valor": 3.6113,
+        "unidad": "cyc/op"
+      },
+      "div N=2": {
+        "valor": 90.1376,
+        "unidad": "cyc/op"
+      },
+      "shl N=2": {
+        "valor": 2.2177,
+        "unidad": "cyc/op"
+      },
+      "cmp N=2": {
+        "valor": 3.3351,
+        "unidad": "cyc/op"
+      },
+      "add N=3": {
+        "valor": 14.8097,
+        "unidad": "cyc/op"
+      },
+      "sub N=3": {
+        "valor": 15.5625,
+        "unidad": "cyc/op"
+      },
+      "mul N=3": {
+        "valor": 21.2386,
+        "unidad": "cyc/op"
+      },
+      "div N=3": {
+        "valor": 177.3485,
+        "unidad": "cyc/op"
+      },
+      "shl N=3": {
+        "valor": 14.7457,
+        "unidad": "cyc/op"
+      },
+      "cmp N=3": {
+        "valor": 3.4951,
+        "unidad": "cyc/op"
+      },
+      "add N=4": {
+        "valor": 20.7494,
+        "unidad": "cyc/op"
+      },
+      "sub N=4": {
+        "valor": 21.2538,
+        "unidad": "cyc/op"
+      },
+      "mul N=4": {
+        "valor": 29.0103,
+        "unidad": "cyc/op"
+      },
+      "div N=4": {
+        "valor": 248.8247,
+        "unidad": "cyc/op"
+      },
+      "shl N=4": {
+        "valor": 28.8163,
+        "unidad": "cyc/op"
+      },
+      "cmp N=4": {
+        "valor": 4.8172,
+        "unidad": "cyc/op"
+      },
+      "add N=6": {
+        "valor": 32.331,
+        "unidad": "cyc/op"
+      },
+      "sub N=6": {
+        "valor": 30.2125,
+        "unidad": "cyc/op"
+      },
+      "mul N=6": {
+        "valor": 63.407,
+        "unidad": "cyc/op"
+      },
+      "div N=6": {
+        "valor": 311.0681,
+        "unidad": "cyc/op"
+      },
+      "shl N=6": {
+        "valor": 28.2954,
+        "unidad": "cyc/op"
+      },
+      "cmp N=6": {
+        "valor": 7.6794,
+        "unidad": "cyc/op"
+      },
+      "add N=8": {
+        "valor": 30.3017,
+        "unidad": "cyc/op"
+      },
+      "sub N=8": {
+        "valor": 30.2575,
+        "unidad": "cyc/op"
+      },
+      "mul N=8": {
+        "valor": 89.0273,
+        "unidad": "cyc/op"
+      },
+      "div N=8": {
+        "valor": 359.5866,
+        "unidad": "cyc/op"
+      },
+      "shl N=8": {
+        "valor": 28.6025,
+        "unidad": "cyc/op"
+      },
+      "cmp N=8": {
+        "valor": 4.0842,
+        "unidad": "cyc/op"
+      },
+      "add N=12": {
+        "valor": 38.5399,
+        "unidad": "cyc/op"
+      },
+      "sub N=12": {
+        "valor": 37.6461,
+        "unidad": "cyc/op"
+      },
+      "mul N=12": {
+        "valor": 200.2951,
+        "unidad": "cyc/op"
+      },
+      "div N=12": {
+        "valor": 465.5728,
+        "unidad": "cyc/op"
+      },
+      "shl N=12": {
+        "valor": 37.4668,
+        "unidad": "cyc/op"
+      },
+      "cmp N=12": {
+        "valor": 3.9789,
+        "unidad": "cyc/op"
+      },
+      "add N=16": {
+        "valor": 44.472,
+        "unidad": "cyc/op"
+      },
+      "sub N=16": {
+        "valor": 45.5055,
+        "unidad": "cyc/op"
+      },
+      "mul N=16": {
+        "valor": 495.7521,
+        "unidad": "cyc/op"
+      },
+      "div N=16": {
+        "valor": 701.8992,
+        "unidad": "cyc/op"
+      },
+      "shl N=16": {
+        "valor": 48.5649,
+        "unidad": "cyc/op"
+      },
+      "cmp N=16": {
+        "valor": 4.5635,
+        "unidad": "cyc/op"
+      },
+      "add N=20": {
+        "valor": 67.2146,
+        "unidad": "cyc/op"
+      },
+      "sub N=20": {
+        "valor": 71.5025,
+        "unidad": "cyc/op"
+      },
+      "mul N=20": {
+        "valor": 715.2221,
+        "unidad": "cyc/op"
+      },
+      "div N=20": {
+        "valor": 932.3486,
+        "unidad": "cyc/op"
+      },
+      "shl N=20": {
+        "valor": 52.2573,
+        "unidad": "cyc/op"
+      },
+      "cmp N=20": {
+        "valor": 3.5807,
+        "unidad": "cyc/op"
+      },
+      "add N=24": {
+        "valor": 60.4691,
+        "unidad": "cyc/op"
+      },
+      "sub N=24": {
+        "valor": 59.5508,
+        "unidad": "cyc/op"
+      },
+      "mul N=24": {
+        "valor": 1384.0077,
+        "unidad": "cyc/op"
+      },
+      "div N=24": {
+        "valor": 1311.2424,
+        "unidad": "cyc/op"
+      },
+      "shl N=24": {
+        "valor": 72.1347,
+        "unidad": "cyc/op"
+      },
+      "cmp N=24": {
+        "valor": 4.2223,
+        "unidad": "cyc/op"
+      },
+      "add N=32": {
+        "valor": 116.6536,
+        "unidad": "cyc/op"
+      },
+      "sub N=32": {
+        "valor": 124.8206,
+        "unidad": "cyc/op"
+      },
+      "mul N=32": {
+        "valor": 2463.7754,
+        "unidad": "cyc/op"
+      },
+      "div N=32": {
+        "valor": 1939.6995,
+        "unidad": "cyc/op"
+      },
+      "shl N=32": {
+        "valor": 106.8849,
+        "unidad": "cyc/op"
+      },
+      "cmp N=32": {
+        "valor": 4.1078,
+        "unidad": "cyc/op"
+      },
+      "add N=48": {
+        "valor": 188.3789,
+        "unidad": "cyc/op"
+      },
+      "sub N=48": {
+        "valor": 195.8481,
+        "unidad": "cyc/op"
+      },
+      "mul N=48": {
+        "valor": 6464.2603,
+        "unidad": "cyc/op"
+      },
+      "div N=48": {
+        "valor": 4497.5339,
+        "unidad": "cyc/op"
+      },
+      "shl N=48": {
+        "valor": 177.0132,
+        "unidad": "cyc/op"
+      },
+      "cmp N=48": {
+        "valor": 7.3429,
+        "unidad": "cyc/op"
+      },
+      "add N=64": {
+        "valor": 200.8385,
+        "unidad": "cyc/op"
+      },
+      "sub N=64": {
+        "valor": 197.7198,
+        "unidad": "cyc/op"
+      },
+      "mul N=64": {
+        "valor": 12704.7245,
+        "unidad": "cyc/op"
+      },
+      "div N=64": {
+        "valor": 6894.4504,
+        "unidad": "cyc/op"
+      },
+      "shl N=64": {
+        "valor": 184.8423,
+        "unidad": "cyc/op"
+      },
+      "cmp N=64": {
+        "valor": 4.0259,
+        "unidad": "cyc/op"
+      }
+    },
+    "div_by_const": {
+      "Division by 10 / uint64_t / const": {
+        "valor": 3.5199,
+        "unidad": "cyc/op"
+      },
+      "Division by 10 / fast_div10(uint128)": {
+        "valor": 20.0448,
+        "unidad": "cyc/op"
+      },
+      "Division by 10 / uint128 / uint128(10)": {
+        "valor": 14.7859,
+        "unidad": "cyc/op"
+      },
+      "Division by 3 / uint64_t / const": {
+        "valor": 2.1552,
+        "unidad": "cyc/op"
+      },
+      "Division by 3 / fast_div3(uint128)": {
+        "valor": 13.9958,
+        "unidad": "cyc/op"
+      },
+      "Division by 3 / uint128 / uint128(3)": {
+        "valor": 9.3935,
+        "unidad": "cyc/op"
+      },
+      "Division by 5 / uint64_t / const": {
+        "valor": 2.4409,
+        "unidad": "cyc/op"
+      },
+      "Division by 5 / fast_div5(uint128)": {
+        "valor": 18.6857,
+        "unidad": "cyc/op"
+      },
+      "Division by 5 / uint128 / uint128(5)": {
+        "valor": 8.7561,
+        "unidad": "cyc/op"
+      },
+      "Division by 7 / uint64_t / const": {
+        "valor": 3.1225,
+        "unidad": "cyc/op"
+      },
+      "Division by 7 / fast_div7(uint128)": {
+        "valor": 19.0276,
+        "unidad": "cyc/op"
+      },
+      "Division by 7 / uint128 / uint128(7)": {
+        "valor": 15.6444,
+        "unidad": "cyc/op"
+      },
+      "Division by 100 / uint64_t / const": {
+        "valor": 3.0848,
+        "unidad": "cyc/op"
+      },
+      "Division by 100 / fast_div100(uint128)": {
+        "valor": 16.3281,
+        "unidad": "cyc/op"
+      },
+      "Division by 100 / uint128 / uint128(100)": {
+        "valor": 20.1219,
+        "unidad": "cyc/op"
+      },
+      "Division by 10^19 / uint64_t / const": {
+        "valor": 1.7006,
+        "unidad": "cyc/op"
+      },
+      "Division by 10^19 / fast_div_1e19(uint128)": {
+        "valor": 17.8807,
+        "unidad": "cyc/op"
+      },
+      "Division by 10^19 / uint128 / uint128(1e19)": {
+        "valor": 94.9171,
+        "unidad": "cyc/op"
+      }
+    },
+    "div_const_fixed": {
+      "N=1 d=10 / operator/": {
+        "valor": 23.6402,
+        "unidad": "cyc/op",
+        "dispersion": 0.0233,
+        "recorrido": 0.0927,
+        "iteraciones": 28175134,
+        "repeticiones": 20
+      },
+      "N=1 d=10 / div<D>()": {
+        "valor": 6.7655,
+        "unidad": "cyc/op",
+        "dispersion": 0.0233,
+        "recorrido": 0.1072,
+        "iteraciones": 86283184,
+        "repeticiones": 20
+      },
+      "N=1 d=10 / razon": {
+        "valor": 3.4942,
+        "unidad": "x"
+      },
+      "N=2 d=10 / operator/": {
+        "valor": 109.4978,
+        "unidad": "cyc/op",
+        "dispersion": 0.0056,
+        "recorrido": 0.0187,
+        "iteraciones": 73588502,
+        "repeticiones": 20
+      },
+      "N=2 d=10 / div<D>()": {
+        "valor": 15.8447,
+        "unidad": "cyc/op",
+        "dispersion": 0.0354,
+        "recorrido": 0.1565,
+        "iteraciones": 46986867,
+        "repeticiones": 20
+      },
+      "N=2 d=10 / razon": {
+        "valor": 6.9107,
+        "unidad": "x"
+      },
+      "N=3 d=10 / operator/": {
+        "valor": 117.2729,
+        "unidad": "cyc/op",
+        "dispersion": 0.0224,
+        "recorrido": 0.103,
+        "iteraciones": 5854280,
+        "repeticiones": 20
+      },
+      "N=3 d=10 / div<D>()": {
+        "valor": 34.643,
+        "unidad": "cyc/op",
+        "dispersion": 0.0197,
+        "recorrido": 0.0762,
+        "iteraciones": 20403199,
+        "repeticiones": 20
+      },
+      "N=3 d=10 / razon": {
+        "valor": 3.3852,
+        "unidad": "x"
+      },
+      "N=4 d=10 / operator/": {
+        "valor": 169.1347,
+        "unidad": "cyc/op",
+        "dispersion": 0.0213,
+        "recorrido": 0.1057,
+        "iteraciones": 5114552,
+        "repeticiones": 20
+      },
+      "N=4 d=10 / div<D>()": {
+        "valor": 42.3347,
+        "unidad": "cyc/op",
+        "dispersion": 0.0183,
+        "recorrido": 0.0785,
+        "iteraciones": 18389618,
+        "repeticiones": 20
+      },
+      "N=4 d=10 / razon": {
+        "valor": 3.9952,
+        "unidad": "x"
+      },
+      "N=8 d=10 / operator/": {
+        "valor": 224.4933,
+        "unidad": "cyc/op",
+        "dispersion": 0.0274,
+        "recorrido": 0.1206,
+        "iteraciones": 2861959,
+        "repeticiones": 20
+      },
+      "N=8 d=10 / div<D>()": {
+        "valor": 94.2509,
+        "unidad": "cyc/op",
+        "dispersion": 0.0239,
+        "recorrido": 0.0934,
+        "iteraciones": 8171572,
+        "repeticiones": 20
+      },
+      "N=8 d=10 / razon": {
+        "valor": 2.3819,
+        "unidad": "x"
+      },
+      "N=16 d=10 / operator/": {
+        "valor": 367.5715,
+        "unidad": "cyc/op",
+        "dispersion": 0.0155,
+        "recorrido": 0.0591,
+        "iteraciones": 1810933,
+        "repeticiones": 20
+      },
+      "N=16 d=10 / div<D>()": {
+        "valor": 201.3413,
+        "unidad": "cyc/op",
+        "dispersion": 0.0184,
+        "recorrido": 0.07,
+        "iteraciones": 3266407,
+        "repeticiones": 20
+      },
+      "N=16 d=10 / razon": {
+        "valor": 1.8256,
+        "unidad": "x"
+      },
+      "N=32 d=10 / operator/": {
+        "valor": 669.3486,
+        "unidad": "cyc/op",
+        "dispersion": 0.0303,
+        "recorrido": 0.1226,
+        "iteraciones": 1045778,
+        "repeticiones": 20
+      },
+      "N=32 d=10 / div<D>()": {
+        "valor": 427.3047,
+        "unidad": "cyc/op",
+        "dispersion": 0.0233,
+        "recorrido": 0.1171,
+        "iteraciones": 1602528,
+        "repeticiones": 20
+      },
+      "N=32 d=10 / razon": {
+        "valor": 1.5664,
+        "unidad": "x"
+      },
+      "N=64 d=10 / operator/": {
+        "valor": 1270.0823,
+        "unidad": "cyc/op",
+        "dispersion": 0.0236,
+        "recorrido": 0.0946,
+        "iteraciones": 545110,
+        "repeticiones": 20
+      },
+      "N=64 d=10 / div<D>()": {
+        "valor": 857.1699,
+        "unidad": "cyc/op",
+        "dispersion": 0.0181,
+        "recorrido": 0.0712,
+        "iteraciones": 782019,
+        "repeticiones": 20
+      },
+      "N=64 d=10 / razon": {
+        "valor": 1.4817,
+        "unidad": "x"
+      },
+      "N=128 d=10 / operator/": {
+        "valor": 2385.5581,
+        "unidad": "cyc/op",
+        "dispersion": 0.0173,
+        "recorrido": 0.0718,
+        "iteraciones": 275547,
+        "repeticiones": 20
+      },
+      "N=128 d=10 / div<D>()": {
+        "valor": 1695.4886,
+        "unidad": "cyc/op",
+        "dispersion": 0.0176,
+        "recorrido": 0.0653,
+        "iteraciones": 354982,
+        "repeticiones": 20
+      },
+      "N=128 d=10 / razon": {
+        "valor": 1.407,
+        "unidad": "x"
+      },
+      "N=4 d=3 / operator/": {
+        "valor": 170.2969,
+        "unidad": "cyc/op",
+        "dispersion": 0.0138,
+        "recorrido": 0.0529,
+        "iteraciones": 5535986,
+        "repeticiones": 20
+      },
+      "N=4 d=3 / div<D>()": {
+        "valor": 39.7855,
+        "unidad": "cyc/op",
+        "dispersion": 0.0246,
+        "recorrido": 0.0956,
+        "iteraciones": 16734862,
+        "repeticiones": 20
+      },
+      "N=4 d=3 / razon": {
+        "valor": 4.2804,
+        "unidad": "x"
+      },
+      "N=4 d=7 / operator/": {
+        "valor": 171.8901,
+        "unidad": "cyc/op",
+        "dispersion": 0.0206,
+        "recorrido": 0.0862,
+        "iteraciones": 5076375,
+        "repeticiones": 20
+      },
+      "N=4 d=7 / div<D>()": {
+        "valor": 39.6505,
+        "unidad": "cyc/op",
+        "dispersion": 0.018,
+        "recorrido": 0.0752,
+        "iteraciones": 17667654,
+        "repeticiones": 20
+      },
+      "N=4 d=7 / razon": {
+        "valor": 4.3351,
+        "unidad": "x"
+      },
+      "N=4 d=1e9+7 / operator/": {
+        "valor": 171.1712,
+        "unidad": "cyc/op",
+        "dispersion": 0.0106,
+        "recorrido": 0.0412,
+        "iteraciones": 5367204,
+        "repeticiones": 20
+      },
+      "N=4 d=1e9+7 / div<D>()": {
+        "valor": 42.4243,
+        "unidad": "cyc/op",
+        "dispersion": 0.0183,
+        "recorrido": 0.0636,
+        "iteraciones": 18575605,
+        "repeticiones": 20
+      },
+      "N=4 d=1e9+7 / razon": {
+        "valor": 4.0347,
+        "unidad": "x"
+      },
+      "N=4 d=1e19 / operator/": {
+        "valor": 165.2433,
+        "unidad": "cyc/op",
+        "dispersion": 0.0156,
+        "recorrido": 0.0666,
+        "iteraciones": 5533861,
+        "repeticiones": 20
+      },
+      "N=4 d=1e19 / div<D>()": {
+        "valor": 40.3005,
+        "unidad": "cyc/op",
+        "dispersion": 0.0308,
+        "recorrido": 0.1079,
+        "iteraciones": 15878537,
+        "repeticiones": 20
+      },
+      "N=4 d=1e19 / razon": {
+        "valor": 4.1003,
+        "unidad": "x"
+      },
+      "N=4 d=2^63  (s=0) / operator/": {
+        "valor": 162.8106,
+        "unidad": "cyc/op",
+        "dispersion": 0.0286,
+        "recorrido": 0.1247,
+        "iteraciones": 4921800,
+        "repeticiones": 20
+      },
+      "N=4 d=2^63  (s=0) / div<D>()": {
+        "valor": 39.1044,
+        "unidad": "cyc/op",
+        "dispersion": 0.0219,
+        "recorrido": 0.0815,
+        "iteraciones": 19619555,
+        "repeticiones": 20
+      },
+      "N=4 d=2^63  (s=0) / razon": {
+        "valor": 4.1635,
+        "unidad": "x"
+      },
+      "N=4 d=2^64-1 (s=0) / operator/": {
+        "valor": 104.264,
+        "unidad": "cyc/op",
+        "dispersion": 0.0198,
+        "recorrido": 0.078,
+        "iteraciones": 8296651,
+        "repeticiones": 20
+      },
+      "N=4 d=2^64-1 (s=0) / div<D>()": {
+        "valor": 27.0139,
+        "unidad": "cyc/op",
+        "dispersion": 0.0206,
+        "recorrido": 0.0951,
+        "iteraciones": 25753184,
+        "repeticiones": 20
+      },
+      "N=4 d=2^64-1 (s=0) / razon": {
+        "valor": 3.8596,
+        "unidad": "x"
+      }
+    },
+    "division": {
+      "divmod peor caso N=4": {
+        "valor": 227.8154,
+        "unidad": "cyc"
+      },
+      "divmod peor caso N=8": {
+        "valor": 354.9269,
+        "unidad": "cyc"
+      },
+      "divmod peor caso N=16": {
+        "valor": 711.8464,
+        "unidad": "cyc"
+      },
+      "divmod peor caso N=32": {
+        "valor": 1950.0018,
+        "unidad": "cyc"
+      },
+      "divmod peor caso N=64": {
+        "valor": 6883.3949,
+        "unidad": "cyc"
+      },
+      "divmod peor caso N=128": {
+        "valor": 22611.6298,
+        "unidad": "cyc"
+      },
+      "divmod peor caso N=256": {
+        "valor": 80604.9374,
+        "unidad": "cyc"
+      }
+    },
+    "divmod_algorithms": {
+      "Power-of-2 / big_bin_divrem": {
+        "valor": 25.8692,
+        "unidad": "cyc/op"
+      },
+      "Power-of-2 / D_knuth_divrem": {
+        "valor": 25.4622,
+        "unidad": "cyc/op"
+      },
+      "64-bit values / big_bin_divrem": {
+        "valor": 46.7554,
+        "unidad": "cyc/op"
+      },
+      "64-bit values / D_knuth_divrem": {
+        "valor": 35.8105,
+        "unidad": "cyc/op"
+      },
+      "128/64 hybrid / big_bin_divrem": {
+        "valor": 29.5004,
+        "unidad": "cyc/op"
+      },
+      "128/64 hybrid / D_knuth_divrem": {
+        "valor": 23.2483,
+        "unidad": "cyc/op"
+      },
+      "Large 128/128 / big_bin_divrem": {
+        "valor": 27.4252,
+        "unidad": "cyc/op"
+      },
+      "Large 128/128 / D_knuth_divrem": {
+        "valor": 20.6829,
+        "unidad": "cyc/op"
+      },
+      "Small divisor / big_bin_divrem": {
+        "valor": 41.3498,
+        "unidad": "cyc/op"
+      },
+      "Small divisor / D_knuth_divrem": {
+        "valor": 30.4484,
+        "unidad": "cyc/op"
+      },
+      "Remainder test / big_bin_divrem": {
+        "valor": 42.7737,
+        "unidad": "cyc/op"
+      },
+      "Remainder test / D_knuth_divrem": {
+        "valor": 32.7325,
+        "unidad": "cyc/op"
+      },
+      "Equal values / big_bin_divrem": {
+        "valor": 24.4451,
+        "unidad": "cyc/op"
+      },
+      "Equal values / D_knuth_divrem": {
+        "valor": 17.8674,
+        "unidad": "cyc/op"
+      },
+      "Divide by one / big_bin_divrem": {
+        "valor": 14.6996,
+        "unidad": "cyc/op"
+      },
+      "Divide by one / D_knuth_divrem": {
+        "valor": 6.4372,
+        "unidad": "cyc/op"
+      },
+      "Large quotient / big_bin_divrem": {
+        "valor": 27.2428,
+        "unidad": "cyc/op"
+      },
+      "Large quotient / D_knuth_divrem": {
+        "valor": 21.4624,
+        "unidad": "cyc/op"
+      },
+      "media big_bin_divrem": {
+        "valor": 31.1179,
+        "unidad": "cyc/op"
+      },
+      "media D_knuth_divrem": {
+        "valor": 23.7947,
+        "unidad": "cyc/op"
+      },
+      "media Knuth D frente a binaria": {
+        "valor": 1.3078,
+        "unidad": "x"
+      }
+    },
+    "divmod_const": {
+      "Division by 3 / n / uint128_t{3}": {
+        "valor": 125.5621,
+        "unidad": "cyc/op"
+      },
+      "Division by 3 / n.div<3>()": {
+        "valor": 11.2633,
+        "unidad": "cyc/op"
+      },
+      "Division by 3 / fast_div3(n)": {
+        "valor": 18.5743,
+        "unidad": "cyc/op"
+      },
+      "Division by 3 / __int128 / 3": {
+        "valor": 8.543,
+        "unidad": "cyc/op"
+      },
+      "Division by 5 / n / uint128_t{5}": {
+        "valor": 70.078,
+        "unidad": "cyc/op"
+      },
+      "Division by 5 / n.div<5>()": {
+        "valor": 11.997,
+        "unidad": "cyc/op"
+      },
+      "Division by 5 / fast_div5(n)": {
+        "valor": 21.9759,
+        "unidad": "cyc/op"
+      },
+      "Division by 5 / __int128 / 5": {
+        "valor": 7.7873,
+        "unidad": "cyc/op"
+      },
+      "Division by 7 / n / uint128_t{7}": {
+        "valor": 123.8171,
+        "unidad": "cyc/op"
+      },
+      "Division by 7 / n.div<7>()": {
+        "valor": 15.7755,
+        "unidad": "cyc/op"
+      },
+      "Division by 7 / fast_div7(n)": {
+        "valor": 22.3465,
+        "unidad": "cyc/op"
+      },
+      "Division by 7 / __int128 / 7": {
+        "valor": 9.4485,
+        "unidad": "cyc/op"
+      },
+      "Division by 10 / n / uint128_t{10}": {
+        "valor": 124.9074,
+        "unidad": "cyc/op"
+      },
+      "Division by 10 / n.div<10>()": {
+        "valor": 11.9819,
+        "unidad": "cyc/op"
+      },
+      "Division by 10 / fast_div10(n)": {
+        "valor": 16.2225,
+        "unidad": "cyc/op"
+      },
+      "Division by 10 / __int128 / 10": {
+        "valor": 8.2498,
+        "unidad": "cyc/op"
+      },
+      "Division by 100 / n / uint128_t{100}": {
+        "valor": 134.5735,
+        "unidad": "cyc/op"
+      },
+      "Division by 100 / n.div<100>()": {
+        "valor": 11.6742,
+        "unidad": "cyc/op"
+      },
+      "Division by 100 / fast_div100(n)": {
+        "valor": 20.1466,
+        "unidad": "cyc/op"
+      },
+      "Division by 100 / __int128 / 100": {
+        "valor": 9.7802,
+        "unidad": "cyc/op"
+      },
+      "Division by 10^19 / n / uint128_t{1e19}": {
+        "valor": 126.6094,
+        "unidad": "cyc/op"
+      },
+      "Division by 10^19 / n.div<1e19>()": {
+        "valor": 11.3659,
+        "unidad": "cyc/op"
+      },
+      "Division by 10^19 / fast_div_1e19(n)": {
+        "valor": 21.9286,
+        "unidad": "cyc/op"
+      },
+      "Division by 10^19 / __int128 / 1e19": {
+        "valor": 105.2734,
+        "unidad": "cyc/op"
+      },
+      "Division by 1000000007 (computed on-the-fly) / n / uint128_t{1e9+7}": {
+        "valor": 125.1824,
+        "unidad": "cyc/op"
+      },
+      "Division by 1000000007 (computed on-the-fly) / n.div<1e9+7>()": {
+        "valor": 11.0935,
+        "unidad": "cyc/op"
+      },
+      "Division by 1000000007 (computed on-the-fly) / __int128 / 1e9+7": {
+        "valor": 107.4286,
+        "unidad": "cyc/op"
+      },
+      "Multiplication by 10 / n * uint128_t{10}": {
+        "valor": 3.4753,
+        "unidad": "cyc/op"
+      },
+      "Multiplication by 10 / n.mul<10>()": {
+        "valor": 4.8475,
+        "unidad": "cyc/op"
+      },
+      "Multiplication by 7 / n * uint128_t{7}": {
+        "valor": 4.088,
+        "unidad": "cyc/op"
+      },
+      "Multiplication by 7 / n.mul<7>()": {
+        "valor": 4.9344,
+        "unidad": "cyc/op"
+      },
+      "Multiplication by 100 / n * uint128_t{100}": {
+        "valor": 4.3156,
+        "unidad": "cyc/op"
+      },
+      "Multiplication by 100 / n.mul<100>()": {
+        "valor": 8.4271,
+        "unidad": "cyc/op"
+      }
+    },
+    "equilibrado": {
+      "equilibrado vs bucle N=8": {
+        "valor": 1.5823,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=9": {
+        "valor": 1.1562,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=10": {
+        "valor": 1.6108,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=11": {
+        "valor": 1.4453,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=12": {
+        "valor": 1.8862,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=13": {
+        "valor": 1.5391,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=14": {
+        "valor": 2.0491,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=15": {
+        "valor": 2.0556,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=16": {
+        "valor": 2.6567,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=17": {
+        "valor": 1.6315,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=18": {
+        "valor": 1.9688,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=19": {
+        "valor": 1.7599,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=20": {
+        "valor": 2.1862,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=21": {
+        "valor": 1.9328,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=22": {
+        "valor": 2.0907,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=23": {
+        "valor": 2.1008,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=24": {
+        "valor": 2.559,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=25": {
+        "valor": 2.1387,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=26": {
+        "valor": 2.3221,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=27": {
+        "valor": 2.3972,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=28": {
+        "valor": 2.7298,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=29": {
+        "valor": 2.2553,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=30": {
+        "valor": 2.593,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=31": {
+        "valor": 2.585,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=32": {
+        "valor": 2.7757,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=33": {
+        "valor": 1.9168,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=34": {
+        "valor": 2.1393,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=35": {
+        "valor": 1.9687,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=36": {
+        "valor": 2.3735,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=37": {
+        "valor": 1.8678,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=38": {
+        "valor": 2.1768,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=39": {
+        "valor": 1.8416,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=40": {
+        "valor": 2.0589,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=41": {
+        "valor": 1.6418,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=42": {
+        "valor": 1.8239,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=43": {
+        "valor": 1.7109,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=44": {
+        "valor": 1.8175,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=45": {
+        "valor": 1.6608,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=46": {
+        "valor": 1.825,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=47": {
+        "valor": 1.6534,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=48": {
+        "valor": 1.8669,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=49": {
+        "valor": 1.6161,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=50": {
+        "valor": 1.6827,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=51": {
+        "valor": 1.7119,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=52": {
+        "valor": 1.7292,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=53": {
+        "valor": 1.3928,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=54": {
+        "valor": 1.4743,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=55": {
+        "valor": 1.4022,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=56": {
+        "valor": 1.4494,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=57": {
+        "valor": 1.4282,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=58": {
+        "valor": 1.422,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=59": {
+        "valor": 1.4087,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=60": {
+        "valor": 1.4979,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=61": {
+        "valor": 1.3983,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=62": {
+        "valor": 1.506,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=63": {
+        "valor": 1.4553,
+        "unidad": "x"
+      },
+      "equilibrado vs bucle N=64": {
+        "valor": 1.5514,
+        "unidad": "x"
+      }
+    },
+    "estimador": {
+      "N=2 n=N / knuth": {
+        "valor": 71.8625,
+        "unidad": "cyc/op",
+        "dispersion": 0.0197,
+        "recorrido": 0.0803,
+        "iteraciones": 10580407,
+        "repeticiones": 20
+      },
+      "N=2 n=N / MG 3-2": {
+        "valor": 124.543,
+        "unidad": "cyc/op",
+        "dispersion": 0.0146,
+        "recorrido": 0.0568,
+        "iteraciones": 5440114,
+        "repeticiones": 20
+      },
+      "N=2 n=N / auto": {
+        "valor": 72.4251,
+        "unidad": "cyc/op",
+        "dispersion": 0.0236,
+        "recorrido": 0.0944,
+        "iteraciones": 8874205,
+        "repeticiones": 20
+      },
+      "N=2 n=N / razon MG": {
+        "valor": 0.577,
+        "unidad": "x"
+      },
+      "N=2 n=N / razon auto": {
+        "valor": 0.9922,
+        "unidad": "x"
+      },
+      "N=3 n=2 / knuth": {
+        "valor": 198.0251,
+        "unidad": "cyc/op",
+        "dispersion": 0.0219,
+        "recorrido": 0.0937,
+        "iteraciones": 3360116,
+        "repeticiones": 20
+      },
+      "N=3 n=2 / MG 3-2": {
+        "valor": 180.3846,
+        "unidad": "cyc/op",
+        "dispersion": 0.0199,
+        "recorrido": 0.0756,
+        "iteraciones": 3591461,
+        "repeticiones": 20
+      },
+      "N=3 n=2 / auto": {
+        "valor": 195.1747,
+        "unidad": "cyc/op",
+        "dispersion": 0.0253,
+        "recorrido": 0.0961,
+        "iteraciones": 3508837,
+        "repeticiones": 20
+      },
+      "N=3 n=2 / razon MG": {
+        "valor": 1.0978,
+        "unidad": "x"
+      },
+      "N=3 n=2 / razon auto": {
+        "valor": 1.0146,
+        "unidad": "x"
+      },
+      "N=3 n=N / knuth": {
+        "valor": 124.388,
+        "unidad": "cyc/op",
+        "dispersion": 0.1356,
+        "recorrido": 0.6589,
+        "iteraciones": 6027811,
+        "repeticiones": 20
+      },
+      "N=3 n=N / MG 3-2": {
+        "valor": 171.3048,
+        "unidad": "cyc/op",
+        "dispersion": 0.017,
+        "recorrido": 0.0792,
+        "iteraciones": 3976248,
+        "repeticiones": 20
+      },
+      "N=3 n=N / auto": {
+        "valor": 120.0152,
+        "unidad": "cyc/op",
+        "dispersion": 0.1315,
+        "recorrido": 0.6472,
+        "iteraciones": 5624379,
+        "repeticiones": 20
+      },
+      "N=3 n=N / razon MG": {
+        "valor": 0.7261,
+        "unidad": "x"
+      },
+      "N=3 n=N / razon auto": {
+        "valor": 1.0364,
+        "unidad": "x"
+      },
+      "N=4 n=2 / knuth": {
+        "valor": 284.9641,
+        "unidad": "cyc/op",
+        "dispersion": 0.0187,
+        "recorrido": 0.0868,
+        "iteraciones": 2433323,
+        "repeticiones": 20
+      },
+      "N=4 n=2 / MG 3-2": {
+        "valor": 235.3088,
+        "unidad": "cyc/op",
+        "dispersion": 0.0156,
+        "recorrido": 0.0586,
+        "iteraciones": 3086028,
+        "repeticiones": 20
+      },
+      "N=4 n=2 / auto": {
+        "valor": 217.1534,
+        "unidad": "cyc/op",
+        "dispersion": 0.0243,
+        "recorrido": 0.0955,
+        "iteraciones": 2967139,
+        "repeticiones": 20
+      },
+      "N=4 n=2 / razon MG": {
+        "valor": 1.211,
+        "unidad": "x"
+      },
+      "N=4 n=2 / razon auto": {
+        "valor": 1.3123,
+        "unidad": "x"
+      },
+      "N=4 n=N / knuth": {
+        "valor": 119.7588,
+        "unidad": "cyc/op",
+        "dispersion": 0.0252,
+        "recorrido": 0.0889,
+        "iteraciones": 6132937,
+        "repeticiones": 20
+      },
+      "N=4 n=N / MG 3-2": {
+        "valor": 196.1953,
+        "unidad": "cyc/op",
+        "dispersion": 0.0151,
+        "recorrido": 0.0578,
+        "iteraciones": 3327008,
+        "repeticiones": 20
+      },
+      "N=4 n=N / auto": {
+        "valor": 120.1256,
+        "unidad": "cyc/op",
+        "dispersion": 0.0215,
+        "recorrido": 0.091,
+        "iteraciones": 5342454,
+        "repeticiones": 20
+      },
+      "N=4 n=N / razon MG": {
+        "valor": 0.6104,
+        "unidad": "x"
+      },
+      "N=4 n=N / razon auto": {
+        "valor": 0.9969,
+        "unidad": "x"
+      },
+      "N=5 n=N / knuth": {
+        "valor": 150.0878,
+        "unidad": "cyc/op",
+        "dispersion": 0.0265,
+        "recorrido": 0.1078,
+        "iteraciones": 5136051,
+        "repeticiones": 20
+      },
+      "N=5 n=N / MG 3-2": {
+        "valor": 211.6131,
+        "unidad": "cyc/op",
+        "dispersion": 0.0179,
+        "recorrido": 0.0718,
+        "iteraciones": 3327643,
+        "repeticiones": 20
+      },
+      "N=5 n=N / auto": {
+        "valor": 148.9621,
+        "unidad": "cyc/op",
+        "dispersion": 0.0379,
+        "recorrido": 0.1513,
+        "iteraciones": 5148522,
+        "repeticiones": 20
+      },
+      "N=5 n=N / razon MG": {
+        "valor": 0.7093,
+        "unidad": "x"
+      },
+      "N=5 n=N / razon auto": {
+        "valor": 1.0076,
+        "unidad": "x"
+      },
+      "N=6 n=N/2 / knuth": {
+        "valor": 386.8641,
+        "unidad": "cyc/op",
+        "dispersion": 0.026,
+        "recorrido": 0.1101,
+        "iteraciones": 1651386,
+        "repeticiones": 20
+      },
+      "N=6 n=N/2 / MG 3-2": {
+        "valor": 234.1185,
+        "unidad": "cyc/op",
+        "dispersion": 0.0319,
+        "recorrido": 0.1357,
+        "iteraciones": 2703631,
+        "repeticiones": 20
+      },
+      "N=6 n=N/2 / auto": {
+        "valor": 237.5931,
+        "unidad": "cyc/op",
+        "dispersion": 0.022,
+        "recorrido": 0.0924,
+        "iteraciones": 3159608,
+        "repeticiones": 20
+      },
+      "N=6 n=N/2 / razon MG": {
+        "valor": 1.6524,
+        "unidad": "x"
+      },
+      "N=6 n=N/2 / razon auto": {
+        "valor": 1.6283,
+        "unidad": "x"
+      },
+      "N=6 n=N / knuth": {
+        "valor": 162.746,
+        "unidad": "cyc/op",
+        "dispersion": 0.019,
+        "recorrido": 0.0744,
+        "iteraciones": 4455201,
+        "repeticiones": 20
+      },
+      "N=6 n=N / MG 3-2": {
+        "valor": 186.9769,
+        "unidad": "cyc/op",
+        "dispersion": 0.0234,
+        "recorrido": 0.101,
+        "iteraciones": 3518283,
+        "repeticiones": 20
+      },
+      "N=6 n=N / auto": {
+        "valor": 161.2754,
+        "unidad": "cyc/op",
+        "dispersion": 0.023,
+        "recorrido": 0.0867,
+        "iteraciones": 3976058,
+        "repeticiones": 20
+      },
+      "N=6 n=N / razon MG": {
+        "valor": 0.8704,
+        "unidad": "x"
+      },
+      "N=6 n=N / razon auto": {
+        "valor": 1.0091,
+        "unidad": "x"
+      },
+      "N=7 n=N / knuth": {
+        "valor": 177.9437,
+        "unidad": "cyc/op",
+        "dispersion": 0.0177,
+        "recorrido": 0.0643,
+        "iteraciones": 3787313,
+        "repeticiones": 20
+      },
+      "N=7 n=N / MG 3-2": {
+        "valor": 212.6895,
+        "unidad": "cyc/op",
+        "dispersion": 0.0235,
+        "recorrido": 0.1101,
+        "iteraciones": 3363330,
+        "repeticiones": 20
+      },
+      "N=7 n=N / auto": {
+        "valor": 172.9467,
+        "unidad": "cyc/op",
+        "dispersion": 0.0149,
+        "recorrido": 0.0675,
+        "iteraciones": 3984943,
+        "repeticiones": 20
+      },
+      "N=7 n=N / razon MG": {
+        "valor": 0.8366,
+        "unidad": "x"
+      },
+      "N=7 n=N / razon auto": {
+        "valor": 1.0289,
+        "unidad": "x"
+      },
+      "N=8 n=2 / knuth": {
+        "valor": 640.6223,
+        "unidad": "cyc/op",
+        "dispersion": 0.0217,
+        "recorrido": 0.0732,
+        "iteraciones": 1261499,
+        "repeticiones": 20
+      },
+      "N=8 n=2 / MG 3-2": {
+        "valor": 291.6412,
+        "unidad": "cyc/op",
+        "dispersion": 0.0471,
+        "recorrido": 0.2404,
+        "iteraciones": 2371837,
+        "repeticiones": 20
+      },
+      "N=8 n=2 / auto": {
+        "valor": 293.8941,
+        "unidad": "cyc/op",
+        "dispersion": 0.0472,
+        "recorrido": 0.2007,
+        "iteraciones": 2278865,
+        "repeticiones": 20
+      },
+      "N=8 n=2 / razon MG": {
+        "valor": 2.1966,
+        "unidad": "x"
+      },
+      "N=8 n=2 / razon auto": {
+        "valor": 2.1798,
+        "unidad": "x"
+      },
+      "N=8 n=N/2 / knuth": {
+        "valor": 519.5398,
+        "unidad": "cyc/op",
+        "dispersion": 0.0293,
+        "recorrido": 0.1144,
+        "iteraciones": 1350398,
+        "repeticiones": 20
+      },
+      "N=8 n=N/2 / MG 3-2": {
+        "valor": 304.0722,
+        "unidad": "cyc/op",
+        "dispersion": 0.0313,
+        "recorrido": 0.1269,
+        "iteraciones": 2092959,
+        "repeticiones": 20
+      },
+      "N=8 n=N/2 / auto": {
+        "valor": 314.7136,
+        "unidad": "cyc/op",
+        "dispersion": 0.0225,
+        "recorrido": 0.1009,
+        "iteraciones": 2262984,
+        "repeticiones": 20
+      },
+      "N=8 n=N/2 / razon MG": {
+        "valor": 1.7086,
+        "unidad": "x"
+      },
+      "N=8 n=N/2 / razon auto": {
+        "valor": 1.6508,
+        "unidad": "x"
+      },
+      "N=8 n=N / knuth": {
+        "valor": 150.016,
+        "unidad": "cyc/op",
+        "dispersion": 0.0209,
+        "recorrido": 0.081,
+        "iteraciones": 5006397,
+        "repeticiones": 20
+      },
+      "N=8 n=N / MG 3-2": {
+        "valor": 184.2946,
+        "unidad": "cyc/op",
+        "dispersion": 0.0221,
+        "recorrido": 0.0867,
+        "iteraciones": 3560823,
+        "repeticiones": 20
+      },
+      "N=8 n=N / auto": {
+        "valor": 150.6872,
+        "unidad": "cyc/op",
+        "dispersion": 0.0294,
+        "recorrido": 0.1208,
+        "iteraciones": 4441340,
+        "repeticiones": 20
+      },
+      "N=8 n=N / razon MG": {
+        "valor": 0.814,
+        "unidad": "x"
+      },
+      "N=8 n=N / razon auto": {
+        "valor": 0.9955,
+        "unidad": "x"
+      },
+      "N=16 n=2 / knuth": {
+        "valor": 1334.1381,
+        "unidad": "cyc/op",
+        "dispersion": 0.0256,
+        "recorrido": 0.1182,
+        "iteraciones": 479626,
+        "repeticiones": 20
+      },
+      "N=16 n=2 / MG 3-2": {
+        "valor": 494.7341,
+        "unidad": "cyc/op",
+        "dispersion": 0.0359,
+        "recorrido": 0.1651,
+        "iteraciones": 1315792,
+        "repeticiones": 20
+      },
+      "N=16 n=2 / auto": {
+        "valor": 518.875,
+        "unidad": "cyc/op",
+        "dispersion": 0.0582,
+        "recorrido": 0.2939,
+        "iteraciones": 1285295,
+        "repeticiones": 20
+      },
+      "N=16 n=2 / razon MG": {
+        "valor": 2.6967,
+        "unidad": "x"
+      },
+      "N=16 n=2 / razon auto": {
+        "valor": 2.5712,
+        "unidad": "x"
+      },
+      "N=16 n=N/2 / knuth": {
+        "valor": 1014.679,
+        "unidad": "cyc/op",
+        "dispersion": 0.0181,
+        "recorrido": 0.0755,
+        "iteraciones": 741541,
+        "repeticiones": 20
+      },
+      "N=16 n=N/2 / MG 3-2": {
+        "valor": 559.0521,
+        "unidad": "cyc/op",
+        "dispersion": 0.0215,
+        "recorrido": 0.0781,
+        "iteraciones": 1239846,
+        "repeticiones": 20
+      },
+      "N=16 n=N/2 / auto": {
+        "valor": 549.5423,
+        "unidad": "cyc/op",
+        "dispersion": 0.0314,
+        "recorrido": 0.1296,
+        "iteraciones": 1128199,
+        "repeticiones": 20
+      },
+      "N=16 n=N/2 / razon MG": {
+        "valor": 1.815,
+        "unidad": "x"
+      },
+      "N=16 n=N/2 / razon auto": {
+        "valor": 1.8464,
+        "unidad": "x"
+      },
+      "N=16 n=N / knuth": {
+        "valor": 252.6011,
+        "unidad": "cyc/op",
+        "dispersion": 0.0955,
+        "recorrido": 0.4434,
+        "iteraciones": 2520616,
+        "repeticiones": 20
+      },
+      "N=16 n=N / MG 3-2": {
+        "valor": 304.877,
+        "unidad": "cyc/op",
+        "dispersion": 0.0926,
+        "recorrido": 0.426,
+        "iteraciones": 2555826,
+        "repeticiones": 20
+      },
+      "N=16 n=N / auto": {
+        "valor": 248.4041,
+        "unidad": "cyc/op",
+        "dispersion": 0.1303,
+        "recorrido": 0.6618,
+        "iteraciones": 2917191,
+        "repeticiones": 20
+      },
+      "N=16 n=N / razon MG": {
+        "valor": 0.8285,
+        "unidad": "x"
+      },
+      "N=16 n=N / razon auto": {
+        "valor": 1.0169,
+        "unidad": "x"
+      },
+      "N=32 n=2 / knuth": {
+        "valor": 2762.0337,
+        "unidad": "cyc/op",
+        "dispersion": 0.0147,
+        "recorrido": 0.0635,
+        "iteraciones": 235218,
+        "repeticiones": 20
+      },
+      "N=32 n=2 / MG 3-2": {
+        "valor": 1001.7667,
+        "unidad": "cyc/op",
+        "dispersion": 0.0284,
+        "recorrido": 0.1271,
+        "iteraciones": 592219,
+        "repeticiones": 20
+      },
+      "N=32 n=2 / auto": {
+        "valor": 965.4165,
+        "unidad": "cyc/op",
+        "dispersion": 0.0274,
+        "recorrido": 0.0999,
+        "iteraciones": 680091,
+        "repeticiones": 20
+      },
+      "N=32 n=2 / razon MG": {
+        "valor": 2.7572,
+        "unidad": "x"
+      },
+      "N=32 n=2 / razon auto": {
+        "valor": 2.861,
+        "unidad": "x"
+      },
+      "N=32 n=N/2 / knuth": {
+        "valor": 2471.5888,
+        "unidad": "cyc/op",
+        "dispersion": 0.0285,
+        "recorrido": 0.1496,
+        "iteraciones": 237431,
+        "repeticiones": 20
+      },
+      "N=32 n=N/2 / MG 3-2": {
+        "valor": 1623.6302,
+        "unidad": "cyc/op",
+        "dispersion": 0.0209,
+        "recorrido": 0.0743,
+        "iteraciones": 403727,
+        "repeticiones": 20
+      },
+      "N=32 n=N/2 / auto": {
+        "valor": 1596.6577,
+        "unidad": "cyc/op",
+        "dispersion": 0.0197,
+        "recorrido": 0.072,
+        "iteraciones": 362799,
+        "repeticiones": 20
+      },
+      "N=32 n=N/2 / razon MG": {
+        "valor": 1.5223,
+        "unidad": "x"
+      },
+      "N=32 n=N/2 / razon auto": {
+        "valor": 1.548,
+        "unidad": "x"
+      },
+      "N=32 n=N / knuth": {
+        "valor": 469.0035,
+        "unidad": "cyc/op",
+        "dispersion": 0.028,
+        "recorrido": 0.1077,
+        "iteraciones": 1461493,
+        "repeticiones": 20
+      },
+      "N=32 n=N / MG 3-2": {
+        "valor": 538.3321,
+        "unidad": "cyc/op",
+        "dispersion": 0.0337,
+        "recorrido": 0.1457,
+        "iteraciones": 1149352,
+        "repeticiones": 20
+      },
+      "N=32 n=N / auto": {
+        "valor": 486.3228,
+        "unidad": "cyc/op",
+        "dispersion": 0.0251,
+        "recorrido": 0.099,
+        "iteraciones": 1354661,
+        "repeticiones": 20
+      },
+      "N=32 n=N / razon MG": {
+        "valor": 0.8712,
+        "unidad": "x"
+      },
+      "N=32 n=N / razon auto": {
+        "valor": 0.9644,
+        "unidad": "x"
+      },
+      "N=64 n=2 / knuth": {
+        "valor": 5733.8639,
+        "unidad": "cyc/op",
+        "dispersion": 0.0178,
+        "recorrido": 0.0621,
+        "iteraciones": 115796,
+        "repeticiones": 20
+      },
+      "N=64 n=2 / MG 3-2": {
+        "valor": 2042.5467,
+        "unidad": "cyc/op",
+        "dispersion": 0.027,
+        "recorrido": 0.1123,
+        "iteraciones": 324854,
+        "repeticiones": 20
+      },
+      "N=64 n=2 / auto": {
+        "valor": 2229.2699,
+        "unidad": "cyc/op",
+        "dispersion": 0.0337,
+        "recorrido": 0.1355,
+        "iteraciones": 326600,
+        "repeticiones": 20
+      },
+      "N=64 n=2 / razon MG": {
+        "valor": 2.8072,
+        "unidad": "x"
+      },
+      "N=64 n=2 / razon auto": {
+        "valor": 2.5721,
+        "unidad": "x"
+      },
+      "N=64 n=N/2 / knuth": {
+        "valor": 7493.4538,
+        "unidad": "cyc/op",
+        "dispersion": 0.0206,
+        "recorrido": 0.0723,
+        "iteraciones": 92934,
+        "repeticiones": 20
+      },
+      "N=64 n=N/2 / MG 3-2": {
+        "valor": 5630.6291,
+        "unidad": "cyc/op",
+        "dispersion": 0.0242,
+        "recorrido": 0.0865,
+        "iteraciones": 125491,
+        "repeticiones": 20
+      },
+      "N=64 n=N/2 / auto": {
+        "valor": 5723.5477,
+        "unidad": "cyc/op",
+        "dispersion": 0.0195,
+        "recorrido": 0.0877,
+        "iteraciones": 130522,
+        "repeticiones": 20
+      },
+      "N=64 n=N/2 / razon MG": {
+        "valor": 1.3308,
+        "unidad": "x"
+      },
+      "N=64 n=N/2 / razon auto": {
+        "valor": 1.3092,
+        "unidad": "x"
+      },
+      "N=64 n=N / knuth": {
+        "valor": 1011.6402,
+        "unidad": "cyc/op",
+        "dispersion": 0.0234,
+        "recorrido": 0.0822,
+        "iteraciones": 692158,
+        "repeticiones": 20
+      },
+      "N=64 n=N / MG 3-2": {
+        "valor": 1066.1716,
+        "unidad": "cyc/op",
+        "dispersion": 0.024,
+        "recorrido": 0.0874,
+        "iteraciones": 636789,
+        "repeticiones": 20
+      },
+      "N=64 n=N / auto": {
+        "valor": 1005.9598,
+        "unidad": "cyc/op",
+        "dispersion": 0.024,
+        "recorrido": 0.0902,
+        "iteraciones": 714948,
+        "repeticiones": 20
+      },
+      "N=64 n=N / razon MG": {
+        "valor": 0.9489,
+        "unidad": "x"
+      },
+      "N=64 n=N / razon auto": {
+        "valor": 1.0056,
+        "unidad": "x"
+      },
+      "N=128 n=2 / knuth": {
+        "valor": 11461.8536,
+        "unidad": "cyc/op",
+        "dispersion": 0.0203,
+        "recorrido": 0.1017,
+        "iteraciones": 57663,
+        "repeticiones": 20
+      },
+      "N=128 n=2 / MG 3-2": {
+        "valor": 4171.232,
+        "unidad": "cyc/op",
+        "dispersion": 0.0292,
+        "recorrido": 0.1072,
+        "iteraciones": 159457,
+        "repeticiones": 20
+      },
+      "N=128 n=2 / auto": {
+        "valor": 4493.6817,
+        "unidad": "cyc/op",
+        "dispersion": 0.0307,
+        "recorrido": 0.1176,
+        "iteraciones": 148299,
+        "repeticiones": 20
+      },
+      "N=128 n=2 / razon MG": {
+        "valor": 2.7478,
+        "unidad": "x"
+      },
+      "N=128 n=2 / razon auto": {
+        "valor": 2.5507,
+        "unidad": "x"
+      },
+      "N=128 n=N/2 / knuth": {
+        "valor": 22870.3909,
+        "unidad": "cyc/op",
+        "dispersion": 0.0167,
+        "recorrido": 0.0613,
+        "iteraciones": 32274,
+        "repeticiones": 20
+      },
+      "N=128 n=N/2 / MG 3-2": {
+        "valor": 18750.3388,
+        "unidad": "cyc/op",
+        "dispersion": 0.0224,
+        "recorrido": 0.083,
+        "iteraciones": 32938,
+        "repeticiones": 20
+      },
+      "N=128 n=N/2 / auto": {
+        "valor": 18918.2166,
+        "unidad": "cyc/op",
+        "dispersion": 0.0356,
+        "recorrido": 0.143,
+        "iteraciones": 35570,
+        "repeticiones": 20
+      },
+      "N=128 n=N/2 / razon MG": {
+        "valor": 1.2197,
+        "unidad": "x"
+      },
+      "N=128 n=N/2 / razon auto": {
+        "valor": 1.2089,
+        "unidad": "x"
+      },
+      "N=128 n=N / knuth": {
+        "valor": 1348.9907,
+        "unidad": "cyc/op",
+        "dispersion": 0.0202,
+        "recorrido": 0.0801,
+        "iteraciones": 501458,
+        "repeticiones": 20
+      },
+      "N=128 n=N / MG 3-2": {
+        "valor": 1378.0271,
+        "unidad": "cyc/op",
+        "dispersion": 0.0388,
+        "recorrido": 0.1586,
+        "iteraciones": 444186,
+        "repeticiones": 20
+      },
+      "N=128 n=N / auto": {
+        "valor": 1352.6052,
+        "unidad": "cyc/op",
+        "dispersion": 0.0242,
+        "recorrido": 0.0797,
+        "iteraciones": 523786,
+        "repeticiones": 20
+      },
+      "N=128 n=N / razon MG": {
+        "valor": 0.9789,
+        "unidad": "x"
+      },
+      "N=128 n=N / razon auto": {
+        "valor": 0.9973,
+        "unidad": "x"
+      },
+      "N=16  / knuth": {
+        "valor": 879.2631,
+        "unidad": "cyc/op",
+        "dispersion": 0.033,
+        "recorrido": 0.1434,
+        "iteraciones": 740627,
+        "repeticiones": 20
+      },
+      "N=16  / MG 3-2": {
+        "valor": 547.8963,
+        "unidad": "cyc/op",
+        "dispersion": 0.0305,
+        "recorrido": 0.113,
+        "iteraciones": 1262383,
+        "repeticiones": 20
+      },
+      "N=16  / auto": {
+        "valor": 540.0192,
+        "unidad": "cyc/op",
+        "dispersion": 0.0307,
+        "recorrido": 0.1205,
+        "iteraciones": 1179902,
+        "repeticiones": 20
+      },
+      "N=16  / razon MG": {
+        "valor": 1.6048,
+        "unidad": "x"
+      },
+      "N=16  / razon auto": {
+        "valor": 1.6282,
+        "unidad": "x"
+      },
+      "N=64  / knuth": {
+        "valor": 3010.4643,
+        "unidad": "cyc/op",
+        "dispersion": 0.0301,
+        "recorrido": 0.129,
+        "iteraciones": 231770,
+        "repeticiones": 20
+      },
+      "N=64  / MG 3-2": {
+        "valor": 2595.3794,
+        "unidad": "cyc/op",
+        "dispersion": 0.0237,
+        "recorrido": 0.0987,
+        "iteraciones": 264228,
+        "repeticiones": 20
+      },
+      "N=64  / auto": {
+        "valor": 2683.912,
+        "unidad": "cyc/op",
+        "dispersion": 0.0256,
+        "recorrido": 0.1006,
+        "iteraciones": 278175,
+        "repeticiones": 20
+      },
+      "N=64  / razon MG": {
+        "valor": 1.1599,
+        "unidad": "x"
+      },
+      "N=64  / razon auto": {
+        "valor": 1.1217,
+        "unidad": "x"
+      }
+    },
+    "fixed_vs_param": {
+      "UNSIGNED ADD / uint64_t (baseline)": {
+        "valor": 0.7635,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED ADD / uint128_t (old, int128_param_t)": {
+        "valor": 2.1042,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED ADD / uint_fixed_t<2> (new)": {
+        "valor": 0.982,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED SUB / uint64_t (baseline)": {
+        "valor": 0.989,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED SUB / uint128_t (old)": {
+        "valor": 2.2965,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED SUB / uint_fixed_t<2> (new)": {
+        "valor": 1.4195,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED MUL / uint64_t (baseline)": {
+        "valor": 2.5446,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED MUL / uint128_t (old)": {
+        "valor": 3.3296,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED MUL / uint_fixed_t<2> (new)": {
+        "valor": 3.1338,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED DIV (variable) / uint64_t (baseline)": {
+        "valor": 4.7522,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED DIV (variable) / uint128_t (old, Knuth D)": {
+        "valor": 110.5445,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED DIV (variable) / uint_fixed_t<2> (new, long div)": {
+        "valor": 125.3673,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED MOD (variable) / uint64_t / (baseline)": {
+        "valor": 4.5895,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED MOD (variable) / uint128_t (old)": {
+        "valor": 108.5973,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED MOD (variable) / uint_fixed_t<2> (new)": {
+        "valor": 106.7656,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED TO_STRING (decimal, 50000 iters) / uint128_t (old, GM division)": {
+        "valor": 572.5421,
+        "unidad": "cyc/op"
+      },
+      "UNSIGNED TO_STRING (decimal, 50000 iters) / uint_fixed_t<2> (new, naive div)": {
+        "valor": 483.3978,
+        "unidad": "cyc/op"
+      },
+      "SIGNED ADD / uint64_t (baseline, unsigned)": {
+        "valor": 0.7918,
+        "unidad": "cyc/op"
+      },
+      "SIGNED ADD / int128_tc_t (old)": {
+        "valor": 2.0149,
+        "unidad": "cyc/op"
+      },
+      "SIGNED ADD / int_fixed_t<2> (new)": {
+        "valor": 0.9542,
+        "unidad": "cyc/op"
+      },
+      "SIGNED SUB / uint64_t (baseline, unsigned)": {
+        "valor": 0.8997,
+        "unidad": "cyc/op"
+      },
+      "SIGNED SUB / int128_tc_t (old)": {
+        "valor": 2.1141,
+        "unidad": "cyc/op"
+      },
+      "SIGNED SUB / int_fixed_t<2> (new)": {
+        "valor": 1.3514,
+        "unidad": "cyc/op"
+      },
+      "SIGNED MUL / uint64_t (baseline, unsigned)": {
+        "valor": 2.413,
+        "unidad": "cyc/op"
+      },
+      "SIGNED MUL / int128_tc_t (old)": {
+        "valor": 3.1672,
+        "unidad": "cyc/op"
+      },
+      "SIGNED MUL / int_fixed_t<2> (new)": {
+        "valor": 3.3391,
+        "unidad": "cyc/op"
+      },
+      "SIGNED DIV (variable) / uint64_t / (baseline)": {
+        "valor": 4.7287,
+        "unidad": "cyc/op"
+      },
+      "SIGNED DIV (variable) / int128_tc_t (old, Knuth D)": {
+        "valor": 116.8747,
+        "unidad": "cyc/op"
+      },
+      "SIGNED DIV (variable) / int_fixed_t<2> (new, long div)": {
+        "valor": 109.3969,
+        "unidad": "cyc/op"
+      }
+    },
+    "fromstring": {
+      "from_string() decimal / dec small (42)": {
+        "valor": 44.3221,
+        "unidad": "cyc/op"
+      },
+      "from_string() decimal / dec medium (64-bit)": {
+        "valor": 112.2227,
+        "unidad": "cyc/op"
+      },
+      "from_string() decimal / dec large (MAX)": {
+        "valor": 172.7706,
+        "unidad": "cyc/op"
+      },
+      "from_string() decimal / dec negative (i128)": {
+        "valor": 109.4726,
+        "unidad": "cyc/op"
+      },
+      "from_string() hex (pow2 shift) / hex small (42)": {
+        "valor": 47.7748,
+        "unidad": "cyc/op"
+      },
+      "from_string() hex (pow2 shift) / hex large (MAX)": {
+        "valor": 372.6635,
+        "unidad": "cyc/op"
+      },
+      "from_string() binary (pow2 shift) / bin small (42)": {
+        "valor": 76.8876,
+        "unidad": "cyc/op"
+      },
+      "from_string() binary (pow2 shift) / bin large (MAX)": {
+        "valor": 1248.6579,
+        "unidad": "cyc/op"
+      },
+      "from_string() octal (pow2 shift) / oct large (MAX)": {
+        "valor": 433.1831,
+        "unidad": "cyc/op"
+      },
+      "to_string() decimal / std::to_string(u64)": {
+        "valor": 223.6545,
+        "unidad": "cyc/op"
+      },
+      "to_string() decimal / dec small (42)": {
+        "valor": 65.9306,
+        "unidad": "cyc/op"
+      },
+      "to_string() decimal / dec large (MAX)": {
+        "valor": 614.1074,
+        "unidad": "cyc/op"
+      },
+      "to_string() hex (pow2 shift) / hex small (42)": {
+        "valor": 71.0247,
+        "unidad": "cyc/op"
+      },
+      "to_string() hex (pow2 shift) / hex large (MAX)": {
+        "valor": 379.5694,
+        "unidad": "cyc/op"
+      },
+      "to_string() binary (pow2 shift) / bin large (MAX)": {
+        "valor": 909.2234,
+        "unidad": "cyc/op"
+      },
+      "to_cstr() decimal (no alloc) / cstr dec small (42)": {
+        "valor": 46.7055,
+        "unidad": "cyc/op"
+      },
+      "to_cstr() decimal (no alloc) / cstr dec large (MAX)": {
+        "valor": 655.1023,
+        "unidad": "cyc/op"
+      }
+    },
+    "hueco": {
+      "hueco equil/desen N=4": {
+        "valor": 0.957,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=5": {
+        "valor": 0.4222,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=6": {
+        "valor": 0.7365,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=7": {
+        "valor": 0.4729,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=8": {
+        "valor": 0.6749,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=9": {
+        "valor": 0.4624,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=10": {
+        "valor": 0.6594,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=11": {
+        "valor": 0.6075,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=12": {
+        "valor": 0.7391,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=13": {
+        "valor": 0.5702,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=14": {
+        "valor": 0.7441,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=15": {
+        "valor": 0.7421,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=16": {
+        "valor": 0.9237,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=17": {
+        "valor": 0.5202,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=18": {
+        "valor": 0.6477,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=19": {
+        "valor": 0.6288,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=20": {
+        "valor": 0.7287,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=21": {
+        "valor": 0.6053,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=22": {
+        "valor": 0.6672,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=23": {
+        "valor": 0.7654,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=24": {
+        "valor": 0.885,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=25": {
+        "valor": 0.7787,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=26": {
+        "valor": 0.894,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=27": {
+        "valor": 0.9834,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=28": {
+        "valor": 1.2029,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=29": {
+        "valor": 1.1868,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=30": {
+        "valor": 1.4195,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=31": {
+        "valor": 1.4436,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=32": {
+        "valor": 1.6551,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=33": {
+        "valor": 1.3408,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=34": {
+        "valor": 1.3942,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=35": {
+        "valor": 1.3756,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=36": {
+        "valor": 1.5568,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=37": {
+        "valor": 1.3781,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=38": {
+        "valor": 1.5651,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=39": {
+        "valor": 1.4167,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=40": {
+        "valor": 1.601,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=41": {
+        "valor": 1.2885,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=42": {
+        "valor": 1.432,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=43": {
+        "valor": 1.3314,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=44": {
+        "valor": 1.465,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=45": {
+        "valor": 1.3745,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=46": {
+        "valor": 1.5362,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=47": {
+        "valor": 1.4735,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=48": {
+        "valor": 1.5518,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=49": {
+        "valor": 1.3864,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=50": {
+        "valor": 1.4816,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=51": {
+        "valor": 1.4207,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=52": {
+        "valor": 1.4835,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=53": {
+        "valor": 1.2699,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=54": {
+        "valor": 1.344,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=55": {
+        "valor": 1.3733,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=56": {
+        "valor": 1.4511,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=57": {
+        "valor": 1.3725,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=58": {
+        "valor": 1.4259,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=59": {
+        "valor": 1.405,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=60": {
+        "valor": 1.4659,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=61": {
+        "valor": 1.5058,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=62": {
+        "valor": 1.5618,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=63": {
+        "valor": 1.5999,
+        "unidad": "x"
+      },
+      "hueco equil/desen N=64": {
+        "valor": 1.6707,
+        "unidad": "x"
+      }
+    },
+    "karatsuba": {
+      "N=4 biblioteca": {
+        "valor": 22.0902,
+        "unidad": "cyc/op"
+      },
+      "N=4 escolar": {
+        "valor": 66.7848,
+        "unidad": "cyc/op"
+      },
+      "N=4 escolar desenrollado": {
+        "valor": 20.2175,
+        "unidad": "cyc/op"
+      },
+      "N=4 razon": {
+        "valor": 3.0233,
+        "unidad": "x"
+      },
+      "N=4 razon justa": {
+        "valor": 0.9152,
+        "unidad": "x"
+      },
+      "N=4 razon esperada": {
+        "valor": 1.0,
+        "unidad": "x"
+      },
+      "N=4 sin explicar": {
+        "valor": 0.9152,
+        "unidad": "x"
+      },
+      "N=4 aporte del desenrollado": {
+        "valor": 3.3033,
+        "unidad": "x"
+      },
+      "N=8 biblioteca": {
+        "valor": 91.8874,
+        "unidad": "cyc/op"
+      },
+      "N=8 escolar": {
+        "valor": 289.9683,
+        "unidad": "cyc/op"
+      },
+      "N=8 escolar desenrollado": {
+        "valor": 78.377,
+        "unidad": "cyc/op"
+      },
+      "N=8 razon": {
+        "valor": 3.1557,
+        "unidad": "x"
+      },
+      "N=8 razon justa": {
+        "valor": 0.853,
+        "unidad": "x"
+      },
+      "N=8 razon esperada": {
+        "valor": 1.0,
+        "unidad": "x"
+      },
+      "N=8 sin explicar": {
+        "valor": 0.853,
+        "unidad": "x"
+      },
+      "N=8 aporte del desenrollado": {
+        "valor": 3.6997,
+        "unidad": "x"
+      },
+      "N=2 biblioteca": {
+        "valor": 3.6953,
+        "unidad": "cyc/op"
+      },
+      "N=2 escolar": {
+        "valor": 11.0395,
+        "unidad": "cyc/op"
+      },
+      "N=2 escolar desenrollado": {
+        "valor": 4.4751,
+        "unidad": "cyc/op"
+      },
+      "N=2 razon": {
+        "valor": 2.9874,
+        "unidad": "x"
+      },
+      "N=2 razon justa": {
+        "valor": 1.211,
+        "unidad": "x"
+      },
+      "N=2 razon esperada": {
+        "valor": 1.0,
+        "unidad": "x"
+      },
+      "N=2 sin explicar": {
+        "valor": 1.211,
+        "unidad": "x"
+      },
+      "N=2 aporte del desenrollado": {
+        "valor": 2.4669,
+        "unidad": "x"
+      },
+      "N=3 biblioteca": {
+        "valor": 11.0749,
+        "unidad": "cyc/op"
+      },
+      "N=3 escolar": {
+        "valor": 30.5667,
+        "unidad": "cyc/op"
+      },
+      "N=3 escolar desenrollado": {
+        "valor": 11.6734,
+        "unidad": "cyc/op"
+      },
+      "N=3 razon": {
+        "valor": 2.76,
+        "unidad": "x"
+      },
+      "N=3 razon justa": {
+        "valor": 1.054,
+        "unidad": "x"
+      },
+      "N=3 razon esperada": {
+        "valor": 1.0,
+        "unidad": "x"
+      },
+      "N=3 sin explicar": {
+        "valor": 1.054,
+        "unidad": "x"
+      },
+      "N=3 aporte del desenrollado": {
+        "valor": 2.6185,
+        "unidad": "x"
+      },
+      "N=5 biblioteca": {
+        "valor": 32.1706,
+        "unidad": "cyc/op"
+      },
+      "N=5 escolar": {
+        "valor": 97.8841,
+        "unidad": "cyc/op"
+      },
+      "N=5 escolar desenrollado": {
+        "valor": 29.5362,
+        "unidad": "cyc/op"
+      },
+      "N=5 razon": {
+        "valor": 3.0427,
+        "unidad": "x"
+      },
+      "N=5 razon justa": {
+        "valor": 0.9181,
+        "unidad": "x"
+      },
+      "N=5 razon esperada": {
+        "valor": 1.0,
+        "unidad": "x"
+      },
+      "N=5 sin explicar": {
+        "valor": 0.9181,
+        "unidad": "x"
+      },
+      "N=5 aporte del desenrollado": {
+        "valor": 3.314,
+        "unidad": "x"
+      },
+      "N=7 biblioteca": {
+        "valor": 52.2931,
+        "unidad": "cyc/op"
+      },
+      "N=7 escolar": {
+        "valor": 197.2236,
+        "unidad": "cyc/op"
+      },
+      "N=7 escolar desenrollado": {
+        "valor": 55.6298,
+        "unidad": "cyc/op"
+      },
+      "N=7 razon": {
+        "valor": 3.7715,
+        "unidad": "x"
+      },
+      "N=7 razon justa": {
+        "valor": 1.0638,
+        "unidad": "x"
+      },
+      "N=7 razon esperada": {
+        "valor": 1.0,
+        "unidad": "x"
+      },
+      "N=7 sin explicar": {
+        "valor": 1.0638,
+        "unidad": "x"
+      },
+      "N=7 aporte del desenrollado": {
+        "valor": 3.5453,
+        "unidad": "x"
+      },
+      "N=9 biblioteca": {
+        "valor": 100.0742,
+        "unidad": "cyc/op"
+      },
+      "N=9 escolar": {
+        "valor": 377.6298,
+        "unidad": "cyc/op"
+      },
+      "N=9 escolar desenrollado": {
+        "valor": 86.7084,
+        "unidad": "cyc/op"
+      },
+      "N=9 razon": {
+        "valor": 3.7735,
+        "unidad": "x"
+      },
+      "N=9 razon justa": {
+        "valor": 0.8664,
+        "unidad": "x"
+      },
+      "N=9 razon esperada": {
+        "valor": 1.0,
+        "unidad": "x"
+      },
+      "N=9 sin explicar": {
+        "valor": 0.8664,
+        "unidad": "x"
+      },
+      "N=9 aporte del desenrollado": {
+        "valor": 4.3552,
+        "unidad": "x"
+      },
+      "N=6 biblioteca": {
+        "valor": 50.5299,
+        "unidad": "cyc/op"
+      },
+      "N=6 escolar": {
+        "valor": 145.4796,
+        "unidad": "cyc/op"
+      },
+      "N=6 escolar desenrollado": {
+        "valor": 49.2283,
+        "unidad": "cyc/op"
+      },
+      "N=6 razon": {
+        "valor": 2.8791,
+        "unidad": "x"
+      },
+      "N=6 razon justa": {
+        "valor": 0.9742,
+        "unidad": "x"
+      },
+      "N=6 razon esperada": {
+        "valor": 1.0,
+        "unidad": "x"
+      },
+      "N=6 sin explicar": {
+        "valor": 0.9742,
+        "unidad": "x"
+      },
+      "N=6 aporte del desenrollado": {
+        "valor": 2.9552,
+        "unidad": "x"
+      },
+      "N=10 biblioteca": {
+        "valor": 127.8913,
+        "unidad": "cyc/op"
+      },
+      "N=10 escolar": {
+        "valor": 537.1894,
+        "unidad": "cyc/op"
+      },
+      "N=10 escolar desenrollado": {
+        "valor": 104.3756,
+        "unidad": "cyc/op"
+      },
+      "N=10 razon": {
+        "valor": 4.2004,
+        "unidad": "x"
+      },
+      "N=10 razon justa": {
+        "valor": 0.8161,
+        "unidad": "x"
+      },
+      "N=10 razon esperada": {
+        "valor": 1.0,
+        "unidad": "x"
+      },
+      "N=10 sin explicar": {
+        "valor": 0.8161,
+        "unidad": "x"
+      },
+      "N=10 aporte del desenrollado": {
+        "valor": 5.1467,
+        "unidad": "x"
+      },
+      "N=12 biblioteca": {
+        "valor": 215.1557,
+        "unidad": "cyc/op"
+      },
+      "N=12 escolar": {
+        "valor": 860.7298,
+        "unidad": "cyc/op"
+      },
+      "N=12 escolar desenrollado": {
+        "valor": 184.9761,
+        "unidad": "cyc/op"
+      },
+      "N=12 razon": {
+        "valor": 4.0005,
+        "unidad": "x"
+      },
+      "N=12 razon justa": {
+        "valor": 0.8597,
+        "unidad": "x"
+      },
+      "N=12 razon esperada": {
+        "valor": 1.0,
+        "unidad": "x"
+      },
+      "N=12 sin explicar": {
+        "valor": 0.8597,
+        "unidad": "x"
+      },
+      "N=12 aporte del desenrollado": {
+        "valor": 4.6532,
+        "unidad": "x"
+      },
+      "N=16 biblioteca": {
+        "valor": 831.2005,
+        "unidad": "cyc/op"
+      },
+      "N=16 escolar": {
+        "valor": 1595.5618,
+        "unidad": "cyc/op"
+      },
+      "N=16 escolar desenrollado": {
+        "valor": 612.3167,
+        "unidad": "cyc/op"
+      },
+      "N=16 razon": {
+        "valor": 1.9196,
+        "unidad": "x"
+      },
+      "N=16 razon justa": {
+        "valor": 0.7367,
+        "unidad": "x"
+      },
+      "N=16 razon esperada": {
+        "valor": 1.0,
+        "unidad": "x"
+      },
+      "N=16 sin explicar": {
+        "valor": 0.7367,
+        "unidad": "x"
+      },
+      "N=16 aporte del desenrollado": {
+        "valor": 2.6058,
+        "unidad": "x"
+      },
+      "N=32 biblioteca": {
+        "valor": 3937.0196,
+        "unidad": "cyc/op"
+      },
+      "N=32 escolar": {
+        "valor": 7189.9982,
+        "unidad": "cyc/op"
+      },
+      "N=32 escolar desenrollado": {
+        "valor": 6950.2513,
+        "unidad": "cyc/op"
+      },
+      "N=32 razon": {
+        "valor": 1.8263,
+        "unidad": "x"
+      },
+      "N=32 razon justa": {
+        "valor": 1.7654,
+        "unidad": "x"
+      },
+      "N=32 razon esperada": {
+        "valor": 1.4958,
+        "unidad": "x"
+      },
+      "N=32 sin explicar": {
+        "valor": 1.1802,
+        "unidad": "x"
+      },
+      "N=32 aporte del desenrollado": {
+        "valor": 1.0345,
+        "unidad": "x"
+      }
+    },
+    "nucleos": {
+      "nucleo bucle N=16": {
+        "valor": 1300.0894,
+        "unidad": "cyc/op"
+      },
+      "nucleo desenrollado N=16": {
+        "valor": 468.3819,
+        "unidad": "cyc/op"
+      },
+      "nucleo bucle N=20": {
+        "valor": 2281.8776,
+        "unidad": "cyc/op"
+      },
+      "nucleo desenrollado N=20": {
+        "valor": 782.1265,
+        "unidad": "cyc/op"
+      },
+      "nucleo bucle N=24": {
+        "valor": 3621.1728,
+        "unidad": "cyc/op"
+      },
+      "nucleo desenrollado N=24": {
+        "valor": 1280.6407,
+        "unidad": "cyc/op"
+      },
+      "nucleo bucle N=28": {
+        "valor": 5030.9077,
+        "unidad": "cyc/op"
+      },
+      "nucleo desenrollado N=28": {
+        "valor": 2590.3691,
+        "unidad": "cyc/op"
+      },
+      "nucleo bucle N=32": {
+        "valor": 6946.2061,
+        "unidad": "cyc/op"
+      },
+      "nucleo desenrollado N=32": {
+        "valor": 4400.7553,
+        "unidad": "cyc/op"
+      }
+    },
+    "rango_alto": {
+      "rango alto equil vs bucle N=64": {
+        "valor": 2.6844,
+        "unidad": "x"
+      },
+      "rango alto equil vs bucle N=96": {
+        "valor": 2.9725,
+        "unidad": "x"
+      },
+      "rango alto equil vs bucle N=128": {
+        "valor": 3.1164,
+        "unidad": "x"
+      },
+      "rango alto equil vs bucle N=192": {
+        "valor": 3.323,
+        "unidad": "x"
+      },
+      "rango alto equil vs bucle N=256": {
+        "valor": 3.6482,
+        "unidad": "x"
+      },
+      "rango alto equil vs bucle N=384": {
+        "valor": 4.1013,
+        "unidad": "x"
+      },
+      "rango alto equil vs bucle N=512": {
+        "valor": 4.4511,
+        "unidad": "x"
+      },
+      "rango alto equil vs bucle N=768": {
+        "valor": 5.0179,
+        "unidad": "x"
+      },
+      "rango alto equil vs bucle N=1024": {
+        "valor": 5.6262,
+        "unidad": "x"
+      },
+      "rango alto equil vs bucle N=1536": {
+        "valor": 6.4746,
+        "unidad": "x"
+      },
+      "rango alto equil vs bucle N=2048": {
+        "valor": 7.5979,
+        "unidad": "x"
+      },
+      "rango alto equil vs bucle N=3072": {
+        "valor": 9.0098,
+        "unidad": "x"
+      },
+      "rango alto equil vs bucle N=4096": {
+        "valor": 10.0251,
+        "unidad": "x"
+      }
+    },
+    "techo_division": {
+      "N=8 H=4 / division": {
+        "valor": 336.452,
+        "unidad": "cyc/op",
+        "dispersion": 0.017,
+        "recorrido": 0.0743,
+        "iteraciones": 2141700,
+        "repeticiones": 20
+      },
+      "N=8 H=4 / multiplicacion": {
+        "valor": 90.6279,
+        "unidad": "cyc/op",
+        "dispersion": 0.0311,
+        "recorrido": 0.1101,
+        "iteraciones": 8145718,
+        "repeticiones": 20
+      },
+      "N=8 H=4 / razon div-mul": {
+        "valor": 3.7125,
+        "unidad": "x"
+      },
+      "N=16 H=8 / division": {
+        "valor": 582.4266,
+        "unidad": "cyc/op",
+        "dispersion": 0.0336,
+        "recorrido": 0.142,
+        "iteraciones": 1100370,
+        "repeticiones": 20
+      },
+      "N=16 H=8 / multiplicacion": {
+        "valor": 318.5316,
+        "unidad": "cyc/op",
+        "dispersion": 0.0253,
+        "recorrido": 0.1175,
+        "iteraciones": 2365766,
+        "repeticiones": 20
+      },
+      "N=16 H=8 / razon div-mul": {
+        "valor": 1.8285,
+        "unidad": "x"
+      },
+      "N=32 H=16 / division": {
+        "valor": 1596.5885,
+        "unidad": "cyc/op",
+        "dispersion": 0.0273,
+        "recorrido": 0.1019,
+        "iteraciones": 407266,
+        "repeticiones": 20
+      },
+      "N=32 H=16 / multiplicacion": {
+        "valor": 1183.4736,
+        "unidad": "cyc/op",
+        "dispersion": 0.0222,
+        "recorrido": 0.1014,
+        "iteraciones": 645178,
+        "repeticiones": 20
+      },
+      "N=32 H=16 / razon div-mul": {
+        "valor": 1.3491,
+        "unidad": "x"
+      },
+      "N=64 H=32 / division": {
+        "valor": 5682.5051,
+        "unidad": "cyc/op",
+        "dispersion": 0.0174,
+        "recorrido": 0.0644,
+        "iteraciones": 111244,
+        "repeticiones": 20
+      },
+      "N=64 H=32 / multiplicacion": {
+        "valor": 4141.1958,
+        "unidad": "cyc/op",
+        "dispersion": 0.0253,
+        "recorrido": 0.1036,
+        "iteraciones": 159631,
+        "repeticiones": 20
+      },
+      "N=64 H=32 / razon div-mul": {
+        "valor": 1.3722,
+        "unidad": "x"
+      },
+      "N=128 H=64 / division": {
+        "valor": 18736.798,
+        "unidad": "cyc/op",
+        "dispersion": 0.0166,
+        "recorrido": 0.0578,
+        "iteraciones": 36195,
+        "repeticiones": 20
+      },
+      "N=128 H=64 / multiplicacion": {
+        "valor": 13224.6017,
+        "unidad": "cyc/op",
+        "dispersion": 0.03,
+        "recorrido": 0.1319,
+        "iteraciones": 59495,
+        "repeticiones": 20
+      },
+      "N=128 H=64 / razon div-mul": {
+        "valor": 1.4168,
+        "unidad": "x"
+      },
+      "N=256 H=128 / division": {
+        "valor": 66240.1117,
+        "unidad": "cyc/op",
+        "dispersion": 0.0443,
+        "recorrido": 0.1915,
+        "iteraciones": 9675,
+        "repeticiones": 20
+      },
+      "N=256 H=128 / multiplicacion": {
+        "valor": 43227.9963,
+        "unidad": "cyc/op",
+        "dispersion": 0.049,
+        "recorrido": 0.195,
+        "iteraciones": 18424,
+        "repeticiones": 20
+      },
+      "N=256 H=128 / razon div-mul": {
+        "valor": 1.5323,
+        "unidad": "x"
+      },
+      "N=512 H=256 / division": {
+        "valor": 255684.4314,
+        "unidad": "cyc/op",
+        "dispersion": 0.0237,
+        "recorrido": 0.0983,
+        "iteraciones": 2587,
+        "repeticiones": 20
+      },
+      "N=512 H=256 / multiplicacion": {
+        "valor": 137079.7737,
+        "unidad": "cyc/op",
+        "dispersion": 0.0285,
+        "recorrido": 0.0966,
+        "iteraciones": 4732,
+        "repeticiones": 20
+      },
+      "N=512 H=256 / razon div-mul": {
+        "valor": 1.8652,
+        "unidad": "x"
+      },
+      "N=1024 H=512 / division": {
+        "valor": 973297.8508,
+        "unidad": "cyc/op",
+        "dispersion": 0.0271,
+        "recorrido": 0.134,
+        "iteraciones": 650,
+        "repeticiones": 20
+      },
+      "N=1024 H=512 / multiplicacion": {
+        "valor": 421516.1151,
+        "unidad": "cyc/op",
+        "dispersion": 0.0306,
+        "recorrido": 0.1031,
+        "iteraciones": 1521,
+        "repeticiones": 20
+      },
+      "N=1024 H=512 / razon div-mul": {
+        "valor": 2.309,
+        "unidad": "x"
+      },
+      "N=2048 H=1024 / division": {
+        "valor": 3820924.0492,
+        "unidad": "cyc/op",
+        "dispersion": 0.0157,
+        "recorrido": 0.0767,
+        "iteraciones": 183,
+        "repeticiones": 20
+      },
+      "N=2048 H=1024 / multiplicacion": {
+        "valor": 1098998.9491,
+        "unidad": "cyc/op",
+        "dispersion": 0.033,
+        "recorrido": 0.1166,
+        "iteraciones": 629,
+        "repeticiones": 20
+      },
+      "N=2048 H=1024 / razon div-mul": {
+        "valor": 3.4767,
+        "unidad": "x"
+      }
+    },
+    "toom3": {
+      "toom3 mejor umbral M=512": {
+        "valor": 1.0627,
+        "unidad": "x"
+      },
+      "toom3 mejor umbral M=1024": {
+        "valor": 1.1262,
+        "unidad": "x"
+      },
+      "toom3 mejor umbral M=1536": {
+        "valor": 1.1998,
+        "unidad": "x"
+      },
+      "toom3 mejor umbral M=2048": {
+        "valor": 1.1855,
+        "unidad": "x"
+      }
+    },
+    "tostring": {
+      "to_string (base 10) / uint64_t (std::to_string)": {
+        "valor": 222.7796,
+        "unidad": "cyc/op"
+      },
+      "to_string (base 10) / uint128_t (small, <2^64)": {
+        "valor": 455.208,
+        "unidad": "cyc/op"
+      },
+      "to_string (base 10) / uint128_t (medium, 2^64)": {
+        "valor": 477.0816,
+        "unidad": "cyc/op"
+      },
+      "to_string (base 10) / uint128_t (large, MAX)": {
+        "valor": 611.0318,
+        "unidad": "cyc/op"
+      },
+      "to_string (base 10) / int128_t (negative, MIN)": {
+        "valor": 605.3863,
+        "unidad": "cyc/op"
+      },
+      "to_string (base 10) / __uint128_t (naive /10)": {
+        "valor": 865.6841,
+        "unidad": "cyc/op"
+      }
+    },
+    "vs_builtin": {
+      "Addition (+) / uint64_t": {
+        "valor": 0.7616,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / nstd::uint128_t": {
+        "valor": 1.8445,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / nstd::int128_t (TC)": {
+        "valor": 1.9093,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / unsigned __int128": {
+        "valor": 1.7164,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / __int128": {
+        "valor": 1.7339,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::cpp_int u128": {
+        "valor": 5.3721,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::cpp_int i128": {
+        "valor": 4.6779,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::checked_uint128": {
+        "valor": 9.4388,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::gmp_int": {
+        "valor": 35.9938,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::gmp_int [128]": {
+        "valor": 53.2582,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::tom_int": {
+        "valor": 30.015,
+        "unidad": "cyc/op"
+      },
+      "Addition (+) / boost::tom_int [128]": {
+        "valor": 91.5189,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / uint64_t": {
+        "valor": 1.0485,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / nstd::uint128_t": {
+        "valor": 3.3549,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / nstd::int128_t (TC)": {
+        "valor": 3.1108,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / unsigned __int128": {
+        "valor": 2.5389,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / __int128": {
+        "valor": 2.0701,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::cpp_int u128": {
+        "valor": 5.2313,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::cpp_int i128": {
+        "valor": 5.2623,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::checked_uint128": {
+        "valor": 4.9324,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::gmp_int": {
+        "valor": 35.5859,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::gmp_int [128]": {
+        "valor": 55.3121,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::tom_int": {
+        "valor": 272.3568,
+        "unidad": "cyc/op"
+      },
+      "Subtraction (-) / boost::tom_int [128]": {
+        "valor": 83.9927,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / uint64_t": {
+        "valor": 2.6293,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / nstd::uint128_t": {
+        "valor": 3.6989,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / nstd::int128_t (TC)": {
+        "valor": 3.7497,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / unsigned __int128": {
+        "valor": 4.6703,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / __int128": {
+        "valor": 4.5978,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::cpp_int u128": {
+        "valor": 8.1877,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::cpp_int i128": {
+        "valor": 7.0877,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::checked_uint128(*)": {
+        "valor": 1.9481,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::gmp_int(*)": {
+        "valor": 1.0969,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::gmp_int [128]": {
+        "valor": 53.007,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::tom_int(*)": {
+        "valor": 0.8924,
+        "unidad": "cyc/op"
+      },
+      "Multiplication (*) / boost::tom_int [128]": {
+        "valor": 163.6274,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / uint64_t": {
+        "valor": 4.9269,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / nstd::uint128_t": {
+        "valor": 4.2729,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / nstd::int128_t (TC)": {
+        "valor": 4.057,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / unsigned __int128": {
+        "valor": 51.8959,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / __int128": {
+        "valor": 52.0414,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::cpp_int u128": {
+        "valor": 57.8878,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::cpp_int i128": {
+        "valor": 55.6098,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::checked_uint128": {
+        "valor": 52.874,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::gmp_int": {
+        "valor": 86.9076,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::gmp_int [128]": {
+        "valor": 113.1822,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::tom_int": {
+        "valor": 954.0723,
+        "unidad": "cyc/op"
+      },
+      "Division (/) / boost::tom_int [128]": {
+        "valor": 1039.214,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / uint64_t": {
+        "valor": 0.8962,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / nstd::uint128_t": {
+        "valor": 2.353,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / unsigned __int128": {
+        "valor": 4.2024,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / boost::cpp_int u128": {
+        "valor": 7.1637,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / boost::checked_uint128 (*)": {
+        "valor": 11.1968,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / boost::gmp_int": {
+        "valor": 71.903,
+        "unidad": "cyc/op"
+      },
+      "Shift (<<3 | >>125, rotate) / boost::tom_int": {
+        "valor": 588.472,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / uint64_t": {
+        "valor": 0.9969,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / nstd::uint128_t": {
+        "valor": 2.2348,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / unsigned __int128": {
+        "valor": 1.4844,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / boost::cpp_int u128": {
+        "valor": 4.4724,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / boost::checked_uint128": {
+        "valor": 4.9863,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / boost::gmp_int": {
+        "valor": 30.7167,
+        "unidad": "cyc/op"
+      },
+      "Bitwise XOR (^) / boost::tom_int": {
+        "valor": 37.4434,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / uint64_t": {
+        "valor": 5.896,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / nstd::uint128_t": {
+        "valor": 3.1788,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / unsigned __int128": {
+        "valor": 6.8532,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / boost::cpp_int u128": {
+        "valor": 2.8075,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / boost::checked_uint128": {
+        "valor": 3.0636,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / boost::gmp_int": {
+        "valor": 16.2711,
+        "unidad": "cyc/op"
+      },
+      "Comparison (<) / boost::tom_int": {
+        "valor": 14.4463,
+        "unidad": "cyc/op"
+      }
+    }
+  }
+}

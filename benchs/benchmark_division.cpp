@@ -152,6 +152,16 @@ static void una_anchura()
     char et[80];
     std::snprintf(et, sizeof(et), "divmod peor caso N=%zu", N);
     bench_record(et, peor, "cyc");
+
+    // El peor de los cuatro no dice CUAL fue, y la forma del divisor es
+    // justamente el eje de este banco: el umbral de Moller-Granlund no se mide
+    // en anchura sino en digitos de cociente.
+    const char *forma[4] = {"n=1", "n=2", "n=N/2", "n=N"};
+    for (int i = 0; i < 4; ++i)
+    {
+        std::snprintf(et, sizeof(et), "divmod N=%zu %s", N, forma[i]);
+        bench::registra(et, m[i]);
+    }
 }
 
 int main()

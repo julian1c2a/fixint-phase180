@@ -102,8 +102,10 @@ static void compara_escolares()
     const double ruido = m[0].recorrido() + m[1].recorrido();
     std::printf("  %-34s %10.2fx%s\n", "    -> desenrollado gana", razon,
                 (razon - 1.0) < ruido ? "   (DENTRO DEL RUIDO)" : "");
-    bench_record((std::string("nucleo bucle N=") + std::to_string(N)).c_str(), m[0].minimo);
-    bench_record((std::string("nucleo desenrollado N=") + std::to_string(N)).c_str(), m[1].minimo);
+    // Registraba las dos, pero PELADAS: el minimo y nada mas, teniendo el
+    // recorrido a mano en la misma variable.
+    bench::registra((std::string("nucleo bucle N=") + std::to_string(N)).c_str(), m[0]);
+    bench::registra((std::string("nucleo desenrollado N=") + std::to_string(N)).c_str(), m[1]);
 }
 
 /// @brief Los tres, donde los tres existen: potencias de dos hasta 128.

@@ -131,6 +131,12 @@ static void una_anchura()
     char et[72];
     std::snprintf(et, sizeof(et), "hueco equil/desen N=%zu", N);
     bench_record(et, r_equil, "x");
+    const char *variante[3] = {"bucle", "desenrollado", "equilibrado"};
+    for (int i = 0; i < 3; ++i)
+    {
+        std::snprintf(et, sizeof(et), "hueco N=%zu / %s", N, variante[i]);
+        bench::registra(et, m[i]);
+    }
 }
 
 template <std::size_t N, std::size_t Tope>

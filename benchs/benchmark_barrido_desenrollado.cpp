@@ -115,9 +115,15 @@ static void una_anchura()
     std::printf("| %4zu | %11.1f %5.1f%% | %11.1f %5.1f%% | %6.2fx |%s\n", N, m[0].minimo,
                 m[0].recorrido() * 100.0, m[1].minimo, m[1].recorrido() * 100.0, razon, marca);
 
-    char et[64];
+    char et[80];
     std::snprintf(et, sizeof(et), "barrido desenrollado N=%zu", N);
     bench_record(et, razon, "x sobre bucle");
+    // Y las dos absolutas CON SU RUIDO: la razon sola no permite saber si una
+    // diferencia de manana significa algo.
+    std::snprintf(et, sizeof(et), "barrido desenrollado N=%zu / bucle", N);
+    bench::registra(et, m[0]);
+    std::snprintf(et, sizeof(et), "barrido desenrollado N=%zu / desenrollado", N);
+    bench::registra(et, m[1]);
 }
 
 /// @brief Densa de Ini a Fin, de una en una.
