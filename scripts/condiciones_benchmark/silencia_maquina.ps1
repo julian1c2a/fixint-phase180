@@ -42,6 +42,41 @@
 $ErrorActionPreference = 'Continue'
 $registro = Join-Path $env:USERPROFILE 'servicios_parados_para_medir.txt'
 
+# =============================================================================
+# LO PRIMERO: ¿SOY ADMINISTRADOR? Si no, ABORTAR.
+# =============================================================================
+#
+# La primera version no lo comprobaba. Lanzada desde el terminal de VS Code
+# --que no esta elevado-- fallo VEINTISEIS VECES con «Cannot open 'DoSvc'
+# service on computer '.'», no paro nada salvo `Gaming Services`, no pudo poner
+# las exclusiones de Defender... y termino con un tranquilizador «Lo parado queda
+# apuntado en: ...».
+#
+# O sea: veintiseis fallos y un final en tono de exito. Para saber que no habia
+# funcionado habia que leerse las veintiseis lineas. Un guion que necesita
+# permisos y no los comprueba convierte «no tengo permisos» en «no habia nada que
+# hacer», que es la peor forma de fallar.
+$identidad = [Security.Principal.WindowsIdentity]::GetCurrent()
+$soyAdmin = (New-Object Security.Principal.WindowsPrincipal($identidad)).IsInRole(
+  [Security.Principal.WindowsBuiltInRole]::Administrator)
+
+if (-not $soyAdmin) {
+  Write-Host ''
+  Write-Host '  ESTO NECESITA ADMINISTRADOR, Y NO LO ERES.' -ForegroundColor Red
+  Write-Host ''
+  Write-Host '  Parar un servicio del sistema pide elevacion. Sin ella, todas las'
+  Write-Host '  ordenes fallarian con ''Cannot open ... service on computer ''.'''' y el'
+  Write-Host '  guion terminaria como si hubiera hecho algo. Asi que no sigue.'
+  Write-Host ''
+  Write-Host '  La forma corta, desde esta misma ventana (saldra el aviso de UAC):' -ForegroundColor Cyan
+  Write-Host ''
+  Write-Host ("    Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-NoExit','-File','{0}'" -f $PSCommandPath) -ForegroundColor Yellow
+  Write-Host ''
+  Write-Host '  O a mano: Win+X -> Terminal (administrador), y desde ahi lanzarlo.'
+  Write-Host ''
+  exit 1
+}
+
 function Sin-Tildes([string]$s) {
   if (-not $s) { return '' }
   $d = $s.Normalize([Text.NormalizationForm]::FormD)
@@ -88,6 +123,9 @@ $sondas = @(
 )
 
 $noResuelven = @()
+$yaVistos = @{}     # un servicio se trata UNA vez, aunque lo pesquen dos patrones
+$nParados = 0
+$nFallidos = 0
 
 function Para-Servicios($nombres, $etiqueta) {
   Write-Host ''
@@ -101,6 +139,12 @@ function Para-Servicios($nombres, $etiqueta) {
       continue
     }
     foreach ($s in @($svc)) {
+      # `Intel(R) Driver & Support Assistant` pesca tambien al `... Updater`, y
+      # luego el patron del Updater lo vuelve a pescar: salia dos veces en el
+      # informe y se habria apuntado dos veces en el registro de restauracion.
+      if ($script:yaVistos.ContainsKey($s.Name)) { continue }
+      $script:yaVistos[$s.Name] = $true
+
       if ($s.Status -ne 'Running') {
         Write-Host ("  [ya estaba parado]  {0}" -f $s.DisplayName) -ForegroundColor DarkGray
         continue
@@ -108,8 +152,10 @@ function Para-Servicios($nombres, $etiqueta) {
       try {
         Stop-Service -Name $s.Name -Force -ErrorAction Stop
         Add-Content -Path $registro -Value $s.Name
+        $script:nParados++
         Write-Host ("  [PARADO]  {0}  ({1})" -f $s.DisplayName, $s.Name) -ForegroundColor Green
       } catch {
+        $script:nFallidos++
         Write-Host ("  [NO SE PUDO]  {0} -- {1}" -f $s.DisplayName, $_.Exception.Message) -ForegroundColor Red
       }
     }
@@ -159,6 +205,27 @@ if ($noResuelven.Count -gt 0) {
   Write-Host '      lista de este guion esta desfasada. Comprobarlo a mano.'
 }
 
+# --- EL RESUMEN, que es lo unico que se lee de verdad -----------------------
+#
+# Antes habia que contar a mano entre treinta lineas para saber si habia
+# funcionado. Un recuento al final y en el color que toca.
 Write-Host ''
+Write-Host '==============================================================' -ForegroundColor Cyan
+if ($nFallidos -gt 0) {
+  Write-Host ("  {0} PARADOS, {1} FALLARON" -f $nParados, $nFallidos) -ForegroundColor Red
+  Write-Host '  Con fallos, la maquina NO esta preparada. Mira los mensajes de'
+  Write-Host '  arriba: si dicen ''Cannot open ... service'', es falta de permisos.'
+} elseif ($nParados -eq 0) {
+  Write-Host '  Nada que parar: ya estaba todo quieto.' -ForegroundColor Green
+} else {
+  Write-Host ("  {0} servicios parados, ninguno fallo." -f $nParados) -ForegroundColor Green
+}
+Write-Host '==============================================================' -ForegroundColor Cyan
 Write-Host ("Lo parado queda apuntado en: {0}" -f $registro)
 Write-Host 'Para volver atras: restaura_maquina.ps1  (o reiniciar, que hace lo mismo)'
+Write-Host ''
+Write-Host 'Y comprueba el resultado con el de solo lectura:' -ForegroundColor Cyan
+Write-Host '    .\comprueba_condiciones.ps1'
+Write-Host 'Tiene que decir `sondeadores_vivos=0` o muy pocos.'
+
+if ($nFallidos -gt 0) { exit 1 }

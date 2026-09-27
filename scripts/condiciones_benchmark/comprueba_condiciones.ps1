@@ -48,6 +48,14 @@ $sondeadores = @(
   'Servicio de geolocalizacion', 'Cola de impresion'
 )
 
+# Si esto se corre sin elevar, `silencia_maquina.ps1` no habria podido hacer nada,
+# y eso explica por si solo un «26 sondeadores vivos». El dato va al JSON de la
+# toma para que la explicacion no se pierda.
+$identidad = [Security.Principal.WindowsIdentity]::GetCurrent()
+$soyAdmin = (New-Object Security.Principal.WindowsPrincipal($identidad)).IsInRole(
+  [Security.Principal.WindowsBuiltInRole]::Administrator)
+Write-Output ("elevado=" + $soyAdmin.ToString().ToLower())
+
 $todos = Get-Service
 $vivos = @()
 $sin_resolver = 0

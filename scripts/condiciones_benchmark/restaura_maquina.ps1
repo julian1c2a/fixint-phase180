@@ -12,6 +12,26 @@
 $ErrorActionPreference = 'Continue'
 $registro = Join-Path $env:USERPROFILE 'servicios_parados_para_medir.txt'
 
+# Arrancar un servicio pide elevacion igual que pararlo. Sin ella, esto fallaria
+# en todas y terminaria como si hubiera restaurado algo -- el mismo fallo que
+# tuvo `silencia_maquina.ps1` el 27 sep.
+$identidad = [Security.Principal.WindowsIdentity]::GetCurrent()
+$soyAdmin = (New-Object Security.Principal.WindowsPrincipal($identidad)).IsInRole(
+  [Security.Principal.WindowsBuiltInRole]::Administrator)
+
+if (-not $soyAdmin) {
+  Write-Host ''
+  Write-Host '  ESTO NECESITA ADMINISTRADOR, Y NO LO ERES.' -ForegroundColor Red
+  Write-Host ''
+  Write-Host '  La forma corta, desde esta misma ventana:' -ForegroundColor Cyan
+  Write-Host ("    Start-Process powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-NoExit','-File','{0}'" -f $PSCommandPath) -ForegroundColor Yellow
+  Write-Host ''
+  Write-Host '  Y si no quieres elevar: REINICIA. Ningun servicio quedo desactivado'
+  Write-Host '  --solo parado--, asi que un reinicio los devuelve todos.'
+  Write-Host ''
+  exit 1
+}
+
 if (-not (Test-Path $registro)) {
   Write-Host 'No hay registro de servicios parados: nada que restaurar.' -ForegroundColor Yellow
   Write-Host '(Si reiniciaste, ya estan todos como estaban: el guion no cambia'
