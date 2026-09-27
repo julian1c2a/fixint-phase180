@@ -1,3 +1,87 @@
+## [sin publicar] - 2026-09-27 - P2.5: **el historico de benchmarks, con el ruido dentro**
+
+El historico tenia **90 medidas de 2 suites** y la ultima toma era del 9 sep.
+Ahora tiene **975 de las 23**, y cada medida que puede saberlo viaja con su
+propio ruido.
+
+### NO ERA UNA CAUSA, ERAN CUATRO
+
+De los 23 benchmarks, solo 7 habian registrado alguna vez. Al diagnosticarlo:
+
+| | |
+|---|---|
+| **5** no llamaban a `bench_record` | imprimen su tabla a mano |
+| **1** NO COMPILABA | `benchmark_cuadrado.cpp`, desde el 17 sep |
+| **3** tardan mas de 150 s | nadie los habia dejado terminar |
+| **14** iban bien | nadie los habia vuelto a correr |
+
+Mezclarlas ya habia costado caro: el 6 sep, ocho benchmarks salieron con el
+mensaje «le falta `bench_record`» y los ocho lo tenian -- era el entorno.
+
+### EL ARNES CALIBRABA EL RUIDO Y EL HISTORICO LO TIRABA
+
+`bench_adaptativo.hpp` mide cada casilla diez veces con rondas entrelazadas y
+rotadas y calcula dispersion y recorrido. `bench_record` guardaba **un `double`
+pelado**, asi que `--compare` no tenia con que decidir salvo un umbral plano del
+25 % para todas las medidas -- sacado, ademas, de dos ejecuciones del arnes
+VIEJO, antes de que el adaptativo existiera.
+
+El propio arnes lo decia en un `@note`: lo que decide si una comparacion vale no
+es ese numero sino si la diferencia supera los recorridos, «y eso lo comprueba
+quien compara». Quien compara no tenia el dato.
+
+Ahora `bench_record` acepta cuatro columnas mas --dispersion, recorrido,
+iteraciones, repeticiones--, **opcionales**: quien no las sabe no las escribe y
+su linea de tres columnas se sigue leyendo igual.
+
+### LA BARRA, CALIBRADA CON DOS TOMAS DEL MISMO CODIGO
+
+Todo lo que se mueva entre dos tomas identicas es ruido por definicion. 975
+medidas comparables:
+
+| entre dos tomas | mediana | p90 | p99 | peor |
+|---|---:|---:|---:|---:|
+| casillas del arnes **adaptativo** | **1,3 %** | **3,3 %** | 4,5 % | **8,9 %** |
+| casillas del arnes **viejo** | 3,5 % | 14,0 % | 42,0 % | **95,5 %** |
+
+| falsos positivos | |
+|---|---:|
+| umbral plano del 25 % | **26** de 975 |
+| suma de los dos recorridos | **0** de 158 |
+
+El suelo de la barra queda en el **5 %**, justo por encima del p99, y **no
+porque hiciera falta**: con suelo cero tambien salen cero. Es un seguro que no
+tapa nada, porque por debajo del 5 % ningun cambio real se distingue del ruido
+en esta maquina.
+
+**Y el hallazgo que no se buscaba: el arnes adaptativo no solo MIDE el ruido, lo
+REDUCE, y diez veces.** No era el objetivo cuando se escribio. Los 26 falsos
+positivos del umbral plano salen **todos** de suites del arnes viejo, asi que
+migrar las once que quedan dejo de ser cosmetico (P2.17).
+
+### UN BENCHMARK QUE MEDIA UNA VARIANTE BORRADA POR MEDIRLA
+
+`benchmark_cuadrado.cpp` llamaba a `nstd::algorithms::sqr_escolar_bucle`, que se
+escribio y se retiro el 16 sep tras medirlo --perdia en las dieciseis
+anchuras--. `mul_kernels.hpp` lo dice con todas las letras y la llamada se quedo
+ahi: **diez dias sin compilar**.
+
+Se quita la columna, no se resucita el nucleo. Y su texto de cierre decia «si el
+mejor supera el ruido, `operator*` debe detectar `a*a` y desviarlo»: eso se hizo
+el 17 sep. Ahora el benchmark no decide, **vigila**.
+
+**Por que nadie lo vio: el CI no compila los benchmarks.** De `benchs/` solo
+mira el formato (P2.16).
+
+### LO QUE LA CIFRA PUBLICADA DECIA DE MAS
+
+`PERFORMANCE.md` afirmaba que los recorridos «caen entre el 9 % y el 58 % en
+todas las casillas», de un solo barrido. Sobre las 158 que hoy lo publican: **min
+1,9 %, mediana 9,8 %, p90 15,7 %, max 66,2 %** -- 35x entre la mas quieta y la
+mas ruidosa, que es justo por lo que un umbral unico no vale.
+
+---
+
 ## [sin publicar] - 2026-09-26 - P3.8: **`is_modulo` sale de la politica, no del signo**
 
 `numeric_limits<fixed_int_t>::is_modulo` valia `!is_signed`, copiando la

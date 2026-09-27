@@ -171,7 +171,7 @@ el punto fijo.
 | ~~P2.2~~ | ~~Karatsuba en **Clang, MSVC e Intel**~~ | ✅ **hecho** en `6cc0d26`: el barrido de `NSTD_KARATSUBA_MIN` en los cuatro. **No coinciden** — el cruce está en 14 (clang), 18 (Intel), 22 (MSVC) y 28 (gcc), y 22 es el óptimo por media y por peor caso |
 | ~~P2.3~~ | ~~Re-medir las tablas heredadas~~ | ✅ **hecho**: y **dos de las tres no se sostenían**. «Knuth D 6,24×» mide **1,31×**; «Granlund-Montgomery 4–7×» solo vale para divisores que no caben en un limbo |
 | ~~P2.4~~ | ~~Coste de las conversiones a y desde cadena, bases 2..36~~ | ✅ **hecho**: `benchmark_bases`. La base 10 gana a todas las potencias de dos, y la 3 cuesta 9,6× lo que la 10 |
-| **P2.5** | **Montar el histórico de benchmarks** (ver abajo) | Da sitio donde guardar P2.1–P2.4 |
+| ~~P2.5~~ | ~~**Montar el histórico de benchmarks**~~ | ✅ **hecho (27 sep)**. El histórico pasa de **90 medidas de 2 suites** a **975 de 23**, y `--compare` decide con **el ruido de cada casilla** en vez de un umbral plano. El suelo está **calibrado** con dos tomas del mismo código: 0 falsos positivos frente a los 26 del umbral plano. Destapó que `benchmark_cuadrado.cpp` **no compilaba desde el 17 sep** y que el barrido de `Base` no registraba nada. Abre P2.16 y P2.17 |
 | ~~P2.6~~ | ~~La tercera combinación: `clang + libstdc++`~~ | ✅ **hecho**: `make.py test clang-libstdcxx`, 59/59. Destapó que la lista de compiladores estaba repetida en **siete sitios** — ahora vive solo en `toolchains.py` |
 | ~~P2.7~~ | ~~Desguace de benchmarks de algoritmo~~ | ✅ **las cuatro piezas hechas**: algoritmo/desenrollado, verosimilitud, código emitido (`scripts/bench_asm.py`) y coste teórico declarado |
 
@@ -238,6 +238,8 @@ el punto fijo.
 | ~~P3.4~~ | ~~`benchmark_vs_builtin` no enlaza sin GMP~~ | ✅ **hecho**: le faltaban `-lgmp`, `-lgmpxx` y `-ltommath`. Las tres bibliotecas estaban instaladas |
 | **P3.5** | Documentar `int128_param_*` (**257** avisos) | **Caduca hacia atrás**: baja sola con P1.5. Desde P3.7 (23 sep) son **el techo entero**: los otros 209 ya están escritos. No se documenta lo que se va a borrar |
 | **P3.6** | Decidir si Intel sale de la matriz de release | Se cae solo si P0.6 sale bien |
+| **P2.16** 🔸 | **El CI no compila los benchmarks.** De `benchs/` sólo mira el formato, así que `benchmark_cuadrado.cpp` estuvo **diez días sin compilar** sin que nada se pusiera rojo: llamaba a `sqr_escolar_bucle`, un núcleo retirado por medida el 16 sep. Compilar los 23 cuesta ~13 min, que cabe en un job aparte | Salió de P2.5. Es la única razón por la que el podrido pasó inadvertido |
+| **P2.17** | **Migrar al arnés adaptativo las once suites que quedan** (`addsub`, `bases`, `curva_n`, `div_by_const`, `divmod_algorithms`, `divmod_const`, `fixed_vs_param`, `fromstring`, `karatsuba`, `tostring`, `vs_builtin`). No es cosmético: **medido**, sus casillas se mueven diez veces más entre tomas (p90 14,0 % frente a 3,3 %) y son el origen de los **26 falsos positivos** del umbral plano | Salió de P2.5, con la medida hecha |
 | ~~P3.7~~ | ~~**Documentar el tipo NUEVO: 209 miembros públicos sin `@brief`**~~ | ✅ **hecho (23 sep)**. Techo **466 → 257**, y los 257 restantes son **todos** de `int128_param_*`. De paso, dos defectos de marcado que hacían **perder documentación ya escrita** —un `@def` sin argumento y un `@example` en línea— y 45 avisos más en `intrinsics/`+`algorithms/`, que no cuentan contra el techo pero son el código que ejecutan los núcleos |
 | ~~P3.8~~ | ~~**`numeric_limits<fixed_int_t>::is_modulo` miente**~~ | ✅ **hecho (26 sep)** en `f1e9de5`, CI 24/24 sobre `a77ae4c`. Pasa a `Policy == overflow_policy::wrap`, como ya hacía el punto fijo ([ADR-022](docs/decisions/ADR-022-numeric-limits-del-punto-fijo.md), decisión 6). **Eran dos mitades, no una**: también mentía SIN signo, porque `uint` + `checked` decía `true` y ahí no se envuelve, se marca. Y la documentación de la clase **ya decía lo correcto**: el código llevaba contradiciéndola desde el primer día |
 | ~~P3.9~~ | ~~**Medir el techo de doxygen en 1.9.8**, la versión del CI~~ | ✅ **hecho (23 sep)**: **286**, leída del log del CI sobre `7f37017`. Llevaba en 518 desde agosto. La distancia con la local (257) son **29 avisos sobre el mismo árbol**, que es justo por lo que hay una cifra por versión |
@@ -324,23 +326,43 @@ u 8». Si sale lo segundo, apunta a la generación de código del `if constexpr`
 encadenado; si lo primero, al bucle de acarreo. Después, el ensamblador del N que
 peor salga.
 
-### P2.5 — Histórico de benchmarks
+### ✅ P2.5 — Histórico de benchmarks (cerrada el 27 sep 2026)
 
 **Más frecuente no es mejor si las medidas no son comparables.** Una cifra de un
 runner compartido y otra de esta máquina no van en la misma serie, y una serie
 con medidas incomparables es peor que no tener serie: invita a leer tendencias
 que no existen.
 
-1. Que `benchs/bench_common.hpp` emita, además de la tabla legible, una línea
-   **legible por máquina** con lo que exige la regla de
-   [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md): fecha, commit, compilador, modo,
-   máquina y cifras.
-2. Un `benchs/history/` con un fichero por ejecución, **indexado por máquina**.
-3. Un guion que compare contra las N anteriores **de esa misma máquina** y avise
-   de lo que salga del ruido. El umbral hay que **calibrarlo** con ejecuciones
-   repetidas sin cambios: sin eso, avisaría de todo.
-4. Frecuencia: **en local, a menudo**. En el CI solo lo barato y estable, que
-   sirve para detectar un 10×, no un 5 %.
+1. ✅ Línea legible por máquina: existía, y **tiraba lo importante**. Guardaba un
+   `double` pelado teniendo al lado la dispersión que el arnés adaptativo ya
+   calculaba. Ahora `bench_record` lleva cuatro columnas más —opcionales, para
+   no romper las líneas de tres— y `bench::registra(caso, Medida)` las rellena.
+2. ✅ `benchs/history/<máquina>/`: existía. Lo que no existía era **contenido**:
+   7 de 23 suites habían registrado alguna vez y la última toma era del 9 sep.
+   Hoy hay una toma de **975 medidas de las 23**.
+3. ✅ Comparación **con el ruido de cada casilla**, no con un umbral único: la
+   barra es la suma de los dos recorridos, y el plano del 25 % queda para las
+   medidas que no lo traen. **Calibrado** con dos tomas del mismo código: 0
+   falsos positivos, frente a los 26 del umbral plano.
+4. ⏸ **Frecuencia: lo único que queda, y se ha convertido en P2.16.** No es que
+   el CI no mida: es que **no compila** los benchmarks, y por eso uno estuvo
+   diez días roto.
+
+**Las cuatro causas del atasco, que no eran una.** Al diagnosticarlo salieron
+separadas, y mezclarlas ya había costado caro en septiembre:
+
+| | |
+|---|---|
+| **5** no llamaban a `bench_record` | imprimen su tabla a mano |
+| **1** no compilaba | `benchmark_cuadrado.cpp`, desde el 17 sep |
+| **3** tardan más de 150 s | nadie los había dejado terminar |
+| **14** iban bien | nadie los había vuelto a correr |
+
+**Y dos hallazgos que no se buscaban.** `benchmark_cuadrado.cpp` medía
+`sqr_escolar_bucle`, un núcleo **retirado por medida** el 16 sep; el fichero
+llevaba diez días sin compilar y nadie lo vio. Y el barrido de la perilla `Base`
+de `rango_alto` —el banco que justifica el 8 que lleva escrito el código— **no
+registraba nada en absoluto**.
 
 ---
 

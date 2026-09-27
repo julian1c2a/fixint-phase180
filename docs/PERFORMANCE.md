@@ -64,6 +64,56 @@ Consecuencias prácticas:
 - Lo que sí sobrevive al ruido es **el signo y el orden de magnitud**. «Karatsuba
   gana» es sólido; «Karatsuba gana un 1,65×» no lo es tanto como parecía.
 
+### Vuelto a medir con 975 casillas (27 sep 2026)
+
+La tabla de arriba son **33 medidas** del arnés viejo. Con el histórico completo
+—975 medidas de las 23 suites, dos tomas seguidas del **mismo código**, así que
+todo lo que se mueva es ruido por definición— la respuesta se parte en dos, y la
+diferencia es el arnés:
+
+| entre dos tomas | mediana | p90 | p99 | peor |
+|---|---:|---:|---:|---:|
+| casillas del **arnés adaptativo** | **1,3 %** | **3,3 %** | 4,5 % | **8,9 %** |
+| casillas del **arnés viejo** | 3,5 % | 14,0 % | 42,0 % | **95,5 %** |
+
+**El arnés adaptativo no sólo mide el ruido: lo reduce, y diez veces.** No era
+el objetivo cuando se escribió —se hizo para acotar la duración de la sesión y
+para publicar dispersión— pero fijar el tiempo por casilla, repetir diez veces,
+entrelazar y quedarse con el mínimo resulta ser también la forma de que la cifra
+no se mueva mañana.
+
+Consecuencia directa, contada en falsos positivos sobre ese par de tomas
+idénticas:
+
+| criterio | saltan |
+|---|---:|
+| umbral plano del 25 % | **26** de 975 |
+| suma de los dos recorridos | **0** de 158 |
+
+Y los 26 salen **todos** de suites del arnés viejo: `curva_n`, `div_by_const`,
+`vs_builtin`, `fromstring`, `fixed_vs_param`. Migrar las once que quedan dejó de
+ser cosmético.
+
+El suelo de la barra quedó en el **5 %** —justo por encima del p99— y no porque
+hiciera falta: con suelo cero también salen cero falsos positivos. Es un seguro
+que no tapa nada, porque por debajo del 5 % ningún cambio real se distingue del
+ruido en esta máquina.
+
+#### Y una cifra de la documentación que era de una sola muestra
+
+Aquí se decía que los recorridos «caen entre el 9 % y el 58 % **en todas** las
+casillas». Salía de un barrido del 10 sep —uno de los ruidosos—. Sobre las 158
+casillas que hoy publican su recorrido:
+
+| | mín | p25 | mediana | p75 | p90 | máx |
+|---|---:|---:|---:|---:|---:|---:|
+| recorrido dentro de una ejecución | 1,9 % | 7,6 % | **9,8 %** | 12,1 % | 15,7 % | 66,2 % |
+
+La mediana es del 10 %, no del 25 %, y entre la casilla más quieta y la más
+ruidosa hay **35×**. Es el argumento de por qué un umbral único no sirve: la
+suma de dos recorridos típicos da una barra del 20 %, pero para
+`estimador N=3` sería del 130 % y para `div_const_fixed N=2` del 4 %.
+
 ### Y la máquina tiene que estar ociosa
 
 Esto se aprendió del peor modo posible: **midiendo mal mientras se escribía la
