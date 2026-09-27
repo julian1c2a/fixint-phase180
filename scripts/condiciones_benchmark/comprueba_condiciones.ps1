@@ -87,13 +87,22 @@ Write-Output ("defender_excluye_build=" + $tiene_build.ToString().ToLower())
 # LA CAUSA CLASICA DE LOS PICOS RAROS, y la que no se ve en ninguna lista de
 # servicios: una tarea que salta a mitad de la tanda.
 $pronto = 0
+$cuales = @()
 try {
   $limite = (Get-Date).AddHours(2)
-  $pronto = (Get-ScheduledTask | Where-Object { $_.State -eq 'Ready' } |
-             Get-ScheduledTaskInfo |
-             Where-Object { $_.NextRunTime -and $_.NextRunTime -lt $limite }).Count
+  $ts = Get-ScheduledTask | Where-Object { $_.State -eq 'Ready' } |
+        Get-ScheduledTaskInfo |
+        Where-Object { $_.NextRunTime -and $_.NextRunTime -lt $limite } |
+        Sort-Object NextRunTime
+  $pronto = @($ts).Count
+  # LOS NOMBRES, no solo el recuento. Un «8» no se puede accionar: hay que saber
+  # si son ocho comprobaciones de nada o un backup de media hora.
+  foreach ($t in @($ts)) {
+    $cuales += ('{0}@{1:HH:mm}' -f ($t.TaskName -replace '[,;=]', '_'), $t.NextRunTime)
+  }
 } catch { $pronto = -1 }
 Write-Output ("tareas_en_2h=" + $pronto)
+Write-Output ("tareas_cuales=" + (($cuales | Select-Object -First 12) -join ','))
 
 # --- El veredicto, en una linea -------------------------------------------
 $puntos = @()
