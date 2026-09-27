@@ -33,11 +33,21 @@ habrian salido mal si se cambia solo la constante:
   - **y dos textos impresos decian «20 repeticiones»** escritas a mano. Ahora
     imprimen la constante.
 
-**Subir las repeticiones CAMBIA EL REGIMEN, no solo el coste**: lo que se publica
-es el minimo, y el minimo de 25 muestras es sistematicamente algo menor que el de
-10, mientras el recorrido se ensancha. Una bajada general entre dos tomas con
-distinto numero de repeticiones **no es una mejora**. `--compare` lo avisa ahora,
-sacandolo de las medidas --que lo traen una por una-- y no de un metadato.
+**Subir las repeticiones CAMBIA EL REGIMEN, no solo el coste**, y esta **medido**:
+el mismo binario de `cuadrado` con 10 y con 25 vueltas, alternando las tandas,
+
+| 32 casillas | mediana | rango |
+|---|---:|---|
+| `minimo(25) / minimo(10)` | **+3,4 %** | -6,8 % a +8,1 % |
+| `suelo(25) / suelo(10)` | **+5,5 %** | -3,9 % a +11,6 % |
+| vueltas limpias | 15 % con 10 | **8 % con 25** |
+
+La cifra **SUBE**, al contrario de lo que predice la teoria del estadistico de
+orden: una tanda de 25 vueltas dura 2,5 veces mas y la maquina mide mas caliente,
+y el efecto termico se come al del muestreo. Un desplazamiento general del 3-5 %
+sin que nada haya cambiado es justo lo que se leeria como regresion, asi que
+`--compare` avisa cuando las repeticiones difieren, sacandolo de las medidas
+--que lo traen una por una-- y no de un metadato.
 
 ### «LA MAQUINA TIENE QUE ESTAR OCIOSA» DEJA DE SER UN RECORDATORIO
 

@@ -190,7 +190,8 @@ static void doNotOptimize(T &val)
 
 static void bench_record(const char *caso, double valor, const char *unidad = "cyc/op",
                          double dispersion = -1.0, double recorrido = -1.0, std::size_t iteraciones = 0,
-                         std::size_t repeticiones = 0)
+                         std::size_t repeticiones = 0, double suelo = -1.0, double dispersion_baja = -1.0,
+                         double limpias = -1.0, std::size_t k_suelo = 0)
 {
     const char *destino = std::getenv("BENCH_OUT");
     if (destino == nullptr || *destino == '\0')
@@ -202,6 +203,10 @@ static void bench_record(const char *caso, double valor, const char *unidad = "c
     f << caso << '\t' << std::fixed << std::setprecision(4) << valor << '\t' << unidad;
     if (dispersion >= 0.0)
         f << '\t' << dispersion << '\t' << recorrido << '\t' << iteraciones << '\t' << repeticiones;
+    // LA COLA BAJA, y solo si viene con la de arriba: una linea de 8..11
+    // columnas no existe, o estan las cuatro primeras o no esta ninguna.
+    if (dispersion >= 0.0 && suelo >= 0.0)
+        f << '\t' << suelo << '\t' << dispersion_baja << '\t' << limpias << '\t' << k_suelo;
     f << '\n';
 }
 

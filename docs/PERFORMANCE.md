@@ -101,11 +101,50 @@ ruido en esta máquina.
 
 > **Las cifras de esta sección son del régimen de 10 repeticiones.** Desde el 27
 > sep las tomas profundas usan **25**, y eso **cambia el régimen, no sólo el
-> coste**: lo que se publica es el *mínimo*, y el mínimo de 25 muestras es
-> sistemáticamente algo menor que el de 10, mientras que el recorrido se
-> ensancha. Dos tomas con distinto número de repeticiones **no son estrictamente
-> comparables**, y `bench_history.py --compare` avisa cuando difieren —el dato
-> viaja en cada medida, no en un metadato—.
+> coste**. Medido —el mismo binario de `cuadrado` con 10 y con 25 vueltas,
+> alternando las tandas, 32 casillas—:
+>
+> | | mediana | rango |
+> |---|---:|---|
+> | `minimo(25) / minimo(10)` | **+3,4 %** | −6,8 % a +8,1 % |
+> | `suelo(25) / suelo(10)` | **+5,5 %** | −3,9 % a +11,6 % |
+> | vueltas limpias | 15 % con 10 | **8 % con 25** |
+>
+> **La cifra sube, y la teoría dice que debería bajar.** El mínimo de más
+> muestras apunta a un cuantil más bajo, así que el muestreo empuja hacia abajo;
+> lo que gana es que una tanda de 25 vueltas dura 2,5 veces más y la máquina mide
+> más caliente. El efecto térmico se come al del muestreo y le saca tres puntos.
+>
+> Dos tomas con distinto número de repeticiones **no son comparables**, y
+> `bench_history.py --compare` avisa cuando difieren —el dato viaja en cada
+> medida, no en un metadato—.
+
+### La cola baja: un conjunto de mínimos en vez del mínimo
+
+Idea del autor, 27 sep. El mínimo tiene dos problemas que se arreglan a la vez:
+
+- **No es comparable entre números de repetición.** El mínimo de *n* muestras
+  estima el cuantil `1/(n+1)`: con 10 vueltas apunta al 9 % y con 25 al 3,8 %. La
+  media del **20 % más bajo** apunta al mismo sitio en los dos casos, porque el
+  cuantil es fijo y no el número de vueltas.
+- **La barra de `--compare` mide la cola equivocada.** Usa el recorrido
+  (`max − min`), dominado por la contaminación de *arriba* —interrupciones,
+  cambios de contexto—, cuando la cifra publicada es el mínimo, un estimador de
+  la cola de *abajo*. El caso construido lo dice todo: cinco vueltas a 100 y
+  veinte a 200 dan **recorrido del 100 % y dispersión de cola baja del 0 %**. Por
+  eso salen barras del 20 % al 130 % y «nada se mueve».
+
+Cada medida lleva ahora `suelo` (media del 20 % más bajo), `dispersion_baja`,
+`limpias` (fracción de vueltas a menos del 2 % del mínimo, que dice si el suelo
+está **bien determinado** o el mínimo fue un golpe de suerte) y `k_suelo`. Lo que
+se publica y se compara **sigue siendo el mínimo**: la barra de cola baja se
+*mide* en `--compare` sin estar activa, para decidirla con dos tomas del mismo
+código como se decidió el suelo.
+
+`resume()` está falsificado con dieciocho comprobaciones sobre vectores
+construidos a mano —cinco limpias y veinte contaminadas, todas iguales, una sola
+vuelta, el vector vacío— porque ninguno de esos casos sale de un operando
+aleatorio.
 
 ### Y «la máquina tiene que estar ociosa» dejó de ser un recordatorio
 

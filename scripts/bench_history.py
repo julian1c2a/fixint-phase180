@@ -366,6 +366,19 @@ def ejecutar(nombre: str, compilador: str, modo: str, tmp: Path):
                 dato["repeticiones"] = int(partes[6])
             except ValueError:
                 pass
+        # LA COLA BAJA (desde el 27 sep). `suelo` es la media del 20 % mas bajo:
+        # a diferencia del minimo, apunta al mismo cuantil con 10 vueltas y con
+        # 25, asi que es lo comparable entre regimenes. `dispersion_baja` es lo
+        # que se mueve ESA cola, que es la incertidumbre de la cifra que se
+        # publica -- el recorrido mide la de arriba, que no le afecta.
+        if len(partes) >= 11:
+            try:
+                dato["suelo"] = float(partes[7])
+                dato["dispersion_baja"] = float(partes[8])
+                dato["limpias"] = float(partes[9])
+                dato["k_suelo"] = int(partes[10])
+            except ValueError:
+                pass
         medidas[partes[0]] = dato
     return medidas, None
 
@@ -428,6 +441,9 @@ def comparar(actual: dict, previo_path: Path):
     avisos = 0
     todos = []      # |delta| de TODAS las comparables, para la distribucion
     con_propio = 0
+    # Para decidir --midiendo-- si la barra debe salir de la cola baja en vez
+    # del recorrido. Cada entrada: (|delta|, barra_recorrido, barra_cola_baja).
+    ensayo_baja = []
     for suite, medidas in sorted(actual["suites"].items()):
         antes = previo.get("suites", {}).get(suite, {})
         filas = []
@@ -443,6 +459,9 @@ def comparar(actual: dict, previo_path: Path):
             todos.append(abs(delta))
             if criterio == "propio":
                 con_propio += 1
+            db_a, db_b = antes[caso].get("dispersion_baja"), dato.get("dispersion_baja")
+            if db_a is not None and db_b is not None:
+                ensayo_baja.append((abs(delta), barra, db_a + db_b))
             if abs(delta) >= barra:
                 filas.append((caso, v_antes, v_ahora, delta, barra, criterio))
         if filas:
@@ -466,6 +485,26 @@ def comparar(actual: dict, previo_path: Path):
              % (len(todos), con_propio, len(todos) - con_propio))
         echo("  cuanto se mueven:  mediana %.1f %%   p90 %.1f %%   peor %.1f %%"
              % (pct(0.5), pct(0.9), todos[-1] * 100))
+
+    # LA BARRA DE COLA BAJA, MEDIDA Y TODAVIA SIN ACTIVAR.
+    #
+    # No se cambia el criterio a fe. Aqui se cuenta que pasaria con cada uno, y
+    # con dos tomas del MISMO codigo todo lo que salte es falso positivo por
+    # definicion. Cuando haya numeros, se decide -- igual que con el suelo.
+    if ensayo_baja:
+        n = len(ensayo_baja)
+        salta_rec = sum(1 for d, br, _ in ensayo_baja if d >= br)
+        salta_baja = sum(1 for d, _, bb in ensayo_baja if d >= bb)
+        bar_rec = sorted(br for _, br, _ in ensayo_baja)
+        bar_baja = sorted(bb for _, _, bb in ensayo_baja)
+        echo("")
+        echo("  ENSAYO de la barra de cola baja (no esta activa; esto solo mide)")
+        echo("    %d medidas traen dispersion de cola baja" % n)
+        echo("    barra actual (suma de recorridos):   mediana %5.1f %%   saltan %d"
+             % (bar_rec[n // 2] * 100, salta_rec))
+        echo("    barra de cola baja:                  mediana %5.1f %%   saltan %d"
+             % (bar_baja[n // 2] * 100, salta_baja))
+        echo("    Con dos tomas del mismo codigo, lo que salte es falso positivo.")
 
     echo("")
     if avisos:

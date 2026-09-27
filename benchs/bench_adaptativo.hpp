@@ -78,23 +78,55 @@ namespace bench
     /// sigue siendo el minimo aceptable; veinticinco es lo que se paga cuando la
     /// medida se va a guardar y comparar durante meses.
     ///
-    /// @warning **Cambiar esto cambia el REGIMEN de medida, no solo su coste.**
-    ///          Lo que se publica es el MINIMO, y el minimo de 25 muestras es
-    ///          sistematicamente algo menor que el de 10 --mas tiradas, mas
-    ///          probabilidad de pillar la vuelta limpia--, mientras que el
-    ///          recorrido se ensancha. Dos tomas con distinto numero de
-    ///          repeticiones **no son estrictamente comparables**, y por eso
-    ///          `bench_history.py --compare` avisa cuando difieren.
+    /// @warning **Cambiar esto cambia el REGIMEN de medida, no solo su coste**, y
+    ///          esta MEDIDO: el mismo binario de `cuadrado` compilado con 10 y con
+    ///          25 vueltas, alternando las tandas, da
+    ///
+    ///              minimo(25) / minimo(10)   mediana +3,4 %  (rango -6,8 a +8,1)
+    ///              suelo (25) / suelo (10)   mediana +5,5 %  (rango -3,9 a +11,6)
+    ///              vueltas limpias           15 % con 10, 8 % con 25
+    ///
+    ///          O sea que la cifra **SUBE**, al contrario de lo que dice la teoria
+    ///          del estadistico de orden: una tanda de 25 vueltas dura 2,5 veces
+    ///          mas y la maquina mide mas caliente, y el efecto termico se come al
+    ///          del muestreo. Dos tomas con distinto numero de repeticiones **no
+    ///          son comparables**, y `bench_history.py --compare` avisa cuando
+    ///          difieren.
     ///
     /// @note El coste crece lineal: cada casilla son `REPETICIONES` x
     ///       `MS_POR_CASILLA` por variante. De 10 a 25 la sesion se multiplica
     ///       por 2,5 en los doce benchmarks de este arnes.
-    inline constexpr std::size_t REPETICIONES = 25;
+    /// @note Anulable con `-DBENCH_REPETICIONES=N`, igual que `BENCH_ITERATIONS`.
+    ///       Existe para poder **medir** el sesgo por regimen --el mismo binario
+    ///       con 10 vueltas y con 25-- en vez de suponerlo.
+#ifndef BENCH_REPETICIONES
+#define BENCH_REPETICIONES 25
+#endif
+    inline constexpr std::size_t REPETICIONES = BENCH_REPETICIONES;
+
+    /// @brief Que fraccion de las vueltas forma «la cola baja».
+    ///
+    /// **Un cuantil fijo, no un numero fijo de vueltas, y esa es la clave.** El
+    /// minimo de `n` muestras estima el cuantil `1/(n+1)`: con 10 vueltas apunta
+    /// al 9 % y con 25 al 3,8 %, asi que **cambiar las repeticiones cambia la
+    /// cifra publicada** sin que nada haya mejorado. La media del 20 % mas bajo
+    /// apunta al mismo sitio con 10 vueltas y con 25, y por tanto **si se puede
+    /// comparar entre regimenes**.
+    inline constexpr double FRACCION_SUELO = 0.20;
+
+    /// @brief Cuanto puede separarse una vuelta del minimo y seguir contando
+    ///        como «limpia». Provisional: hay que calibrarlo como se calibro el
+    ///        suelo de `bench_history.py`, con dos tomas del mismo codigo.
+    inline constexpr double TOLERANCIA_LIMPIA = 0.02;
 
     /// @brief Lo que sale de medir una casilla.
     struct Medida
     {
         double minimo{0};           ///< cyc/op. Es la cifra que se publica.
+        double suelo{0};            ///< cyc/op. Media de la cola baja; **comparable entre n**.
+        double dispersion_baja{0};  ///< (suelo - minimo)/minimo: lo que se mueve la cola BAJA.
+        double limpias{0};          ///< fraccion de vueltas dentro de `TOLERANCIA_LIMPIA` del minimo.
+        std::size_t k_suelo{0};     ///< cuantas vueltas entraron en la cola baja.
         double mediana{0};          ///< cyc/op.
         double media{0};            ///< cyc/op.
         double desviacion{0};       ///< cyc/op, tipica muestral.
@@ -170,6 +202,34 @@ namespace bench
         m.dispersion = m.media > 0 ? m.desviacion / m.media : 0.0;
         m.iteraciones = iteraciones;
         m.repeticiones = v.size();
+
+        // LA COLA BAJA. `v` ya esta ordenado.
+        //
+        // Dos como minimo aunque el cuantil pida menos: con una sola vuelta
+        // `suelo == minimo` y el campo no aportaria nada.
+        std::size_t k = static_cast<std::size_t>(static_cast<double>(v.size()) * FRACCION_SUELO + 0.5);
+        if (k < 2)
+            k = 2;
+        if (k > v.size())
+            k = v.size();
+        double suma_baja = 0.0;
+        for (std::size_t i = 0; i < k; ++i)
+            suma_baja += v[i];
+        m.k_suelo = k;
+        m.suelo = suma_baja / static_cast<double>(k);
+        m.dispersion_baja = m.minimo > 0 ? (m.suelo - m.minimo) / m.minimo : 0.0;
+
+        // Vueltas «limpias»: las que caen a un pelo del minimo. Es el indicador
+        // de si el suelo esta BIEN DETERMINADO -- veinte de veinticinco pegadas
+        // al minimo dicen que la maquina dejo medir; una sola dice que ese
+        // minimo fue un golpe de suerte y que no conviene fiarse de el.
+        const double techo_limpio = m.minimo * (1.0 + TOLERANCIA_LIMPIA);
+        std::size_t n_limpias = 0;
+        for (const double x : v)
+            if (x <= techo_limpio)
+                ++n_limpias;
+        m.limpias = static_cast<double>(n_limpias) / static_cast<double>(v.size());
+
         return m;
     }
 
@@ -293,8 +353,12 @@ namespace bench
     inline void imprime(const char *etiqueta, const Medida &m)
     {
         const double rec = m.recorrido() * 100.0;
-        std::printf("  %-34s %10.1f cyc/op   +-%5.1f%%  recorrido %5.1f%%%s  (%zu it x %zu)\n", etiqueta,
-                    m.minimo, m.dispersion * 100.0, rec,
+        // `limpias` dice si el minimo esta bien determinado o fue suerte, y es
+        // mas util de un vistazo que la desviacion sobre la media, que se la
+        // come la cola de arriba.
+        std::printf("  %-34s %10.1f cyc/op   suelo %8.1f (+%4.1f%%)  limpias %3.0f%%  "
+                    "recorrido %5.1f%%%s  (%zu it x %zu)\n",
+                    etiqueta, m.minimo, m.suelo, m.dispersion_baja * 100.0, m.limpias * 100.0, rec,
                     rec > RECORRIDO_RUIDOSO * 100.0 ? " <-RUIDOSA" : "  ", m.iteraciones, m.repeticiones);
     }
 
@@ -312,14 +376,15 @@ namespace bench
     /// @param unidad Por defecto cyc/op; las razones van en "x".
     inline void registra(const char *caso, const Medida &m, const char *unidad = "cyc/op")
     {
-        bench_record(caso, m.minimo, unidad, m.dispersion, m.recorrido(), m.iteraciones, m.repeticiones);
+        bench_record(caso, m.minimo, unidad, m.dispersion, m.recorrido(), m.iteraciones, m.repeticiones,
+                     m.suelo, m.dispersion_baja, m.limpias, m.k_suelo);
     }
 
     /// @brief Cabecera de la tabla que imprime `imprime`.
     inline void imprime_cabecera()
     {
-        std::printf("  %-34s %10s        %6s  %14s  %s\n", "variante", "minimo", "desv", "max-min",
-                    "calibracion");
+        std::printf("  %-34s %10s   %8s %8s  %8s  %13s  %s\n", "variante", "minimo", "suelo", "(+%)",
+                    "limpias", "max-min", "calibracion");
         std::printf("  %s\n", "----------------------------------------------------------------"
                               "----------------------------------");
     }
