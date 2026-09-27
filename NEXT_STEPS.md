@@ -119,7 +119,7 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 | ~~P1.2~~ | ~~Propagación de la marca, `valid()`, comparación~~ | ✅ **hecho** en `5ad2bad`: `+ - * << - ++ --` y sus `op=`, orden total, `to_string` |
 | ~~P1.3~~ | ~~`checked_div` y las tres `saturating_*`~~ | ✅ **hecho** en `d684bb6`, y las `checked_*` dejan `std::optional`. Destapó el producto con signo, que se leía sin signo |
 | ~~P1.4~~ | ~~`representation_traits<binnat>` y el `static_assert` al bicondicional de [ADR-011](docs/decisions/ADR-011-sin-signo-equivale-a-binnat.md)~~ | ✅ **hecho** en `c73e55a` |
-| **P1.5** | **Retirar `int128_param_t`**. Los tramos de paridad, cerrados. **Tramo 2 (deprecación) hecho el 23 sep**: los seis alias públicos llevan `[[deprecated]]`, hay [guía de migración](docs/MIGRACION_int128_param.md), y la compilación propia sigue con **cero avisos** gracias a cuatro alias internos sin marcar. **Tramo 3 (el borrado) es el primer objetivo de la 1.90**, y ADR-006 lo exige así: no antes de que la deprecación se haya publicado | ✅ tramos 1 y 2 |
+| **P1.5** | **Retirar `int128_param_t`**. Los tramos de paridad, cerrados. **Tramo 2 (deprecación) hecho el 23 sep**: los seis alias públicos llevan `[[deprecated]]`, hay [guía de migración](docs/MIGRACION_int128_param.md), y la compilación propia sigue con **cero avisos** gracias a cuatro alias internos sin marcar. **Tramo 3 es el borrado**, y ADR-006 lo exige así: no antes de que la deprecación se haya publicado. **Va después de la fase 0** (afinar el banco), por el motivo que se explica allí | ✅ tramos 1 y 2 |
 | ~~P1.5 tramo 1~~ | ~~`bits`, `cmath` y `numeric`~~ | ✅ **hecho**: `rotl`/`rotr`, los nombres de `<bit>`, `min`/`max`/`clamp`/`midpoint`/`abs_diff`, `ilog2`/`factorial`/`is_even`/`is_odd`, y las cuatro que el inventario del ADR no listaba (`is_power_of_2`, `sign`, `abs` y `divmod` libres). `tests/test_fixed_bits_numeric.cpp`, 60 `static_assert` |
 | ~~P1.5 tramo 2a~~ | ~~La política fijada en nueve firmas~~ | ✅ **hecho**: `mul_wide`, `pow`, `sqrt`, `gcd` y `lcm` no compilaban con un tipo `checked`. Ahora llevan `Policy` deducible |
 | ~~P1.5 tramo 2b~~ | ~~`mulhi` y `mullo`~~ | ✅ **hecho**: `widening_mul` no se porta, es `mul_wide`. Cruzado con 400.000 pares al azar |
@@ -239,6 +239,7 @@ el punto fijo.
 | **P3.5** | Documentar `int128_param_*` (**257** avisos) | **Caduca hacia atrás**: baja sola con P1.5. Desde P3.7 (23 sep) son **el techo entero**: los otros 209 ya están escritos. No se documenta lo que se va a borrar |
 | **P3.6** | Decidir si Intel sale de la matriz de release | Se cae solo si P0.6 sale bien |
 | ~~P2.16~~ | ~~**El CI no compila los benchmarks**~~ | ✅ **hecho (27 sep)**: job `benchs-build`, y **no compila: pasa el front-end**. Lo que hay que cazar es una búsqueda de nombres, y eso lo ve `-fsyntax-only` — **medido**, 26 s frente a 254 s en el más pesado, 80 s los 24 ficheros en vez de ~13 min. **Falsificado contra el fichero roto de verdad** (`git show 8581ff6:`): lo rechaza en 3 s nombrando `sqr_escolar_bucle`. No enlaza, así que sólo necesita las cabeceras de GMP/TomMath/Boost |
+| **P2.20** 🔸 | **Volver a medir el umbral del cuadrado.** `operator*` desvía `x·x` al núcleo de cuadrado desde **N=4**, apoyado en un «gana desde N=4, **2,47×**» medido con **clang** el 16 sep. La toma del 27 sep con **gcc 16** dice lo contrario: en N=4 el desvío **cuesta 1,45×** y no empata hasta **N=12**. O el umbral depende del compilador —y entonces no puede ser una constante— o una de las dos medidas está mal | Salió de dibujar la comparativa. Necesita el banco afinado (fase 0) |
 | **P2.19** 🔸 | **El banco de comparaciones no mide comparaciones.** Siete bucles y **dos formas distintas**: cinco usan `if (r) a += 1;` y dos —`uint64_t` y `unsigned __int128`— usan `a += r;`. Con `r` declarada `volatile`, la segunda forma mete el reenvío de almacén a carga **en la cadena de dependencia del bucle** y la primera no, así que los dos tipos nativos salen **más lentos que los de 128 bits**, que es imposible. Hay que igualar la forma de los siete y sacar el `volatile` de la cadena | Salió de dibujar la comparativa: la tabla se autodesmiente |
 | **P2.18** | **`hueco`, `equilibrado` y `barrido_desenrollado` necesitan más tiempo por casilla, no más repeticiones.** Salen las peores por **dos** caminos independientes: `limpias` (casillas con **1 vuelta limpia de 25**) y el movimiento entre tomas (`hueco N=4`, **57 %**). Con 200 ms por vuelta y N pequeña, la operación dura tan poco que una interrupción se lleva una fracción grande de la ventana | Salió de la calibración del 27 sep, con las dos medidas hechas |
 | **P2.17** | **Migrar al arnés adaptativo las once suites que quedan** (`addsub`, `bases`, `curva_n`, `div_by_const`, `divmod_algorithms`, `divmod_const`, `fixed_vs_param`, `fromstring`, `karatsuba`, `tostring`, `vs_builtin`). No es cosmético: **medido**, sus casillas se mueven diez veces más entre tomas (p90 14,0 % frente a 3,3 %) y son el origen de los **26 falsos positivos** del umbral plano | Salió de P2.5, con la medida hecha |
@@ -368,6 +369,53 @@ registraba nada en absoluto**.
 
 ---
 
+
+
+## 1.90, fase 0: **afinar el banco antes de tocar la biblioteca**
+
+Decidido el 27 sep. **Va antes del borrado de `int128_param_*` y antes del
+renombrado**, y no por gusto de orden: el banco es **el instrumento con el que se
+va a juzgar todo lo que haga la 1.90**. Con el instrumento sin calibrar, una
+regresión y un artefacto del arnés son indistinguibles — y la 1.90 borra
+dieciséis cabeceras y renombra la plantilla principal, que es justo cuando más
+falta hace poder distinguirlos.
+
+Hay **tres señales independientes** de que no está afinado, y las tres salieron
+de mirar las cifras, no de sospechar:
+
+1. **El banco de comparaciones se autodesmiente** (P2.19). `uint64_t` y
+   `unsigned __int128` salen más lentos que los tipos de 128 bits. De los siete
+   bucles, cinco escriben `if (r) a += 1;` y dos escriben `a += r;` sobre una
+   `volatile bool`: la segunda forma mete el reenvío de almacén a carga dentro de
+   la cadena de dependencia del bucle.
+2. **Hay cifras marcadas `(*)` que nadie lee.** El propio banco avisa al pie de
+   que son un «patrón sin acumulación, sin dependencia de bucle», y con eso
+   TomMath aparenta multiplicar en **0,72 ciclos/op** — más rápido que `uint64_t`.
+   La marca existe; lo que no existe es que se respete al leer la tabla.
+3. **Tres suites miden con una ventana demasiado corta** (P2.18): `hueco`,
+   `equilibrado` y `barrido_desenrollado` salen las peores por dos caminos
+   independientes —vueltas limpias y movimiento entre tomas—.
+
+Y hay una cuarta, de otra clase: **el umbral del cuadrado no se sostiene con
+estas cifras**. `operator*` desvía `x·x` al núcleo de cuadrado desde N=4 apoyado
+en un «gana desde N=4, 2,47×» medido con clang; con gcc 16 el desvío *cuesta*
+1,45× en N=4 y no empata hasta N=12. Eso no es un fallo del banco sino una
+decisión que hay que volver a medir, y hace falta el banco afinado para hacerlo.
+
+### El orden, y qué significa para las series de cifras
+
+1. **Afinar** (P2.19, P2.18, P2.17 y la lectura del `(*)`).
+2. **Tomar una referencia nueva** con el banco ya afinado. Empieza serie: las
+   cifras del arnés afinado **no son comparables** con las de antes, igual que no
+   lo eran las de 10 y 25 vueltas.
+3. **Entonces** borrar, renombrar y medir el antes y el después contra esa
+   referencia.
+
+**La toma del 27 sep no se pierde ni se repite**: es el registro de la 1.80 tal
+como se publicó, y la última que incluye los nueve bancos del tipo viejo. Para
+eso se hizo antes de abrir la rama.
+
+---
 
 ## Nomenclatura del punto fijo — seis decisiones tomadas (27 sep 2026)
 
