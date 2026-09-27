@@ -1,7 +1,17 @@
 # 🔮 NEXT STEPS
 
 **Last Updated:** 23 September 2026
-**Versión:** **v1.90.4** publicada · **rama** `phase-1.80` · árbol limpio · todo en `origin`
+**Versión:** **v1.90.4** publicada · **rama** `phase-1.90` *(abierta el 27 sep)* · árbol limpio · todo en `origin`
+
+> ### Esta rama empieza por la fase 0: **afinar el banco**
+>
+> No por el borrado de `int128_param_*` ni por el renombrado, aunque sean lo
+> gordo. El banco es el instrumento con el que se va a juzgar todo lo demás, y
+> hay tres señales medidas de que no está afinado. El orden y el porqué, en la
+> sección **«1.90, fase 0»** más abajo.
+>
+> La rama `phase-1.80` queda como estaba, con la toma de referencia de la 1.80
+> dentro: es la última que incluye los nueve bancos del tipo viejo.
 
 > Este documento es **el puntero y lo pendiente a corto**. No acumula historia:
 > lo ya hecho vive en [`CHANGELOG.md`](CHANGELOG.md), el plan largo en
