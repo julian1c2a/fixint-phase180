@@ -18,6 +18,9 @@
 #ifndef TEST_SWEEP_FRAMEWORK_HPP
 #define TEST_SWEEP_FRAMEWORK_HPP
 
+// Este tipo se retira en la 1.90; se pide a proposito (ADR-006).
+#define NSTD_QUIERO_INT128_PARAM
+
 #include "int128_parameterized.hpp"
 
 #include <cstdint>

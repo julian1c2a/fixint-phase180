@@ -10,6 +10,9 @@
 // uint64_t overflows at 21!, but uint128_t can handle up to 34!
 //
 
+// Este tipo se retira en la 1.90; se pide a proposito (ADR-006).
+#define NSTD_QUIERO_INT128_PARAM
+
 #include "int128_parameterized.hpp"
 #include <iostream>
 #include <cstdint>

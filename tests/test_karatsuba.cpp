@@ -7,6 +7,7 @@
 // A PROPOSITO: prueba el tipo que se retira, o lo cruza contra el nuevo. Avisar
 // aqui no informa de nada y entierra los avisos de verdad. Se va entero en 1.90.
 #define NSTD_SILENCIA_INT128_PARAM_DEPRECADO
+#define NSTD_QUIERO_INT128_PARAM
 
 #include "int128_parameterized.hpp"
 #include "algorithms/karatsuba.hpp"

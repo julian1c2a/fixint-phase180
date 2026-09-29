@@ -59,7 +59,17 @@ def check_one(compiler_cmd, header, extra_flags, tmpdir, env):
         encoding="utf-8",
     )
 
-    cmd = [compiler_cmd, "-std=c++20", "-fsyntax-only", f"-I{INCLUDE_DIR}"] + extra_flags + [str(src)]
+    # LA FAMILIA QUE SE RETIRA HAY QUE PEDIRLA A PROPOSITO (ADR-006, nivel 3
+    # de la deprecacion). El define va SOLO a esas cabeceras, no a todas: asi,
+    # el dia que una del tipo NUEVO empiece a depender de la vieja por
+    # accidente, esta comprobacion se pone roja -- que es justo lo que la
+    # puerta existe para detectar. Ponerselo a ciegas a todo la desactivaria.
+    de_la_familia = (rel.startswith("int128_param") or
+                     rel in ("algorithms/karatsuba.hpp", "algorithms/div_by_const.hpp"))
+    puerta = ["-DNSTD_QUIERO_INT128_PARAM"] if de_la_familia else []
+
+    cmd = ([compiler_cmd, "-std=c++20", "-fsyntax-only", f"-I{INCLUDE_DIR}"]
+           + puerta + extra_flags + [str(src)])
     proc = subprocess.run(cmd, capture_output=True, text=True, check=False, env=env)
     return proc.returncode == 0, proc.returncode, proc.stderr
 

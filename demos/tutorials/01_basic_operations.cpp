@@ -10,6 +10,9 @@
 // with uint128_t and int128_t types.
 //
 
+// Este tipo se retira en la 1.90; se pide a proposito (ADR-006).
+#define NSTD_QUIERO_INT128_PARAM
+
 #include "int128_parameterized.hpp"
 #include <iostream>
 #include <string>

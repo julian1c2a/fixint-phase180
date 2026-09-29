@@ -49,6 +49,29 @@ biblioteca. Las representaciones Magnitude-Sign y Excess-K, que hoy solo existen
 en el tipo viejo, **se portan** a `fixed_int_t` como valores adicionales de
 `representation_form`; no se abandonan.
 
+> ### Enmienda del 29 sep 2026 — el tramo 2 tenía un escalón de menos
+>
+> El tramo 2 marcaba con `[[deprecated]]` y publicaba guía de migración. Medido
+> el 29 sep, **eso no bastaba**: 45 ficheros de este mismo proyecto silenciaban
+> el aviso con un `#define`, la compilación propia daba **cero avisos**, y por
+> tanto nadie —dentro ni fuera— tenía que hacer nada hasta que el tramo 3
+> borrara la familia de golpe.
+>
+> Una deprecación que nadie atiende no es un escalón entre «está ahí» y «ya no
+> está»: es lo segundo, con retraso y por sorpresa.
+>
+> Se añade un escalón entre el 2 y el 3: **la familia deja de servirse por
+> defecto**. Incluirla exige `#define NSTD_QUIERO_INT128_PARAM`, y sin él la
+> compilación para con un `#error` que apunta al tipo nuevo y a la guía. La
+> puerta va en `int128_parameterized.hpp` y **también** en
+> `int128_param_divmod.hpp`, que no incluye a nadie y compila sola: sin esa
+> segunda puerta quedaba una entrada por detrás.
+>
+> Lo que **no** se hace, y por la misma regla que «no se documenta lo que se va a
+> borrar»: forzar la migración de los 45 ficheros propios. Mueren con la familia
+> en el tramo 3; lo que se les pide es sólo declarar que la quieren, para que la
+> lista esté contada y no crezca.
+
 La retirada es **gradual y en tres tramos**, sin fecha impuesta:
 
 1. **Paridad de API** (ver el inventario de más abajo). Mientras dure, los dos

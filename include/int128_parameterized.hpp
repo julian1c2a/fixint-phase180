@@ -24,6 +24,45 @@
 #ifndef INT128_PARAMETERIZED_HPP
 #define INT128_PARAMETERIZED_HPP
 
+// =============================================================================
+// PUERTA: ESTE TIPO SE RETIRA EN LA 1.90 Y HAY QUE PEDIRLO A PROPOSITO
+// =============================================================================
+//
+// `int128_param_t` esta deprecado desde el tramo 2 de P1.5
+// ([ADR-006](../docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md))
+// y **se borra en la 1.90**. El `[[deprecated]]` de los alias avisa; esto
+// obliga.
+//
+// LA DIFERENCIA IMPORTA. Un aviso se puede no leer, y de hecho no se leia:
+// cuarenta y cinco ficheros de este mismo proyecto lo silenciaban con un
+// `#define`, asi que la compilacion propia salia con cero avisos y nadie tenia
+// que hacer nada. Una deprecacion que nadie atiende no es un escalon entre
+// «esta ahi» y «ya no esta»: es lo segundo, con retraso y por sorpresa.
+//
+// QUE USAR EN SU LUGAR
+//
+//     #include "fixed_width_int_t.hpp"
+//
+//     nstd::uint_fixed_t<2>   en vez de   nstd::uint128_t
+//     nstd::int_fixed_t<2>    en vez de   nstd::int128_t
+//
+// La equivalencia completa --y lo unico que cambia de comportamiento, que es
+// `is_modulo`-- esta en `docs/MIGRACION_int128_param.md`.
+//
+// SI DE VERDAD HACE FALTA AHORA
+//
+//     #define NSTD_QUIERO_INT128_PARAM
+//     #include "int128_parameterized.hpp"
+//
+// Es temporal por definicion: cuando la 1.90 borre la familia, ese `#define` no
+// servira de nada porque no habra fichero que abrir. Sirve para cruzar la
+// version, no para quedarse.
+// =============================================================================
+#if !defined(NSTD_QUIERO_INT128_PARAM)
+#error \
+    "int128_param_t esta deprecado y se retira en la 1.90: usa fixed_width_int_t.hpp (uint_fixed_t<2>), o define NSTD_QUIERO_INT128_PARAM antes de incluir. Ver docs/MIGRACION_int128_param.md"
+#endif
+
 // Include standard library headers first
 #include <cstddef>
 #include <cstdint>

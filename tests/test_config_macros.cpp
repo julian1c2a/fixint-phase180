@@ -46,6 +46,9 @@
 // El orden importa: `NSTD_TRAITS_PRIMARY_DEFINED` lo comparten los dos ficheros
 // de traits y quien llegue primero define las primarias.
 #include "fixed_int_traits_specializations.hpp"
+// Este tipo se retira en la 1.90; se pide a proposito (ADR-006).
+#define NSTD_QUIERO_INT128_PARAM
+
 #include "int128_param_traits_specializations.hpp"
 #include "fixed_int_traits_specializations.hpp" // a proposito: segunda vez
 #include "int128_param_traits_specializations.hpp"

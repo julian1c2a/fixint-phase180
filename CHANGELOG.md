@@ -1,3 +1,46 @@
+## [sin publicar] - 2026-09-29 - **la familia vieja deja de servirse por defecto**
+
+Nivel 3 de la deprecacion, pedido por el autor. `int128_param_t` estaba marcado
+con `[[deprecated]]` desde el tramo 2 de P1.5, y eso **no bastaba**: medido el
+29 sep, 45 ficheros de este mismo proyecto silenciaban el aviso con un `#define`
+y la compilacion propia daba **cero avisos**. Nadie tenia que atender nada.
+
+Ahora incluir la familia exige declararlo:
+
+    #define NSTD_QUIERO_INT128_PARAM
+    #include "int128_parameterized.hpp"
+
+y sin el define la compilacion para con un `#error` que apunta al tipo nuevo
+(`uint_fixed_t<2>`) y a la guia de migracion.
+
+### DOS PUERTAS, NO UNA
+
+Todas las cabeceras de la familia convergen en `int128_parameterized.hpp` menos
+`int128_param_divmod.hpp`, que no incluye a nadie y **compila sola** --lo dice el
+verificador de cabeceras autocontenidas--. Sin una puerta ahi tambien, quedaba
+una entrada por detras. Falsificado con cuatro casos: sin define falla, con
+define compila, `divmod` suelto sin define falla, y el tipo NUEVO no se entera.
+
+### LO QUE NO SE HACE, Y POR QUE
+
+No se migran los 45 ficheros propios. Mueren con la familia en el tramo 3, asi
+que migrarlos seria trabajo tirado -- la misma regla que «no se documenta lo que
+se va a borrar». Lo que se les pide es solo **declarar que la quieren**: 52
+ficheros (37 tests, 9 bancos, 6 demos) con una linea cada uno. Y esa declaracion
+es ahora un numero contable, que es lo que el nivel 1 convertira en trinquete.
+
+### EL VERIFICADOR DE CABECERAS, CON CUIDADO
+
+`check_headers_selfcontained.py` pone el define **solo a las cabeceras de la
+familia**, no a todas. Asi, el dia que una cabecera del tipo NUEVO empiece a
+depender de la vieja por accidente, esa comprobacion se pone roja -- que es justo
+lo que la puerta existe para detectar. Ponerselo a ciegas la habria desactivado.
+
+Verificado: 40/40 cabeceras compilan aisladas, 30/30 bancos y demos pasan el
+front-end, y la suite sigue en 72/72 (280 s).
+
+---
+
 ## [sin publicar] - 2026-09-27 - **las condiciones de medida entran en el repo**
 
 `scripts/condiciones_benchmark/`: cuatro guiones para que «la maquina tiene que

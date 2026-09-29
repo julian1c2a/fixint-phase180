@@ -10,6 +10,9 @@
 // which are naturally 128-bit values.
 //
 
+// Este tipo se retira en la 1.90; se pide a proposito (ADR-006).
+#define NSTD_QUIERO_INT128_PARAM
+
 #include "int128_parameterized.hpp"
 #include <iostream>
 #include <iomanip>

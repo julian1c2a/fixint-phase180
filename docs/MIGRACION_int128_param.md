@@ -10,16 +10,37 @@
 
 ---
 
-## Lo primero: no hay prisa, y no se rompe nada
+## Lo primero: hay que pedirlo a propósito
 
-`[[deprecated]]` **avisa, no rompe**. Ningún job de este proyecto compila con
-`-Werror`, y tu código tampoco tiene por qué. Si quieres silencio mientras
-migras, define la macro antes de incluir:
+**Desde el 29 sep 2026, incluir la familia sin declararlo no compila.** Si tu
+código dejó de compilar y has llegado aquí por el mensaje del `#error`, esto es
+lo que necesitas:
 
 ```cpp
+#define NSTD_QUIERO_INT128_PARAM
+#include "int128_parameterized.hpp"
+```
+
+Con eso vuelve a compilar y tienes tiempo para migrar. Y si además quieres
+silencio mientras lo haces:
+
+```cpp
+#define NSTD_QUIERO_INT128_PARAM
 #define NSTD_SILENCIA_INT128_PARAM_DEPRECADO
 #include "int128_parameterized.hpp"
 ```
+
+### Por qué se rompe ahora, si antes sólo avisaba
+
+Porque un aviso que nadie atiende no es un escalón: es la retirada, con retraso
+y por sorpresa. Y aquí había pruebas de que no se atendía — **cuarenta y cinco
+ficheros de este mismo proyecto silenciaban el aviso**, así que la compilación
+propia salía con cero avisos y nadie tenía nada que hacer.
+
+Un `#define` que añadir es la molestia más pequeña que obliga a enterarse. Y es
+**temporal por definición**: cuando la 1.90 borre la familia, ese `#define` no
+servirá de nada porque no habrá fichero que abrir. Sirve para cruzar la versión,
+no para quedarse.
 
 ---
 
@@ -154,7 +175,8 @@ restringidos a `std::integral` lo rechazan, y ahí `nstd::` es la única opción
 | Versión | Qué pasa |
 |---|---|
 | **1.80** | Deprecación anunciada. Todo sigue compilando. |
-| **1.90** | Retirada: las 16 cabeceras se van. |
+| **1.80, 29 sep** | **Deja de servirse por defecto**: hay que declarar `NSTD_QUIERO_INT128_PARAM`. Sigue habiendo camino, pero hay que pedirlo. |
+| **1.90** | Retirada: las 16 cabeceras se van, y el `#define` deja de tener efecto porque no hay fichero. |
 
 Si algo de tu código no tiene sustituto claro en esta guía, **dilo antes de la
 2.0**: el inventario de paridad se cerró midiendo, pero un uso que nadie previó
