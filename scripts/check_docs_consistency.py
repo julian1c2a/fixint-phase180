@@ -79,6 +79,24 @@ DOXYGEN_BASELINE = {
 DOXYGEN_BASELINE_POR_DEFECTO = max(DOXYGEN_BASELINE.values())
 
 
+# Cuantos ficheros declaran `NSTD_QUIERO_INT128_PARAM` para poder incluir la
+# familia que ADR-006 retira.
+#
+# OTRO TECHO: la comprobacion falla si SUBE. Se baja a mano cuando un fichero
+# deja de necesitarlo -- migrado al tipo nuevo, o borrado con la familia en el
+# tramo 3.
+#
+# POR QUE HACE FALTA CONTARLO. Hasta el 29 sep la valvula era invisible: un
+# `#define NSTD_SILENCIA_INT128_PARAM_DEPRECADO` por fichero, sin contar, y
+# habia llegado a 45 sin que nadie lo decidiera. Un fichero nuevo que usara el
+# tipo viejo anadia su linea y no pasaba nada. El nivel 3 convirtio esa valvula
+# en una DECLARACION explicita; este techo la convierte en un numero que no
+# puede crecer sin que alguien lo mire.
+#
+# Al bajarlo: ejecutar el armonizador, leer la cifra y apuntarla aqui con fecha.
+QUIERO_INT128_PARAM_TECHO = 52   # 37 tests + 9 bancos + 6 demos — 29 sep 2026, al poner la puerta
+
+
 # Avisos de doxygen que NO son culpa nuestra ni del codigo, con su motivo.
 # Cualquier otro aviso hace fallar la comprobacion.
 # El criterio DURO es: cero avisos procedentes de include/. Esos vienen del
@@ -480,6 +498,91 @@ def check_doxygen(rep: Report):
 
 
 # =============================================================================
+# 8. La superficie de la familia que se retira
+# =============================================================================
+#
+# Dos invariantes de distinta naturaleza: un techo que solo baja, y un cero duro.
+
+
+# Una declaracion de verdad empieza la linea; lo demas es un ejemplo en un
+# comentario.
+DECLARACION = re.compile(r"^[ \t]*#[ \t]*define[ \t]+NSTD_QUIERO_INT128_PARAM",
+                         re.MULTILINE)
+
+
+def _familia(ruta) -> bool:
+    """Es una cabecera de la familia `int128_param_*`?
+
+    `karatsuba.hpp` y `div_by_const.hpp` cuentan como familia aunque vivan en
+    `algorithms/`: solo las incluye ella y mueren con ella (ver el mapa de capas).
+    """
+    return (ruta.name.startswith("int128_param")
+            or ruta.name in ("karatsuba.hpp", "div_by_const.hpp"))
+
+
+def check_superficie_legado(rep: Report):
+    rep.section("8. Superficie de la familia que se retira (ADR-006)")
+
+    fuentes = []
+    for carpeta in ("include", "tests", "benchs", "demos"):
+        d = PROJECT_ROOT / carpeta
+        if d.exists():
+            fuentes += [f for f in d.rglob("*") if f.suffix in (".hpp", ".cpp")]
+
+    declaran, internos_fuera = [], []
+    for f in fuentes:
+        try:
+            texto = f.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        # La linea tiene que EMPEZAR por #define. Sin esto se cuentan los
+        # ejemplos del comentario de la propia puerta, que escribe
+        # `//     #define NSTD_QUIERO_INT128_PARAM` como parte de la
+        # explicacion: 52 declaraciones reales salian como 54.
+        #
+        # Y las cabeceras de la familia no cuentan aunque lo declararan: la
+        # puerta esta en su frontera, y una familia que se autorizara a si
+        # misma no tendria puerta.
+        if not _familia(f) and DECLARACION.search(texto):
+            declaran.append(f.relative_to(PROJECT_ROOT).as_posix())
+        # Los alias internos son asunto de la familia. Que los use alguien de
+        # fuera seria abrir una tercera valvula justo despues de cerrar dos.
+        if not _familia(f) and "_interno_t" in texto:
+            internos_fuera.append(f.relative_to(PROJECT_ROOT).as_posix())
+
+    n = len(declaran)
+    if n > QUIERO_INT128_PARAM_TECHO:
+        nuevos = "\n".join("  " + d for d in sorted(declaran)[-6:])
+        rep.fail(
+            f"{n} ficheros declaran NSTD_QUIERO_INT128_PARAM, y el techo es "
+            f"{QUIERO_INT128_PARAM_TECHO}",
+            "La familia se retira (ADR-006): la lista puede bajar, no crecer.\n"
+            "Si el fichero nuevo puede usar el tipo nuevo, usalo; si de verdad "
+            "necesita el viejo,\nsube el techo A MANO y di por que en el commit."
+            f"\nAlgunos de los que declaran:\n{nuevos}")
+    elif n < QUIERO_INT128_PARAM_TECHO:
+        rep.ok(f"{n} ficheros declaran NSTD_QUIERO_INT128_PARAM "
+               f"(el techo son {QUIERO_INT128_PARAM_TECHO}: BAJALO)")
+    else:
+        por = {}
+        for d in declaran:
+            por[d.split("/")[0]] = por.get(d.split("/")[0], 0) + 1
+        detalle = ", ".join(f"{v} en {k}" for k, v in sorted(por.items()))
+        rep.ok(f"{n} ficheros declaran NSTD_QUIERO_INT128_PARAM, igual que el "
+               f"techo ({detalle})")
+
+    if internos_fuera:
+        rep.fail(
+            f"{len(internos_fuera)} fichero(s) de FUERA de la familia usan los "
+            "alias internos",
+            "`uint128_interno_t` y sus hermanos no llevan [[deprecated]] a "
+            "proposito: son\nel apano interno de la familia, no una puerta "
+            "trasera para el resto.\n" + "\n".join("  " + x for x in internos_fuera))
+    else:
+        rep.ok("nadie de fuera de la familia usa los alias internos sin marcar")
+
+
+# =============================================================================
 # 7. Fechas de los documentos vivos
 # =============================================================================
 
@@ -533,6 +636,7 @@ def main():
     check_spdx(rep)
     check_license(rep)
     check_dates(rep)
+    check_superficie_legado(rep)
     if args.doxygen:
         check_doxygen(rep)
     else:

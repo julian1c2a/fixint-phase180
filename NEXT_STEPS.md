@@ -459,7 +459,34 @@ borrarse. No hay código de biblioteca que migrar.
 por fichero, invisible y sin contar — un test nuevo que use el tipo viejo añade
 su `#define` y nadie se entera.
 
-### Tres niveles, de menos a más, y hay que elegir
+### ✅ Hecho el 29 sep: niveles 3 y 1
+
+**Nivel 3** (`10ec519`): la familia no se sirve por defecto. Hay que declarar
+`NSTD_QUIERO_INT128_PARAM`, y sin él la compilación para con un `#error` que
+apunta al tipo nuevo y a la guía. **Dos puertas**, porque
+`int128_param_divmod.hpp` no incluye a nadie y compila sola.
+
+**Nivel 1**: el armonizador cuenta la superficie y no la deja crecer.
+
+| | hoy | invariante |
+|---|---:|---|
+| ficheros que declaran `NSTD_QUIERO_INT128_PARAM` | **52** (9 bancos, 6 demos, 37 tests) | techo: sólo puede bajar |
+| ficheros **de fuera de la familia** que usan `*_interno_t` | **0** | cero duro |
+
+El segundo no es un techo porque no hay nada que bajar: los alias internos son
+asunto interno de la familia, y que los usara alguien de fuera sería abrir una
+tercera válvula justo después de cerrar dos.
+
+Falsificado con tres averías —un fichero nuevo que declara, un alias interno
+desde fuera, y las dos a la vez—: las tres en rojo, **con el nombre del
+culpable**, y vuelve a verde al deshacerlas.
+
+**Queda el nivel 2** (cerrar los alias internos y que el proyecto se avise a sí
+mismo), y sigue sin merecer la pena: los 52 ficheros mueren con la familia en el
+tramo 3, así que forzar su migración es trabajo tirado. Se reconsidera si el
+tramo 3 se retrasa.
+
+### Los tres niveles, tal como se plantearon
 
 1. **Trinquete sobre las dos válvulas.** Contar los 45 ficheros que silencian y
    los 6 que usan alias internos, y que **sólo puedan bajar**. Cuesta unas líneas
