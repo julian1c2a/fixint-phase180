@@ -249,6 +249,7 @@ el punto fijo.
 | **P3.5** | Documentar `int128_param_*` (**257** avisos) | **Caduca hacia atrás**: baja sola con P1.5. Desde P3.7 (23 sep) son **el techo entero**: los otros 209 ya están escritos. No se documenta lo que se va a borrar |
 | **P3.6** | Decidir si Intel sale de la matriz de release | Se cae solo si P0.6 sale bien |
 | ~~P2.16~~ | ~~**El CI no compila los benchmarks**~~ | ✅ **hecho (27 sep)**: job `benchs-build`, y **no compila: pasa el front-end**. Lo que hay que cazar es una búsqueda de nombres, y eso lo ve `-fsyntax-only` — **medido**, 26 s frente a 254 s en el más pesado, 80 s los 24 ficheros en vez de ~13 min. **Falsificado contra el fichero roto de verdad** (`git show 8581ff6:`): lo rechaza en 3 s nombrando `sqr_escolar_bucle`. No enlaza, así que sólo necesita las cabeceras de GMP/TomMath/Boost |
+| **P2.21** 🔸 | **El job «los benchmarks compilan» no caza todo lo que parece.** Usa `-fsyntax-only`, y eso **no detecta los errores de asignación de registros**: al reescribir P2.19, el front-end daba `rc=0` y la compilación de verdad fallaba con `impossible constraint in 'asm'`. El CI habría seguido en verde con el fichero roto. Opciones: compilar de verdad uno o dos de los baratos además del barrido con `-fsyntax-only`, o compilar todos y aceptar los ~13 min | Salió de P2.19, tropezando con ello |
 | **P2.20** 🔸 | **Volver a medir el umbral del cuadrado.** `operator*` desvía `x·x` al núcleo de cuadrado desde **N=4**, apoyado en un «gana desde N=4, **2,47×**» medido con **clang** el 16 sep. La toma del 27 sep con **gcc 16** dice lo contrario: en N=4 el desvío **cuesta 1,45×** y no empata hasta **N=12**. O el umbral depende del compilador —y entonces no puede ser una constante— o una de las dos medidas está mal | Salió de dibujar la comparativa. Necesita el banco afinado (fase 0) |
 | **P2.19** 🔸 | **El banco de comparaciones no mide comparaciones.** Siete bucles y **dos formas distintas**: cinco usan `if (r) a += 1;` y dos —`uint64_t` y `unsigned __int128`— usan `a += r;`. Con `r` declarada `volatile`, la segunda forma mete el reenvío de almacén a carga **en la cadena de dependencia del bucle** y la primera no, así que los dos tipos nativos salen **más lentos que los de 128 bits**, que es imposible. Hay que igualar la forma de los siete y sacar el `volatile` de la cadena | Salió de dibujar la comparativa: la tabla se autodesmiente |
 | **P2.18** | **`hueco`, `equilibrado` y `barrido_desenrollado` necesitan más tiempo por casilla, no más repeticiones.** Salen las peores por **dos** caminos independientes: `limpias` (casillas con **1 vuelta limpia de 25**) y el movimiento entre tomas (`hueco N=4`, **57 %**). Con 200 ms por vuelta y N pequeña, la operación dura tan poco que una interrupción se lleva una fracción grande de la ventana | Salió de la calibración del 27 sep, con las dos medidas hechas |
@@ -424,6 +425,60 @@ decisión que hay que volver a medir, y hace falta el banco afinado para hacerlo
 **La toma del 27 sep no se pierde ni se repite**: es el registro de la 1.80 tal
 como se publicó, y la última que incluye los nueve bancos del tipo viejo. Para
 eso se hizo antes de abrir la rama.
+
+---
+
+
+## Deprecar de verdad el tipo viejo (29 sep 2026)
+
+**Hoy la deprecación es una etiqueta para el de fuera.** Medido:
+
+| | |
+|---|---:|
+| ficheros que definen `NSTD_SILENCIA_INT128_PARAM_DEPRECADO` | **45** (9 bancos + 35 tests + la cabecera) |
+| usos de los cuatro alias internos sin marcar | **161** en 6 cabeceras |
+| avisos de deprecación que ve el proyecto al compilarse | **0** |
+
+O sea que **nadie dentro del proyecto ve nunca un aviso**, por dos válvulas: los
+alias internos (`uint128_interno_t` y los tres hermanos), que no llevan el
+atributo, y un macro que silencia por fichero.
+
+### Lo que la medida dice, y que cambia el trabajo
+
+**Ninguna cabecera que sobreviva a la 1.90 depende del tipo viejo.** Las 17
+apariciones de `int128_param` en `fixed_width_int_t.hpp`, `representation.hpp` y
+`div_kernels.hpp` son **comentarios en prosa** —comparaciones con el tipo que se
+retira—, ni una línea de código. Y las dos cabeceras que sí lo usan
+—`algorithms/karatsuba.hpp` y `algorithms/div_by_const.hpp`— sólo las incluye la
+propia familia `int128_param*`, así que **mueren con ella**.
+
+Conclusión: la superficie es **conocida y cerrada**, y toda está programada para
+borrarse. No hay código de biblioteca que migrar.
+
+**Entonces lo que falta no es migrar: es que la lista no crezca.** El macro es
+por fichero, invisible y sin contar — un test nuevo que use el tipo viejo añade
+su `#define` y nadie se entera.
+
+### Tres niveles, de menos a más, y hay que elegir
+
+1. **Trinquete sobre las dos válvulas.** Contar los 45 ficheros que silencian y
+   los 6 que usan alias internos, y que **sólo puedan bajar**. Cuesta unas líneas
+   en el armonizador, no compila nada y hace visible la superficie. *Esto se
+   puede hacer ya.*
+2. **Cerrar los alias internos**: quitarlos y dejar que el proyecto se avise a sí
+   mismo. Sabiendo que los 45 ficheros mueren en el tramo 3, forzar su migración
+   sería trabajo tirado — es la misma regla que «no se documenta lo que se va a
+   borrar».
+3. **Dejar de servirlo por defecto**: que `int128_parameterized.hpp` exija un
+   `#define NSTD_QUIERO_INT128_PARAM` para compilar. Es el paso estándar antes de
+   retirar algo, y el único que hace que la deprecación **muerda de verdad** a
+   quien la usa desde fuera. Rompe a los que no reaccionaron al `[[deprecated]]`,
+   que es justamente el objetivo de una deprecación.
+
+**El 3 es el que responde a «de forma real»**, y conviene decidirlo antes del
+borrado: si el tramo 3 llega sin que nadie haya tenido que reaccionar, la
+deprecación no habrá servido de nada — se habrá pasado de «está marcado» a «ya no
+está» sin escalón intermedio.
 
 ---
 
