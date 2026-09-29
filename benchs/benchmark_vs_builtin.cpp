@@ -35,6 +35,8 @@
 #include "bench_common.hpp"
 
 // Boost.Multiprecision backends
+#include <array>
+
 #include <boost/multiprecision/cpp_int.hpp>
 #if !defined(_MSC_VER) || defined(FORCE_GMP_TOMMATH)
 #define BENCH_HAS_GMP_TOMMATH 1
@@ -1337,195 +1339,144 @@ static BenchResult bench_xor_boost_tom()
 // ============================================================================
 // BENCHMARK: Comparison (<)
 // ============================================================================
+//
+// REESCRITO EL 29 SEP 2026 (P2.19). Lo que habia aqui NO MEDIA COMPARACIONES, y
+// la propia tabla lo delataba: `uint64_t` y `unsigned __int128` salian MAS LENTOS
+// que los tipos de 128 bits, lo cual es imposible -- son las mismas
+// instrucciones mas una.
+//
+// EL FALLO. De los siete bucles habia DOS FORMAS:
+//
+//     uint64_t y unsigned __int128        los otros cinco
+//     r = (a < b);                        r = (a < b);
+//     a += r;                             if (r) { a += 1; }
+//
+// con `r` declarada `volatile bool`. Cada vuelta la escribe en memoria y la
+// vuelve a leer. En la forma `a += r`, ese valor recien leido entra en `a`, que
+// es lo que compara la vuelta siguiente: el REENVIO DE ALMACEN A CARGA --unos
+// cuatro o cinco ciclos-- queda DENTRO de la cadena de dependencia del bucle. En
+// la forma `if (r)` el salto esta perfectamente predicho --tras la primera
+// vuelta `r` es siempre falso y `a` ya no cambia-- y esa misma latencia se
+// solapa. Los 4,85 ciclos que marcaba `uint64_t` eran, casi exactos, el coste de
+// ese reenvio; no el de comparar.
+//
+// Y DEBAJO HABIA UN SEGUNDO DEFECTO: los operandos no cambiaban. Tras la primera
+// vuelta la comparacion era entre dos constantes y su resultado siempre el
+// mismo, o sea el caso mas facil que existe para el predictor de saltos.
+//
+// LO QUE MIDE AHORA: el RENDIMIENTO de la comparacion --cuantas caben por
+// ciclo-- con operandos que cambian. Un solo bucle para los siete tipos, la
+// cadena de dependencia en el acumulador, ningun `volatile` en ninguna parte, y
+// de los ocho valores que entran en el ciclo cuatro quedan por debajo del
+// comparando y cuatro no, POR CONSTRUCCION.
+//
+// NO ES LO MISMO QUE MEDIR LATENCIA, y conviene tenerlo presente al leer la
+// tabla: una comparacion cuya respuesta hace falta de inmediato cuesta mas que
+// una de estas. Medir la latencia pide que el resultado realimente al operando,
+// y eso obliga a hacer aritmetica sobre `T` dentro del bucle -- con lo que se
+// mediria comparacion MAS suma, y el coste de la suma no es igual en los siete
+// tipos. Por eso se mide rendimiento: es lo unico que se puede medir igual para
+// todos.
 
-static BenchResult bench_cmp_u64()
+/// @brief Cuantos valores distintos entran en el ciclo.
+///
+/// Ocho caben de sobra en cache y el `% CMP_VALORES` se compila a un `and`.
+static constexpr std::size_t CMP_VALORES = 8;
+
+/// @brief Ocho valores repartidos alrededor de `centro`, la mitad por debajo.
+///
+/// Se construyen con aritmetica en vez de escribirse a mano para cada tipo: asi
+/// el reparto es identico en los siete **por construccion**, y no depende de que
+/// quien escriba cincuenta y seis constantes no se equivoque en ninguna.
+template <typename T>
+static std::array<T, CMP_VALORES> cmp_valores(const T &centro, const T &paso)
 {
-    std::uint64_t a{0xDEADBEEF12345678ull};
-    std::uint64_t b{0xDEADBEEF12345679ull};
-    volatile bool r{false};
+    std::array<T, CMP_VALORES> v{};
+    T x{centro - paso * T{CMP_VALORES / 2}};
+    for (std::size_t i{0}; i < CMP_VALORES; ++i)
+    {
+        v[i] = x;
+        x = x + paso;
+    }
+    return v;
+}
+
+/// @brief El bucle de medida, uno solo para los siete tipos.
+///
+/// La cadena de dependencia es `acc`, que es un `uint64_t` en todos los casos,
+/// de modo que lo unico que cambia entre tipos es la comparacion. Sin
+/// `volatile`: la barrera la pone `doNotOptimize`, que no obliga a pasar por
+/// memoria.
+template <typename T>
+static double cmp_bucle(const std::array<T, CMP_VALORES> &izq, const T &der)
+{
+    std::uint64_t acc{0};
     for (std::size_t i{0}; i < WARMUP; ++i)
     {
-        r = (a < b);
-        a += r;
-        doNotOptimize(a);
+        acc += static_cast<std::uint64_t>(izq[i % CMP_VALORES] < der);
+        doNotOptimize(acc);
     }
     CycleTimer t;
     for (std::size_t i{0}; i < ITERATIONS; ++i)
     {
-        r = (a < b);
-        a += r;
-        doNotOptimize(a);
+        acc += static_cast<std::uint64_t>(izq[i % CMP_VALORES] < der);
+        doNotOptimize(acc);
     }
     const double cycles{static_cast<double>(t.elapsed_cycles())};
-    return {"uint64_t", cycles / ITERATIONS};
+    doNotOptimize(acc);
+    return cycles / ITERATIONS;
 }
 
-static BenchResult bench_cmp_nstd_u128()
+/// @brief Vale uno, pero el compilador no puede saberlo.
+///
+/// Sin esto, TODO lo que sigue es constante de compilacion --los ocho valores,
+/// el comparando, las ocho comparaciones-- y GCC evalua el bucle entero. Lo
+/// avisa de una forma que conviene saber leer: `doNotOptimize` sobre lo que ya
+/// es un inmediato no compila, «impossible constraint in 'asm'». Ese error no es
+/// un problema del arnes; es el arnes diciendo que no quedaba nada que medir.
+///
+/// **El `volatile` se lee UNA vez y FUERA de la medida.** Meterlo dentro del
+/// bucle es exactamente el fallo que este banco tenia y que P2.19 arregla: ahi
+/// el reenvio de almacen a carga entra en la cadena de dependencia y se mide eso
+/// en vez de la comparacion.
+static volatile std::uint64_t cmp_semilla{1};
+
+/// @brief Monta los valores y mide. Los exponentes evitan escribir constantes de
+///        128 bits a mano y valen igual para un tipo de 64 que para uno de 128.
+template <typename T>
+static double cmp_mide(unsigned exp_centro, unsigned exp_paso)
 {
-    uint128_t a{0xDEADBEEFull, 0x12345678ull};
-    const uint128_t b{0xDEADBEEFull, 0x12345679ull};
-    volatile bool r{false};
-    for (std::size_t i{0}; i < WARMUP; ++i)
-    {
-        r = (a < b);
-        if (r)
-        {
-            a += uint128_t{0, 1};
-        }
-        doNotOptimize(a);
-    }
-    CycleTimer t;
-    for (std::size_t i{0}; i < ITERATIONS; ++i)
-    {
-        r = (a < b);
-        if (r)
-        {
-            a += uint128_t{0, 1};
-        }
-        doNotOptimize(a);
-    }
-    const double cycles{static_cast<double>(t.elapsed_cycles())};
-    return {"nstd::uint128_t", cycles / ITERATIONS};
+    const T uno{static_cast<std::uint64_t>(cmp_semilla)};
+    const T centro{uno << exp_centro};
+    const T paso{uno << exp_paso};
+    return cmp_bucle<T>(cmp_valores<T>(centro, paso), centro);
 }
+
+static BenchResult bench_cmp_u64() { return {"uint64_t", cmp_mide<std::uint64_t>(63, 59)}; }
+
+static BenchResult bench_cmp_nstd_u128() { return {"nstd::uint128_t", cmp_mide<uint128_t>(127, 123)}; }
 
 #ifdef HAS_BUILTIN_INT128
 static BenchResult bench_cmp_builtin_u128()
 {
-    unsigned __int128 a{0xDEADBEEFull};
-    a = (a << 64) | 0x12345678ull;
-    unsigned __int128 b{0xDEADBEEFull};
-    b = (b << 64) | 0x12345679ull;
-    volatile bool r{false};
-    for (std::size_t i{0}; i < WARMUP; ++i)
-    {
-        r = (a < b);
-        a += r;
-        doNotOptimize(a);
-    }
-    CycleTimer t;
-    for (std::size_t i{0}; i < ITERATIONS; ++i)
-    {
-        r = (a < b);
-        a += r;
-        doNotOptimize(a);
-    }
-    const double cycles{static_cast<double>(t.elapsed_cycles())};
-    return {"unsigned __int128", cycles / ITERATIONS};
+    return {"unsigned __int128", cmp_mide<unsigned __int128>(127, 123)};
 }
 #endif
 
 static BenchResult bench_cmp_boost_cpp_u128()
 {
-    boost_cpp_u128 a{"0xDEADBEEF0000000012345678"};
-    const boost_cpp_u128 b{"0xDEADBEEF0000000012345679"};
-    volatile bool r{false};
-    for (std::size_t i{0}; i < WARMUP; ++i)
-    {
-        r = (a < b);
-        if (r)
-        {
-            a += 1;
-        }
-        doNotOptimize(a);
-    }
-    CycleTimer t;
-    for (std::size_t i{0}; i < ITERATIONS; ++i)
-    {
-        r = (a < b);
-        if (r)
-        {
-            a += 1;
-        }
-        doNotOptimize(a);
-    }
-    const double cycles{static_cast<double>(t.elapsed_cycles())};
-    return {"boost::cpp_int u128", cycles / ITERATIONS};
+    return {"boost::cpp_int u128", cmp_mide<boost_cpp_u128>(127, 123)};
 }
 
 static BenchResult bench_cmp_boost_chk_u128()
 {
-    boost_checked_u128 a{"0xDEADBEEF0000000012345678"};
-    const boost_checked_u128 b{"0xDEADBEEF0000000012345679"};
-    volatile bool r{false};
-    for (std::size_t i{0}; i < WARMUP; ++i)
-    {
-        r = (a < b);
-        if (r)
-        {
-            a += 1;
-        }
-        doNotOptimize(a);
-    }
-    CycleTimer t;
-    for (std::size_t i{0}; i < ITERATIONS; ++i)
-    {
-        r = (a < b);
-        if (r)
-        {
-            a += 1;
-        }
-        doNotOptimize(a);
-    }
-    const double cycles{static_cast<double>(t.elapsed_cycles())};
-    return {"boost::checked_uint128", cycles / ITERATIONS};
+    return {"boost::checked_uint128", cmp_mide<boost_checked_u128>(127, 123)};
 }
 
 #ifdef BENCH_HAS_GMP_TOMMATH
-static BenchResult bench_cmp_boost_gmp()
-{
-    boost_gmp_int a{"0xDEADBEEF0000000012345678"};
-    const boost_gmp_int b{"0xDEADBEEF0000000012345679"};
-    volatile bool r{false};
-    for (std::size_t i{0}; i < WARMUP; ++i)
-    {
-        r = (a < b);
-        if (r)
-        {
-            a += 1;
-        }
-        doNotOptimize(a);
-    }
-    CycleTimer t;
-    for (std::size_t i{0}; i < ITERATIONS; ++i)
-    {
-        r = (a < b);
-        if (r)
-        {
-            a += 1;
-        }
-        doNotOptimize(a);
-    }
-    const double cycles{static_cast<double>(t.elapsed_cycles())};
-    return {"boost::gmp_int", cycles / ITERATIONS};
-}
+static BenchResult bench_cmp_boost_gmp() { return {"boost::gmp_int", cmp_mide<boost_gmp_int>(127, 123)}; }
 
-static BenchResult bench_cmp_boost_tom()
-{
-    boost_tom_int a{"0xDEADBEEF0000000012345678"};
-    const boost_tom_int b{"0xDEADBEEF0000000012345679"};
-    volatile bool r{false};
-    for (std::size_t i{0}; i < WARMUP; ++i)
-    {
-        r = (a < b);
-        if (r)
-        {
-            a += 1;
-        }
-        doNotOptimize(a);
-    }
-    CycleTimer t;
-    for (std::size_t i{0}; i < ITERATIONS; ++i)
-    {
-        r = (a < b);
-        if (r)
-        {
-            a += 1;
-        }
-        doNotOptimize(a);
-    }
-    const double cycles{static_cast<double>(t.elapsed_cycles())};
-    return {"boost::tom_int", cycles / ITERATIONS};
-}
+static BenchResult bench_cmp_boost_tom() { return {"boost::tom_int", cmp_mide<boost_tom_int>(127, 123)}; }
 #endif // BENCH_HAS_GMP_TOMMATH
 
 // ============================================================================
