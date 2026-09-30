@@ -249,11 +249,11 @@ el punto fijo.
 | **P3.5** | Documentar `int128_param_*` (**257** avisos) | **Caduca hacia atrás**: baja sola con P1.5. Desde P3.7 (23 sep) son **el techo entero**: los otros 209 ya están escritos. No se documenta lo que se va a borrar |
 | **P3.6** | Decidir si Intel sale de la matriz de release | Se cae solo si P0.6 sale bien |
 | ~~P2.16~~ | ~~**El CI no compila los benchmarks**~~ | ✅ **hecho (27 sep)**: job `benchs-build`, y **no compila: pasa el front-end**. Lo que hay que cazar es una búsqueda de nombres, y eso lo ve `-fsyntax-only` — **medido**, 26 s frente a 254 s en el más pesado, 80 s los 24 ficheros en vez de ~13 min. **Falsificado contra el fichero roto de verdad** (`git show 8581ff6:`): lo rechaza en 3 s nombrando `sqr_escolar_bucle`. No enlaza, así que sólo necesita las cabeceras de GMP/TomMath/Boost |
-| **P2.21** 🔸 | **El job «los benchmarks compilan» no caza todo lo que parece.** Usa `-fsyntax-only`, y eso **no detecta los errores de asignación de registros**: al reescribir P2.19, el front-end daba `rc=0` y la compilación de verdad fallaba con `impossible constraint in 'asm'`. El CI habría seguido en verde con el fichero roto. Opciones: compilar de verdad uno o dos de los baratos además del barrido con `-fsyntax-only`, o compilar todos y aceptar los ~13 min | Salió de P2.19, tropezando con ello |
+| ~~P2.21~~ | ~~**El job «los benchmarks compilan» no caza todo lo que parece**~~ | ✅ **hecho (30 sep)** en `0e2c21b`. `gcc` pasa a `-c -O2` y **clang se queda en el front-end**, y las dos mitades están **medidas contra el fallo real**, no supuestas: reconstruido el `cmp_mide` sin semilla volátil, `-fsyntax-only`, `-O0` y `-O1` **no lo ven con ninguno de los dos**, y sólo `gcc -c -O2` lo caza. Hace falta el `-O2` porque el error nace de que GCC **pliega** una constante, y eso sólo pasa al optimizar; y clang no sube porque **a `-O2` tampoco lo ve** —su rama de `doNotOptimize` es otra—, así que pagar quince minutos por una detección que no ocurre sería tirar el tiempo | Salió de P2.19, tropezando con ello |
 | **P2.20** 🔸 | **Volver a medir el umbral del cuadrado.** `operator*` desvía `x·x` al núcleo de cuadrado desde **N=4**, apoyado en un «gana desde N=4, **2,47×**» medido con **clang** el 16 sep. La toma del 27 sep con **gcc 16** dice lo contrario: en N=4 el desvío **cuesta 1,45×** y no empata hasta **N=12**. O el umbral depende del compilador —y entonces no puede ser una constante— o una de las dos medidas está mal | Salió de dibujar la comparativa. Necesita el banco afinado (fase 0) |
 | **P2.19** 🔸 | **El banco de comparaciones no mide comparaciones.** Siete bucles y **dos formas distintas**: cinco usan `if (r) a += 1;` y dos —`uint64_t` y `unsigned __int128`— usan `a += r;`. Con `r` declarada `volatile`, la segunda forma mete el reenvío de almacén a carga **en la cadena de dependencia del bucle** y la primera no, así que los dos tipos nativos salen **más lentos que los de 128 bits**, que es imposible. Hay que igualar la forma de los siete y sacar el `volatile` de la cadena | Salió de dibujar la comparativa: la tabla se autodesmiente |
-| **P2.18** | **`hueco`, `equilibrado` y `barrido_desenrollado` necesitan más tiempo por casilla, no más repeticiones.** Salen las peores por **dos** caminos independientes: `limpias` (casillas con **1 vuelta limpia de 25**) y el movimiento entre tomas (`hueco N=4`, **57 %**). Con 200 ms por vuelta y N pequeña, la operación dura tan poco que una interrupción se lleva una fracción grande de la ventana | Salió de la calibración del 27 sep, con las dos medidas hechas |
-| **P2.17** | **Migrar al arnés adaptativo las once suites que quedan** (`addsub`, `bases`, `curva_n`, `div_by_const`, `divmod_algorithms`, `divmod_const`, `fixed_vs_param`, `fromstring`, `karatsuba`, `tostring`, `vs_builtin`). No es cosmético: **medido**, sus casillas se mueven diez veces más entre tomas (p90 14,0 % frente a 3,3 %) y son el origen de los **26 falsos positivos** del umbral plano | Salió de P2.5, con la medida hecha |
+| **P2.18** | **Las doce casillas sucias de `hueco`, `equilibrado` y `barrido_desenrollado`: ¿pasajeras o sistemáticas?** El enunciado original decía que **necesitaban más tiempo por casilla**, y eso **está medido que es falso** (30 sep) por tres caminos: ⓐ la ventana **no depende de N** —la calibración la fija en 200 ms para todas—, ⓑ las casillas baratas **no** son las más ruidosas, y ⓒ el A/B de P2.17 muestra que el efecto de la ventana **se satura**: en `karatsuba`, entre 10,8 ms y 393 ms las cifras coinciden dentro del 2 %. Subir de 200 ms a 500 ms no movería nada. Queda la pregunta de verdad —si las doce son ruido de aquella tarde o una propiedad de esas casillas—, con `repite_sucias.py` escrito (~15 min de máquina en silencio) y sin correr | Reescrita el 30 sep: la premisa original era falsa por tres caminos |
+| ~~P2.17~~ | ~~**Migrar al arnés adaptativo las once suites que quedan**~~ | ✅ **hecho (30 sep)**, y **eran tres, no once**: ocho de las once miden `int128_param_t`, que ADR-006 retira en la 1.90, así que migrarlas sería trabajo sobre código muerto. Migradas `curva_n` (`1621523`), `bases` y `karatsuba`. Coste: `bases` pasa de 2,5 s a **13,9 min** y `karatsuba` de 19 s a **3,6 min**. **Lo que destapó al verificarla importa más que la migración**: ver «El arnés viejo no medía lo que decía» | Salió de P2.5, con la medida hecha |
 | ~~P3.7~~ | ~~**Documentar el tipo NUEVO: 209 miembros públicos sin `@brief`**~~ | ✅ **hecho (23 sep)**. Techo **466 → 257**, y los 257 restantes son **todos** de `int128_param_*`. De paso, dos defectos de marcado que hacían **perder documentación ya escrita** —un `@def` sin argumento y un `@example` en línea— y 45 avisos más en `intrinsics/`+`algorithms/`, que no cuentan contra el techo pero son el código que ejecutan los núcleos |
 | ~~P3.8~~ | ~~**`numeric_limits<fixed_int_t>::is_modulo` miente**~~ | ✅ **hecho (26 sep)** en `f1e9de5`, CI 24/24 sobre `a77ae4c`. Pasa a `Policy == overflow_policy::wrap`, como ya hacía el punto fijo ([ADR-022](docs/decisions/ADR-022-numeric-limits-del-punto-fijo.md), decisión 6). **Eran dos mitades, no una**: también mentía SIN signo, porque `uint` + `checked` decía `true` y ahí no se envuelve, se marca. Y la documentación de la clase **ya decía lo correcto**: el código llevaba contradiciéndola desde el primer día |
 | ~~P3.9~~ | ~~**Medir el techo de doxygen en 1.9.8**, la versión del CI~~ | ✅ **hecho (23 sep)**: **286**, leída del log del CI sobre `7f37017`. Llevaba en 518 desde agosto. La distancia con la local (257) son **29 avisos sobre el mismo árbol**, que es justo por lo que hay una cifra por versión |
@@ -339,6 +339,89 @@ usan Karatsuba). Eso separa «es cosa de la paridad» de «es cosa de no ser 2, 
 u 8». Si sale lo segundo, apunta a la generación de código del `if constexpr`
 encadenado; si lo primero, al bucle de acarreo. Después, el ensamblador del N que
 peor salga.
+
+### ⚠ El arnés viejo no medía lo que decía (30 sep 2026, saliendo de P2.17)
+
+Migrar `karatsuba` movió las cifras. Comparar contra el histórico del 27 sep no
+decidía nada, porque aquella toma se hizo con la máquina silenciada y ésta no,
+así que la prueba es otra: **sacar de git la versión previa y correrla en la
+misma máquina y el mismo minuto**. Entonces la única diferencia es el arnés.
+
+#### 1. La ventana corta, en `karatsuba`
+
+| N | arnés viejo | arnés nuevo | cambio | ventana del viejo |
+|---|---|---|---|---|
+| 3 | 9,86 | 19,13 | **+94,0 %** | 1,3 ms |
+| 4 | 18,07 | 25,86 | **+43,1 %** | 2,4 ms |
+| 7 | 46,03 | 57,52 | **+25,0 %** | 6,1 ms |
+| 8 | 70,54 | 77,61 | **+10,0 %** | 9,4 ms |
+| 9 | 80,65 | 79,37 | −1,6 % | 10,8 ms |
+| 16 | 613,31 | 608,46 | −0,8 % | 81,8 ms |
+| 32 | 2950,35 | 2913,75 | −1,2 % | 393,4 ms |
+
+Ventanas **cortas** (<10 ms): **+32,2 %** de media. **Largas** (≥10 ms):
+**−0,2 %**.
+
+**La explicación alternativa, y por qué no vale.** Un coste fijo por iteración
+del arnés nuevo encajaría igual con la forma de la tabla: sumar ~8 ciclos infla
+un 90 % una casilla de 9 cyc/op y un 0,3 % una de 2950. Lo que la descarta es
+**`N=8` contra `N=9`**: cuestan casi lo mismo (70,5 y 80,7) y se mueven **+10,0 %
+y −1,6 %**. Un sumando constante les daría el mismo porcentaje. Lo que los separa
+es la ventana, 9,4 ms y 10,8 ms, a los dos lados del escalón.
+
+#### 2. Pero NO se generaliza, y eso hay que decirlo
+
+El mismo A/B sobre `bases` da **el signo contrario y diez veces más pequeño**:
+mediana **2,2 %**, y las casillas más baratas **bajan** un 15–18 % en vez de
+subir. La diferencia estructural entre los dos arneses viejos es el
+**calentamiento**: el de `karatsuba` tenía `WARMUP` y el de `bases` **no tenía
+ninguno**. Sin calentar se mide frío y se lee de más; calentando pero con una
+ventana de 1,3 ms se pilla la ráfaga de turbo y se lee de menos.
+
+Lo único que vale para las dos: **con ventana corta el arnés viejo era poco de
+fiar, y el signo del error depende de detalles**. La primera lectura —«medía de
+menos»— era la de `karatsuba` tomada por ley general.
+
+#### 3. Lo que sí cambia una conclusión escrita
+
+La **razón justa** (escolar desenrollado / biblioteca) del arnés viejo **corrido
+hoy** reproduce el histórico del 27 sep casi clavada —0,878 → 0,880 en N=4,
+0,808 → 0,830 en N=8, 1,776 → 1,800 en N=32—, o sea que **aquí no hay deriva: el
+cambio es del arnés entero**. Y **seis casillas cruzan el 1,00×**:
+
+| N | 27 sep | viejo hoy | nuevo hoy |
+|---|---|---|---|
+| 4 | 0,878 | 0,880 | **1,000** |
+| 5 | 0,949 | 0,940 | **1,120** |
+| 6 | 0,922 | 0,930 | **1,220** |
+| 8 | 0,808 | 0,830 | **1,110** |
+| 10 | 0,881 | 0,900 | **1,350** |
+| 12 | 0,901 | 0,930 | **1,310** |
+
+Con el arnés viejo la biblioteca **perdía** contra el escolar desenrollado en
+las seis; con el nuevo **gana**. El párrafo de `benchmark_karatsuba.cpp` que dice
+«con `-funroll-loops` la razón en N=4 cae a 0,88×, o sea Karatsuba PIERDE» se
+apoya en esas cifras.
+
+**El mecanismo, y es el que el propio fichero creía tener resuelto.** El arnés
+viejo medía las tres variantes **en orden fijo** dentro de cada ronda: la
+biblioteca **siempre la primera**. Ir primero se paga —cachés y predictor
+fríos—, así que `mejor_k` salía inflado y la razón `d/k` deflactada. La cabecera
+del fichero decía que intercalar reparte la deriva por igual; **intercalar en
+orden fijo no reparte nada**, sólo rotarlo. Es la cuarta vez que esta
+comparación mide algo que no es.
+
+#### 4. Y un aviso sobre el histórico
+
+`bases` se mueve hasta un **±27 % entre el 27 sep y hoy con el MISMO arnés**
+(mediana 5,1 %). Es una suite que reserva memoria y toca el asignador, así que
+depende mucho de en qué estado esté la máquina. Para esa suite, comparar entre
+tomas hechas en condiciones distintas no decide gran cosa, y conviene tenerlo en
+cuenta antes de leer un `--compare`.
+
+**Pendiente**: rehacer el apartado de `benchmark_karatsuba.cpp` con las cifras
+del arnés nuevo, y marcar la frontera del 30 sep en el histórico para que
+`--compare` no cante regresiones que son cambios de protocolo.
 
 ### ✅ P2.5 — Histórico de benchmarks (cerrada el 27 sep 2026)
 

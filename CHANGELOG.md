@@ -1,3 +1,64 @@
+## [sin publicar] - 2026-09-30 - **el arnes viejo no medía lo que decía** (P2.17)
+
+Migradas al arnes adaptativo las suites que sobreviven a la 1.90: `curva_n`,
+`bases` y `karatsuba`. **Eran tres, no once**: ocho de las once miden
+`int128_param_t`, que ADR-006 retira en esta version, asi que migrarlas seria
+trabajo sobre codigo muerto.
+
+### SEIS CASILLAS DECIAN QUE LA BIBLIOTECA PERDIA, Y NO
+
+El arnes viejo de `karatsuba` medía las tres variantes **en orden fijo** dentro
+de cada ronda, con la biblioteca siempre la primera. Ir primero se paga --cachés
+y predictor frios--, asi que su cifra salia inflada y la razon contra el escolar
+desenrollado, deflactada. Rotando el orden, seis anchuras cruzan el 1,00x:
+
+    N        arnes viejo   arnes nuevo
+    4            0,880        1,000
+    5            0,940        1,120
+    6            0,930        1,220
+    8            0,830        1,110
+    10           0,900        1,350
+    12           0,930        1,310
+
+**No es deriva de la maquina.** El arnes viejo, sacado de git y corrido el mismo
+dia, reproduce el historico del 27 sep dentro de 0,02 --0,878 a 0,880 en N=4,
+1,776 a 1,800 en N=32--. Es el arnes.
+
+Por eso el parrafo de `benchmark_karatsuba.cpp` que concluia «la razon en N=4
+cae a 0,88x, o sea Karatsuba PIERDE» queda fechado y contradicho en el propio
+fichero. Lo que aquel parrafo DESCUBRIO sigue en pie --el desenrollado se colaba
+dentro de la razon, y por eso existe `schoolbook_mul_desenrollado`--; lo que
+concluyo, no.
+
+### LA VENTANA CORTA, Y HASTA DONDE SE GENERALIZA
+
+El mismo A/B del mismo minuto dice que las casillas cuya ventana vieja duraba
+menos de ~10 ms se leen un **32 %** distinto, y las de mas de 10 ms coinciden
+dentro del **0,2 %**. La explicacion alternativa --un coste fijo por iteracion
+del arnes nuevo-- la descarta `N=8` contra `N=9`: cuestan casi lo mismo (70,5 y
+80,7 cyc/op) y se mueven +10,0 % y −1,6 %; un sumando constante les daria el
+mismo porcentaje, y lo que los separa son sus ventanas, 9,4 ms y 10,8 ms.
+
+**Pero no se generaliza, y se dice.** El mismo A/B sobre `bases` da el signo
+contrario y diez veces mas pequeño (mediana 2,2 %). La diferencia estructural es
+el calentamiento: el arnes viejo de `karatsuba` tenia `WARMUP` y el de `bases`
+**no tenia ninguno**. Lo unico que vale para las dos es que **con ventana corta
+el arnes viejo era poco de fiar, y el signo del error depende de detalles**.
+
+### EL PRECIO
+
+`bases` pasa de 2,5 s a **13,9 min** y `karatsuba` de 19 s a **3,6 min**, porque
+la ventana deja de depender de lo que cueste la operacion. La toma completa crece
+en consecuencia.
+
+### AVISO SOBRE EL HISTORICO
+
+Hay una frontera de protocolo el 30 sep: `--compare` va a marcar como regresion
+saltos que son cambios de arnes. Y `bases` se mueve hasta un **±27 %** entre el
+27 sep y hoy **con el mismo arnes** --reserva memoria y toca el asignador, asi
+que depende mucho del estado de la maquina--, de modo que para esa suite comparar
+entre tomas en condiciones distintas no decide gran cosa.
+
 ## [sin publicar] - 2026-09-29 - **la familia vieja deja de servirse por defecto**
 
 Nivel 3 de la deprecacion, pedido por el autor. `int128_param_t` estaba marcado

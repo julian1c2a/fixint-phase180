@@ -22,11 +22,18 @@
 // escolar O(N^2) para el resto. Karatsuba era una de las optimizaciones de
 // cabecera de v1.90 y nunca se habia medido: este benchmark existe para eso.
 //
-// Metodo: las dos variantes se miden INTERCALADAS dentro de cada ronda, y se
-// toma el MINIMO de las rondas para cada caso. Intercalar reparte por igual la
-// deriva termica y el ruido del planificador; el minimo se queda con la ronda
-// menos contaminada, que es la que mas se parece al coste real. Una media
-// mediria sobre todo el ruido del sistema.
+// Metodo: las tres variantes se miden ENTRELAZADAS y CON EL ORDEN ROTANDO, en
+// vueltas de tiempo fijo, y se toma el MINIMO. Entrelazar reparte por igual la
+// deriva termica y el ruido del planificador; rotar el orden quita el sesgo de
+// ir siempre la primera --que era el resto que quedaba--; y el minimo se queda
+// con la vuelta menos contaminada, que es la que mas se parece al coste real.
+// Una media mediria sobre todo el ruido del sistema.
+//
+// Desde P2.17 lo hace `bench::mide_entrelazado`, que ademas guarda el ruido de
+// cada casilla --dispersion, cola baja, vueltas limpias-- para que `--compare`
+// pueda decidir si una diferencia de manana significa algo. Antes eran 400.000
+// iteraciones fijas para todo: en N=2 la ventana duraba 4 ms y en N=32 casi un
+// segundo.
 //
 // EL CONTROL ES N=16. Ahi la biblioteca usa el mismo bucle escolar que la
 // implementacion de referencia de abajo, asi que la razon TIENE que salir
@@ -41,7 +48,7 @@
 
 #include "../include/fixed_width_int_t.hpp"
 #include "../include/intrinsics/arithmetic_operations.hpp"
-#include "bench_common.hpp"
+#include "bench_adaptativo.hpp"
 
 #include <string>
 #include <vector>
@@ -65,6 +72,28 @@ using namespace nstd;
 // compara algoritmos: compara desenrollado. Y explica la mayor parte del
 // "1,65x" que se venia publicando -- con `-funroll-loops`, la razon en N=4
 // cae de 1,75x a 0,88x, o sea Karatsuba PIERDE.
+//
+// *** ESE "0,88x" NO VALE. Medido el 30 sep 2026 al migrar a este arnes. ***
+//
+// El "PIERDE" salia del arnes viejo, que medía las tres variantes en ORDEN
+// FIJO dentro de cada ronda, con la biblioteca SIEMPRE LA PRIMERA. Ir primero
+// se paga --cachés y predictor frios--, asi que `mejor_k` salia inflado y la
+// razon `d/k` deflactada. Rotando el orden, SEIS anchuras cruzan el 1,00x:
+//
+//     N        arnes viejo   arnes nuevo
+//     4            0,880        1,000
+//     5            0,940        1,120
+//     6            0,930        1,220
+//     8            0,830        1,110
+//     10           0,900        1,350
+//     12           0,930        1,310
+//
+// No es deriva de la maquina: el arnes viejo corrido ESE MISMO DIA reproduce
+// el historico del 27 sep dentro de 0,02 (0,878 -> 0,880 en N=4). Es el arnes.
+//
+// Lo que este parrafo DESCUBRIO sigue en pie: el desenrollado se colaba dentro
+// de la razon, y por eso existe `schoolbook_mul_desenrollado`. Lo que CONCLUYO
+// --que la biblioteca pierde-- se apoyaba en numeros de orden fijo.
 //
 // Es la segunda vez que esta comparacion mide algo que no es. La primera fue el
 // "6,23x" contra un espantapajaros, que se arreglo poniendo esta copia fiel. La
@@ -307,29 +336,12 @@ static constexpr double productos_karatsuba(std::size_t N) noexcept
 static int g_medidas_descartadas{0};
 
 static constexpr std::size_t OPERANDS{256};
-static constexpr std::size_t ROUNDS{7};
-static constexpr std::size_t ITERS{400000};
 
-template <std::size_t N, typename F>
-static double measure(const std::vector<uint_fixed_t<N>> &xs, F op)
-{
-    uint_fixed_t<N> sink{};
-
-    // Calentamiento: se descarta.
-    for (std::size_t k{0}; k < WARMUP; ++k)
-    {
-        sink = op(xs[k % OPERANDS], xs[(k + 1) % OPERANDS]);
-        doNotOptimize(sink);
-    }
-
-    CycleTimer t;
-    for (std::size_t k{0}; k < ITERS; ++k)
-    {
-        sink = op(xs[k % OPERANDS], xs[(k + 1) % OPERANDS]);
-        doNotOptimize(sink);
-    }
-    return static_cast<double>(t.elapsed_cycles()) / static_cast<double>(ITERS);
-}
+// ROUNDS, ITERS y `measure` se fueron con el arnes viejo (P2.17). Fijaban
+// 400.000 iteraciones para las doce anchuras: en N=2 eso es una ventana de 4 ms
+// y en N=32 de casi un segundo, con el mismo calentamiento de WARMUP vueltas
+// para las dos. `bench::mide_entrelazado` fija el TIEMPO (200 ms) y deduce las
+// iteraciones, calienta segun la casilla y rota el orden de las variantes.
 
 // `nota`: "" para los casos medidos, un texto para los que son control o
 // camino especializado.
@@ -338,26 +350,32 @@ static void bench_one(const char *etiqueta, const char *nota)
 {
     const auto xs = make_operands<N>(OPERANDS);
 
-    double mejor_k{1e300};
-    double mejor_e{1e300};
-    double mejor_d{1e300}; // escolar desenrollado por construccion
+    uint_fixed_t<N> sink{};
 
-    for (std::size_t r{0}; r < ROUNDS; ++r)
+    auto f_biblioteca = [&](std::size_t k)
     {
-        // Intercaladas dentro de la ronda: el ruido cae por igual en las tres.
-        const double ck =
-            measure<N>(xs, [](const uint_fixed_t<N> &a, const uint_fixed_t<N> &b) { return a * b; });
-        const double ce = measure<N>(xs, [](const uint_fixed_t<N> &a, const uint_fixed_t<N> &b)
-                                     { return schoolbook_mul<N>(a, b); });
-        const double cd = measure<N>(xs, [](const uint_fixed_t<N> &a, const uint_fixed_t<N> &b)
-                                     { return schoolbook_mul_desenrollado<N>(a, b); });
-        if (ck < mejor_k)
-            mejor_k = ck;
-        if (ce < mejor_e)
-            mejor_e = ce;
-        if (cd < mejor_d)
-            mejor_d = cd;
-    }
+        sink = xs[k % OPERANDS] * xs[(k + 1) % OPERANDS];
+        doNotOptimize(sink);
+    };
+    auto f_escolar = [&](std::size_t k)
+    {
+        sink = schoolbook_mul<N>(xs[k % OPERANDS], xs[(k + 1) % OPERANDS]);
+        doNotOptimize(sink);
+    };
+    auto f_desenrollado = [&](std::size_t k)
+    {
+        sink = schoolbook_mul_desenrollado<N>(xs[k % OPERANDS], xs[(k + 1) % OPERANDS]);
+        doNotOptimize(sink);
+    };
+
+    // El orden de la tupla es el orden de `m`, no el orden en que se miden: eso
+    // lo rota el arnes en cada vuelta, que es justo lo que hace comparables las
+    // tres cifras de abajo.
+    const auto m = bench::mide_entrelazado(std::make_tuple(f_biblioteca, f_escolar, f_desenrollado));
+
+    const double mejor_k = m[0].minimo;
+    const double mejor_e = m[1].minimo;
+    const double mejor_d = m[2].minimo; // escolar desenrollado por construccion
 
     // Antes de registrar nada, comprobar que las tres cifras son fisicamente
     // posibles. Una medida imposible contamina el historico y, peor, se compara
@@ -368,9 +386,11 @@ static void bench_one(const char *etiqueta, const char *nota)
     if (!(ok_k && ok_e && ok_d))
         ++g_medidas_descartadas;
 
-    bench_record((std::string("N=") + std::to_string(N) + " biblioteca").c_str(), mejor_k);
-    bench_record((std::string("N=") + std::to_string(N) + " escolar").c_str(), mejor_e);
-    bench_record((std::string("N=") + std::to_string(N) + " escolar desenrollado").c_str(), mejor_d);
+    // Las tres medidas, con su ruido. Las razones de debajo NO: son cocientes de
+    // estas, no medidas, y no tienen dispersion propia que guardar.
+    bench::registra((std::string("N=") + std::to_string(N) + " biblioteca").c_str(), m[0]);
+    bench::registra((std::string("N=") + std::to_string(N) + " escolar").c_str(), m[1]);
+    bench::registra((std::string("N=") + std::to_string(N) + " escolar desenrollado").c_str(), m[2]);
     // `razon` se conserva con el mismo nombre para no romper el historico ya
     // guardado, PERO es la que enganaba: compara contra el escolar en bucle.
     bench_record((std::string("N=") + std::to_string(N) + " razon").c_str(), mejor_e / mejor_k, "x");
@@ -424,8 +444,10 @@ static bool check_equal()
 int main()
 {
     std::cout << "\n=== Karatsuba frente a multiplicacion escolar ===\n";
-    std::cout << "operandos: " << OPERANDS << " pseudoaleatorios, " << ITERS << " iteraciones x " << ROUNDS
-              << " rondas intercaladas, minimo por caso\n";
+    std::cout << "operandos: " << OPERANDS << " pseudoaleatorios; " << bench::REPETICIONES
+              << " vueltas de " << bench::MS_POR_CASILLA
+              << " ms por casilla, las TRES variantes entrelazadas y con el orden rotando;"
+                 " minimo por caso\n";
 
     std::cout << "\n[correccion]\n";
     const bool ok = check_equal<2>() && check_equal<3>() && check_equal<4>() && check_equal<5>() &&
@@ -487,6 +509,14 @@ int main()
 
     std::cout << "\nSi los N de este barrido no salen entre 0.95x y 1.05x, hay algo que\n"
               << "explicar: la implementacion de referencia es la misma en todos.\n";
+
+    // Y AHORA MISMO NO SALEN. Con el arnes nuevo el barrido da de 1,07x a 1,48x
+    // en vez de ~1,00x. No es un fallo de la migracion --el arnes viejo tampoco
+    // cumplia la banda: daba 0,76x en N=16 y 1,78x en N=32-- sino que la banda
+    // nunca se cumplio y el aviso se venia leyendo por encima. Queda anotado en
+    // NEXT_STEPS para mirarlo con el barrido ya fiable.
+    std::cout << "(30 sep 2026: no salen. Ver NEXT_STEPS, «El arnes viejo no\n"
+              << "medía lo que decía». La banda no se cumplia tampoco antes.)\n";
 
     // Una medida imposible no es un detalle: si se cuela, contamina el historico
     // y manana se compara con ella como si valiera. Se sale con error.

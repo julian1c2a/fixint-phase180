@@ -38,7 +38,7 @@
 
 #include "fixed_width_int_t.hpp"
 
-#include "bench_common.hpp"
+#include "bench_adaptativo.hpp"
 
 #include <array>
 #include <cstdint>
@@ -50,8 +50,11 @@
 using namespace nstd;
 
 static constexpr std::size_t OPERANDOS{128};
-static constexpr std::size_t VUELTAS{20000};
-static constexpr std::size_t RONDAS{5};
+
+// VUELTAS y RONDAS se fueron con el arnes viejo (P2.17). Fijaban 20.000
+// iteraciones para todo, y aqui `to_string` cuesta 329 ciclos en base 10 y 2.576
+// en base 3 -- ocho veces mas, con la misma ventana. Ahora la ventana es de
+// tiempo fijo y la eligen las iteraciones.
 
 /// @brief Es potencia de dos, o sea de las que se hacen a desplazamientos.
 static constexpr bool es_potencia_de_dos(int base) noexcept { return base > 0 && (base & (base - 1)) == 0; }
@@ -72,31 +75,10 @@ static std::vector<uint_fixed_t<N>> operandos()
     return v;
 }
 
-template <std::size_t N>
-static double mide_to_string(const std::vector<uint_fixed_t<N>> &xs, int base)
-{
-    std::string sumidero;
-    CycleTimer t;
-    for (std::size_t k = 0; k < VUELTAS; ++k)
-    {
-        sumidero = xs[k % OPERANDOS].to_string(base);
-        doNotOptimize(sumidero);
-    }
-    return static_cast<double>(t.elapsed_cycles()) / static_cast<double>(VUELTAS);
-}
-
-template <std::size_t N>
-static double mide_from_string(const std::vector<std::string> &ss, int base)
-{
-    uint_fixed_t<N> sumidero{};
-    CycleTimer t;
-    for (std::size_t k = 0; k < VUELTAS; ++k)
-    {
-        sumidero = uint_fixed_t<N>::from_string(ss[k % OPERANDOS].c_str(), base);
-        doNotOptimize(sumidero);
-    }
-    return static_cast<double>(t.elapsed_cycles()) / static_cast<double>(VUELTAS);
-}
+// `mide_to_string` y `mide_from_string` se fueron: cronometraban un numero fijo
+// de vueltas, cada una por su lado. Ahora son dos lambdas que `mide_entrelazado`
+// alterna dentro de la misma tanda, con el orden rotando -- que es lo que hace
+// legitimo comparar escribir contra leer.
 
 template <std::size_t N>
 static void una_anchura(const char *etiqueta)
@@ -118,25 +100,30 @@ static void una_anchura(const char *etiqueta)
         for (const auto &x : xs)
             ss.push_back(x.to_string(base));
 
-        double mejor_ts{1e300}, mejor_fs{1e300};
-        for (std::size_t r = 0; r < RONDAS; ++r)
+        std::string s_sumidero;
+        uint_fixed_t<N> n_sumidero{};
+
+        auto f_escribe = [&](std::size_t k)
         {
-            const double ts = mide_to_string<N>(xs, base);
-            const double fs = mide_from_string<N>(ss, base);
-            if (ts < mejor_ts)
-                mejor_ts = ts;
-            if (fs < mejor_fs)
-                mejor_fs = fs;
-        }
+            s_sumidero = xs[k % OPERANDOS].to_string(base);
+            doNotOptimize(s_sumidero);
+        };
+        auto f_lee = [&](std::size_t k)
+        {
+            n_sumidero = uint_fixed_t<N>::from_string(ss[k % OPERANDOS].c_str(), base);
+            doNotOptimize(n_sumidero);
+        };
+
+        const auto m = bench::mide_entrelazado(std::make_tuple(f_escribe, f_lee));
 
         char nombre[64];
         std::snprintf(nombre, sizeof(nombre), "to_string N=%zu base %d", N, base);
-        bench_record(nombre, mejor_ts);
+        bench::registra(nombre, m[0]);
         std::snprintf(nombre, sizeof(nombre), "from_string N=%zu base %d", N, base);
-        bench_record(nombre, mejor_fs);
+        bench::registra(nombre, m[1]);
 
-        std::printf("| %4d | %9.1f | %11.1f | %9zu |%s\n", base, mejor_ts, mejor_fs, ss[0].size(),
-                    es_potencia_de_dos(base) ? "  <- potencia de dos" : "");
+        std::printf("| %4d | %9.1f | %11.1f | %9zu |%s\n", base, m[0].minimo, m[1].minimo,
+                    ss[0].size(), es_potencia_de_dos(base) ? "  <- potencia de dos" : "");
     }
     std::printf("+------+-----------+-------------+-----------+\n");
 }
@@ -144,8 +131,9 @@ static void una_anchura(const char *etiqueta)
 int main()
 {
     std::printf("=== to_string / from_string en las bases 2..36 ===\n");
-    std::printf("%zu operandos aleatorios, %zu iteraciones x %zu rondas, minimo por caso\n", OPERANDOS,
-                VUELTAS, RONDAS);
+    std::printf("%zu operandos aleatorios; %zu vueltas de %.0f ms por casilla, escribir y\n"
+                "leer ENTRELAZADAS y con el orden rotando. Se publica el minimo.\n",
+                OPERANDOS, bench::REPETICIONES, bench::MS_POR_CASILLA);
     std::printf("\nLo esperado: las potencias de dos, mas baratas (van a "
                 "desplazamientos);\nel resto, parecidas entre si y bajando despacio segun "
                 "crece la base.\n");
