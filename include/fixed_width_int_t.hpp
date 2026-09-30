@@ -1477,7 +1477,14 @@ namespace nstd
         // El tipo viejo hacia lo contrario --operar sobre la magnitud-- y su `~`
         // estaba roto por eso: `~mag` pone a uno el bit de signo. Aqui ese error
         // no cabe, porque no se tocan los bits de la representacion.
-        /// @brief Complemento a uno de los `64N` bits **almacenados**.
+        /// @brief Complemento a uno **del valor**: `~3` vale -4 en las cuatro
+        ///        representaciones.
+        ///
+        /// @note No es el complemento de los bits guardados. En `binnat` y
+        ///       complemento a dos coinciden, pero en Magnitud-Signo y Exceso-K
+        ///       lo que se complementa es la imagen en complemento a dos
+        ///       (ADR-018). Complementar los bits guardados es justo el error
+        ///       que tenia el tipo viejo.
         constexpr fixed_int_t operator~() const noexcept
         {
             if constexpr (representacion_codificada)
@@ -1491,7 +1498,7 @@ namespace nstd
             }
         }
 
-        /// @brief Y bit a bit, limbo a limbo.
+        /// @brief Y bit a bit **del valor** (ADR-018), no de los bits guardados.
         constexpr fixed_int_t operator&(const fixed_int_t &o) const noexcept
         {
             if constexpr (representacion_codificada)
@@ -1505,7 +1512,7 @@ namespace nstd
             }
         }
 
-        /// @brief O bit a bit, limbo a limbo.
+        /// @brief O bit a bit **del valor** (ADR-018), no de los bits guardados.
         constexpr fixed_int_t operator|(const fixed_int_t &o) const noexcept
         {
             if constexpr (representacion_codificada)
@@ -1519,7 +1526,7 @@ namespace nstd
             }
         }
 
-        /// @brief O exclusivo bit a bit, limbo a limbo.
+        /// @brief O exclusivo bit a bit **del valor** (ADR-018), no de los bits guardados.
         constexpr fixed_int_t operator^(const fixed_int_t &o) const noexcept
         {
             if constexpr (representacion_codificada)

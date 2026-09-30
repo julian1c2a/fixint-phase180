@@ -682,6 +682,42 @@ fuentes leídas y marcadas por confianza.
 | — | **`countls`** | TR 18037. Operación que **falta**, y hace falta para normalizar antes de multiplicar |
 | `F == N` | **especialización propia** | TR 18037 le da tipo propio al caso puramente fraccionario (`_Fract` frente a `_Accum`). Aquí sería `fixed_point<F, F>`, y **no es sólo un nombre**: ese caso se comporta distinto, y es justo el que tuvo el fallo de `to_string`. Con especialización, la diferencia está en la firma en vez de en un `if` |
 
+### Falta una decisión en el renombrado: **los nombres de fichero**
+
+Anotado el 30 sep, mirando el árbol. El plan dice que la 1.90 «renombra la
+plantilla principal» y no dice nada de las cabeceras, y ahí la familia del entero
+se quedó a medias:
+
+| familia | cabecera principal | clase | satélites | ¿cumple? |
+|---|---|---|---|---|
+| punto fijo | `fixed_point_t.hpp` | `fixed_point_t` | `fixed_point_*.hpp` | **sí** |
+| entero | `fixed_width_int_t.hpp` | `fixed_int_t` | `fixed_int_*.hpp` (7) | **no** |
+
+La convención de la casa es **nombre de cabecera = nombre de la clase**, y la del
+punto fijo la cumple entera. La del entero la rompió cuando la cabecera principal
+pasó a `fixed_width_int_t.hpp` sin que la siguieran ni la clase ni los siete
+satélites —que hoy concuerdan con la clase, `fixed_int_t`, y no con su propia
+cabecera principal—.
+
+**Y hay un cabo suelto que hay que decidir antes de tocar nada**: la clase pasa a
+`fixed_width_int`, **sin `_t`**, con el argumento de que la `std` moderna no se lo
+pone a las plantillas de clase (`std::array`, no `array_t`). Ese argumento vale
+igual para `fixed_point_t`. O las dos familias lo sueltan, o la regla pasa a ser
+«clase sin `_t`, cabecera con `_t`» y entonces las cabeceras quedan
+`fixed_width_int_t.hpp` + `fixed_width_int_*.hpp`. Lo que no puede ser es que cada
+familia siga una.
+
+**Coste, medido**: 122 menciones de `fixed_int_*.hpp` en 25 ficheros —12 en
+`include/`, 9 en `tests/`, 8 en `docs/`, 2 en `scripts/` y los cuatro documentos
+de raíz—. Mecánico, pero toca el verificador de cabeceras autocontenidas y los
+`API_*.md`, así que no es un `sed`.
+
+**Va en la misma pasada que el renombrado de la plantilla**, no antes: hacerlo
+ahora obliga a renombrar dos veces, porque el nombre de la clase todavía cambia.
+Y sigue valiendo el orden de la fase 0 —afinar el banco, tomar referencia, y
+*entonces* borrar y renombrar—, que existe para que una regresión y un artefacto
+del arnés no se confundan justo cuando más se parecen.
+
 **Lo que queda por decidir: el nombre del tipo.** `fixed_point` es lo hablado,
 pero McFarlane lo abandonó: tras seis revisiones de P0037, en CNL el tipo se llama
 **`scaled_integer`** —que es literalmente la frase con la que describimos el
