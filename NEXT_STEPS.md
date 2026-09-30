@@ -436,14 +436,65 @@ cuenta antes de leer un `--compare`.
   cifras coinciden con las de la rejilla completa (base 10 en N=2: 331,2 →
   333,7).
 
-**La pregunta que queda abierta.** El barrido de N que no usan Karatsuba tiene
-escrito que debe salir entre 0,95× y 1,05×, y **no sale**: da de 1,07× a 1,48×.
-Tampoco salía antes —el arnés viejo daba 0,76× en N=16 y 1,78× en N=32—, o sea
-que la banda lleva meses incumplida y el aviso se leía por encima. El motivo es
-que la banda se escribió suponiendo que la biblioteca y el escolar desenrollado
-son el mismo código cuando N no usa Karatsuba, y **no lo son**: uno es un bucle
-y el otro está desenrollado por construcción. Hay que reformular la banda o
-quitarla; ahora el propio benchmark lo dice en voz alta en vez de callarlo.
+#### 6. La banda del barrido, retirada y sustituida (30 sep)
+
+La banda pedía que el barrido saliera entre **0,95× y 1,05×** sobre una cantidad
+cuyo recorrido real es del **134 %** —de 0,759× a 1,776×—. No estaba mal
+calibrada: pedía que fuera constante una razón entre **un bucle y una versión
+desenrollada por construcción**, y desenrollar 528 productos en línea recta
+(N=32) no cuesta por producto lo mismo que desenrollar 6 (N=3).
+
+**Lo que la sustituye** es el coste por **producto de limbo**, que es lo que sí
+debería ser plano y que el fichero ya sabía calcular (`productos_escolar`) sin
+usarlo nunca para controlar nada:
+
+| N | biblioteca | escolar | desenrollado | salto |
+|---|---|---|---|---|
+| 9 | 1,722 | 6,469 | 2,354 | 0,81× |
+| 10 | 1,723 | 7,265 | 2,353 | 1,00× |
+| 12 | 1,706 | 8,280 | 2,216 | 0,99× |
+| 16 | **4,376** | 9,009 | **3,910** | **2,56×** |
+
+El bucle escolar escala liso de punta a punta. La biblioteca y la referencia
+desenrollada van a la par hasta N=12 y **caen por un escalón en N=16**. El
+umbral (×1,5) está **calibrado**, no elegido: en el tramo liso el mayor salto
+consecutivo es ×1,06 y el escalón vale ×2,56, así que deja ~40 % de margen por
+los dos lados.
+
+**No aborta, y es deliberado**: el escalón es una propiedad reproducible, no un
+fallo de medida. Un control que lo convirtiera en error estaría rojo siempre y a
+la semana nadie lo miraría. Abortar se reserva para lo imposible, que es
+`verosimil`.
+
+**Y el escalón no está donde está la frontera del despacho.** `operator*` no
+cambia de camino hasta N=22; el código generado se rompe en N=16. Que no
+coincidan es lo interesante, y queda apuntado.
+
+#### 7. Lo que salió de filtrar el barrido: el fichero etiquetaba mal
+
+Al separar los N que usan Karatsuba de los que no, **N=4 y N=8 quedaron fuera y
+N=32 dentro** — al revés de lo que dice el fichero. Los umbrales reales:
+
+    NSTD_KARATSUBA_MIN   22      NSTD_DESENROLLA_MAX  21
+    NSTD_KARATSUBA_MAX   4096
+
+o sea: N=2 camino especializado, **N=3..21 escolar desenrollado**, N≥22
+Karatsuba —y para **cualquier N**, no sólo potencias de dos, desde que entró el
+reparto equilibrado el 16 sep—. **De todo lo que mide el fichero, el único que
+usa Karatsuba es N=32.** La tabla llevaba dos semanas imprimiendo «`<-
+Karatsuba`» junto a N=4 y N=8 en cada ejecución.
+
+El header ya se había corregido —hay allí un comentario del 18 sep que llama a
+su propia versión anterior «tres afirmaciones falsas en cinco líneas»— y el
+benchmark se quedó atrás. **El arreglo de raíz no es cambiar las etiquetas**,
+que es lo que envejeció: `regimen(N)` las deduce de las macros. Falsificado
+recompilando con `-DNSTD_KARATSUBA_MIN=4`: nueve etiquetas se mueven solas.
+
+**Queda pendiente, y no es de una línea:** `productos_karatsuba()` modela el
+reparto por potencias de dos (`3^log2(N/2)`), que ya no es la implementación.
+Alimenta las columnas `razon esperada` y `sin explicar`, así que **esas dos no
+se pueden leer hoy para N ≥ 22**. Rehacerlo pide derivar la cuenta del reparto
+equilibrado. Está avisado en el propio `@warning` de la función.
 
 ### ✅ P2.5 — Histórico de benchmarks (cerrada el 27 sep 2026)
 

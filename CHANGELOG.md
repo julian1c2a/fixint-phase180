@@ -1,3 +1,58 @@
+## [sin publicar] - 2026-09-30 - **la banda del barrido, y lo que tapaba**
+
+RETIRADA LA BANDA DE 0,95x-1,05x
+
+Pedia un +-5 % sobre una cantidad cuyo recorrido real en el barrido es del 134 %
+--de 0,759x a 1,776x--, asi que llevaba meses incumplida y el aviso se leia por
+encima. No estaba mal calibrada: pedia que fuera constante una razon entre un
+bucle y una version desenrollada por construccion, y desenrollar 528 productos en
+linea recta (N=32) no cuesta por producto lo mismo que desenrollar 6 (N=3).
+
+LA SUSTITUYE EL COSTE POR PRODUCTO DE LIMBO
+
+Que es lo que si deberia ser plano, y que el fichero ya sabia calcular
+--`productos_escolar`-- sin usarlo nunca para controlar nada:
+
+    N      biblioteca   escolar   desenrollado   salto
+    12        1,706      8,280       2,216       0,99x
+    16        4,376      9,009       3,910       2,56x  <- escalon
+
+El bucle escalar escala liso de punta a punta; la biblioteca y la referencia
+desenrollada van a la par hasta N=12 y caen por un escalon en N=16. El umbral
+(x1,5) esta CALIBRADO: en el tramo liso el mayor salto es x1,06 y el escalon vale
+x2,56.
+
+No aborta, y es deliberado: el escalon es una propiedad reproducible, no un fallo
+de medida, y un control que lo convirtiera en error estaria rojo siempre.
+
+Y el escalon NO esta donde esta la frontera del despacho: `operator*` no cambia
+de camino hasta N=22 y el codigo generado se rompe en N=16.
+
+EL FICHERO LLEVABA DOS SEMANAS ETIQUETANDO MAL
+
+Salio de filtrar el barrido para el control: N=4 y N=8 quedaron fuera del grupo
+«usa Karatsuba» y N=32 dentro, al reves de lo que dice el fichero. Los umbrales
+reales son 22 y 4096, con NSTD_DESENROLLA_MAX=21, asi que:
+
+    N == 2        camino especializado de 128 bits
+    N = 3..21     escolar DESENROLLADO
+    N >= 22       Karatsuba equilibrado, CUALQUIER N
+
+De todo lo que mide este fichero, el unico que usa Karatsuba es N=32. La tabla
+imprimia «<- Karatsuba» junto a N=4 y N=8 en cada ejecucion.
+
+El header ya se habia corregido el 18 sep --hay alli un comentario que llama a su
+propia version anterior «tres afirmaciones falsas en cinco lineas»-- y el
+benchmark se quedo atras. El arreglo de raiz no es cambiar las etiquetas, que es
+lo que envejecio: `regimen(N)` las deduce de las macros. Falsificado recompilando
+con `-DNSTD_KARATSUBA_MIN=4`: nueve etiquetas se mueven solas.
+
+PENDIENTE Y AVISADO EN EL CODIGO
+
+`productos_karatsuba()` modela el reparto por potencias de dos, que ya no es la
+implementacion. Alimenta `razon esperada` y `sin explicar`, asi que esas dos
+columnas no se pueden leer hoy para N >= 22. Lleva su `@warning`.
+
 ## [sin publicar] - 2026-09-30 - **el arnes viejo no medía lo que decía** (P2.17)
 
 Migradas al arnes adaptativo las suites que sobreviven a la 1.90: `curva_n`,

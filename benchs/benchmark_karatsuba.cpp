@@ -18,9 +18,26 @@
 // @date       2026-08-25
 // =============================================================================
 //
-// `fixed_int_t::operator*` toma el camino de Karatsuba para N=4 y N=8, y el
-// escolar O(N^2) para el resto. Karatsuba era una de las optimizaciones de
-// cabecera de v1.90 y nunca se habia medido: este benchmark existe para eso.
+// Karatsuba era una de las optimizaciones de cabecera de v1.90 y nunca se habia
+// medido: este benchmark existe para eso.
+//
+// EL REPARTO DE `operator*`, leido de los umbrales y no de memoria:
+//
+//     N == 2                         especializado de 128 bits
+//     N = 3 .. NSTD_DESENROLLA_MAX   escolar DESENROLLADO por construccion
+//     N >= NSTD_KARATSUBA_MIN        Karatsuba equilibrado, CUALQUIER N
+//
+// Hoy esos umbrales son 21 y 22 --son «la misma frontera», lo dice su `@def`--,
+// asi que de todo lo que mide este fichero **el unico que usa Karatsuba es
+// N=32**.
+//
+// (Hasta el 30 sep 2026 aqui ponia «toma el camino de Karatsuba para N=4 y N=8».
+// Eso fue cierto con unos umbrales de 4 y 8 que cambiaron el 16 sep, y la tabla
+// siguio imprimiendo «<- Karatsuba» junto a N=4 y N=8 en cada ejecucion. El
+// header ya se habia corregido --hay alli un comentario del 18 sep que llama a
+// su propia version anterior «tres afirmaciones falsas en cinco lineas»-- y el
+// benchmark se quedo atras. Por eso las etiquetas ya no se escriben a mano: las
+// deduce `regimen()` de los umbrales.)
 //
 // Metodo: las tres variantes se miden ENTRELAZADAS y CON EL ORDEN ROTANDO, en
 // vueltas de tiempo fijo, y se toma el MINIMO. Entrelazar reparte por igual la
@@ -35,9 +52,16 @@
 // iteraciones fijas para todo: en N=2 la ventana duraba 4 ms y en N=32 casi un
 // segundo.
 //
-// EL CONTROL ES N=16. Ahi la biblioteca usa el mismo bucle escolar que la
-// implementacion de referencia de abajo, asi que la razon TIENE que salir
-// ~1.00x. Si no sale, la referencia no es fiel y ninguna otra cifra vale.
+// EL CONTROL ES EL COSTE POR PRODUCTO DE LIMBO. El escolar truncado de N limbos
+// hace N(N+1)/2 productos, asi que `cyc_op / productos(N)` es lo que cuesta UNO,
+// y esa cifra si deberia ser plana mientras no cambie el regimen de generacion
+// de codigo. Si se mueve, hay algo que nombrar. Lo calcula `control::informa()`.
+//
+// (ANTES EL CONTROL ERA N=16, con el argumento de que alli la biblioteca usa el
+// mismo bucle escolar que la referencia y por tanto la razon TENIA que salir
+// ~1,00x. Resulto ser justo la anchura donde no sale: en N=16 la biblioteca
+// cuesta 4,15 ciclos por producto y hasta N=12 costaba 1,7. El argumento era
+// bueno en el fuente y falso en el binario -- la misma leccion, otra vez.)
 //
 // (La primera version de este benchmark uso una propagacion de acarreo
 // portable, con un `while` y un salto dependiente de los datos, en vez de los
@@ -50,6 +74,7 @@
 #include "../include/intrinsics/arithmetic_operations.hpp"
 #include "bench_adaptativo.hpp"
 
+#include <algorithm> // std::sort, que usa el control de escalado
 #include <string>
 #include <vector>
 
@@ -332,9 +357,16 @@ static constexpr double productos_escolar(std::size_t N) noexcept
     return static_cast<double>(N * (N + 1) / 2);
 }
 
-/// @brief Productos de limbo de Karatsuba tal como esta escrito aqui: el
-///        producto bajo completo por kmul_full<N/2>, que cuesta 3^log2(N/2), mas
-///        los dos terminos del medio a media anchura. Solo en potencias de dos.
+/// @brief Productos de limbo de Karatsuba tal como estaba escrito EN 2026-09.
+///
+/// @warning **Este modelo ya no corresponde a la implementacion.** Cuenta el
+///          reparto por potencias de dos --`3^log2(N/2)` mas dos terminos del
+///          medio-- y la biblioteca usa `mul_karatsuba_equilibrado` desde el
+///          16 sep 2026, que reparte para cualquier N. Lo que sale de aqui
+///          alimenta `razon esperada` y `sin explicar`, asi que esas dos
+///          columnas NO se pueden leer hoy para N >= NSTD_KARATSUBA_MIN.
+///          Anotado en NEXT_STEPS; rehacerlo pide derivar la cuenta del reparto
+///          equilibrado, que no es un ajuste de una linea.
 static constexpr double productos_karatsuba(std::size_t N) noexcept
 {
     if (N <= 1)
@@ -347,6 +379,174 @@ static constexpr double productos_karatsuba(std::size_t N) noexcept
 
 static int g_medidas_descartadas{0};
 
+// ============================================================================
+// EL CONTROL: coste por producto de limbo
+// ============================================================================
+//
+// QUE SUSTITUYE, Y POR QUE HABIA QUE SUSTITUIRLO. Hasta el 30 sep 2026 el
+// control era una banda: «si los N de este barrido no salen entre 0,95x y 1,05x,
+// hay algo que explicar». Pedia un +-5 % sobre una cantidad cuyo recorrido real
+// es del 134 % --de 0,759x a 1,776x--, asi que llevaba meses incumplida y el
+// aviso se leia por encima.
+//
+// No estaba mal calibrada: pedia que fuera constante algo que NO PUEDE serlo.
+// Los dos lados de esa razon son un bucle y una version desenrollada por
+// construccion, y desenrollar 528 productos en linea recta (N=32) no cuesta lo
+// mismo por producto que desenrollar 6 (N=3).
+//
+// LO QUE SI DEBERIA SER PLANO. El fichero ya tenia su modelo de coste
+// --`productos_escolar`-- y no lo usaba para controlar nada. Medido sobre el
+// historico del 27 sep, ciclos por producto de limbo:
+//
+//     N        biblioteca   escolar   desenrollado
+//     3           1,559       4,046      1,595
+//     7           1,551       5,403      1,565
+//     12          1,729       7,951      1,559
+//     16          4,152       8,877      3,150   <- x2,40
+//     32          5,171       9,530      9,184
+//
+// El bucle escolar escala liso de punta a punta. La biblioteca y el desenrollado
+// van a la par hasta N=12 y caen por un escalon en N=16, que es donde el
+// compilador deja de desenrollar; en N=32 el desenrollado ya cuesta por producto
+// lo mismo que el bucle (9,18 contra 9,53), o sea que desenrollar ha dejado de
+// pagar del todo.
+//
+// ESTO NO ABORTA, Y ES DELIBERADO. El escalon es una propiedad reproducible de
+// la biblioteca, no un fallo de medida: un control que lo convirtiera en error
+// estaria rojo siempre, y a la semana nadie lo miraria. Lo que hace es NOMBRAR
+// donde esta y cuanto vale, que es lo que la banda pretendia y no lograba.
+// Abortar se reserva para lo que es imposible, que es `verosimil`.
+
+/// @brief ¿Toma `operator*` el camino de Karatsuba para esta anchura?
+///
+/// OJO CON LA POTENCIA DE DOS. Esta condicion llevaba un `(N & (N - 1)) == 0`
+/// copiado de cuando Karatsuba exigia que N fuera potencia de dos. Ya no: el
+/// reparto EQUILIBRADO entro el 16 sep 2026 y vale para cualquier N -- esa
+/// exigencia era justamente la causa del acantilado que se quito. Sobre las
+/// anchuras que mide este fichero daba la respuesta correcta por casualidad
+/// (ninguna que no sea potencia de dos llega a 22), pero habria mentido en
+/// cuanto se midiera N=24.
+[[nodiscard]] static constexpr bool usa_karatsuba(std::size_t N) noexcept
+{
+    return N >= NSTD_KARATSUBA_MIN && N <= NSTD_KARATSUBA_MAX;
+}
+
+/// @brief Por donde va `a * b` para esta anchura, en una palabra.
+///
+/// SE DEDUCE, NO SE ESCRIBE A MANO. Las etiquetas de la tabla estuvieron
+/// escritas a mano y se quedaron dos semanas anunciando «Karatsuba» junto a N=4
+/// y N=8, que van por el escolar desenrollado desde que los umbrales se movieron.
+/// Deducirlas de las macros cuesta lo mismo y no envejece.
+[[nodiscard]] static const char *regimen(std::size_t N) noexcept
+{
+    if (N == 2)
+        return "camino especializado de 128 bits";
+    if (usa_karatsuba(N))
+        return "Karatsuba equilibrado";
+    if (N <= NSTD_DESENROLLA_MAX)
+        return "escolar desenrollado";
+    return "escolar en bucle";
+}
+
+namespace control
+{
+    struct Casilla
+    {
+        std::size_t N;
+        double biblioteca;
+        double escolar;
+        double desenrollado;
+    };
+
+    static std::vector<Casilla> casillas;
+
+    // CUANTO PUEDE SALTAR EL COSTE POR PRODUCTO ENTRE DOS N CONSECUTIVOS SIN QUE
+    // sea un cambio de regimen. CALIBRADO, no elegido: en el tramo liso del
+    // historico del 27 sep (N=3..12) el mayor salto consecutivo de la biblioteca
+    // es x1,06, y el escalon de N=12 a N=16 vale x2,40. Un 1,5 deja ~40 % de
+    // margen por los dos lados. No se copia de ningun sitio: sale de esta
+    // maquina y este compilador, y si alguna vez se muda, se vuelve a medir.
+    static constexpr double SALTO_DE_REGIMEN{1.5};
+
+    /// @brief Ciclos por producto de limbo: la cifra que si deberia ser plana.
+    [[nodiscard]] static double por_producto(double cyc, std::size_t N) noexcept
+    {
+        return cyc / productos_escolar(N);
+    }
+
+    static void anota(std::size_t N, double k, double e, double d)
+    {
+        casillas.push_back(Casilla{N, k, e, d});
+    }
+
+    static void informa()
+    {
+        // Solo los que NO usan Karatsuba: ahi las tres columnas hacen la misma
+        // cuenta de productos y son comparables. Y sin N=2, que toma un camino
+        // especializado de 128 bits que no hace N(N+1)/2 productos -- la misma
+        // exclusion que `verosimil`.
+        std::vector<Casilla> serie;
+        for (const auto &c : casillas)
+            if (c.N >= 3 && !usa_karatsuba(c.N))
+                serie.push_back(c);
+        std::sort(serie.begin(), serie.end(), [](const Casilla &a, const Casilla &b) { return a.N < b.N; });
+        if (serie.size() < 2)
+            return;
+
+        std::cout << "\n[control] ciclos por PRODUCTO DE LIMBO, que es lo que deberia ser plano\n";
+        std::cout << "+------+------------+------------+--------------+---------+\n";
+        std::cout << "|   N  | biblioteca |  escolar   | desenrollado |  salto  |\n";
+        std::cout << "+------+------------+------------+--------------+---------+\n";
+
+        std::size_t escalones{0};
+        double previo{0.0};
+        std::size_t previo_n{0};
+        for (const auto &c : serie)
+        {
+            const double pk = por_producto(c.biblioteca, c.N);
+            std::cout << "| " << std::right << std::setw(4) << c.N << " | " << std::fixed
+                      << std::setprecision(3) << std::setw(10) << pk << " | " << std::setw(10)
+                      << por_producto(c.escolar, c.N) << " | " << std::setw(12)
+                      << por_producto(c.desenrollado, c.N) << " | ";
+            if (previo > 0.0)
+            {
+                const double salto = pk / previo;
+                std::cout << std::setw(6) << std::setprecision(2) << salto << "x |";
+                if (salto >= SALTO_DE_REGIMEN || salto <= 1.0 / SALTO_DE_REGIMEN)
+                {
+                    std::cout << "  <- CAMBIO DE REGIMEN (N=" << previo_n << " -> " << c.N << ")";
+                    ++escalones;
+                }
+            }
+            else
+            {
+                std::cout << "      -- |";
+            }
+            std::cout << "\n";
+            previo = pk;
+            previo_n = c.N;
+        }
+        std::cout << "+------+------------+------------+--------------+---------+\n";
+
+        if (escalones == 0)
+        {
+            std::cout << "El coste por producto es plano en todo el barrido: una sola forma de\n"
+                         "generar el codigo, y las razones de arriba se pueden comparar entre si.\n";
+        }
+        else
+        {
+            std::cout << escalones
+                      << " cambio(s) de regimen. NO es un fallo de medida, y NO es el despacho:\n"
+                         "el reparto de `operator*` no cambia hasta N="
+                      << (NSTD_DESENROLLA_MAX + 1)
+                      << ". Lo que cambia es el CODIGO\n"
+                         "GENERADO -- desenrollar N(N+1)/2 productos deja de caber--, y se ve en que\n"
+                         "la referencia desenrollada salta igual mientras el bucle sigue liso.\n"
+                         "Las razones a un lado y otro del escalon no son comparables entre si.\n";
+        }
+    }
+} // namespace control
+
 static constexpr std::size_t OPERANDS{256};
 
 // ROUNDS, ITERS y `measure` se fueron con el arnes viejo (P2.17). Fijaban
@@ -355,8 +555,9 @@ static constexpr std::size_t OPERANDS{256};
 // para las dos. `bench::mide_entrelazado` fija el TIEMPO (200 ms) y deduce las
 // iteraciones, calienta segun la casilla y rota el orden de las variantes.
 
-// `nota`: "" para los casos medidos, un texto para los que son control o
-// camino especializado.
+// `nota` ya no la pasa quien llama: la deduce `regimen(N)` de los umbrales. Se
+// conserva el parametro para lo que NO se puede deducir -- por ahora nada, y por
+// eso todas las llamadas pasan "".
 template <std::size_t N>
 static void bench_one(const char *etiqueta, const char *nota)
 {
@@ -398,6 +599,8 @@ static void bench_one(const char *etiqueta, const char *nota)
     if (!(ok_k && ok_e && ok_d))
         ++g_medidas_descartadas;
 
+    control::anota(N, mejor_k, mejor_e, mejor_d);
+
     // Las tres medidas, con su ruido. Las razones de debajo NO: son cocientes de
     // estas, no medidas, y no tienen dispersion propia que guardar.
     bench::registra((std::string("N=") + std::to_string(N) + " biblioteca").c_str(), m[0]);
@@ -413,8 +616,7 @@ static void bench_one(const char *etiqueta, const char *nota)
     // predice, frente a lo que dice el cronometro. Si se separan, hay una
     // variable en juego que la cuenta no captura, y hay que nombrarla.
     {
-        const bool con_karatsuba = ((N & (N - 1)) == 0 && N >= NSTD_KARATSUBA_MIN && N <= NSTD_KARATSUBA_MAX);
-        const double esperada = con_karatsuba ? productos_escolar(N) / productos_karatsuba(N) : 1.0;
+        const double esperada = usa_karatsuba(N) ? productos_escolar(N) / productos_karatsuba(N) : 1.0;
         bench_record((std::string("N=") + std::to_string(N) + " razon esperada").c_str(), esperada, "x");
         bench_record((std::string("N=") + std::to_string(N) + " sin explicar").c_str(),
                      (mejor_d / mejor_k) / esperada, "x");
@@ -427,8 +629,9 @@ static void bench_one(const char *etiqueta, const char *nota)
     std::cout << "| " << std::left << std::setw(29) << etiqueta << " | " << std::right << std::fixed
               << std::setprecision(2) << std::setw(12) << mejor_k << " | " << std::setw(6)
               << (mejor_d / mejor_k) << "x   |";
+    std::cout << "   <- " << regimen(N);
     if (nota[0] != '\0')
-        std::cout << "   <- " << nota;
+        std::cout << ", " << nota;
     std::cout << "\n";
 
     std::cout << "| " << std::left << std::setw(29) << "   escolar O(N^2)" << " | " << std::right
@@ -473,12 +676,12 @@ int main()
         return 1;
     }
 
-    print_header("multiplicacion, ciclos por operacion");
+    print_header("las tres anchuras con camino propio (2) o historicas (4 y 8)");
     std::cout << "|   razon = escolar / camino de la biblioteca;  >1.00x = la biblioteca gana\n";
     print_separator();
-    bench_one<4>("N=4  (256 bits)", "Karatsuba");
-    bench_one<8>("N=8  (512 bits)", "Karatsuba");
-    bench_one<2>("N=2  (128 bits)", "camino especializado de 128 bits");
+    bench_one<4>("N=4  (256 bits)", "");
+    bench_one<8>("N=8  (512 bits)", "");
+    bench_one<2>("N=2  (128 bits)", "");
     print_footer();
 
     // ------------------------------------------------------------------
@@ -495,7 +698,7 @@ int main()
     // el efecto sigue la paridad, apunta al bucle de acarreo; si sigue al
     // tamano, a la generacion de codigo del `if constexpr` encadenado.
     std::cout << "\n";
-    print_header("barrido: N que NO usan Karatsuba (todos deberian dar ~1.00x)");
+    print_header("barrido de anchuras; el unico que usa Karatsuba hoy es N=32");
     print_separator();
     std::cout << "|   impares\n";
     bench_one<3>("N=3  (192 bits)", "");
@@ -503,7 +706,7 @@ int main()
     bench_one<7>("N=7  (448 bits)", "");
     bench_one<9>("N=9  (576 bits)", "");
     print_separator();
-    std::cout << "|   pares que tampoco usan Karatsuba\n";
+    std::cout << "|   pares\n";
     bench_one<6>("N=6  (384 bits)", "");
     bench_one<10>("N=10 (640 bits)", "");
     bench_one<12>("N=12 (768 bits)", "");
@@ -519,25 +722,21 @@ int main()
               << "construcciones da el efecto del algoritmo, con el escolar\n"
               << "desenrollado de testigo, que no depende de la macro.\n";
 
-    std::cout << "\nSi los N de este barrido no salen entre 0.95x y 1.05x, hay algo que\n"
-              << "explicar: la implementacion de referencia es la misma en todos.\n";
-
-    // Y AHORA MISMO NO SALEN, asi que el propio benchmark lo dice en voz alta en
-    // vez de dejar la frase de arriba como un aviso decorativo.
+    // AQUI ESTABA LA BANDA DE 0,95x-1,05x, retirada el 30 sep 2026.
     //
-    // Con el arnes nuevo el barrido da de 1,07x a 1,48x en vez de ~1,00x. No es
-    // un fallo de la migracion: el arnes viejo TAMPOCO cumplia la banda --0,76x
-    // en N=16, 1,78x en N=32-- y llevaba meses sin cumplirla. Lo que cambia es
-    // que antes fallaba por debajo del 1,00x y ahora por encima.
+    // Decia: «si los N de este barrido no salen entre 0,95x y 1,05x, hay algo que
+    // explicar, porque la implementacion de referencia es la misma en todos».
+    // Pedia un +-5 % sobre una cantidad cuyo recorrido real es del 134 %, asi que
+    // llevaba meses incumplida -- con el arnes viejo daba 0,76x en N=16 y 1,78x
+    // en N=32, y con el nuevo da de 1,07x a 1,48x. Un aviso que nunca se cumple
+    // se deja de leer, y este se leia por encima.
     //
-    // La banda se escribio suponiendo que la biblioteca y el escolar desenrollado
-    // son el mismo codigo cuando N no usa Karatsuba, y NO lo son: uno es un bucle
-    // y el otro esta desenrollado por construccion. Que se parezcan es lo
-    // sorprendente, no que se separen. Queda en NEXT_STEPS decidir si la banda se
-    // reformula o se quita.
-    std::cout << "\n(30 sep 2026: NO salen -- de 1.07x a 1.48x. Tampoco salian con el\n"
-              << "arnes viejo, que daba 0.76x en N=16. Ver NEXT_STEPS, «El arnes viejo\n"
-              << "no medía lo que decía».)\n";
+    // El fallo no era el ancho de la banda: era pedir que fuera constante una
+    // razon entre un bucle y una version desenrollada por construccion. Lo
+    // sustituye `control::informa()`, que mira el coste por producto de limbo
+    // --que si deberia ser plano-- y dice DONDE cambia el regimen en vez de
+    // limitarse a decir que algo no cuadra.
+    control::informa();
 
     // Una medida imposible no es un detalle: si se cuela, contamina el historico
     // y manana se compara con ella como si valiera. Se sale con error.
