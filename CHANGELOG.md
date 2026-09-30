@@ -51,13 +51,35 @@ el arnes viejo era poco de fiar, y el signo del error depende de detalles**.
 la ventana deja de depender de lo que cueste la operacion. La toma completa crece
 en consecuencia.
 
+### LA FRONTERA, MARCADA EN EL GUION
+
+Cada toma guarda ahora su `protocolo`, y `--compare` avisa cuando dos tomas no se
+midieron igual. No es una fecha grabada a fuego: es el mismo patron que el guion
+ya usaba para el compilador y para el numero de repeticiones, asi que al
+siguiente cambio de arnes no hay que acordarse de tocar nada, y las tomas
+anteriores --que no traen el campo-- caen del lado correcto por omision.
+
+Falsificado en los dos sentidos: avisa contra una toma del historico real y calla
+contra una del mismo protocolo. Un aviso que salta siempre es peor que no
+tenerlo.
+
+### `bases` RECORTA LA REJILLA, NO EL PROTOCOLO
+
+De las 35 bases pasa a seis --2, 3, 10, 16, 23 y 36--, y de 13,9 min a **2,5
+min**. Cada una esta ahi por un motivo escrito en el fuente: las dos potencias de
+dos, la mas cara, la decimal, un primo intermedio y el borde del rango. Las
+cifras coinciden con las de la rejilla completa (base 10 en N=2: 331,2 -> 333,7).
+
+Se recorta la rejilla y no las vueltas a proposito: bajarle las repeticiones solo
+a esta suite reintroduciria el regimen mixto que P2.5 quito, y sus casillas
+dejarian de ser comparables con las del resto.
+
 ### AVISO SOBRE EL HISTORICO
 
-Hay una frontera de protocolo el 30 sep: `--compare` va a marcar como regresion
-saltos que son cambios de arnes. Y `bases` se mueve hasta un **±27 %** entre el
-27 sep y hoy **con el mismo arnes** --reserva memoria y toca el asignador, asi
-que depende mucho del estado de la maquina--, de modo que para esa suite comparar
-entre tomas en condiciones distintas no decide gran cosa.
+Y `bases` se mueve hasta un **±27 %** entre el 27 sep y hoy **con el mismo
+arnes** --reserva memoria y toca el asignador, asi que depende mucho del estado de
+la maquina--, de modo que para esa suite comparar entre tomas en condiciones
+distintas no decide gran cosa.
 
 ## [sin publicar] - 2026-09-29 - **la familia vieja deja de servirse por defecto**
 

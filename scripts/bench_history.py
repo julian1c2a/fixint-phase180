@@ -472,6 +472,31 @@ def ejecutar(nombre: str, compilador: str, modo: str, tmp: Path):
     return medidas, None
 
 
+# ============================================================================
+# LA VERSION DEL PROTOCOLO DE MEDIDA
+# ============================================================================
+#
+# Dos tomas solo se pueden comparar si se midieron igual. El guion ya vigila el
+# compilador y el numero de repeticiones; esto cubre el tercer caso, que es que
+# cambie el ARNES.
+#
+# Paso el 30 sep 2026: `karatsuba`, `bases` y `curva_n` salieron del arnes viejo.
+# El viejo media las variantes en ORDEN FIJO y con un numero fijo de iteraciones;
+# el nuevo rota el orden y fija el TIEMPO por vuelta. Sin tocar una linea del
+# codigo medido, `karatsuba N=3` paso de 9,86 a 19,13 cyc/op y seis casillas
+# cruzaron el 1,00x. Comparar a traves de esa frontera no dice nada.
+#
+# Se sube este numero cada vez que cambie COMO se mide. Las tomas anteriores no
+# traen el campo, y por eso `_protocolo` las nombra por omision.
+PROTOCOLO = "2026-09-30/orden-rotando"
+
+PROTOCOLO_VIEJO = "anterior al 30 sep 2026 (arnes viejo, orden fijo)"
+
+
+def _protocolo(d: dict) -> str:
+    return d.get("protocolo") or PROTOCOLO_VIEJO
+
+
 def guardar(datos: dict) -> Path:
     carpeta = HISTORIA / datos["maquina"]
     carpeta.mkdir(parents=True, exist_ok=True)
@@ -526,6 +551,19 @@ def comparar(actual: dict, previo_path: Path):
         echo("        es menor por construccion. Una bajada general aqui NO es una")
         echo("        mejora: es el cambio de regimen. Ver REPETICIONES en")
         echo("        benchs/bench_adaptativo.hpp.")
+
+    # EL ARNES TAMBIEN ROMPE LA COMPARABILIDAD, y es el caso mas traicionero de
+    # los tres: el compilador y las repeticiones se ven en los metadatos, pero un
+    # cambio de arnes se parece a una regresion de verdad. El 30 sep movio
+    # casillas un 94 % sin tocar el codigo medido.
+    if _protocolo(previo) != _protocolo(actual):
+        echo("  [OJO] protocolo de medida distinto:")
+        echo("        antes: %s" % _protocolo(previo))
+        echo("        ahora: %s" % _protocolo(actual))
+        echo("        Las suites que cambiaron de arnes NO son comparables a traves")
+        echo("        de esta frontera: lo que salte en ellas es cambio de protocolo,")
+        echo("        no del codigo. Ver CHANGELOG, «el arnes viejo no medía lo que")
+        echo("        decía» (P2.17).")
 
     avisos = 0
     todos = []      # |delta| de TODAS las comparables, para la distribucion
@@ -649,6 +687,7 @@ def main():
         "compilador_pedido": args.compiler,
         "compilador": version_compilador(args.compiler),
         "modo": args.mode,
+        "protocolo": PROTOCOLO,
         "suites": {},
     }
 

@@ -51,6 +51,26 @@ using namespace nstd;
 
 static constexpr std::size_t OPERANDOS{128};
 
+// LAS BASES QUE SE MIDEN, Y POR QUE NO SON LAS 35.
+//
+// Con el arnes adaptativo cada casilla cuesta 10 s, y barrer 2..36 en dos
+// anchuras salia a 13,9 min por toma -- mas que todas las demas suites migradas
+// juntas. Se recorta la REJILLA, no el protocolo: estas seis se miden con las
+// mismas 25 vueltas de 200 ms que todo lo demas, asi que siguen comparandose con
+// el resto del historico.
+//
+//    2  potencia de dos, y el extremo: 127 digitos en uint128
+//    3  la mas cara de todas (2.596 cyc/op en to_string N=2), impar pequeña
+//   10  la decimal, la que se usa
+//   16  la otra potencia de dos -- y la unica forma de que este barrido pueda
+//       seguir comprobando lo que el mismo afirma abajo sobre los desplazamientos
+//   23  primo intermedio, sin nada especial: el caso general
+//   36  el borde superior del rango soportado
+//
+// La forma de la curva completa ya esta medida y publicada; lo que hace falta en
+// cada toma es detectar que una de ellas se mueva, y para eso bastan seis.
+static constexpr int BASES[]{2, 3, 10, 16, 23, 36};
+
 // VUELTAS y RONDAS se fueron con el arnes viejo (P2.17). Fijaban 20.000
 // iteraciones para todo, y aqui `to_string` cuesta 329 ciclos en base 10 y 2.576
 // en base 3 -- ocho veces mas, con la misma ventana. Ahora la ventana es de
@@ -90,7 +110,7 @@ static void una_anchura(const char *etiqueta)
     std::printf("| base | to_string | from_string |  digitos  |\n");
     std::printf("+------+-----------+-------------+-----------+\n");
 
-    for (int base = 2; base <= 36; ++base)
+    for (const int base : BASES)
     {
         // Las cadenas de entrada se generan con la propia biblioteca. Es
         // deliberado: lo que se mide es el coste, no la correccion --de eso se
@@ -134,9 +154,11 @@ int main()
     std::printf("%zu operandos aleatorios; %zu vueltas de %.0f ms por casilla, escribir y\n"
                 "leer ENTRELAZADAS y con el orden rotando. Se publica el minimo.\n",
                 OPERANDOS, bench::REPETICIONES, bench::MS_POR_CASILLA);
-    std::printf("\nLo esperado: las potencias de dos, mas baratas (van a "
+    std::printf("\nLo esperado: las potencias de dos --2 y 16-- mas baratas (van a "
                 "desplazamientos);\nel resto, parecidas entre si y bajando despacio segun "
                 "crece la base.\n");
+    std::printf("Seis bases, no las 35: ver BASES en el fuente. Se recorta la rejilla,\n"
+                "no el protocolo, asi que siguen siendo comparables con el resto.\n");
 
     una_anchura<2>("uint128");
     una_anchura<4>("uint256");

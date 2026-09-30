@@ -419,9 +419,31 @@ depende mucho de en qué estado esté la máquina. Para esa suite, comparar entr
 tomas hechas en condiciones distintas no decide gran cosa, y conviene tenerlo en
 cuenta antes de leer un `--compare`.
 
-**Pendiente**: rehacer el apartado de `benchmark_karatsuba.cpp` con las cifras
-del arnés nuevo, y marcar la frontera del 30 sep en el histórico para que
-`--compare` no cante regresiones que son cambios de protocolo.
+#### 5. Lo que se hizo con todo esto, el mismo día
+
+- **La frontera está marcada**, y no como una fecha a mano: cada toma guarda su
+  `protocolo`, y `--compare` avisa cuando dos tomas no se midieron igual —el
+  mismo patrón que ya usaba para el compilador y para el número de
+  repeticiones—. Falsificado en los dos sentidos: avisa contra una toma del
+  histórico real (que no trae el campo) y **calla** contra una toma del mismo
+  protocolo.
+- **El apartado de `benchmark_karatsuba.cpp` está reescrito**, no parcheado: lo
+  que aquel hallazgo del 6 sep descubrió sigue primero y en pie, y la cifra con
+  la que lo cerró va después, corregida.
+- **`bases` recorta la rejilla**: de las 35 bases pasa a seis —2, 3, 10, 16, 23
+  y 36—, y de **13,9 min a 2,5 min**. Se recorta la rejilla, **no el
+  protocolo**, así que sus casillas siguen siendo comparables con el resto. Las
+  cifras coinciden con las de la rejilla completa (base 10 en N=2: 331,2 →
+  333,7).
+
+**La pregunta que queda abierta.** El barrido de N que no usan Karatsuba tiene
+escrito que debe salir entre 0,95× y 1,05×, y **no sale**: da de 1,07× a 1,48×.
+Tampoco salía antes —el arnés viejo daba 0,76× en N=16 y 1,78× en N=32—, o sea
+que la banda lleva meses incumplida y el aviso se leía por encima. El motivo es
+que la banda se escribió suponiendo que la biblioteca y el escolar desenrollado
+son el mismo código cuando N no usa Karatsuba, y **no lo son**: uno es un bucle
+y el otro está desenrollado por construcción. Hay que reformular la banda o
+quitarla; ahora el propio benchmark lo dice en voz alta en vez de callarlo.
 
 ### ✅ P2.5 — Histórico de benchmarks (cerrada el 27 sep 2026)
 

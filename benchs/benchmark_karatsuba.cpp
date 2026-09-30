@@ -69,16 +69,21 @@ using namespace nstd;
 //     escolar   (este de abajo)    61 instrucciones,  1 `mul`  -> BUCLE
 //
 // Un `mul` ejecutado diez veces contra nueve `mul` en linea recta. Eso no
-// compara algoritmos: compara desenrollado. Y explica la mayor parte del
-// "1,65x" que se venia publicando -- con `-funroll-loops`, la razon en N=4
-// cae de 1,75x a 0,88x, o sea Karatsuba PIERDE.
+// compara algoritmos: compara desenrollado, y explica la mayor parte del "1,65x"
+// que se venia publicando.
 //
-// *** ESE "0,88x" NO VALE. Medido el 30 sep 2026 al migrar a este arnes. ***
+// Es la segunda vez que esta comparacion mide algo que no es. La primera fue el
+// "6,23x" contra un espantapajaros, que se arreglo poniendo esta copia fiel. La
+// leccion: fiel en el fuente no es equivalente en el binario.
 //
-// El "PIERDE" salia del arnes viejo, que medía las tres variantes en ORDEN
-// FIJO dentro de cada ronda, con la biblioteca SIEMPRE LA PRIMERA. Ir primero
-// se paga --cachés y predictor frios--, asi que `mejor_k` salia inflado y la
-// razon `d/k` deflactada. Rotando el orden, SEIS anchuras cruzan el 1,00x:
+// LA CIFRA CON LA QUE SE CERRO AQUEL HALLAZGO ERA A SU VEZ OTRO ARTEFACTO.
+//
+// Aquel 6 sep se concluyo que «con `-funroll-loops` la razon en N=4 cae de 1,75x
+// a 0,88x, o sea Karatsuba PIERDE». Medido el 30 sep 2026 al migrar a este
+// arnes, ese 0,88x no vale: el arnes viejo media las tres variantes en ORDEN
+// FIJO dentro de cada ronda, con la biblioteca SIEMPRE LA PRIMERA. Ir primero se
+// paga --cachés y predictor frios--, asi que `mejor_k` salia inflado y la razon
+// `d/k` deflactada. Rotando el orden, SEIS anchuras cruzan el 1,00x:
 //
 //     N        arnes viejo   arnes nuevo
 //     4            0,880        1,000
@@ -88,16 +93,18 @@ using namespace nstd;
 //     10           0,900        1,350
 //     12           0,930        1,310
 //
-// No es deriva de la maquina: el arnes viejo corrido ESE MISMO DIA reproduce
-// el historico del 27 sep dentro de 0,02 (0,878 -> 0,880 en N=4). Es el arnes.
+// No es deriva de la maquina: el arnes viejo, sacado de git y corrido ESE MISMO
+// DIA, reproduce el historico del 27 sep dentro de 0,02 --0,878 a 0,880 en N=4,
+// 1,776 a 1,800 en N=32--. Lo que cambia es el arnes.
 //
-// Lo que este parrafo DESCUBRIO sigue en pie: el desenrollado se colaba dentro
-// de la razon, y por eso existe `schoolbook_mul_desenrollado`. Lo que CONCLUYO
-// --que la biblioteca pierde-- se apoyaba en numeros de orden fijo.
+// Asi que la lectura buena, hoy, es: en las anchuras que NO usan Karatsuba la
+// biblioteca va por delante del escolar desenrollado, no por detras. Lo cual no
+// dice nada a favor de Karatsuba --ahi no se usa--, sino que el bucle escolar de
+// la biblioteca esta mejor generado de lo que se creia.
 //
-// Es la segunda vez que esta comparacion mide algo que no es. La primera fue el
-// "6,23x" contra un espantapajaros, que se arreglo poniendo esta copia fiel. La
-// leccion: fiel en el fuente no es equivalente en el binario.
+// Lo que aquel hallazgo DESCUBRIO sigue intacto: el desenrollado se colaba dentro
+// de la razon, y por eso existe `schoolbook_mul_desenrollado`. Lo que CONCLUYO se
+// apoyaba en numeros de orden fijo.
 //
 // Por eso la segunda referencia, `schoolbook_mul_desenrollado`: el MISMO
 // algoritmo y las MISMAS primitivas, pero desenrollado por construccion --
@@ -275,6 +282,11 @@ static std::vector<uint_fixed_t<N>> make_operands(std::size_t count)
 // Es la tercera vez que esta comparacion mide algo que no es: primero el
 // espantapajaros del 6,23x, luego el escolar en bucle contra el Karatsuba
 // desenrollado, y ahora esto. La diferencia es que esto salta solo.
+//
+// (Y hubo una cuarta, el 30 sep: el orden fijo de las variantes. Esa tampoco
+// saltaba sola -- hizo falta correr los dos arneses el mismo minuto. De las
+// cuatro, solo esta de aqui avisa por su cuenta, que es el argumento para poner
+// mas comprobaciones como ella y no mas parrafos como este.)
 static constexpr double CICLOS_MINIMOS_POR_PRODUCTO{0.35};
 
 /// @brief Avisa si una medida se ha saltado el suelo fisico.
@@ -510,13 +522,22 @@ int main()
     std::cout << "\nSi los N de este barrido no salen entre 0.95x y 1.05x, hay algo que\n"
               << "explicar: la implementacion de referencia es la misma en todos.\n";
 
-    // Y AHORA MISMO NO SALEN. Con el arnes nuevo el barrido da de 1,07x a 1,48x
-    // en vez de ~1,00x. No es un fallo de la migracion --el arnes viejo tampoco
-    // cumplia la banda: daba 0,76x en N=16 y 1,78x en N=32-- sino que la banda
-    // nunca se cumplio y el aviso se venia leyendo por encima. Queda anotado en
-    // NEXT_STEPS para mirarlo con el barrido ya fiable.
-    std::cout << "(30 sep 2026: no salen. Ver NEXT_STEPS, «El arnes viejo no\n"
-              << "medía lo que decía». La banda no se cumplia tampoco antes.)\n";
+    // Y AHORA MISMO NO SALEN, asi que el propio benchmark lo dice en voz alta en
+    // vez de dejar la frase de arriba como un aviso decorativo.
+    //
+    // Con el arnes nuevo el barrido da de 1,07x a 1,48x en vez de ~1,00x. No es
+    // un fallo de la migracion: el arnes viejo TAMPOCO cumplia la banda --0,76x
+    // en N=16, 1,78x en N=32-- y llevaba meses sin cumplirla. Lo que cambia es
+    // que antes fallaba por debajo del 1,00x y ahora por encima.
+    //
+    // La banda se escribio suponiendo que la biblioteca y el escolar desenrollado
+    // son el mismo codigo cuando N no usa Karatsuba, y NO lo son: uno es un bucle
+    // y el otro esta desenrollado por construccion. Que se parezcan es lo
+    // sorprendente, no que se separen. Queda en NEXT_STEPS decidir si la banda se
+    // reformula o se quita.
+    std::cout << "\n(30 sep 2026: NO salen -- de 1.07x a 1.48x. Tampoco salian con el\n"
+              << "arnes viejo, que daba 0.76x en N=16. Ver NEXT_STEPS, «El arnes viejo\n"
+              << "no medía lo que decía».)\n";
 
     // Una medida imposible no es un detalle: si se cuela, contamina el historico
     // y manana se compara con ella como si valiera. Se sale con error.
