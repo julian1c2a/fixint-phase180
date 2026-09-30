@@ -105,6 +105,72 @@ CI; reproducir el fallo de v1.90.2 en local costaba dos segundos.
 
 ---
 
+## El orden de las etapas largas (decidido el 30 sep 2026)
+
+**5 (punto fijo, en marcha) → 6 (coma flotante) → 9 (decimal/BCD) → 7 (bigint) → 8 (racionales).**
+
+No sale del orden de numeración de
+[Explicación_del_Proyecto.md](AI_PROMPT/GENERAL_GUIDES/Explicación_del_Proyecto.md);
+sale de tres razones, y la segunda es la que más pesa.
+
+**1. La coma flotante antes del decimal, porque MS y EK son una apuesta sin
+validar.** La ETAPA 3 se hizo explícitamente *para* la 6 —«estos nuevos tipos
+tienen interés para la futura implementación de tipos punto flotante»—. Hoy MS y
+EK cuestan **30 `if constexpr`** en la plantilla, dos ADR y un puente, y su
+consumidor previsto no existe. El punto fijo las acepta, pero como una forma
+**intercambiable** del eje `Form`; la coma flotante las usaría
+**estructuralmente** —MS para el par signo+magnitud de la mantisa, EK para el
+exponente sesgado—, que es el uso para el que se diseñaron y el único que dice si
+el diseño era correcto.
+
+Y comparten el vocabulario de redondeo: `fixed_point_t::rounding_mode` ya tiene
+cinco modos y el primero se documenta como «el de IEEE-754». Si la coma flotante
+llega **después** de la pasada de nomenclatura de la 1.90, hereda un vocabulario
+asentado; si llega antes, fuerza un segundo renombrado sobre lo mismo.
+
+**2. El decimal no es «otro tipo»: rompe una premisa escrita.** La ETAPA 9 es
+**BCD** —Natural sin signo, Aiken con signo—, o sea un valor nuevo en el eje
+`representation_form`, no un tipo construido encima. Y
+[ADR-017](docs/decisions/ADR-017-magnitud-signo-y-exceso-k-como-codificaciones.md),
+decisión 1, dice literalmente **«No se escribe aritmética nueva»**: se decodifica
+a complemento a dos, se opera, se recodifica. BCD no puede cumplirlo:
+
+- **Semánticamente**, decodificar a binario, operar y recodificar es justo lo que
+  el decimal existe para evitar — redondearías en binario.
+- **Por coste**, la conversión BCD↔binario es multiplicar/dividir por diez
+  repetidamente. El párrafo de ADR-017 que justifica el puente («con Exceso-K una
+  conversión es invertir un bit; con MS, una negación en el peor caso — frente al
+  coste de una multiplicación de N limbos, es ruido») **deja de valer**.
+
+Así que BCD sería la primera **aritmética** en un eje diseñado para
+codificaciones, y obliga a revisar ADR-017 —probablemente partiendo el eje en dos—.
+Eso se hace una vez, y después de que la coma flotante haya dicho si el eje
+aguanta.
+
+**3. La longitud variable al final, porque es la única que cambia el modelo de
+almacenamiento.** De `std::array<uint64_t, N>` con `N` de compilación a un búfer
+con `N` de ejecución. Eso rompe tres propiedades que hoy se garantizan en todas
+partes: `constexpr` (la evaluación constante es un camino explícito en
+`operator*`), `noexcept` ([ADR-004](docs/decisions/ADR-004-sin-excepciones-en-el-nucleo.md):
+la aritmética no lanza, y con asignación dinámica sí puede) y **cero
+asignaciones**. Y los umbrales (`NSTD_KARATSUBA_MIN`, `NSTD_DESENROLLA_MAX`) pasan
+de `if constexpr` a ramas de ejecución, con lo que cada algoritmo necesita un
+segundo camino y la matriz de pruebas se dobla.
+
+### Dos cabos que quedan de esta decisión
+
+- **Los racionales quedan al final por herencia, no por decisión.** La ETAPA 8
+  depende de la 7, pero los racionales **no necesitan** longitud variable: `ratio`
+  sobre `fixed_int_t<N>` es utilizable, y la versión bigint puede llegar después.
+  Si interesan antes, hay que decidirlo a propósito.
+- **Los marcadores de estado de `Explicación_del_Proyecto.md` están
+  desfasados**: la ETAPA 5 dice «por comenzar» con 1.278 líneas y tres ADR
+  escritos, y la 3 dice «Exceso-K pendiente» cuando las cuatro representaciones
+  están en `fixed_int_t` con 16.624 comprobaciones cruzadas. Conviene ponerlos al
+  día antes de volver a usar ese documento para planificar.
+
+---
+
 ## Los siguientes pasos, ordenados
 
 ### P0 — Señales que mienten
