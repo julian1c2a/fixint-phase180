@@ -142,8 +142,8 @@ static void una_anchura(const char *etiqueta)
         std::snprintf(nombre, sizeof(nombre), "from_string N=%zu base %d", N, base);
         bench::registra(nombre, m[1]);
 
-        std::printf("| %4d | %9.1f | %11.1f | %9zu |%s\n", base, m[0].minimo, m[1].minimo,
-                    ss[0].size(), es_potencia_de_dos(base) ? "  <- potencia de dos" : "");
+        std::printf("| %4d | %9.1f | %11.1f | %9zu |%s\n", base, m[0].minimo, m[1].minimo, ss[0].size(),
+                    es_potencia_de_dos(base) ? "  <- potencia de dos" : "");
     }
     std::printf("+------+-----------+-------------+-----------+\n");
 }

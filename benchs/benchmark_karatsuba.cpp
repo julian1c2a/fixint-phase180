@@ -456,8 +456,8 @@ static bool check_equal()
 int main()
 {
     std::cout << "\n=== Karatsuba frente a multiplicacion escolar ===\n";
-    std::cout << "operandos: " << OPERANDS << " pseudoaleatorios; " << bench::REPETICIONES
-              << " vueltas de " << bench::MS_POR_CASILLA
+    std::cout << "operandos: " << OPERANDS << " pseudoaleatorios; " << bench::REPETICIONES << " vueltas de "
+              << bench::MS_POR_CASILLA
               << " ms por casilla, las TRES variantes entrelazadas y con el orden rotando;"
                  " minimo por caso\n";
 
