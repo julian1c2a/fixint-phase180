@@ -555,7 +555,21 @@ jobs:
             name=$(echo "$rel" | tr '/' '_')
             TOTAL=$((TOTAL + 1))
             printf '  %-52s ' "$rel"
-            printf '#include "%s"\n#include "%s"\n' "$rel" "$rel" > "build_temp/${name}.cpp"
+            # LA FAMILIA QUE SE RETIRA HAY QUE PEDIRLA A PROPOSITO (ADR-006,
+            # nivel 3 de la deprecacion). El define va SOLO a esas cabeceras: el
+            # dia que una del tipo NUEVO empiece a depender de la vieja, esto
+            # tiene que ponerse rojo.
+            #
+            # ES LA MISMA REGLA QUE scripts/check_headers_selfcontained.py, Y
+            # ESTA COPIA SE QUEDO ATRAS: el 29 sep se parcheo el guion y no
+            # esto, asi que en local salia 40/40 y el CI fallaba. Si se toca una,
+            # hay que tocar la otra.
+            : > "build_temp/${name}.cpp"
+            case "$rel" in
+              int128_param*|algorithms/karatsuba.hpp|algorithms/div_by_const.hpp)
+                echo '#define NSTD_QUIERO_INT128_PARAM' > "build_temp/${name}.cpp" ;;
+            esac
+            printf '#include "%s"\n#include "%s"\n' "$rel" "$rel" >> "build_temp/${name}.cpp"
             if clang++-19 -std=c++20 -I include -fsyntax-only "build_temp/${name}.cpp" 2>"build_temp/${name}.err"; then
               echo OK
             else
@@ -568,6 +582,41 @@ jobs:
           echo "=== $((TOTAL - FAIL))/$TOTAL headers compilan sin flags extra ==="
           if [ $FAIL -gt 0 ]; then
             echo "Algun header necesita flags no estandar. Ver T7.3 en NEXT_STEPS.md."
+            exit 1
+          fi
+
+      - name: La puerta del legado cierra, y se puede abrir
+        run: |
+          # SIN ESTO, QUITAR EL `#error` NO ROMPERIA NADA: los 52 ficheros que
+          # usan la familia declaran el define, asi que compilan igual con
+          # puerta que sin ella. La unica forma de vigilar una puerta es
+          # intentar pasar sin llave.
+          mkdir -p build_temp
+          fallos=0
+
+          for hdr in int128_parameterized.hpp int128_param_divmod.hpp; do
+            printf '#include "%s"\nint main() { return 0; }\n' "$hdr" > build_temp/sin_llave.cpp
+            printf '  %-32s sin el define: ' "$hdr"
+            if clang++-19 -std=c++20 -I include -fsyntax-only build_temp/sin_llave.cpp 2>/dev/null; then
+              echo "COMPILA -- la puerta no cierra"
+              fallos=$((fallos + 1))
+            else
+              echo "no compila, correcto"
+            fi
+
+            printf '#define NSTD_QUIERO_INT128_PARAM\n#include "%s"\nint main() { return 0; }\n' "$hdr" > build_temp/con_llave.cpp
+            printf '  %-32s con el define: ' "$hdr"
+            if clang++-19 -std=c++20 -I include -fsyntax-only build_temp/con_llave.cpp 2>/dev/null; then
+              echo "compila, correcto"
+            else
+              echo "NO COMPILA -- la puerta no se puede abrir"
+              fallos=$((fallos + 1))
+            fi
+          done
+
+          if [ $fallos -gt 0 ]; then
+            echo ""
+            echo "La puerta de ADR-006 no se comporta: $fallos comprobacion(es) mal."
             exit 1
           fi
 
