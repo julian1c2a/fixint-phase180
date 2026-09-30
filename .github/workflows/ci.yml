@@ -852,11 +852,36 @@ jobs:
           # Solo cabeceras: no se enlaza, asi que no hace falta nada compilado.
           sudo apt-get install -y -qq g++-14 clang-19 libgmp-dev libtommath-dev libboost-dev
 
-      - name: Los 23 benchmarks pasan el front-end
+      # P2.21: GCC GENERA CODIGO DE VERDAD; clang se queda en el front-end.
+      #
+      # Hasta el 30 sep los dos usaban `-fsyntax-only`, y eso DEJA PASAR los
+      # errores de asignacion de registros. Se vio al reescribir el banco de
+      # comparaciones: el front-end daba rc=0 y la compilacion de verdad fallaba
+      # con «impossible constraint in 'asm'». El job habria seguido en verde con
+      # el fichero roto.
+      #
+      # MEDIDO con ese mismo fallo, para elegir el flag en vez de suponerlo:
+      #
+      #     modo            gcc        clang
+      #     -fsyntax-only   no lo ve   no lo ve
+      #     -c -O0          no lo ve   no lo ve
+      #     -c -O1          no lo ve   no lo ve
+      #     -c -O2          LO CAZA    no lo ve
+      #
+      # Hace falta `-O2`: el error nace de que GCC PLIEGA una constante, y eso
+      # solo pasa al optimizar. `-O0` habria costado casi lo mismo --el coste es
+      # instanciar plantillas, no optimizar-- sin detectar nada.
+      #
+      # Y clang se queda en el front-end porque a `-O2` TAMPOCO lo caza: su rama
+      # de `doNotOptimize` es otra. Pagar quince minutos por una deteccion que no
+      # ocurre seria tirar el tiempo; sigue valiendo para las diferencias de
+      # front-end entre los dos.
+      - name: Los benchmarks compilan (gcc genera codigo, clang pasa el front-end)
         run: |
           FAIL=0; TOTAL=0
           for CXX in g++-14 clang++-19; do
-            echo "=== $CXX ==="
+            if [ "$CXX" = "g++-14" ]; then MODO="-c -O2"; QUE="genera codigo"; else MODO="-fsyntax-only"; QUE="front-end"; fi
+            echo "=== $CXX ($QUE: $MODO) ==="
             $CXX --version | head -1
             for f in benchs/*.cpp; do
               TOTAL=$((TOTAL + 1))
@@ -864,7 +889,7 @@ jobs:
               # OJO: el `if` es obligatorio. Los `run:` de Actions van con
               # `bash -e`, y un fallo fuera de un `if` mata el paso en el acto,
               # asi que solo se veria el PRIMER benchmark roto.
-              if $CXX -fsyntax-only -std=c++20 -Iinclude -Ibenchs "$f" 2>/tmp/syn.err; then
+              if $CXX $MODO -std=c++20 -Iinclude -Ibenchs "$f" -o /dev/null 2>/tmp/syn.err; then
                 echo "ok"
               else
                 echo "FALLA"
@@ -874,11 +899,11 @@ jobs:
             done
           done
           echo ""
-          echo "=== $((TOTAL - FAIL))/$TOTAL pasan el front-end ==="
+          echo "=== $((TOTAL - FAIL))/$TOTAL compilan ==="
           if [ $FAIL -gt 0 ]; then
             echo "$FAIL fichero(s) de benchs/ no compilan."
             echo "Un benchmark que no compila no puede estar en el historico, y"
-            echo "nadie se entera hasta que hace falta la medida. Ver P2.16."
+            echo "nadie se entera hasta que hace falta la medida. Ver P2.16 y P2.21."
             exit 1
           fi
 
