@@ -34,6 +34,10 @@ Lo esencial:
 | [017](ADR-017-magnitud-signo-y-exceso-k-como-codificaciones.md) | Magnitud-Signo y Exceso-K son codificaciones, no aritméticas | ✅ Aceptado |
 | [018](ADR-018-la-representacion-no-es-observable.md) | La representación no es observable desde el comportamiento · cierra las tres cuestiones abiertas de [017](ADR-017-magnitud-signo-y-exceso-k-como-codificaciones.md) | ✅ Aceptado |
 | [019](ADR-019-punto-fijo-es-un-entero-con-escala.md) | Un punto fijo es un entero con una escala · el diseño de P1.6 | ✅ Aceptado |
+| [020](ADR-020-los-operadores-multiplicativos-del-punto-fijo.md) | Los operadores multiplicativos del punto fijo, y dónde vive el redondeo | ✅ Aceptado |
+| [021](ADR-021-un-nombre-por-operacion.md) | Un nombre por operación, y que exista en las dos familias | ✅ Aceptado |
+| [022](ADR-022-numeric-limits-del-punto-fijo.md) | `numeric_limits` del punto fijo | ✅ Aceptado |
+| [023](ADR-023-sin-sufijo-t-en-las-plantillas-de-clase.md) | El sufijo `_t` marca un alias, no una plantilla de clase · `fixed_int_t` → `fixed_width_int`, `fixed_point_t` → `fixed_point` | ✅ Aceptado |
 
 ## Sobre los ADR 001–005
 

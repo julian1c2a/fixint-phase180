@@ -520,6 +520,55 @@ def _familia(ruta) -> bool:
             or ruta.name in ("karatsuba.hpp", "div_by_const.hpp"))
 
 
+def check_indice_adr(rep: Report):
+    """9. Todo ADR escrito esta en el indice, y el indice no inventa ninguno.
+
+    POR QUE EXISTE. El 30 sep 2026 habia TRES ADR escritos --020, 021 y 022-- que
+    no aparecian en `docs/decisions/README.md`. Se vio por casualidad, buscando el
+    siguiente numero libre para el 023: el indice decia que el ultimo era el 019,
+    y por poco se reutiliza un numero. La numeracion secuencial sin reutilizar es
+    una de las tres reglas que el propio README declara, y no habia nada que la
+    vigilara.
+    """
+    rep.section("9. Indice de ADR")
+
+    carpeta = PROJECT_ROOT / "docs" / "decisions"
+    indice = carpeta / "README.md"
+    if not indice.exists():
+        rep.fail("no existe docs/decisions/README.md, que es el indice de ADR")
+        return
+
+    en_disco = {}
+    for f in sorted(carpeta.glob("ADR-*.md")):
+        m = re.match(r"ADR-(\d{3})-", f.name)
+        if m:
+            en_disco[m.group(1)] = f.name
+
+    texto = indice.read_text(encoding="utf-8", errors="replace")
+    en_indice = dict(
+        re.findall(r"^\| \[(\d{3})\]\((ADR-\d{3}-[^)]+\.md)\)", texto, re.MULTILINE))
+
+    problemas = []
+    faltan = sorted(set(en_disco) - set(en_indice))
+    if faltan:
+        problemas.append("escritos y NO indexados: " + ", ".join(faltan))
+        problemas.append("  sin indice nadie sabe cual es el siguiente numero libre,")
+        problemas.append("  y no reutilizarlos es regla del propio README")
+    sobran = sorted(set(en_indice) - set(en_disco))
+    if sobran:
+        problemas.append("indexados y sin fichero en disco: " + ", ".join(sobran))
+    for n, ruta in sorted(en_indice.items()):
+        if n in en_disco and ruta != en_disco[n]:
+            problemas.append("ADR-%s: el indice enlaza `%s` y el fichero es `%s`"
+                             % (n, ruta, en_disco[n]))
+
+    if problemas:
+        rep.fail("el indice de ADR no cuadra con docs/decisions/",
+                 "\n".join(problemas))
+    else:
+        rep.ok("los %d ADR de disco estan en el indice, y ninguno de mas" % len(en_disco))
+
+
 def check_superficie_legado(rep: Report):
     rep.section("8. Superficie de la familia que se retira (ADR-006)")
 
@@ -637,6 +686,7 @@ def main():
     check_license(rep)
     check_dates(rep)
     check_superficie_legado(rep)
+    check_indice_adr(rep)
     if args.doxygen:
         check_doxygen(rep)
     else:

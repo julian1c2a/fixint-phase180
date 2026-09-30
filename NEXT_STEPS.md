@@ -699,18 +699,33 @@ pasó a `fixed_width_int_t.hpp` sin que la siguieran ni la clase ni los siete
 satélites —que hoy concuerdan con la clase, `fixed_int_t`, y no con su propia
 cabecera principal—.
 
-**Y hay un cabo suelto que hay que decidir antes de tocar nada**: la clase pasa a
-`fixed_width_int`, **sin `_t`**, con el argumento de que la `std` moderna no se lo
-pone a las plantillas de clase (`std::array`, no `array_t`). Ese argumento vale
-igual para `fixed_point_t`. O las dos familias lo sueltan, o la regla pasa a ser
-«clase sin `_t`, cabecera con `_t`» y entonces las cabeceras quedan
-`fixed_width_int_t.hpp` + `fixed_width_int_*.hpp`. Lo que no puede ser es que cada
-familia siga una.
+**Decidido el 30 sep, y escrito como
+[ADR-023](docs/decisions/ADR-023-sin-sufijo-t-en-las-plantillas-de-clase.md):**
+`_t` marca un **alias**, no una plantilla de clase — que es lo que hace la `std`,
+donde `remove_cv` y `remove_cv_t` coexisten y el sufijo es justo lo que los
+distingue. Así que:
 
-**Coste, medido**: 122 menciones de `fixed_int_*.hpp` en 25 ficheros —12 en
-`include/`, 9 en `tests/`, 8 en `docs/`, 2 en `scripts/` y los cuatro documentos
-de raíz—. Mecánico, pero toca el verificador de cabeceras autocontenidas y los
-`API_*.md`, así que no es un `sed`.
+| hoy | pasa a |
+|---|---|
+| `fixed_int_t` | **`fixed_width_int`** |
+| `fixed_point_t` | **`fixed_point`** |
+| `fixed_width_int_t.hpp` | **`fixed_width_int.hpp`** + `fixed_width_int_*.hpp` (7) |
+| `fixed_point_t.hpp` | **`fixed_point.hpp`** (los satélites ya cumplen) |
+
+Los alias **conservan** su `_t` —`int_fixed_t`, `uint_fixed_t`,
+`ufixed_point_t`, `sfixed_point_t`— y no por inercia: es que ahora significa
+algo. Y desaparece la trampa de la transposición, que era la razón original:
+`fixed_width_int` frente a `int_fixed_t` ya no se confunden.
+
+Los dos nombres nuevos están **libres**: cero apariciones de `fixed_width_int` y
+de `fixed_point` como identificadores en `include/`.
+
+**Coste, medido el 30 sep**: **1.277 apariciones** — 925 de `fixed_int_t`, 230 de
+`fixed_point_t` y 122 de los nombres de fichero `fixed_int_*.hpp` (en 25
+ficheros: 12 en `include/`, 9 en `tests/`, 8 en `docs/`, 2 en `scripts/` y los
+cuatro documentos de raíz). Mecánico, pero **no es un `sed`**: toca el
+verificador de cabeceras autocontenidas, los `API_*.md`, el `Doxyfile` y los
+`#include` de tests, demos y bancos.
 
 **Va en la misma pasada que el renombrado de la plantilla**, no antes: hacerlo
 ahora obliga a renombrar dos veces, porque el nombre de la clase todavía cambia.
