@@ -44,7 +44,7 @@
 
 #include "fixed_width_int_t.hpp"
 
-#include "bench_common.hpp"
+#include "bench_adaptativo.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -55,8 +55,12 @@
 using namespace nstd;
 
 static constexpr std::size_t OPERANDOS{64};
-static constexpr std::size_t VUELTAS{50000};
-static constexpr std::size_t RONDAS{5};
+
+// VUELTAS y RONDAS se fueron con el arnes viejo (P2.17). Fijaban 50.000
+// iteraciones para todo, y aqui se mide desde `cmp` en N=1 --unos 2 ciclos--
+// hasta `div` en N=64 --unos 5.000--: la ventana duraba 100.000 ciclos en un caso
+// y 250 millones en el otro. `bench::mide_entrelazado` fija el TIEMPO por vuelta
+// (200 ms) y deduce las iteraciones, asi que todas las casillas duran lo mismo.
 
 // El suelo fisico, en las mismas unidades que RDTSC. Ver la nota larga de
 // benchmark_karatsuba.cpp: RDTSC cuenta a la frecuencia invariante del TSC y no
@@ -98,31 +102,11 @@ static std::vector<uint_fixed_t<N>> divisores(std::uint64_t semilla)
     return v;
 }
 
-template <std::size_t N, typename F>
-static double mide(F op)
-{
-    // Calentamiento, que se descarta.
-    for (std::size_t k = 0; k < 1000; ++k)
-        op(k);
-
-    CycleTimer t;
-    for (std::size_t k = 0; k < VUELTAS; ++k)
-        op(k);
-    return static_cast<double>(t.elapsed_cycles()) / static_cast<double>(VUELTAS);
-}
-
-template <std::size_t N, typename F>
-static double mejor(F op)
-{
-    double m{1e300};
-    for (std::size_t r = 0; r < RONDAS; ++r)
-    {
-        const double c = mide<N>(op);
-        if (c < m)
-            m = c;
-    }
-    return m;
-}
+// `mide` y `mejor` se fueron con el arnes viejo: calentaban, cronometraban un
+// numero fijo de vueltas y se quedaban con el minimo de cinco rondas, cada
+// operacion por separado. Todo eso lo hace ya `bench::mide_entrelazado`, y
+// ademas ENTRELAZA las seis con el orden rotando -- que es lo que permite
+// compararlas entre si, porque la deriva termica les toca por igual.
 
 /// @brief Registra, comprueba verosimilitud e imprime una casilla.
 ///
@@ -135,12 +119,17 @@ static double mejor(F op)
 /// La primera version de esta funcion no distinguia, y marcaba `cmp N=64` como
 /// medida imposible. Era la guarda la que mentia, no la medida: una alarma que
 /// salta donde no debe se acaba ignorando, y entonces no sirve para cuando si.
-static double casilla(std::size_t N, const char *operacion, double cyc, bool toca_todos_los_limbos = true)
+static double casilla(std::size_t N, const char *operacion, const bench::Medida &m,
+                      bool toca_todos_los_limbos = true)
 {
     char nombre[64];
     std::snprintf(nombre, sizeof(nombre), "%s N=%zu", operacion, N);
-    bench_record(nombre, cyc);
+    // Con su ruido: `bench::registra` guarda ademas dispersion, cola baja y
+    // vueltas limpias, que es lo que necesita `--compare` para decidir si una
+    // diferencia de manana significa algo.
+    bench::registra(nombre, m);
 
+    const double cyc = m.minimo;
     const double por_limbo = cyc / static_cast<double>(N);
     if (toca_todos_los_limbos && por_limbo < CICLOS_MINIMOS_POR_LIMBO)
     {
@@ -160,51 +149,52 @@ static void una_anchura()
     const auto d = divisores<N>(0xD1F5 + N);
 
     uint_fixed_t<N> sumidero{};
-    volatile bool bandera = false;
 
-    const double c_add = mejor<N>(
-        [&](std::size_t k)
-        {
-            sumidero = a[k % OPERANDOS] + b[k % OPERANDOS];
-            doNotOptimize(sumidero);
-        });
-    const double c_sub = mejor<N>(
-        [&](std::size_t k)
-        {
-            sumidero = a[k % OPERANDOS] - b[k % OPERANDOS];
-            doNotOptimize(sumidero);
-        });
-    const double c_mul = mejor<N>(
-        [&](std::size_t k)
-        {
-            sumidero = a[k % OPERANDOS] * b[k % OPERANDOS];
-            doNotOptimize(sumidero);
-        });
-    const double c_div = mejor<N>(
-        [&](std::size_t k)
-        {
-            sumidero = a[k % OPERANDOS] / d[k % OPERANDOS];
-            doNotOptimize(sumidero);
-        });
-    const double c_shl = mejor<N>(
-        [&](std::size_t k)
-        {
-            sumidero = a[k % OPERANDOS] << 13;
-            doNotOptimize(sumidero);
-        });
-    const double c_cmp = mejor<N>(
-        [&](std::size_t k)
-        {
-            bandera = a[k % OPERANDOS] < b[k % OPERANDOS];
-            doNotOptimize(bandera);
-        });
+    // `cmp` acumulaba en una `volatile bool`, o sea una escritura a memoria por
+    // vuelta dentro de lo cronometrado. Es el mismo defecto que P2.19 quito del
+    // banco de comparaciones: se acumula en un entero normal y la barrera la
+    // pone `doNotOptimize`.
+    std::uint64_t cuenta{0};
 
-    const double pl_add = casilla(N, "add", c_add);
-    const double pl_sub = casilla(N, "sub", c_sub);
-    const double pl_mul = casilla(N, "mul", c_mul);
-    const double pl_div = casilla(N, "div", c_div);
-    const double pl_shl = casilla(N, "shl", c_shl);
-    const double pl_cmp = casilla(N, "cmp", c_cmp, /*toca_todos_los_limbos=*/false);
+    auto f_add = [&](std::size_t k)
+    {
+        sumidero = a[k % OPERANDOS] + b[k % OPERANDOS];
+        doNotOptimize(sumidero);
+    };
+    auto f_sub = [&](std::size_t k)
+    {
+        sumidero = a[k % OPERANDOS] - b[k % OPERANDOS];
+        doNotOptimize(sumidero);
+    };
+    auto f_mul = [&](std::size_t k)
+    {
+        sumidero = a[k % OPERANDOS] * b[k % OPERANDOS];
+        doNotOptimize(sumidero);
+    };
+    auto f_div = [&](std::size_t k)
+    {
+        sumidero = a[k % OPERANDOS] / d[k % OPERANDOS];
+        doNotOptimize(sumidero);
+    };
+    auto f_shl = [&](std::size_t k)
+    {
+        sumidero = a[k % OPERANDOS] << 13;
+        doNotOptimize(sumidero);
+    };
+    auto f_cmp = [&](std::size_t k)
+    {
+        cuenta += static_cast<std::uint64_t>(a[k % OPERANDOS] < b[k % OPERANDOS]);
+        doNotOptimize(cuenta);
+    };
+
+    const auto m = bench::mide_entrelazado(std::make_tuple(f_add, f_sub, f_mul, f_div, f_shl, f_cmp));
+
+    const double pl_add = casilla(N, "add", m[0]);
+    const double pl_sub = casilla(N, "sub", m[1]);
+    const double pl_mul = casilla(N, "mul", m[2]);
+    const double pl_div = casilla(N, "div", m[3]);
+    const double pl_shl = casilla(N, "shl", m[4]);
+    const double pl_cmp = casilla(N, "cmp", m[5], /*toca_todos_los_limbos=*/false);
 
     // El camino que toma `operator*` a esta anchura, para que la curva se lea
     // sabiendo que se esta mirando.
@@ -218,15 +208,16 @@ static void una_anchura()
 
     std::printf("| %4zu | %8.1f %6.2f | %8.1f %6.2f | %9.1f %7.2f | %9.1f %7.2f |"
                 " %7.1f %5.2f | %6.1f %5.2f | %-15s |\n",
-                N, c_add, pl_add, c_sub, pl_sub, c_mul, pl_mul, c_div, pl_div, c_shl, pl_shl, c_cmp, pl_cmp,
-                camino);
+                N, m[0].minimo, pl_add, m[1].minimo, pl_sub, m[2].minimo, pl_mul, m[3].minimo, pl_div,
+                m[4].minimo, pl_shl, m[5].minimo, pl_cmp, camino);
 }
 
 int main()
 {
     std::printf("=== Coste por operacion frente a la anchura N ===\n");
-    std::printf("%zu operandos aleatorios, %zu iteraciones x %zu rondas, minimo por caso\n", OPERANDOS,
-                VUELTAS, RONDAS);
+    std::printf("%zu operandos aleatorios; %zu vueltas de %.0f ms por casilla, las SEIS\n"
+                "operaciones entrelazadas y con el orden rotando. Se publica el minimo.\n",
+                OPERANDOS, bench::REPETICIONES, bench::MS_POR_CASILLA);
     std::printf("\nCada par de columnas es: cyc/op y cyc/op POR LIMBO.\n"
                 "Por limbo, lo lineal sale plano y lo cuadratico sale creciendo.\n\n");
 
