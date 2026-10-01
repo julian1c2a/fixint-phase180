@@ -575,8 +575,22 @@ def check_bloque_estado(rep: Report):
         r = subprocess.run(["git", "rev-list", "--count", "%s..HEAD" % hash_citado],
                            cwd=str(PROJECT_ROOT), capture_output=True, text=True,
                            encoding="utf-8", errors="replace")
-        if r.returncode != 0:
-            problemas.append("el hash de CI `%s` no esta en esta rama" % hash_citado)
+        # «NO PUEDO MEDIRLO AQUI» NO ES «ESTA MAL». La primera version los
+        # confundia y rompio el CI el 1 oct 2026: alli `actions/checkout` trae un
+        # solo commit, ningun hash antiguo esta, y esto declaraba «no esta en esta
+        # rama». En local, con el historial entero, pasaba -- y los cuatro casos
+        # con que se falsifico eran todos locales.
+        superficial = subprocess.run(
+            ["git", "rev-parse", "--is-shallow-repository"], cwd=str(PROJECT_ROOT),
+            capture_output=True, text=True, encoding="utf-8",
+            errors="replace").stdout.strip() == "true"
+        if r.returncode != 0 and superficial:
+            if not rep.quiet:
+                print("         [nota] clon superficial: no se puede medir a cuantos commits "
+                      "queda `%s` (el job del CI necesita `fetch-depth: 0`)" % hash_citado)
+        elif r.returncode != 0:
+            problemas.append("el hash de CI `%s` no esta en esta rama, y el clon es completo: "
+                             "esta mal escrito" % hash_citado)
         else:
             detras = int((r.stdout or "0").strip() or 0)
             # Se imprime SIEMPRE, verde o rojo: un numero delante de los ojos en

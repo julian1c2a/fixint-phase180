@@ -646,7 +646,13 @@ jobs:
     runs-on: ubuntu-24.04
 
     steps:
+      # HISTORIAL ENTERO, y no por capricho. La comprobacion 10 del armonizador
+      # mide a cuantos commits queda el hash de CI que cita NEXT_STEPS, y con el
+      # clon superficial por defecto --un solo commit-- no hay nada contra que
+      # medir. El 1 oct 2026 eso dejo este job en rojo dos commits seguidos.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # OJO CON LA VERSION. clang-format no es estable entre versiones mayores:
       # la v19 rompe `a ^ T{0}` en `a ^ T { 0 }` (lee `^ T{` como declaracion), y
