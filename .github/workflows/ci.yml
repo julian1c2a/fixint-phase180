@@ -696,6 +696,15 @@ jobs:
       - name: Coherencia de la documentacion
         run: python3 scripts/check_docs_consistency.py --doxygen
 
+      # LAS PRUEBAS DE LA INFRAESTRUCTURA, que hasta el 1 oct 2026 no existian.
+      # Prueban lo que decide si una toma de benchmarks es de fiar: el lector del
+      # TSV (que ha crecido de 3 a 13 columnas, y cada ampliacion arriesgaba
+      # romper las anteriores) y el cruce de cada ventana con la carga medida.
+      # Falsificadas con cinco averias a proposito, y una de ellas destapo una
+      # prueba vacua. Ver P2.22.
+      - name: Pruebas de los guiones de Python
+        run: python3 -m unittest discover -s scripts/tests -v
+
   # ============================================================================
   # Static Analysis — cppcheck (include/ headers)
   # continue-on-error: findings shown in dashboard but don't block CI

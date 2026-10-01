@@ -38,10 +38,25 @@ Está medido, y dos veces:
   completa de `services.msc` tenía 160 en ejecución. Mirar la lista de servicios
   antes de mirar qué consume de verdad habría sido perder la tarde.
 
+- El 1 oct 2026 se midió **cuánto** infla una carga ajena, y **lo que no se ve**:
+  **un solo proceso** compitiendo durante una ventana sube su cifra un **17 %**,
+  y quince la duplican — y la dispersión de la ventana **no lo delata**, porque
+  todas sus vueltas se frenan por igual
+  ([PERFORMANCE.md](../../docs/PERFORMANCE.md), § «Lo que publica el arnés son
+  ticks del TSC»). Ese mismo día una carga ajena de ~4,5 CPU se coló en un
+  experimento entero y lo dejó todo un **34 %** más lento.
+
 De ahí el orden de las tres herramientas: primero **medir** (la carga, con
 `bench_history.py --espera-ocioso`), luego **ver quién sobra**
 (`comprueba_condiciones.ps1`) y sólo entonces **apagar cosas**
 (`silencia_maquina.ps1`).
+
+**Y desde el 1 oct 2026 se mide también DURANTE la toma.** `bench_history.py`
+anota, para cada ventana, cuánta CPU usaron los demás procesos mientras se medía,
+y al terminar dice si alguna se **perturbó** con carga sostenida. Una toma con
+alguna ventana perturbada **no vale de referencia**, y `--compare` no la usa. Que
+la máquina esté tranquila al empezar ya no se da por bueno para toda la toma: el
+campo se llama `tranquila_al_empezar` precisamente para no afirmar más que eso.
 
 ## Lo que no tocan, y por qué
 

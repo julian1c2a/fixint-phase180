@@ -387,54 +387,282 @@ def espera_ocioso(umbral: float, quieto: float, limite: float):
     return ultima, time.time() - t0, False
 
 
+# ============================================================================
+# LO QUE HACE LA MAQUINA DURANTE LA TOMA (P2.22)
+# ============================================================================
+#
+# POR QUE EXISTE. `espera_ocioso` comprueba la calma ANTES de empezar y nunca
+# durante. Dos tomas del mismo codigo, el mismo dia, ambas tranquilas al empezar,
+# salieron con 7 y con 46 ventanas sucias de 172: lo que paso durante no lo vio
+# nadie, y la sucia se guardo igual que la limpia.
+#
+# QUE SE MIDE: `otros`, la CPU que ocupan LOS DEMAS procesos mientras corre el
+# benchmark, en unidades de CPU logica. Se resta la del propio benchmark porque
+# la maquina tiene muchas CPU y el benchmark ocupa una entera: a lo bruto se
+# mediria a si mismo.
+#
+# Y SE CRUZA CON CADA VENTANA gracias a los sellos `t_inicio`/`t_fin` que
+# escribe el arnes C++ con el reloj de pared -- validado que es el mismo que el
+# de `time.time()` aqui.
+
+def _cpu_ocupada_sistema(psutil):
+    """Segundos de CPU ocupada en toda la maquina, sumados sobre todas las CPU.
+
+    EN WINDOWS NO SE COPIA LA DEFINICION DE PSUTIL, porque cuenta doble. psutil
+    toma `system` de `GetSystemTimes`, que ya es el tiempo de nucleo menos el
+    ocioso -- e INCLUYE interrupciones y DPC --, y luego suma `interrupt` y `dpc`
+    aparte. Medido el 1 oct 2026 contra la suma proceso a proceso: con su
+    definicion el Muestreador leia +0,11 a +0,40 CPU de mas, creciendo con la
+    carga (mas procesos, mas interrupciones). Aqui: `user + system`.
+
+    En Linux si vale la de psutil: el total menos lo ocioso y `iowait`, y sin
+    `guest`, que ya va dentro de `user`.
+    """
+    t = psutil.cpu_times()
+    if sys.platform == "win32":
+        return t.user + t.system
+    total = sum(t)
+    total -= getattr(t, "guest", 0) + getattr(t, "guest_nice", 0)  # ya van en user/nice
+    return total - t.idle - getattr(t, "iowait", 0)
+
+
+def _cpu_del_proceso(proc):
+    t = proc.cpu_times()
+    return t.user + t.system
+
+
+class Muestreador:
+    """Mide `otros` cada `periodo` segundos mientras vive el proceso `pid`.
+
+    Se usa como gestor de contexto alrededor de la ejecucion del benchmark. Las
+    muestras quedan en `self.muestras` como tuplas (t0, t1, otros), con `t0` y
+    `t1` en segundos desde la epoca: el mismo reloj que los sellos del arnes.
+
+    `self.disponible` es False si no se pudo medir -- sin psutil, o porque el
+    proceso murio antes de la primera muestra --, y entonces `muestras` va vacia.
+    Eso es «no lo se», y quien lo lea tiene que tratarlo asi, no como cero.
+    """
+
+    def __init__(self, pid: int, periodo: float = 0.5):
+        self.pid = pid
+        self.periodo = periodo
+        self.muestras = []
+        self.disponible = False
+        self.motivo = ""
+        self._parar = None
+        self._hilo = None
+
+    def __enter__(self):
+        import threading  # noqa: PLC0415
+        try:
+            import psutil  # noqa: PLC0415
+        except ImportError:
+            self.motivo = "psutil no esta instalado"
+            return self
+        self._psutil = psutil
+        self._parar = threading.Event()
+        self._hilo = threading.Thread(target=self._bucle, daemon=True)
+        self._hilo.start()
+        return self
+
+    def __exit__(self, *exc):
+        if self._parar is not None:
+            self._parar.set()
+            self._hilo.join(timeout=5)
+        return False
+
+    def _bucle(self):
+        psutil = self._psutil
+        try:
+            hijo = psutil.Process(self.pid)
+            t_prev, s_prev, h_prev = time.time(), _cpu_ocupada_sistema(psutil), _cpu_del_proceso(hijo)
+        except Exception as e:  # el hijo ya no esta, o no se puede leer
+            self.motivo = "no se pudo leer el proceso: %s" % type(e).__name__
+            return
+        while not self._parar.wait(self.periodo):
+            try:
+                t, s, h = time.time(), _cpu_ocupada_sistema(psutil), _cpu_del_proceso(hijo)
+            except Exception:
+                break  # el hijo ha terminado: lo normal al final
+            dt = t - t_prev
+            if dt > 0:
+                # Negativo solo por redondeo de los contadores: se recorta a cero.
+                self.muestras.append((t_prev, t, max(0.0, ((s - s_prev) - (h - h_prev)) / dt)))
+                self.disponible = True
+            t_prev, s_prev, h_prev = t, s, h
+        if not self.disponible and not self.motivo:
+            self.motivo = "el benchmark termino antes de la primera muestra"
+
+
+def carga_en_tramo(muestras, t0: float, t1: float):
+    """(media, maximo) de `otros` en el tramo [t0, t1]. None si no hay muestras.
+
+    La media va PONDERADA por cuanto solapa cada muestra con el tramo: una muestra
+    que lo toca una decima no pesa como una que lo cubre entera. El maximo es el
+    de las muestras que solapan algo, porque una rafaga corta es justo lo que se
+    busca y una media la diluiria.
+
+    Funcion pura, sin psutil: es la que se prueba sola.
+    """
+    peso, suma, maximo = 0.0, 0.0, None
+    for a, b, otros in muestras:
+        solape = min(b, t1) - max(a, t0)
+        if solape <= 0:
+            continue
+        peso += solape
+        suma += solape * otros
+        maximo = otros if maximo is None else max(maximo, otros)
+    if peso <= 0:
+        return None
+    return suma / peso, maximo
+
+
+def suelo_en_tramo(muestras, t0: float, t1: float, q: float = 0.10):
+    """Percentil `q` de `otros` en las muestras que solapan [t0, t1]. None si no hay.
+
+    ES LA CIFRA QUE DECIDE, y no la media. Medido el 1 oct 2026 (E3, P2.22): una
+    carga SOSTENIDA mantiene alto el suelo durante toda la ventana, y la de a
+    RAFAGAS --el editor, Windows-- deja huecos y el suelo baja al fondo. La media
+    no las separa: una ventana limpia con el editor activo dio 1,59 y una con un
+    proceso sostenido, 1,41. El suelo si: inocuas <= 0,30, danina >= 1,10.
+
+    Funcion pura, sin psutil.
+    """
+    xs = sorted(o for a, b, o in muestras if min(b, t1) - max(a, t0) > 0)
+    if not xs:
+        return None
+    i = q * (len(xs) - 1)
+    lo = int(i)
+    hi = min(lo + 1, len(xs) - 1)
+    return xs[lo] + (xs[hi] - xs[lo]) * (i - lo)
+
+
+# CUANTO SUELO DE `otros` HACE FALTA PARA LLAMAR PERTURBADA A UNA VENTANA, en CPU
+# logicas. CALIBRADO, no elegido, el 1 oct 2026 en esta maquina (8 nucleos, 16
+# hilos) y con el editor abierto:
+#
+#     ventanas inocuas (limpias, a rafagas, bordes)   suelo <= 0,30
+#     un solo proceso sostenido                       suelo >= 1,10   (+15 % en el minimo)
+#
+# 0,6 deja ~0,3 de margen por abajo y ~0,5 por arriba. Elegido en E3 y
+# comprobado en E2-bis, que no lo genero. En otra maquina se vuelve a medir: un
+# umbral publicado es relativo a la maquina donde se midio.
+SUELO_PERTURBADA = 0.6
+
+
+def ventana_perturbada(dato):
+    """True si la ventana tuvo carga SOSTENIDA de otros procesos.
+
+    None si no se sabe --toma de antes del 1 oct 2026, o sin psutil--. Es una
+    tercera respuesta, no un False: quien la lea tiene que tratarla asi.
+    """
+    suelo = dato.get("otros_suelo")
+    if suelo is None:
+        return None
+    return suelo > SUELO_PERTURBADA
+
+
+def veredicto_durante(toma: dict) -> dict:
+    """Que se sabe de lo que paso DURANTE una toma. Funcion pura.
+
+    Cuenta VENTANAS, no casillas: las variantes de una ventana comparten sello y
+    se agrupan por el (leccion de P2.18). Devuelve:
+
+        medido        si alguna ventana trae medida de durante
+        ventanas      cuantas la traen
+        sin_dato      cuantas ventanas con sello NO la traen
+        perturbadas   cuantas superan SUELO_PERTURBADA
+        por_suite     {suite: perturbadas} solo de las que tienen alguna
+        certificable  medido, sin huecos y sin ninguna perturbada
+    """
+    vistas = {}   # (suite, t_inicio, t_fin) -> perturbada (True/False/None)
+    for suite, medidas in toma.get("suites", {}).items():
+        for dato in medidas.values():
+            if "t_inicio" not in dato:
+                continue
+            clave = (suite, dato["t_inicio"], dato["t_fin"])
+            p = ventana_perturbada(dato)
+            # Si alguna variante de la ventana lo sabe, la ventana lo sabe.
+            if clave not in vistas or vistas[clave] is None:
+                vistas[clave] = p
+            elif p:
+                vistas[clave] = True
+    con_dato = [v for v in vistas.values() if v is not None]
+    por_suite = {}
+    for (suite, _, _), v in vistas.items():
+        if v:
+            por_suite[suite] = por_suite.get(suite, 0) + 1
+    perturbadas = sum(1 for v in con_dato if v)
+    sin_dato = sum(1 for v in vistas.values() if v is None)
+    return {
+        "medido": bool(con_dato),
+        "ventanas": len(con_dato),
+        "sin_dato": sin_dato,
+        "perturbadas": perturbadas,
+        "por_suite": por_suite,
+        "certificable": bool(con_dato) and sin_dato == 0 and perturbadas == 0,
+    }
+
+
+def elige_referencia(tomas, suites=None):
+    """De una lista de tomas (de la mas vieja a la mas nueva), cual usar de
+    referencia para comparar `suites`, y por que si no es certificable. Pura.
+
+    Devuelve (indice, motivo). `motivo` es None si la elegida es certificable; si
+    no lo es ninguna, se devuelve la mas reciente y `motivo` dice POR QUE no se
+    puede fiar de ella. Antes del 1 oct 2026 se cogia siempre la mas reciente, y
+    una toma con rafagas valia de referencia igual que una limpia (P2.22).
+
+    LA REFERENCIA TIENE QUE TENER LO QUE SE COMPARA. Si se pasa `suites`, solo
+    cuentan las tomas que las tienen TODAS; si ninguna, las que tienen ALGUNA. Se
+    vio en la prueba de extremo a extremo: con `--only bases` se escogio una toma
+    sin `bases` y la comparacion salio vacia sin avisar.
+    """
+    if not tomas:
+        return None, "no hay tomas anteriores"
+    indices = list(range(len(tomas)))
+    if suites:
+        quiero = set(suites)
+        todas = [i for i in indices if quiero <= set(tomas[i].get("suites", {}))]
+        alguna = [i for i in indices if quiero & set(tomas[i].get("suites", {}))]
+        indices = todas or alguna
+        if not indices:
+            return None, "ninguna toma anterior tiene estas suites"
+    for i in reversed(indices):
+        if veredicto_durante(tomas[i])["certificable"]:
+            return i, None
+    ultima = indices[-1]
+    v = veredicto_durante(tomas[ultima])
+    if not v["medido"]:
+        return ultima, ("no tiene medida de lo que paso DURANTE la toma (es de antes "
+                        "del 1 oct 2026): no se puede saber si alguna casilla estaba "
+                        "inflada por carga de otros procesos")
+    return ultima, ("tiene %d ventana(s) perturbada(s) por carga sostenida de otros "
+                    "procesos%s" % (v["perturbadas"], (" y %d sin dato" % v["sin_dato"])
+                                    if v["sin_dato"] else ""))
+
+
 def benchmarks_disponibles():
     return sorted(f.stem[len("benchmark_"):]
                   for f in BENCHS.glob("benchmark_*.cpp"))
 
 
-def ejecutar(nombre: str, compilador: str, modo: str, tmp: Path):
-    """Compila y ejecuta un benchmark, devolviendo sus medidas."""
-    salida_tsv = tmp / ("%s.tsv" % nombre)
-    if salida_tsv.exists():
-        salida_tsv.unlink()
+def lee_medidas(lineas):
+    """Las medidas de un TSV de `bench_record`, linea a linea. Funcion pura.
 
-    r = subprocess.run([sys.executable, str(RAIZ / "make.py"), "build", "uint128",
-                        nombre, "benchs", compilador, modo],
-                       cwd=RAIZ, capture_output=True, text=True)
-    if r.returncode != 0:
-        return None, "no compila"
+    Acepta las cuatro formas que han existido, y todas siguen vivas:
 
-    exe = (RAIZ / "build" / "build_benchs" / rutas.plataforma() / compilador / modo /
-           ("benchmark_%s_%s" % (nombre, compilador)))
-    if not exe.exists():
-        exe = Path(str(exe) + ".exe")
-    if not exe.exists():
-        return None, "sin binario"
+        3 columnas   caso, valor, unidad                  (arnes viejo)
+        7            + dispersion, recorrido, iters, reps
+        11           + suelo, disp_baja, limpias, k_suelo (27 sep 2026)
+        13           + t_inicio, t_fin                    (1 oct 2026, P2.22)
 
-    env = entorno_de(compilador)
-    env["BENCH_OUT"] = str(salida_tsv)
-    try:
-        r = subprocess.run([str(exe)], cwd=RAIZ, capture_output=True, text=True,
-                           env=env, timeout=1800)
-    except subprocess.TimeoutExpired:
-        return None, "timeout"
-
-    # ANTES no se miraba el codigo de salida. Un binario que moria al arrancar
-    # --por una DLL equivocada, por ejemplo-- no escribia el TSV, y la unica
-    # explicacion que daba este guion era "le falta bench_record": culpaba al
-    # fuente de un fallo del entorno. Ahora se distingue.
-    if r.returncode != 0:
-        detalle = "0x%08X" % (r.returncode & 0xFFFFFFFF) if r.returncode < 0 or r.returncode > 255 \
-            else str(r.returncode)
-        pista = (r.stderr or r.stdout or "").strip().splitlines()
-        return None, "el binario termino con %s%s" % (
-            detalle, (": " + pista[-1][:60]) if pista else "")
-
-    if not salida_tsv.exists():
-        return None, "no registra (le falta bench_record)"
-
+    Se saco de `ejecutar` el 1 oct 2026 para poder probarla: ha crecido tres
+    veces y cada ampliacion arriesgaba romper los formatos anteriores sin que
+    nada lo comprobara. Ver scripts/tests/test_bench_history.py.
+    """
     medidas = {}
-    for linea in io.open(salida_tsv, encoding="utf-8", errors="replace"):
+    for linea in lineas:
         partes = linea.rstrip("\n").split("\t")
         if len(partes) < 3:
             continue
@@ -468,7 +696,97 @@ def ejecutar(nombre: str, compilador: str, modo: str, tmp: Path):
                 dato["k_suelo"] = int(partes[10])
             except ValueError:
                 pass
+        # EL CUANDO (desde el 1 oct 2026, P2.22): el tramo de las vueltas
+        # cronometradas, en segundos desde la epoca. Es lo que permite cruzar
+        # cada ventana con lo que hizo la maquina mientras se media.
+        if len(partes) >= 13:
+            try:
+                dato["t_inicio"] = float(partes[11])
+                dato["t_fin"] = float(partes[12])
+            except ValueError:
+                pass
         medidas[partes[0]] = dato
+    return medidas
+
+
+def ejecutar(nombre: str, compilador: str, modo: str, tmp: Path, durante_out: dict = None):
+    """Compila y ejecuta un benchmark, devolviendo sus medidas.
+
+    Si se pasa `durante_out`, se rellena con lo que se pudo medir de la maquina
+    mientras corria (P2.22): si estuvo disponible, por que no, cuantas muestras.
+    """
+    salida_tsv = tmp / ("%s.tsv" % nombre)
+    if salida_tsv.exists():
+        salida_tsv.unlink()
+
+    r = subprocess.run([sys.executable, str(RAIZ / "make.py"), "build", "uint128",
+                        nombre, "benchs", compilador, modo],
+                       cwd=RAIZ, capture_output=True, text=True)
+    if r.returncode != 0:
+        return None, "no compila"
+
+    exe = (RAIZ / "build" / "build_benchs" / rutas.plataforma() / compilador / modo /
+           ("benchmark_%s_%s" % (nombre, compilador)))
+    if not exe.exists():
+        exe = Path(str(exe) + ".exe")
+    if not exe.exists():
+        return None, "sin binario"
+
+    env = entorno_de(compilador)
+    env["BENCH_OUT"] = str(salida_tsv)
+    # `Popen` en vez de `run`: hace falta el PID para medir lo que hacen LOS DEMAS
+    # mientras este corre (P2.22). El tiempo maximo y la captura de la salida son
+    # los mismos que antes.
+    proc = subprocess.Popen([str(exe)], cwd=RAIZ, stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE, text=True, env=env)
+    with Muestreador(proc.pid) as durante:
+        try:
+            salida, error = proc.communicate(timeout=1800)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.communicate()
+            return None, "timeout"
+    r = subprocess.CompletedProcess(proc.args, proc.returncode, salida, error)
+
+    # ANTES no se miraba el codigo de salida. Un binario que moria al arrancar
+    # --por una DLL equivocada, por ejemplo-- no escribia el TSV, y la unica
+    # explicacion que daba este guion era "le falta bench_record": culpaba al
+    # fuente de un fallo del entorno. Ahora se distingue.
+    if r.returncode != 0:
+        detalle = "0x%08X" % (r.returncode & 0xFFFFFFFF) if r.returncode < 0 or r.returncode > 255 \
+            else str(r.returncode)
+        pista = (r.stderr or r.stdout or "").strip().splitlines()
+        return None, "el binario termino con %s%s" % (
+            detalle, (": " + pista[-1][:60]) if pista else "")
+
+    if not salida_tsv.exists():
+        return None, "no registra (le falta bench_record)"
+
+    with io.open(salida_tsv, encoding="utf-8", errors="replace") as f:
+        medidas = lee_medidas(f)
+
+    # CADA VENTANA, CON LO QUE HIZO LA MAQUINA MIENTRAS SE MEDIA (P2.22). Solo
+    # las que traen sello; y si no se pudo medir durante, se dice en la suite en
+    # vez de poner ceros, que serian una afirmacion falsa.
+    for dato in medidas.values():
+        if "t_inicio" in dato and durante.disponible:
+            c = carga_en_tramo(durante.muestras, dato["t_inicio"], dato["t_fin"])
+            if c is not None:
+                dato["otros_media"], dato["otros_max"] = round(c[0], 3), round(c[1], 3)
+                # EL SUELO es la cifra que decide (ver `suelo_en_tramo`); la media
+                # y el maximo se guardan para poder diagnosticar, no para decidir.
+                dato["otros_suelo"] = round(suelo_en_tramo(durante.muestras, dato["t_inicio"],
+                                                           dato["t_fin"]), 3)
+    # FUERA del diccionario de medidas, a proposito: quien lo recorre --`comparar`,
+    # las sondas-- espera que cada valor sea una medida con su `valor`, y una
+    # entrada de otra forma ahi dentro lo haria reventar.
+    if durante_out is not None:
+        durante_out.update({
+            "disponible": durante.disponible,
+            "motivo": durante.motivo,
+            "periodo_s": durante.periodo,
+            "muestras": len(durante.muestras),
+        })
     return medidas, None
 
 
@@ -519,13 +837,20 @@ def anteriores(maquina: str):
     return sorted(carpeta.glob("*.json"))
 
 
-def comparar(actual: dict, previo_path: Path):
+def comparar(actual: dict, previo_path: Path, motivo_referencia: str = None):
     previo = json.loads(io.open(previo_path, encoding="utf-8").read())
     echo("")
     echo("=" * 74)
     echo("  Comparacion con %s" % previo_path.name)
     echo("  (misma maquina: %s)" % actual["maquina"])
     echo("=" * 74)
+
+    # LA REFERENCIA PUEDE NO SER DE FIAR, y antes no se decia (P2.22).
+    if motivo_referencia:
+        echo("  [OJO] esta referencia NO esta certificada: %s." % motivo_referencia)
+        echo("        Medido el 1 oct 2026: un solo proceso compitiendo infla las cifras un")
+        echo("        ~17 % sin que la dispersion lo vea. Si una casilla «mejora» aqui, puede")
+        echo("        ser que la referencia estuviera inflada.")
 
     if previo.get("compilador") != actual.get("compilador"):
         echo("  [OJO] compilador distinto:")
@@ -571,12 +896,19 @@ def comparar(actual: dict, previo_path: Path):
     # Para seguir viendo el CONTRASTE con el criterio viejo: cada entrada es
     # (|delta|, barra_en_uso, barra_del_recorrido).
     ensayo_baja = []
+    # LAS PERTURBADAS SE APARTAN, de los dos lados: una cifra inflada por carga de
+    # otros procesos no sirve ni de antes ni de despues, y su delta contaminaria
+    # tambien la distribucion de abajo.
+    apartadas = []
     for suite, medidas in sorted(actual["suites"].items()):
         antes = previo.get("suites", {}).get(suite, {})
         filas = []
         for caso, dato in sorted(medidas.items()):
             v_ahora = dato["valor"]
             if caso not in antes:
+                continue
+            if ventana_perturbada(dato) or ventana_perturbada(antes[caso]):
+                apartadas.append((suite, caso, "ahora" if ventana_perturbada(dato) else "antes"))
                 continue
             v_antes = antes[caso]["valor"]
             if v_antes == 0:
@@ -598,6 +930,16 @@ def comparar(actual: dict, previo_path: Path):
                 echo("    %-34s %9.2f -> %9.2f  %s%.1f %%   (barra %.0f %%, %s)"
                      % (caso[:34], va, vn, signo, d * 100, barra * 100, criterio))
                 avisos += 1
+
+    if apartadas:
+        echo("")
+        echo("  %d casilla(s) APARTADAS por carga sostenida de otros procesos durante la"
+             % len(apartadas))
+        echo("  medida (suelo de `otros` > %.1f CPU). No se comparan:" % SUELO_PERTURBADA)
+        for suite, caso, lado in apartadas[:12]:
+            echo("    %-24s %-34s (%s)" % (suite[:24], caso[:34], lado))
+        if len(apartadas) > 12:
+            echo("    ... y %d mas" % (len(apartadas) - 12))
 
     # LA DISTRIBUCION, QUE ES LO QUE PERMITE CALIBRAR. Sin ella solo se ven las
     # que saltan, y no se sabe si saltan porque hay algo o porque la barra esta
@@ -731,8 +1073,9 @@ def main():
         if carga is None:
             echo("  [OJO] no se pudo medir la carga; se sigue sin esperar.")
         elif logrado:
-            echo("  Maquina tranquila (%.0f %%) tras %.0f s de espera. Empezamos."
+            echo("  Maquina tranquila AL EMPEZAR (%.0f %%) tras %.0f s de espera."
                  % (carga * 100, esperado))
+            echo("  (Eso dice como esta ahora, no como va a estar: lo de durante se mide aparte.)")
         else:
             echo("  [OJO] se agoto la espera con la carga al %.0f %%. SE MIDE IGUAL,"
                  % (carga * 100))
@@ -740,7 +1083,14 @@ def main():
             echo("        sospechosa y se puede descartar por ese dato.")
         datos["carga_al_empezar"] = carga
         datos["espera_ocioso_s"] = round(esperado, 1)
-        datos["maquina_tranquila"] = bool(logrado)
+        # «AL EMPEZAR», Y EL NOMBRE LO DICE. Hasta el 1 oct 2026 este campo se
+        # llamaba `maquina_tranquila`, y afirmaba mas de lo que se comprobaba: lo
+        # que mide es la media de carga ANTES de la primera suite, no durante la
+        # toma. Dos tomas del mismo codigo, ambas con `True`, salieron con 7 y con
+        # 46 ventanas sucias de 172 (P2.22). Lo que paso DURANTE la toma va en
+        # `durante`, que se mide de verdad. Las tomas viejas conservan el nombre
+        # viejo: el historico no se reescribe, pero su `True` significa esto.
+        datos["tranquila_al_empezar"] = bool(logrado)
     else:
         c = carga_ahora(1.0)
         datos["carga_al_empezar"] = c
@@ -759,7 +1109,8 @@ def main():
 
     for nombre in quiero:
         print("  %-26s " % nombre, end="", flush=True)
-        medidas, error = ejecutar(nombre, args.compiler, args.mode, tmp)
+        durante = datos.setdefault("durante", {}).setdefault(nombre, {})
+        medidas, error = ejecutar(nombre, args.compiler, args.mode, tmp, durante)
         if error:
             echo("-- %s" % error)
             continue
@@ -776,6 +1127,29 @@ def main():
     echo("")
     echo("  %d medidas de %d suites -> %s" % (total, len(datos["suites"]),
                                               destino.relative_to(RAIZ)))
+
+    # EL VEREDICTO DE LO QUE PASO DURANTE, en voz alta (P2.22). Antes se escribia
+    # `maquina_tranquila: True` mirando solo la espera previa, y dos tomas asi
+    # marcadas salieron con 7 y con 46 ventanas sucias.
+    v = veredicto_durante(datos)
+    echo("")
+    if not v["medido"]:
+        echo("  [OJO] no se pudo medir lo que paso DURANTE la toma (%s)."
+             % ", ".join(sorted({d.get("motivo") or "?" for d in datos.get("durante", {}).values()})))
+        echo("        Esta toma NO se puede certificar como referencia.")
+    elif v["certificable"]:
+        echo("  Durante la toma: %d ventanas medidas, NINGUNA perturbada. Sirve de referencia."
+             % v["ventanas"])
+    else:
+        echo("  [OJO] durante la toma: %d de %d ventanas PERTURBADAS por carga sostenida"
+             % (v["perturbadas"], v["ventanas"]))
+        echo("        de otros procesos%s:" % (" (y %d sin dato)" % v["sin_dato"] if v["sin_dato"] else ""))
+        for suite, n in sorted(v["por_suite"].items()):
+            echo("          %-26s %d" % (suite, n))
+        echo("        Sus cifras pueden estar infladas (un solo proceso: ~+17 %, medido),")
+        echo("        y la dispersion no lo delata. Esta toma no vale de referencia.")
+        echo("        Y las ventanas justo DESPUES pueden arrastrar el efecto: tras una")
+        echo("        carga fuerte el procesador tarda en recuperar la frecuencia.")
 
     if args.compare:
         # SOLO CONTRA EL MISMO COMPILADOR. Comparar la toma de gcc con la de
@@ -796,7 +1170,17 @@ def main():
             if d.get("compilador_pedido") == datos["compilador_pedido"]:
                 previas.append(p)
         if previas:
-            comparar(datos, previas[-1])
+            # LA REFERENCIA CERTIFICADA MAS RECIENTE, no la ultima sin mirar
+            # (P2.22). Si ninguna lo es, la ultima, y se dice por que no se fia.
+            tomas = [json.loads(io.open(q, encoding="utf-8").read()) for q in previas]
+            i, motivo = elige_referencia(tomas, set(datos["suites"]))
+            if i is None:
+                echo("")
+                echo("  No hay toma anterior de %s con estas suites (%s): nada con que"
+                     % (datos["compilador_pedido"], ", ".join(sorted(datos["suites"]))))
+                echo("  comparar. Esta es la base.")
+            else:
+                comparar(datos, previas[i], motivo)
         else:
             echo("")
             echo("  No hay ejecucion anterior de %s en esta maquina con la que"

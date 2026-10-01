@@ -186,12 +186,18 @@ static void doNotOptimize(T &val)
 // columnas se siguen leyendo igual, que es lo que permite no tocar los dieciocho
 // benchmarks que ya registraban.
 //
-//     <caso>\t<valor>\t<unidad>[\t<dispersion>\t<recorrido>\t<iters>\t<reps>]
+//     <caso>\t<valor>\t<unidad>[\t<dispersion>\t<recorrido>\t<iters>\t<reps>
+//         [\t<suelo>\t<disp_baja>\t<limpias>\t<k_suelo>[\t<t_inicio>\t<t_fin>]]]
+//
+// Los dos ultimos, desde el 1 oct 2026 (P2.22): CUANDO se tomaron las muestras,
+// en segundos desde la epoca. Sin ellos no hay forma de saber que ventanas
+// coincidieron con una perturbacion de la maquina.
 
 static void bench_record(const char *caso, double valor, const char *unidad = "cyc/op",
                          double dispersion = -1.0, double recorrido = -1.0, std::size_t iteraciones = 0,
                          std::size_t repeticiones = 0, double suelo = -1.0, double dispersion_baja = -1.0,
-                         double limpias = -1.0, std::size_t k_suelo = 0)
+                         double limpias = -1.0, std::size_t k_suelo = 0, double t_inicio = -1.0,
+                         double t_fin = -1.0)
 {
     const char *destino = std::getenv("BENCH_OUT");
     if (destino == nullptr || *destino == '\0')
@@ -207,6 +213,11 @@ static void bench_record(const char *caso, double valor, const char *unidad = "c
     // columnas no existe, o estan las cuatro primeras o no esta ninguna.
     if (dispersion >= 0.0 && suelo >= 0.0)
         f << '\t' << suelo << '\t' << dispersion_baja << '\t' << limpias << '\t' << k_suelo;
+    // EL CUANDO (desde el 1 oct 2026, P2.22), y solo detras de la cola baja: o
+    // estan los trece campos o no estan los dos ultimos. Segundos desde la epoca
+    // con cuatro decimales, que con 10 cifras enteras caben en un `double`.
+    if (dispersion >= 0.0 && suelo >= 0.0 && t_inicio >= 0.0)
+        f << '\t' << t_inicio << '\t' << t_fin;
     f << '\n';
 }
 

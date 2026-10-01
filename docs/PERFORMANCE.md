@@ -234,7 +234,85 @@ peor caso del ruido «en reposo».
 
 O sea que el 25 % de la tabla anterior es el ruido **de una máquina tranquila**.
 Con carga de fondo no hay umbral que valga: la medida sencillamente no sirve.
-`scripts/bench_history.py` lo avisa antes de empezar.
+`scripts/bench_history.py` lo avisa antes de empezar — y desde el 1 oct 2026
+**también lo mide durante**, que es lo que hacía falta (ver abajo).
+
+### Lo que publica el arnés son ticks del TSC, y una carga sostenida los infla sin que la dispersión lo vea (1 oct 2026, P2.22)
+
+**Qué se mide de verdad.** `CycleTimer` lee el TSC, que en los procesadores
+actuales va a **frecuencia fija**. El núcleo no: baja la suya cuando otros
+procesos se llevan potencia, temperatura o el gemelo SMT. Así que «ciclos por
+operación» son **ticks del TSC por operación**, y suben cuando el núcleo va más
+lento aunque el código no haya cambiado.
+
+**Cuánto, medido** con la misma casilla en 42 ventanas seguidas y quemadores de
+carga conocida encendidos y apagados a horas conocidas (E2):
+
+| ventanas enteras dentro de… | mínimo publicado | `dispersion_baja` | marcadas sucias |
+|---|---:|---:|---:|
+| nada | referencia | 0,6 % | 0 / 17 |
+| **1** proceso compitiendo | **+17,5 %** | 0,7 % | 1 / 7 |
+| 7 procesos | +49 % | 2,8 % | 6 / 6 |
+| 15 procesos | **+110 %** | 0,9 % | 1 / 7 |
+
+**La dispersión no detecta perturbaciones: detecta las que CAMBIAN dentro de una
+ventana.** Una carga que dura toda la ventana frena todas sus vueltas por igual:
+el mínimo sube, la cola sigue apretada, y la ventana parece limpia. Contar
+ventanas sucias **no puede** certificar una toma. Con 7 procesos sí salen sucias
+porque el planificador los mueve y la contención varía; con 1 o con 15 la
+contención es constante y no.
+
+Y las ventanas **a caballo** de un borde salen **bien** (±1 %): si al menos 5 de
+las 25 vueltas son limpias, la cola baja sale de ellas. Es justo para lo que se
+diseñó, y aquí funciona.
+
+**Lo que separa la carga que daña de la que no** (E3, con carga a ráfagas al 22 %
+además de la sostenida):
+
+| ventanas | suelo de `otros` (p10) | media de `otros` | mínimo |
+|---|---:|---:|---:|
+| limpias | 0,04 – 0,26 | hasta 1,59 | ±1 % |
+| **a ráfagas** | 0,03 – 0,16 | hasta 0,89 | −1,2 % — no daña |
+| **1 proceso sostenido** | **1,10 – 1,19** | 1,41 – 1,91 | **+15 %** |
+
+El **suelo** separa; la media no — una limpia con el editor activo (1,59) supera
+a una sostenida (1,41). `otros` es la CPU de los demás procesos **restando la del
+propio benchmark**, en CPU lógicas, y se valida en `scripts/tests` y en NEXT_STEPS.
+
+**Así decide ahora `bench_history.py`:**
+
+- Cada ventana lleva su sello de tiempo (`t_inicio`, `t_fin`, del reloj de pared)
+  y su `otros_suelo`. Se guarda **la medida, no el veredicto**: si el umbral se
+  recalibra, las tomas viejas se rejuzgan solas.
+- Una ventana está **perturbada** si su suelo pasa de **0,6 CPU**. Calibrado: las
+  inocuas no pasan de 0,30 y un solo proceso sostenido no baja de 1,10.
+- Una toma es **certificable** sólo si se midió durante, sin huecos y sin ninguna
+  ventana perturbada. Las de antes del 1 oct 2026 **no lo son**: no se sabe.
+- `--compare` usa la referencia certificada más reciente **que tenga las suites
+  que se comparan**, avisa cuando ninguna lo es, y aparta las casillas
+  perturbadas de los dos lados.
+
+**Y una contaminación de verdad lo confirmó.** Al repetir E2 (E2-bis) se coló
+una carga ajena de unas 4,5 CPU durante toda la ejecución: **todas** las
+ventanas «limpias» salieron un **34 %** más lentas. El detector, con un umbral
+elegido en otra ejecución, las marcó **todas** — 78 de 78 ventanas acertadas
+entre E3 y E2-bis. Y enseñó por qué el umbral es **absoluto** y no relativo al
+fondo de la toma: con toda la toma contaminada, su «fondo» ya eran 2–3 CPU, y un
+umbral relativo no habría marcado nada.
+
+**Lo que este detector no ve**, y queda dicho en vez de tapado:
+
+- **La cola térmica.** Tras 90 s de carga fuerte, una ventana con la mitad de
+  sus vueltas ya sin carga salió un 12 % lenta: el procesador tarda en
+  recuperar la frecuencia. Un solo caso a favor y dos en contra no dan para una
+  regla; queda cubierto porque una toma con alguna ventana perturbada no se
+  certifica, y sus colas nunca llegan a ser referencia.
+- **La primera ventana de cada suite** salió la peor en la prueba de extremo a
+  extremo (+6,6 %), justo después de que `make.py` compile esa suite. Es el
+  patrón de «el arranque sale sucio» de P2.18. Un dato no basta para atribuirlo
+  al calor de la compilación.
+- El lado de los **falsos positivos** sólo está validado en E3, que es donde se
+  eligió el umbral. La toma de referencia de la fase 0 dará el dato que falta.
 
 ### Y el orden dentro de la ejecución importa
 
@@ -243,13 +321,17 @@ N=3: cuando se medía el último, después de N=16, daba 0,86×; al pasarlo a la
 cuarta posición dio 1,12×–1,18×. Treinta puntos porcentuales por cambiar de
 sitio, sin tocar una línea de código.
 
-**Doce de los veintitrés benchmarks sí lo controlan**, y desde el 10 sep:
-`mide_entrelazado` ejecuta todas las variantes en cada ronda y **rota el orden
-una posición por ronda**, así que ninguna ocupa siempre el mismo sitio. En esos
-doce, comparar dos variantes de la misma tanda es legítimo.
+**Quince de los veintitrés benchmarks sí lo controlan**: `mide_entrelazado`
+ejecuta todas las variantes en cada ronda y **rota el orden una posición por
+ronda**, así que ninguna ocupa siempre el mismo sitio. En esos quince, comparar
+dos variantes de la misma tanda es legítimo.
 
-En los once que siguen con el arnés viejo —iteraciones fijas, una variante
-detrás de otra— no lo es, y ahí la advertencia de arriba sigue en pie.
+En los ocho que siguen con el arnés viejo —iteraciones fijas, una variante
+detrás de otra— no lo es, y ahí la advertencia de arriba sigue en pie. Los ocho
+miden `int128_param_t`, que la 1.90 borra; por eso no se migraron (P2.17).
+
+> Este párrafo decía «doce» y «once» hasta el 1 oct 2026, dos días después de
+> que P2.17 migrara tres suites más. Contado ese día: 15 y 8.
 
 > Este párrafo decía «el benchmark **no controla esto** hoy» hasta el 27 sep,
 > catorce días después de que doce de ellos empezaran a controlarlo. Una

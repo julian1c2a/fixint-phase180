@@ -135,6 +135,17 @@ namespace bench
         std::size_t iteraciones{0}; ///< las que decidio la calibracion.
         std::size_t repeticiones{0};
 
+        /// @brief CUANDO se tomaron las muestras: segundos desde la epoca, del reloj
+        ///        de pared. -1 si no se sabe.
+        ///
+        /// Marca el tramo de las vueltas cronometradas --no la calibracion ni el
+        /// calentamiento--, que es durante el que una perturbacion de la maquina
+        /// puede ensuciar la cola baja. Sin el no hay forma de saber que ventanas
+        /// coincidieron con que (P2.22). Todas las variantes de una ventana
+        /// comparten sello, porque se miden entrelazadas en el mismo tramo.
+        double t_inicio{-1};
+        double t_fin{-1};
+
         /// @brief Cuanto se separa el maximo del minimo, en tanto por uno.
         ///        Es la cifra honesta para decir "este banco tiene X% de ruido".
         [[nodiscard]] double recorrido() const noexcept
@@ -233,6 +244,16 @@ namespace bench
         return m;
     }
 
+    /// @brief Segundos desde la epoca, del reloj de PARED.
+    ///
+    /// `system_clock` y no `steady_clock`, a proposito: el sello lo compara otro
+    /// proceso (`bench_history.py`, con `time.time()`), y la epoca de
+    /// `steady_clock` no esta especificada -- dos procesos pueden no compartirla.
+    [[nodiscard]] inline double ahora_epoca() noexcept
+    {
+        return std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
+    }
+
     /// @brief Mide UNA variante, con calibracion y repeticiones.
     ///
     /// @param op Lo que se mide.
@@ -250,6 +271,7 @@ namespace bench
 
         std::vector<double> v;
         v.reserve(reps);
+        const double t_inicio = ahora_epoca(); // el tramo cronometrado, y solo el
         for (std::size_t r = 0; r < reps; ++r)
         {
             CycleTimer t;
@@ -257,7 +279,11 @@ namespace bench
                 op(k);
             v.push_back(static_cast<double>(t.elapsed_cycles()) / static_cast<double>(n));
         }
-        return resume(std::move(v), n);
+        const double t_fin = ahora_epoca();
+        Medida m = resume(std::move(v), n);
+        m.t_inicio = t_inicio;
+        m.t_fin = t_fin;
+        return m;
     }
 
     /// @brief Mide varias variantes **entrelazadas y en orden cambiante**.
@@ -305,6 +331,9 @@ namespace bench
                 ...);
         }(std::make_index_sequence<K>{});
 
+        // EL SELLO VA AQUI, ni antes ni despues: justo alrededor de las vueltas
+        // cronometradas, que son las que forman la cola baja.
+        const double t_inicio = ahora_epoca();
         for (std::size_t r = 0; r < reps; ++r)
         {
             for (std::size_t paso = 0; paso < K; ++paso)
@@ -328,9 +357,15 @@ namespace bench
             }
         }
 
+        const double t_fin = ahora_epoca();
+
         std::array<Medida, K> salida{};
         for (std::size_t i = 0; i < K; ++i)
+        {
             salida[i] = resume(std::move(v[i]), n[i]);
+            salida[i].t_inicio = t_inicio;
+            salida[i].t_fin = t_fin;
+        }
         return salida;
     }
 
@@ -377,7 +412,7 @@ namespace bench
     inline void registra(const char *caso, const Medida &m, const char *unidad = "cyc/op")
     {
         bench_record(caso, m.minimo, unidad, m.dispersion, m.recorrido(), m.iteraciones, m.repeticiones,
-                     m.suelo, m.dispersion_baja, m.limpias, m.k_suelo);
+                     m.suelo, m.dispersion_baja, m.limpias, m.k_suelo, m.t_inicio, m.t_fin);
     }
 
     /// @brief Cabecera de la tabla que imprime `imprime`.

@@ -1,3 +1,86 @@
+## [sin publicar] - 2026-10-01 - **un solo proceso compitiendo infla las cifras un 17 %, y la dispersion no lo ve** (P2.22)
+
+Encargado con una norma del autor que ordena todo lo que sigue: **1º la
+correccion, 2º lo que mide** --no sirve medir sin saber que se mide--, **3º toda
+infraestructura es primaria**.
+
+LA CORRECCION, PRIMERO
+
+`maquina_tranquila: True` afirmaba mas de lo que comprobaba: se ponia mirando la
+carga ANTES de la primera suite, y dos tomas asi marcadas salieron con 7 y con 46
+ventanas sucias de 172. Pasa a `tranquila_al_empezar`. Las tomas viejas conservan
+el nombre viejo: el historico no se reescribe.
+
+QUE EL ARNES SEPA CUANDO MIDE
+
+Cada ventana lleva `t_inicio` y `t_fin` --el tramo de las vueltas cronometradas,
+del reloj de PARED, porque el sello lo lee otro proceso y la epoca de
+`steady_clock` no esta especificada--. Validado: los sellos de 12 ventanas caen
+todos dentro del intervalo que mide Python alrededor de la ejecucion. Tambien
+`mide_una`, que hoy no usa nadie: la regla es «toda medida lleva su cuando».
+
+MEDIR DURANTE, Y VALIDAR QUE MIDE LO QUE DICE
+
+`otros`: la CPU de los demas procesos, RESTANDO la del propio benchmark --en una
+maquina de 16 CPU logicas, a lo bruto se mediria a si mismo--. Validado contra
+cantidades conocidas y contra una suma independiente proceso a proceso: coinciden
+dentro de 0,4 CPU. La validacion destapo una cuenta doble de psutil en Windows
+--interrupciones y DPC ya van dentro de `system`-- que inflaba la lectura con la
+carga; corregida, la diferencia en carga alta paso de +0,40 a ±0,1. Coste propio:
+por debajo de la resolucion, menos del 0,05 % de una CPU (y el cero se comprobo
+midiendo una cantidad conocida con el mismo metodo antes de creerlo).
+
+LO QUE DE VERDAD IMPORTA, MEDIDO
+
+La misma casilla en 42 ventanas seguidas, con quemadores de carga conocida a
+horas conocidas:
+
+    ventanas dentro de...    minimo     disp_baja   marcadas sucias
+    nada                     ref        0,6 %       0/17
+    1 proceso                +17,5 %    0,7 %       1/7
+    15 procesos              +110 %     0,9 %       1/7
+
+Lo que publica el arnes son TICKS DEL TSC, que va a frecuencia fija; el nucleo
+baja la suya cuando otros se llevan potencia. Y la dispersion NO detecta
+perturbaciones: detecta las que CAMBIAN dentro de la ventana. Una carga sostenida
+frena todas las vueltas por igual y la ventana parece limpia. Contar ventanas
+sucias no puede certificar una toma.
+
+EL DETECTOR
+
+El SUELO de `otros` (su percentil 10), no la media. Medido con carga a rafagas
+ademas de sostenida: las inocuas --limpias, rafagas, bordes-- no pasan de 0,30, y
+un solo proceso sostenido no baja de 1,10. Con la media, una limpia (1,59)
+superaba a una sostenida (1,41). Umbral: 0,6 CPU.
+
+Validado FUERA DE MUESTRA con una contaminacion real que no provoque yo: en la
+repeticion de E2 se colo una carga ajena de ~4,5 CPU durante toda la ejecucion, y
+TODAS las ventanas «limpias» salieron un 34 % mas lentas. El detector las marco
+todas: 78 de 78 ventanas acertadas entre las dos ejecuciones. Y enseno por que el
+umbral es ABSOLUTO: con toda la toma contaminada, un umbral relativo a su propio
+fondo no habria marcado nada.
+
+LA CONSECUENCIA
+
+Una toma es certificable solo si se midio durante, sin huecos y sin ninguna
+ventana perturbada. `--compare` usa la referencia certificada mas reciente QUE
+TENGA LAS SUITES que se comparan --la prueba de extremo a extremo destapo que con
+`--only bases` escogia una toma sin `bases`-- y aparta las casillas perturbadas
+de los dos lados. Ninguna toma anterior a hoy es certificable: no se sabe.
+
+INFRAESTRUCTURA PRIMARIA
+
+Hasta hoy ningun guion de Python tenia pruebas ni el CI corria ninguna. Ahora 36,
+en `scripts/tests/`, falsificadas con 12 averias a proposito --una destapo una
+prueba vacua: miraba justo donde un guardia final tapaba el fallo--, en verde en
+Windows y en Linux, y en el CI.
+
+LO QUE NO VE, Y QUEDA DICHO
+
+La cola termica tras una carga fuerte (+12 % en una ventana ya sin carga), y la
+primera ventana de cada suite justo despues de compilarla (+6,6 %). Un dato cada
+uno: P2.23.
+
 ## [sin publicar] - 2026-09-30 - **la banda del barrido, y lo que tapaba**
 
 RETIRADA LA BANDA DE 0,95x-1,05x
