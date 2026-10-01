@@ -25,23 +25,32 @@
 
 # 📍 POR AQUÍ VAMOS
 
-## Estado al 23 sep 2026
+## Estado al 1 oct 2026
+
+Las cifras de esta tabla las comprueba la **comprobación 10** del armonizador, que
+existe porque este bloque ha envejecido **dos veces** de la misma forma: citó un
+hash de CI **58 commits atrás** —y en ese hueco el CI estuvo cuatro días en rojo
+sin que nadie mirara— y al arreglarlo se escribió otro que llegó a estar **46
+commits atrás**, con el recuento de ADR también mal. El párrafo que explicaba el
+problema no evitó el problema.
 
 | | |
 |---|---|
 | **Release** | ✅ **v1.90.4 publicada**, la primera del proyecto: tres zips (gcc, clang, msvc) |
-| **Suite local** | ✅ **72/72 en CINCO configuraciones** (`release-O2`): GCC+libstdc++ **medido el 27 sep** (294 s), y clang+libc++, **clang+libstdc++**, MSVC e Intel el 26 sep, sobre un árbol cuyos `include/` y `tests/` no han cambiado desde entonces |
-| **CI** | ✅ **24/24 jobs, cero fallos** sobre `844fd85`, **contados** con `gh run view`, no supuestos. La cifra llegó a citar `f959f53`, **58 commits atrás**, y en ese hueco el CI estuvo **cuatro días en rojo** sin que nadie mirara: lo rompió el envoltorio atómico y lo tapó un `2>/dev/null` en el propio CI |
+| **Suite** | ✅ **72/72 en CINCO configuraciones**, y **no es una medida congelada**: el CI corre `python make.py test` en gcc, clang, clang+libc++, MSVC e Intel **en cada commit**. La referencia local son 294 s con GCC+libstdc++ (`release-O2`). Aquí se afirmaba antes «medido el 27 sep sobre un árbol cuyos `include/` y `tests/` no han cambiado», y eso dejó de ser cierto el 30 sep con el nivel 3 de la deprecación |
+| **CI** | ✅ **último confirmado: 25/25 jobs sobre `3858977`** (30 sep), **contados** con `gh run view`, no supuestos. El armonizador imprime en cada ejecución a cuántos commits queda este hash, y falla pasados 25 |
 | **Diseño de la 2.0** | ✅ cerrado, y **escrito entero**: de P1.1 a P1.6, con P1.5 tramo 3 (Magnitud-Signo y Exceso-K) y las tres entregas del punto fijo |
 | **`operator*`** | ✅ **el frente de la multiplicación, cerrado** (17 sep 2026). Cuatro algoritmos reunidos en `algorithms/mul_kernels.hpp`, cada umbral medido: escolar desenrollado ≤ 21, **Karatsuba equilibrado** ≥ 22 para *cualquier* N, **cuadrado** propio para `x*x`, y **Toom-3** ≥ 1024 |
 | **La división** | ✅ **cerrada por ahora**. Knuth D en su capa medible (`div_kernels.hpp`), `divq` en línea **1,28×–1,39×**, Möller–Granlund **2/1** (~84 → ~17 ciclos/limbo) y **3/2** (hasta **3,3×**). **P2.11 aparcado con medida** ([ADR-016](docs/decisions/ADR-016-burnikel-ziegler-aparcado-por-medida.md)): hasta N=1024 la división ya está dentro del techo de 2–4× que publica GMP |
-| **Lo siguiente** | 🔸 **el camino crítico está cerrado**, y con P4, P3.7 y el tramo 2 de P1.5 también el acompañamiento de `std` (24/24 en las seis celdas), la documentación del tipo nuevo y la deprecación anunciada del viejo. Lo abierto de verdad es la tabla de [ADR-019](docs/decisions/ADR-019-punto-fijo-es-un-entero-con-escala.md): operar entre tipos con **distinto `F`**, convertir **desde y hacia coma flotante**, y `sqrt` con escala. Ninguna decidida |
-| **Paridad de parámetros** | ✅ **348/348 celdas** en la [matriz de paridad](docs/MATRIZ_DE_PARIDAD.md): 47 capacidades × **6** columnas —las de MS y EK se abrieron el 22 sep—, más las sondas del punto fijo, comprobadas **compilando** |
-| **ADR** | **22** registros, ninguna decisión sin documentar |
+| **Lo siguiente** | 🔸 **la 1.90 está en su fase 0**: afinar el banco antes de borrar y renombrar. Dos de cuatro cerradas (P2.17, P2.21); quedan **P2.18** y **P2.19**, más la lectura de las cifras `(*)`. Después: la referencia nueva, el borrado de `int128_param_*` y el renombrado de [ADR-023](docs/decisions/ADR-023-sin-sufijo-t-en-las-plantillas-de-clase.md)/[ADR-024](docs/decisions/ADR-024-el-nombre-del-tipo-de-punto-fijo.md) |
+| **Sin decidir** | 🔸 tres cosas de la tabla de [ADR-019](docs/decisions/ADR-019-punto-fijo-es-un-entero-con-escala.md): operar entre tipos con **distinto `F`**, convertir **desde y hacia coma flotante**, y `sqrt` con escala. El nombre del tipo **ya no está aquí**: lo cerró ADR-024 el 1 oct |
+| **Paridad de parámetros** | ✅ **348/348 celdas**, **recomprobadas el 1 oct** con `scripts/check_matriz_paridad.py`: 47 capacidades × **6** columnas, más las sondas del punto fijo, verificadas **compilando** |
+| **Doxygen** | 🔸 **257 avisos en `include/`**, igual que el techo, y **todos** de `int128_param_*` ([ADR-014](docs/decisions/ADR-014-cobertura-de-doxygen.md)). Caducan solos con el borrado; P3.2 (`WARN_AS_ERROR = YES`) espera eso |
+| **ADR** | **24** registros, ninguna decisión sin documentar |
 
 **Lo primero al retomar: `python scripts/check_docs_consistency.py --doxygen`.**
-Con `--doxygen`, que es la orden que corre el CI; sin el flag son 7
-comprobaciones en vez de 9 y no sirve de nada.
+Con `--doxygen`, que es la orden que corre el CI; sin el flag son 12
+comprobaciones en vez de 14 y no sirve de nada.
 
 ---
 
@@ -771,12 +780,13 @@ cabecera principal—.
 donde `remove_cv` y `remove_cv_t` coexisten y el sufijo es justo lo que los
 distingue. Así que:
 
-| hoy | pasa a |
-|---|---|
-| `fixed_int_t` | **`fixed_width_int`** |
-| `fixed_point_t` | **`fixed_point`** |
-| `fixed_width_int_t.hpp` | **`fixed_width_int.hpp`** + `fixed_width_int_*.hpp` (7) |
-| `fixed_point_t.hpp` | **`fixed_point.hpp`** (los satélites ya cumplen) |
+| hoy | pasa a | |
+|---|---|---|
+| `fixed_int_t` | **`fixed_width_int`** | 925 sitios |
+| `fixed_point_t` | **se queda**, como alias de `scaled_integer` ([ADR-024](docs/decisions/ADR-024-el-nombre-del-tipo-de-punto-fijo.md)) | **0 sitios** |
+| `fixed_point_t` (la clase) | **`scaled_integer`** | interno |
+| `fixed_width_int_t.hpp` | **`fixed_width_int.hpp`** + `fixed_width_int_*.hpp` (7) | |
+| `fixed_point_t.hpp` | **`scaled_integer.hpp`** + `scaled_integer_*.hpp` (5) | |
 
 Los alias **conservan** su `_t` —`int_fixed_t`, `uint_fixed_t`,
 `ufixed_point_t`, `sfixed_point_t`— y no por inercia: es que ahora significa
@@ -786,12 +796,14 @@ algo. Y desaparece la trampa de la transposición, que era la razón original:
 Los dos nombres nuevos están **libres**: cero apariciones de `fixed_width_int` y
 de `fixed_point` como identificadores en `include/`.
 
-**Coste, medido el 30 sep**: **1.277 apariciones** — 925 de `fixed_int_t`, 230 de
-`fixed_point_t` y 122 de los nombres de fichero `fixed_int_*.hpp` (en 25
-ficheros: 12 en `include/`, 9 en `tests/`, 8 en `docs/`, 2 en `scripts/` y los
-cuatro documentos de raíz). Mecánico, pero **no es un `sed`**: toca el
-verificador de cabeceras autocontenidas, los `API_*.md`, el `Doxyfile` y los
-`#include` de tests, demos y bancos.
+**Coste**: medido el 30 sep en **1.277 apariciones**, y ADR-024 lo baja a **~1.047**
+al dejar `fixed_point_t` como alias — los 925 de `fixed_int_t`, los 122 de los
+nombres de fichero `fixed_int_*.hpp` (en 25 ficheros: 12 en `include/`, 9 en
+`tests/`, 8 en `docs/`, 2 en `scripts/` y los cuatro de raíz) y los de
+`fixed_point_*.hpp`, pero **ninguno** de los 230 que escriben el nombre del tipo.
+Mecánico, pero **no es un `sed`**: toca el verificador de cabeceras
+autocontenidas, los `API_*.md`, el `Doxyfile` y los `#include` de tests, demos y
+bancos.
 
 **Va en la misma pasada que el renombrado de la plantilla**, no antes: hacerlo
 ahora obliga a renombrar dos veces, porque el nombre de la clase todavía cambia.
@@ -799,10 +811,18 @@ Y sigue valiendo el orden de la fase 0 —afinar el banco, tomar referencia, y
 *entonces* borrar y renombrar—, que existe para que una regresión y un artefacto
 del arnés no se confundan justo cuando más se parecen.
 
-**Lo que queda por decidir: el nombre del tipo.** `fixed_point` es lo hablado,
-pero McFarlane lo abandonó: tras seis revisiones de P0037, en CNL el tipo se llama
-**`scaled_integer`** —que es literalmente la frase con la que describimos el
-diseño—.
+**El nombre del tipo: decidido el 1 oct, y es
+[ADR-024](docs/decisions/ADR-024-el-nombre-del-tipo-de-punto-fijo.md).** Las dos
+candidaturas tenían razón en cosas distintas —`scaled_integer` describe la
+implementación y es a donde llegó McFarlane tras seis revisiones de P0037;
+`fixed_point` es el término que usa el dominio y por el que la gente busca—, así
+que van **las dos, con jerarquía**: la clase es `scaled_integer` y
+`fixed_point_t` sobrevive como **alias**.
+
+Y eso no dobla la regla de ADR-023, la cumple: `_t` marca un alias, y aquí
+`fixed_point_t` **es** un alias. Lo que significa que **sus ~230 sitios no se
+tocan** y el renombrado de la 1.90 baja de 1.277 a ~1.047 — un 18 % menos, y lo
+que desaparece es justo la parte que toca código de usuario.
 
 **Y una advertencia para el ADR:** Ada exige **conversión explícita al multiplicar
 dos fijos**, porque el tipo del resultado es ambiguo. Aquí decidimos lo contrario

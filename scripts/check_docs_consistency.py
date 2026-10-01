@@ -520,6 +520,83 @@ def _familia(ruta) -> bool:
             or ruta.name in ("karatsuba.hpp", "div_by_const.hpp"))
 
 
+def check_bloque_estado(rep: Report):
+    """10. El bloque de estado de NEXT_STEPS no se queda atras en silencio.
+
+    POR QUE EXISTE. Ha envejecido DOS VECES igual, y la segunda con el aviso ya
+    escrito dentro: primero citaba un hash **58 commits atras** --y en ese hueco
+    el CI estuvo cuatro dias en rojo sin que nadie mirara-- y al arreglarlo se
+    escribio otro que el 1 oct 2026 estaba **46 commits atras**, con el recuento
+    de ADR tambien mal. El parrafo que explica el problema no evita el problema.
+
+    Se vigilan las dos cifras que se pueden comprobar en local sin red: cuantos
+    ADR hay, y a cuantos commits esta el hash de CI que se cita.
+    """
+    rep.section("10. Bloque de estado de NEXT_STEPS")
+
+    doc = PROJECT_ROOT / "NEXT_STEPS.md"
+    if not doc.exists():
+        rep.fail("no existe NEXT_STEPS.md")
+        return
+    texto = doc.read_text(encoding="utf-8", errors="replace")
+
+    problemas = []
+
+    # --- 1. el recuento de ADR -------------------------------------------
+    adr_disco = len([f for f in (PROJECT_ROOT / "docs" / "decisions").glob("ADR-*.md")
+                     if re.match(r"ADR-\d{3}-", f.name)])
+    m = re.search(r"\|\s*\*\*ADR\*\*\s*\|\s*\*\*(\d+)\*\*\s+registros", texto)
+    if not m:
+        problemas.append("no encuentro la fila «| **ADR** | **N** registros» en el bloque")
+    elif int(m.group(1)) != adr_disco:
+        problemas.append("dice %s ADR y en docs/decisions/ hay %d"
+                         % (m.group(1), adr_disco))
+
+    # --- 2. el hash de CI que cita ---------------------------------------
+    # LIMITE, y por que este. Una sesion de trabajo deja ~8 commits; las dos veces
+    # que esto pico iban por 46 y 58. 25 esta claramente fuera de lo normal y
+    # claramente por debajo de donde hizo dano, asi que no da rojos de rutina.
+    LIMITE = 25
+    # LA FILA, Y SOLO LA FILA. El primer intento buscaba el hash con `re.DOTALL`
+    # desde «| **CI** |», asi que cruzaba lineas y pescaba el hash de cualquier
+    # otra fila del documento -- se vio al falsificar: con la fila del CI vacia
+    # informaba de `05ba169`, que vive en una fila de P0.1. Salio rojo por suerte,
+    # porque ese hash es viejo; con uno reciente habria dado VERDE con la fila
+    # vacia, que es justo lo que esto existe para impedir.
+    fila = next((l for l in texto.splitlines()
+                 if re.match(r"\|\s*\*\*CI\*\*\s*\|", l)), None)
+    m = re.search(r"`([0-9a-f]{7,40})`", fila) if fila else None
+    if fila is None:
+        problemas.append("no encuentro la fila «| **CI** |» en el bloque de estado")
+    elif not m:
+        problemas.append("la fila «| **CI** |» no cita ningun hash")
+    else:
+        hash_citado = m.group(1)
+        r = subprocess.run(["git", "rev-list", "--count", "%s..HEAD" % hash_citado],
+                           cwd=str(PROJECT_ROOT), capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+        if r.returncode != 0:
+            problemas.append("el hash de CI `%s` no esta en esta rama" % hash_citado)
+        else:
+            detras = int((r.stdout or "0").strip() or 0)
+            # Se imprime SIEMPRE, verde o rojo: un numero delante de los ojos en
+            # cada ejecucion es lo que rompe la costumbre de no mirarlo.
+            if not rep.quiet:
+                print("         el CI citado (`%s`) esta %d commit(s) por detras de HEAD"
+                      % (hash_citado, detras))
+            if detras > LIMITE:
+                problemas.append(
+                    "el hash de CI citado esta %d commits por detras (limite %d): esa cifra "
+                    "ya no describe el estado, hay que volver a contarla con `gh run view`"
+                    % (detras, LIMITE))
+
+    if problemas:
+        rep.fail("el bloque de estado no cuadra con el repositorio",
+                 "\n".join(problemas))
+    else:
+        rep.ok("el bloque de estado cuadra: %d ADR, y el CI citado esta al dia" % adr_disco)
+
+
 def check_indice_adr(rep: Report):
     """9. Todo ADR escrito esta en el indice, y el indice no inventa ninguno.
 
@@ -687,6 +764,7 @@ def main():
     check_dates(rep)
     check_superficie_legado(rep)
     check_indice_adr(rep)
+    check_bloque_estado(rep)
     if args.doxygen:
         check_doxygen(rep)
     else:

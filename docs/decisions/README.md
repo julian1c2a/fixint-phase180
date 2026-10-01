@@ -37,7 +37,8 @@ Lo esencial:
 | [020](ADR-020-los-operadores-multiplicativos-del-punto-fijo.md) | Los operadores multiplicativos del punto fijo, y dónde vive el redondeo | ✅ Aceptado |
 | [021](ADR-021-un-nombre-por-operacion.md) | Un nombre por operación, y que exista en las dos familias | ✅ Aceptado |
 | [022](ADR-022-numeric-limits-del-punto-fijo.md) | `numeric_limits` del punto fijo | ✅ Aceptado |
-| [023](ADR-023-sin-sufijo-t-en-las-plantillas-de-clase.md) | El sufijo `_t` marca un alias, no una plantilla de clase · `fixed_int_t` → `fixed_width_int`, `fixed_point_t` → `fixed_point` | ✅ Aceptado |
+| [023](ADR-023-sin-sufijo-t-en-las-plantillas-de-clase.md) | El sufijo `_t` marca un alias, no una plantilla de clase · `fixed_int_t` → `fixed_width_int` · su fila de `fixed_point_t` la corrige [024](ADR-024-el-nombre-del-tipo-de-punto-fijo.md) | ✅ Aceptado |
+| [024](ADR-024-el-nombre-del-tipo-de-punto-fijo.md) | El punto fijo se llama `scaled_integer`, y `fixed_point_t` queda como alias · cierra lo que [023](ADR-023-sin-sufijo-t-en-las-plantillas-de-clase.md) dio por supuesto | ✅ Aceptado |
 
 ## Sobre los ADR 001–005
 
