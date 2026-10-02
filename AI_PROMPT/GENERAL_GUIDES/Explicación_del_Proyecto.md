@@ -76,7 +76,7 @@ Implementación de los tipos en punto flotante basados en la representación IEE
 
 ## ETAPA 7
 
-Implmentación de tipos enteros de longitud arbitraria (big integers) basados en el tipo std::string_base<uint64_t>, o alguno que nosotros implementemos similar. Además, implementaremos solo tipos signos en Complemento a 2. Implementación de pruebas unitarias y benchmarks para verificar la corrección y el rendimiento de los tipos enteros de longitud arbitraria en comparación con las bibliotecas existentes como GMP, TomMath y Boost.Multiprecision. (Por comenzar)
+Implementación de tipos enteros de longitud arbitraria (big integers) basados en el tipo std::string_base<uint64_t>, o alguno que nosotros implementemos similar. Además, implementaremos solo tipos signos en Complemento a 2. Implementación de pruebas unitarias y benchmarks para verificar la corrección y el rendimiento de los tipos enteros de longitud arbitraria en comparación con las bibliotecas existentes como GMP, TomMath y Boost.Multiprecision. (Por comenzar)
 
 ## ETAPA 8
 
