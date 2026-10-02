@@ -1,3 +1,52 @@
+## [sin publicar] - 2026-10-02 - **el +6,6 % de la primera ventana no era el calor de la compilacion** (P2.23)
+
+P2.23 entra en la fase 0 por decision del autor, y su primera mitad se cierra
+MIDIENDO, no suponiendo.
+
+CUATRO EXPLICACIONES PARA UN DATO, Y CINCO CONDICIONES PARA SEPARARLAS
+
+El dato era un +6,6 % en la primera ventana de `bases`, justo despues de que
+`make.py` la compilara. Candidatos: el calor de la compilacion, el antivirus
+inspeccionando el ejecutable recien creado, el arranque en frio del proceso, o el
+azar. Cinco condiciones, cada una apagando una causa: sin compilar; compilacion
+ligera; compilacion PESADA (11-17 s, para ver la dosis); ejecutable nuevo para el
+antivirus sin compilar; y lo que hace `make.py`. La misma casilla en cinco
+ventanas, para que cada ejecucion traiga su propia referencia; orden rotado; y
+una puerta de calma antes de cada repeticion con el criterio de P2.22.
+
+    condicion                       primera ventana frente a las demas
+    sin compilar                    +1,9 %, +0,0 %
+    compilacion ligera              +0,0 %, +0,8 %, +0,1 %
+    compilacion PESADA              +0,2 %, +0,6 %
+    ejecutable nuevo (antivirus)    +0,2 %, -0,1 %
+    lo que hace make.py             -0,1 %
+
+Ninguna infla. El arreglo propuesto --compilar todas las suites antes de medir
+ninguna-- NO se hace: nada lo justifica.
+
+DEFENDER SI INSPECCIONA, PERO LA CALIBRACION LO ABSORBE
+
+Con un ejecutable nuevo Defender gasta hasta 1,16 CPU al arrancar, pero en el
+arranque y la calibracion, antes de la primera vuelta cronometrada: en la primera
+ventana ya esta a 0,07. Compilar justo antes de medir no ensucia la medida.
+
+CUATRO FALLOS DEL DISENO, CAZADOS ANTES DE GASTAR LA MAQUINA
+
+Dos pasadas en seco destaparon: que una copia byte a byte no es un ejecutable
+nuevo para el antivirus (guarda sus analisis por hash; ahora se le anaden bytes
+al final); que los ejecutables se escribian fuera de donde los pone `make.py`; que
+la regla de validez descartaba justo la senal que buscaba H2; y que el `.o` de la
+compilacion pesada tambien despertaba al antivirus (ahora se compila a `NUL`).
+
+UN DATO QUE DECIDE COMO SE TOMA LA REFERENCIA
+
+En el estado normal de esta maquina, 5 de 15 medidas de ~40 s salieron con
+alguna ventana perturbada, pese a esperar antes 60 s seguidos de calma (y hasta
+diez minutos de espera). Una toma de hora y media no saldra certificable sin
+silenciar la maquina de verdad.
+
+Queda la segunda mitad de P2.23: la cola termica tras una carga fuerte.
+
 ## [sin publicar] - 2026-10-01 - **un solo proceso compitiendo infla las cifras un 17 %, y la dispersion no lo ve** (P2.22)
 
 Encargado con una norma del autor que ordena todo lo que sigue: **1º la

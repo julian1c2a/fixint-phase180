@@ -308,9 +308,14 @@ umbral relativo no habría marcado nada.
   regla; queda cubierto porque una toma con alguna ventana perturbada no se
   certifica, y sus colas nunca llegan a ser referencia.
 - **La primera ventana de cada suite** salió la peor en la prueba de extremo a
-  extremo (+6,6 %), justo después de que `make.py` compile esa suite. Es el
-  patrón de «el arranque sale sucio» de P2.18. Un dato no basta para atribuirlo
-  al calor de la compilación.
+  extremo (+6,6 %), justo después de que `make.py` compilara esa suite. **Medido
+  el 2 oct: no es el calor de la compilación** (P2.23). Ni con una compilación
+  pesada justo antes, ni con un ejecutable nuevo para el antivirus, ni sin
+  compilar, la primera ventana se separa de las demás más de ±2 %. Defender sí
+  inspecciona los ejecutables recién creados, pero lo hace en el arranque y la
+  calibración, antes de la primera vuelta cronometrada: **la calibración del arnés
+  lo absorbe**. El +6,6 % fue, con toda probabilidad, una ráfaga: era la ventana
+  más cargada de su toma.
 - El lado de los **falsos positivos** sólo está validado en E3, que es donde se
   eligió el umbral. La toma de referencia de la fase 0 dará el dato que falta.
 
