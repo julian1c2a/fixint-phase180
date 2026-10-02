@@ -166,11 +166,16 @@ namespace bench
     /// RDTSC-- porque lo que se quiere acotar es el TIEMPO que dura la sesion,
     /// y RDTSC cuenta a frecuencia invariante, no a la real.
     ///
-    /// @brief Techo de la calibracion: 2^36 iteraciones.
+    /// @brief Techo de la calibracion: 2^36 iteraciones, o 2^30 donde `size_t`
+    ///        tiene 32 bits.
     ///
     /// Gastar 200 ms en 2^36 vueltas son 3 picosegundos por vuelta, lo que no
     /// cuesta NADA que haga trabajo de verdad. Si la calibracion llega aqui, el
-    /// compilador se ha llevado la operacion.
+    /// compilador se ha llevado la operacion. En 32 bits, 2^30 vueltas en 200 ms
+    /// son 0,19 ns: menos de un ciclo de cualquier procesador de esa clase.
+    ///
+    /// EL ANCHO IMPORTA, y se aprendio en el CI el mismo dia: el techo era un
+    /// `size_t{1} << 36` fijo, que en armhf --`size_t` de 32 bits-- no compila.
     ///
     /// ANTES NO HABIA TECHO, y el fallo era silencioso. Con una operacion que no
     /// cuesta nada el tiempo no crece con `n`, y `n` se multiplicaba por 4
@@ -178,7 +183,7 @@ namespace bench
     /// medida dividia entonces por cero y publicaba un NaN. Lo destapo el 2 oct
     /// 2026 la prueba del orden (`tests/test_bench_orden.cpp`), con unas
     /// variantes que GCC, clang y MSVC reducian a una sola llamada.
-    inline constexpr std::size_t MAX_ITERACIONES = std::size_t{1} << 36;
+    inline constexpr std::size_t MAX_ITERACIONES = std::size_t{1} << (sizeof(std::size_t) >= 8 ? 36 : 30);
 
     /// @brief Calibra: cuantas iteraciones hacen falta para gastar `objetivo_ms`.
     ///
@@ -214,7 +219,12 @@ namespace bench
             else
             {
                 const double factor = objetivo_ms / ms;
-                const auto siguiente = static_cast<std::size_t>(static_cast<double>(n) * factor * 1.1) + 1;
+                // En `double` y recortado ANTES de convertir: pasar a `size_t`
+                // un `double` mayor que su maximo es comportamiento indefinido.
+                const double deseado = static_cast<double>(n) * factor * 1.1 + 1.0;
+                const std::size_t siguiente = deseado >= static_cast<double>(MAX_ITERACIONES)
+                                                  ? MAX_ITERACIONES
+                                                  : static_cast<std::size_t>(deseado);
                 n = siguiente > n ? siguiente : n * 2;
             }
             if (n > MAX_ITERACIONES)
