@@ -30,6 +30,18 @@ Criterios que se aplican y por qué:
   las B: el estado térmico de la máquina deriva.
 - **Comprobar que los resultados coinciden** entre las variantes comparadas. Un
   benchmark que va más rápido porque calcula otra cosa no es un benchmark.
+- **Una tabla que compara tipos los mide con LA MISMA FUNCIÓN y LOS MISMOS
+  VALORES; sólo cambia el tipo** (regla del autor, 2 oct 2026). Un bucle por
+  tipo escrito a mano acaba midiendo otra cosa en alguno: en
+  `benchmark_vs_builtin` tres tipos medían productos sueltos y nueve una cadena,
+  y la división medía `1 / 12345` (ver «División — frente a tipos built-in»).
+  Hoy hay un único núcleo, una plantilla, y el programa **comprueba antes de
+  medir** que todos los tipos dan los mismos resultados.
+- **Y si un mismo bucle mide varias variantes, el orden cambia AL AZAR en cada
+  ronda** (desde el 2 oct 2026). Antes rotaba una posición por ronda: eso
+  equilibra el puesto, pero deja a cada variante siempre detrás de la misma. La
+  semilla queda en el registro de la toma y la repite `BENCH_SEMILLA`; ver «El
+  orden de las variantes» en `benchs/bench_adaptativo.hpp`.
 
 ---
 
@@ -326,17 +338,28 @@ N=3: cuando se medía el último, después de N=16, daba 0,86×; al pasarlo a la
 cuarta posición dio 1,12×–1,18×. Treinta puntos porcentuales por cambiar de
 sitio, sin tocar una línea de código.
 
-**Quince de los veintitrés benchmarks sí lo controlan**: `mide_entrelazado`
-ejecuta todas las variantes en cada ronda y **rota el orden una posición por
-ronda**, así que ninguna ocupa siempre el mismo sitio. En esos quince, comparar
-dos variantes de la misma tanda es legítimo.
+**Dieciséis de los veintitrés benchmarks sí lo controlan**: `mide_entrelazado`
+ejecuta todas las variantes en cada ronda, **en un orden al azar distinto cada
+ronda**, así que ninguna ocupa siempre el mismo sitio ni va siempre detrás de la
+misma. En esos dieciséis, comparar dos variantes de la misma tanda es legítimo.
 
-En los ocho que siguen con el arnés viejo —iteraciones fijas, una variante
-detrás de otra— no lo es, y ahí la advertencia de arriba sigue en pie. Los ocho
+Hasta el 2 oct 2026 el orden **rotaba** una posición por ronda. Equilibraba el
+puesto, pero no el vecino: la variante j iba detrás de la j−1 en K−1 de cada K
+rondas, y lo que esa le dejara —la caché, el montón de GMP, la temperatura— lo
+pagaba siempre. Cuánto pesaba no se sabe todavía: con 200 ms por vuelta, lo que
+se recupera en microsegundos se diluye, y lo que dura más, no. Se mide en la
+plataforma dedicada (E3 en NEXT_STEPS).
+
+En los siete que siguen con el arnés viejo —iteraciones fijas, una variante
+detrás de otra— no lo es, y ahí la advertencia de arriba sigue en pie. Los siete
 miden `int128_param_t`, que la 1.90 borra; por eso no se migraron (P2.17).
+`benchmark_vs_builtin` sí se migró el 2 oct, porque se queda: después del
+borrado seguirá comparando el tipo nuevo con los del compilador.
 
 > Este párrafo decía «doce» y «once» hasta el 1 oct 2026, dos días después de
-> que P2.17 migrara tres suites más. Contado ese día: 15 y 8.
+> que P2.17 migrara tres suites más. Contado ese día: 15 y 8. El 2 oct, con
+> `vs_builtin` migrado: 16 y 7 (se cuentan los `benchmark_*.cpp`, que son las
+> suites del histórico).
 
 > Este párrafo decía «el benchmark **no controla esto** hoy» hasta el 27 sep,
 > catorce días después de que doce de ellos empezaran a controlarlo. Una
@@ -371,8 +394,30 @@ Por caso, Knuth D gana siempre, pero entre **1,07× y 2,50×**: lo mejor es
 
 ## División — frente a tipos built-in y a otras bibliotecas
 
+> ### ⚠️ La tabla de abajo midió `1 / 12345`, y su conclusión era falsa (2 oct 2026, P2.25)
+>
+> **`nstd::uint128_t` no divide más deprisa que el `uint64_t` nativo.** El bucle
+> de este banco era `a = a / 12345 + 1`, y eso **converge**: a la quinta vuelta
+> `a` vale 1 y ya no se mueve, y el calentamiento eran 10 000. Todo el tramo
+> cronometrado dividía 1 entre 12345, el caso que un camino rápido despacha sin
+> dividir. Y en `uint64_t` el divisor era una constante, que GCC cambia por una
+> multiplicación: los 4,01 ciclos no eran una división.
+>
+> `benchmark_vs_builtin` se reescribió entero ese día con la regla del autor
+> —**la misma función y los mismos valores para todos; sólo cambia el tipo**—, y
+> ahora comprueba antes de medir que los doce tipos dan los mismos resultados.
+> **Lo que indica** (2 oct 2026, GCC 16.2.0 de MSYS2 y g++-14 en WSL, el portátil
+> MSI, pasadas cortas y una toma de 25 vueltas **perturbada**, que no se
+> publica): con dividendos de 127 bits, **todos los tipos de 128 bits de ancho
+> fijo dividen en ~100–130 tics, unas cinco veces lo que `uint64_t`**, la
+> biblioteca al nivel de `unsigned __int128` y de Boost, no por delante.
+>
+> **Las cifras que se publiquen saldrán de la toma de referencia**, en la
+> plataforma dedicada. La tabla vieja se deja abajo, tachada por esta nota, como
+> registro de lo que se llegó a afirmar.
+
 **Medido el 9 September 2026**, mismas condiciones. `benchmark_vs_builtin`,
-sección «Division (/)», mínimo de 4 rondas.
+sección «Division (/)», mínimo de 4 rondas. **NO VALE: ver la nota de arriba.**
 
 | Tipo | cyc/op | vs `uint64_t` |
 |---|---:|---:|
@@ -383,10 +428,10 @@ sección «Division (/)», mínimo de 4 rondas.
 | Boost `gmp_int` | 61,76 | 15,41× |
 | Boost `tom_int` | 727,12 | 181,49× |
 
-`nstd::uint128_t` sigue siendo **más rápido que el `uint64_t` nativo** en
+~~`nstd::uint128_t` sigue siendo **más rápido que el `uint64_t` nativo** en
 división, que es el resultado llamativo: el camino rápido para divisores de un
 limbo evita la llamada a `__udivti3` que el compilador emite para
-`unsigned __int128`.
+`unsigned __int128`.~~ Falso: ver la nota de arriba.
 
 > **Dos de las tres cifras heredadas no se sostenían.** Decían `0,47×` para
 > `nstd::uint128_t` (mide **0,81×**) y `~50×` para Boost `cpp_int` (mide

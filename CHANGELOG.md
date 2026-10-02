@@ -1,3 +1,88 @@
+## [sin publicar] - 2026-10-02 - **el banco de comparacion media una cosa distinta en cada tipo, y la division medía 1/12345** (P2.25)
+
+Una regla del autor, que ordena todo lo que sigue: **las tablas comparan con la
+MISMA funcion y los MISMOS valores; solo cambia el tipo. Y si un mismo bucle mide
+varias variantes, el orden cambia al azar.**
+
+LAS CIFRAS `(*)` ERAN EL SINTOMA; EL BANCO ENTERO, LA CAUSA
+
+`benchmark_vs_builtin` tenia un bucle escrito a mano por tipo y operacion, y en
+tres sitios eso falseaba la tabla:
+
+- PRODUCTO. Nueve tipos median una cadena (`a = a * b`, latencia) y tres --las
+  cifras `(*)`-- productos sueltos. Y en GMP y TomMath ni eso: con plantillas de
+  expresion, `auto r = a * b` NO MULTIPLICA, guarda la expresion. Por eso TomMath
+  «multiplicaba» en 0,72 ciclos, mas deprisa que `uint64_t`.
+- DIVISION. El bucle era `a = a / 12345 + 1`, que converge: a la quinta vuelta `a`
+  vale 1 y ya no se mueve, y el calentamiento eran 10.000. Todo el tramo
+  cronometrado dividia 1 entre 12345. Y en `uint64_t` el divisor era una
+  constante, que GCC cambia por una multiplicacion. De ahi salio, publicado en
+  PERFORMANCE.md, que `nstd::uint128_t` dividia MAS DEPRISA que el `uint64_t`
+  nativo (0,81x). Con valores de verdad divide unas cinco veces mas despacio,
+  como todos los tipos de 128 bits.
+- RESTA Y DESPLAZAMIENTO, con otro algoritmo en GMP, TomMath y `checked_uint128`.
+
+AHORA, UN SOLO NUCLEO
+
+`r = a[i] OP b[i]` con ocho parejas, la misma plantilla para los doce tipos: el
+de 64 bits, los dos de la biblioteca vieja y los dos de la nueva, los dos del
+compilador, tres de Boost, GMP y TomMath. Mide RENDIMIENTO, como la comparacion
+desde P2.19: la latencia pide realimentar el resultado, y un producto encadenado
+desborda --`checked_uint128` lanza, `__int128` cae en comportamiento indefinido,
+GMP crece--. Los valores son los MISMOS en todos y estan elegidos para que ningun
+resultado pase de 127 bits: el comprobado, el con signo y los de precision
+arbitraria calculan exactamente lo mismo que los modulares. Y ANTES DE MEDIR el
+programa comprueba que los doce dan los mismos resultados; si no, se para.
+Despues, dos suelos de verosimilitud: ninguna operacion puede costar menos de la
+mitad que copiar su tipo, ni bajar del suelo fisico en x86-64.
+
+EL ORDEN AL AZAR, PARA TODAS LAS SUITES
+
+`mide_entrelazado` rotaba el orden una posicion por ronda. Eso equilibra el
+PUESTO pero deja fijo el VECINO: la variante j iba detras de la j-1 en K-1 de cada
+K rondas. Ahora es una permutacion al azar en cada ronda, con generador y
+barajado propios --la misma semilla da el mismo orden en libstdc++, libc++ y
+MSVC--. La semilla se anuncia, queda en el registro (`#orden`) y la repite
+`BENCH_SEMILLA`; `BENCH_ORDEN=rotando` devuelve el orden de antes, solo para medir
+la diferencia (E3, en la plataforma dedicada). Protocolo
+`2026-10-02/orden-al-azar`.
+
+DOS FALLOS DEL ARNES, ENCONTRADOS POR EL CAMINO
+
+- El bucle cronometrado RELEIA DE MEMORIA, en cada vuelta, el puntero que lleva
+  la variante y el limite del bucle: la barrera con `memory` obliga al
+  compilador a suponer que pudieron cambiar. Un tic de mas en cada vuelta --copiar
+  un `uint64_t` costaba 2,2 dentro del arnes y 1,2 fuera--, que no reordena las
+  variantes pero aplasta las razones entre ellas. Ahora trabaja sobre copias
+  locales, y lo exige: una variante `mutable` deja de compilar.
+- `calibra` DESBORDABA `n` A CERO con una operacion que no cuesta nada: el tiempo
+  no crece con `n`, `n` se multiplicaba por 4 cuarenta veces, y a la vuelta 32
+  llegaba a 2^64. La medida dividia por cero. Ahora se para en 2^36 y avisa de que
+  lo medido no cuesta nada. Lo destapo la prueba del orden.
+
+LO QUE DICE LA TABLA NUEVA DEL TIPO NUEVO (P2.26)
+
+Con los dos compiladores (GCC 16 de MSYS2 y g++-14 en WSL), en el portatil y
+con variantes entrelazadas en la misma ventana: `uint128_fixed_t >> s` cuesta
+~18 tics frente a ~5-6 del tipo viejo y de `__int128`, y comparar, 1,5-1,8
+veces lo del viejo. Solo con GCC 16: `<<` tambien a ~17, y la division con signo
+un 45 % por encima de la sin signo. El desplazamiento es el generico de N
+limbos; el tipo viejo tiene un camino de 128 bits. Importa porque la 1.90 borra
+el tipo viejo: tal cual, borrar seria una regresion. Ninguna cifra se publica
+todavia: la unica toma larga salio con las diez ventanas perturbadas, y no se
+guarda en el historico.
+
+FALSIFICADO
+
+Cinco averias en el banco --un tipo que desplaza al reves, otro que resta al
+reves, un `<=` por `<`, un producto que solo copia, una variante vacia-- y cuatro
+en el arnes --rotar aunque se pida azar, Sattolo en vez de Fisher-Yates, la
+calibracion sin techo, rotar dos puestos--: todas cazadas por la comprobacion que
+les toca. El `<=` destapo un hueco: sin una pareja de operandos iguales pasaba, y
+ahora la hay. `tests/test_bench_orden.cpp` (9 pruebas) en los cuatro
+compiladores de Windows y en g++, clang e icpx de Linux; 64 pruebas de Python,
+cinco de ellas nuevas para la linea `#orden`.
+
 ## [sin publicar] - 2026-10-02 - **el +6,6 % de la primera ventana no era el calor de la compilacion** (P2.23)
 
 P2.23 entra en la fase 0 por decision del autor, y su primera mitad se cierra
