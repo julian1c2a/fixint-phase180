@@ -157,6 +157,45 @@ static void doNotOptimize(T &val)
 }
 
 // ============================================================================
+// Hacer visible un resultado ENTERO, igual para todos los tipos (2 oct 2026)
+// ============================================================================
+//
+// `doNotOptimize` sirve para las CADENAS de dependencia, donde el valor vuelve a
+// entrar en la vuelta siguiente y el compilador tiene que calcularlo entero de
+// todas formas. Para un banco de RENDIMIENTO --operaciones independientes, el
+// resultado se pisa en cada vuelta-- no sirve, por dos razones:
+//
+//  1. SU FORMA DEPENDE DEL TAMANO DEL TIPO. Con 16 bytes deja los dos limbos en
+//     registros; con cualquier otro tamano, a memoria y con un `memory` que
+//     obliga a volcarlo todo. Dos tipos de la misma tabla pagarian barreras
+//     distintas --uno una escritura por vuelta, otro ninguna-- y la diferencia
+//     saldria en la tabla como si fuera del tipo.
+//  2. EN MSVC LEE Y ESCRIBE UN SOLO BYTE por un puntero `volatile`. Con el
+//     resultado pisado en cada vuelta nada obliga a calcular el resto del
+//     objeto: el limbo alto de una suma de 128 bits se podria tirar.
+//
+// `escapa` es la MISMA para todos: le da al ensamblador la direccion del objeto
+// y le dice que puede leer cualquier memoria. El compilador tiene que dejar el
+// objeto ENTERO escrito en ese punto, y olvidar lo que supiera de toda memoria a
+// la que se pueda llegar -- asi que los operandos, si viven en el mismo bloque
+// que el resultado, se vuelven a leer en cada vuelta. Cada tipo paga escribir su
+// resultado y leer sus operandos, ni mas ni menos.
+//
+// En MSVC no compila, a proposito: no tiene ensamblador en linea en x64, y lo
+// que hay a mano (`volatile`, `_ReadWriteBarrier`) cae en la razon 2. Antes que
+// medir mal sin decirlo, no compilar. Hoy no estorba: el unico banco que la usa,
+// `benchmark_vs_builtin`, tampoco compila con MSVC, que no tiene Boost.
+template <typename T>
+static void escapa(T &x)
+{
+#if defined(__GNUC__) || defined(__clang__)
+    __asm__ __volatile__("" : : "r"(&x) : "memory");
+#else
+    static_assert(sizeof(T) == 0, "escapa: no hay barrera verificada para este compilador");
+#endif
+}
+
+// ============================================================================
 // Registro legible por maquina
 // ============================================================================
 //
@@ -221,6 +260,28 @@ static void bench_record(const char *caso, double valor, const char *unidad = "c
     f << '\n';
 }
 
+// UN DATO DE LA TOMA QUE NO ES UNA MEDIDA (desde el 2 oct 2026): de momento, con
+// que orden se midieron las variantes y con que semilla. Sin el, una toma con el
+// orden al azar no se puede repetir.
+//
+//     #<clave>\t<valor>
+//
+// DOS COLUMNAS A PROPOSITO: el lector de medidas descarta toda linea de menos de
+// tres, asi que una version vieja de `bench_history.py` la salta en vez de
+// leerla como una medida. `inline` y no `static`, para no avisar de funcion sin
+// usar en los benchmarks que no la llaman.
+inline void bench_record_meta(const char *clave, const std::string &valor)
+{
+    const char *destino = std::getenv("BENCH_OUT");
+    if (destino == nullptr || *destino == '\0')
+        return;
+
+    std::ofstream f(destino, std::ios::app);
+    if (!f)
+        return;
+    f << '#' << clave << '\t' << valor << '\n';
+}
+
 // ============================================================================
 // Result formatting
 // ============================================================================
@@ -231,7 +292,7 @@ struct BenchResult
     double cycles_per_op;
 };
 
-static void print_separator()
+inline void print_separator()
 {
     std::cout << "+-------------------------------+--------------+-----------+\n";
 }
@@ -247,7 +308,7 @@ static void print_separator()
 // ir a re-medir las tablas heredadas (P2.3).
 static std::string g_seccion_actual;
 
-static void print_header(const char *operation)
+inline void print_header(const char *operation)
 {
     g_seccion_actual = operation ? operation : "";
     std::cout << "\n[" << operation << "]\n";
@@ -256,7 +317,7 @@ static void print_header(const char *operation)
     print_separator();
 }
 
-static void print_result(const BenchResult &r, double baseline_cyc)
+inline void print_result(const BenchResult &r, double baseline_cyc)
 {
     const std::string etiqueta = g_seccion_actual.empty() ? r.name : (g_seccion_actual + " / " + r.name);
     bench_record(etiqueta.c_str(), r.cycles_per_op);
@@ -266,6 +327,6 @@ static void print_result(const BenchResult &r, double baseline_cyc)
               << std::setprecision(2) << std::setw(6) << ratio << "x   |\n";
 }
 
-static void print_footer() { print_separator(); }
+inline void print_footer() { print_separator(); }
 
 #endif // BENCH_COMMON_HPP

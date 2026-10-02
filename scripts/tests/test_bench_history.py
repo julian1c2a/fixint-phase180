@@ -87,6 +87,35 @@ class LeeMedidas(unittest.TestCase):
         self.assertEqual([len(m[k]) for k in "abcd"], [2, 6, 10, 12])
 
 
+class LeeMetadatos(unittest.TestCase):
+    """Las lineas `#clave<TAB>valor` (desde el 2 oct 2026): con que orden se midio."""
+
+    TSV = [
+        "#orden\tal_azar 0x00000000c0ffee00\n",
+        "suma / uint64_t\t1.0\tcyc/op\t0.01\t0.05\t1000\t25\t1.0\t0.0\t1.0\t5\t100.0\t110.0\n",
+    ]
+
+    def test_lee_el_orden_y_la_semilla(self):
+        self.assertEqual(bh.lee_metadatos(self.TSV), {"orden": "al_azar 0x00000000c0ffee00"})
+
+    def test_el_lector_de_medidas_no_lo_confunde_con_una_medida(self):
+        # La razon de que vaya en DOS columnas: un guion viejo tiene que saltarla.
+        self.assertEqual(list(bh.lee_medidas(self.TSV)), ["suma / uint64_t"])
+
+    def test_una_medida_no_es_un_metadato(self):
+        self.assertEqual(bh.lee_metadatos(self.TSV[1:]), {})
+
+    def test_lineas_raras_se_ignoran(self):
+        self.assertEqual(bh.lee_metadatos(["#\tx\n", "#a\tb\tc\n", "#solo\n"]), {})
+
+    def test_modos_de_orden_sin_la_semilla(self):
+        # La semilla cambia en cada toma por diseno; el modo no deberia.
+        toma = {"orden": {"a": "al_azar 0x1", "b": "al_azar 0x2"}}
+        self.assertEqual(bh.modos_de_orden(toma), ["al_azar"])
+        self.assertEqual(bh.modos_de_orden({"orden": {"a": "rotando"}}), ["rotando"])
+        self.assertEqual(bh.modos_de_orden({}), [])
+
+
 class CargaEnTramo(unittest.TestCase):
     """Cruza las muestras de `otros` con el tramo de una ventana."""
 

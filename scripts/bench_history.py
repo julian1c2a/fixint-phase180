@@ -846,11 +846,40 @@ def lee_medidas(lineas):
     return medidas
 
 
-def ejecutar(nombre: str, compilador: str, modo: str, tmp: Path, durante_out: dict = None):
+def lee_metadatos(lineas):
+    """Los datos de la toma que NO son medidas: lineas `#clave<TAB>valor`.
+
+    Desde el 2 oct 2026, de momento uno: `orden`, con que orden se midieron las
+    variantes y con que semilla (`al_azar 0x...` o `rotando`). Sin la semilla,
+    una toma con el orden al azar no se puede repetir.
+
+    Van en DOS columnas a proposito, y `lee_medidas` las salta por tener menos
+    de tres: un guion viejo no las confunde con una medida.
+    """
+    meta = {}
+    for linea in lineas:
+        if not linea.startswith("#"):
+            continue
+        partes = linea.rstrip("\n").split("\t")
+        if len(partes) == 2 and len(partes[0]) > 1:
+            meta[partes[0][1:]] = partes[1]
+    return meta
+
+
+def modos_de_orden(toma: dict):
+    """El modo de orden de cada suite de la toma, sin la semilla: la semilla
+    cambia en cada toma por diseno, el modo no deberia."""
+    return sorted({(v or "").split(" ")[0] for v in toma.get("orden", {}).values() if v})
+
+
+def ejecutar(nombre: str, compilador: str, modo: str, tmp: Path, durante_out: dict = None,
+             meta_out: dict = None):
     """Compila y ejecuta un benchmark, devolviendo sus medidas.
 
     Si se pasa `durante_out`, se rellena con lo que se pudo medir de la maquina
     mientras corria (P2.22): si estuvo disponible, por que no, cuantas muestras.
+    Si se pasa `meta_out`, con los datos de la toma que no son medidas (ver
+    `lee_metadatos`).
     """
     salida_tsv = tmp / ("%s.tsv" % nombre)
     if salida_tsv.exists():
@@ -900,7 +929,10 @@ def ejecutar(nombre: str, compilador: str, modo: str, tmp: Path, durante_out: di
         return None, "no registra (le falta bench_record)"
 
     with io.open(salida_tsv, encoding="utf-8", errors="replace") as f:
-        medidas = lee_medidas(f)
+        lineas = f.readlines()
+    medidas = lee_medidas(lineas)
+    if meta_out is not None:
+        meta_out.update(lee_metadatos(lineas))
 
     # CADA VENTANA, CON LO QUE HIZO LA MAQUINA MIENTRAS SE MEDIA (P2.22). Solo
     # las que traen sello; y si no se pudo medir durante, se dice en la suite en
@@ -943,7 +975,13 @@ def ejecutar(nombre: str, compilador: str, modo: str, tmp: Path, durante_out: di
 #
 # Se sube este numero cada vez que cambie COMO se mide. Las tomas anteriores no
 # traen el campo, y por eso `_protocolo` las nombra por omision.
-PROTOCOLO = "2026-09-30/orden-rotando"
+#
+# 2 oct 2026: el orden de las variantes pasa de ROTAR a ser AL AZAR en cada ronda
+# (ver «El orden de las variantes» en benchs/bench_adaptativo.hpp). Rotar
+# equilibraba la posicion pero dejaba fijo el vecino: la variante j iba siempre
+# detras de la j-1. Y `benchmark_vs_builtin` se reescribe entero, con el mismo
+# nucleo para todos los tipos (ver su cabecera).
+PROTOCOLO = "2026-10-02/orden-al-azar"
 
 PROTOCOLO_VIEJO = "anterior al 30 sep 2026 (arnes viejo, orden fijo)"
 
@@ -1037,6 +1075,17 @@ def comparar(actual: dict, previo_path: Path, motivo_referencia: str = None):
         echo("        de esta frontera: lo que salte en ellas es cambio de protocolo,")
         echo("        no del codigo. Ver CHANGELOG, «el arnes viejo no medía lo que")
         echo("        decía» (P2.17).")
+
+    # Y DENTRO DEL MISMO PROTOCOLO, EL ORDEN. `BENCH_ORDEN=rotando` existe para
+    # medir cuanto pesaba el orden de antes; una toma asi no es comparable con
+    # una normal sin decirlo. Las tomas sin el dato --todas las de antes del 2
+    # oct-- ya las separa el protocolo, y aqui no se repite el aviso.
+    o_antes, o_ahora = modos_de_orden(previo), modos_de_orden(actual)
+    if o_antes and o_ahora and o_antes != o_ahora:
+        echo("  [OJO] orden de las variantes distinto: %s -> %s"
+             % (", ".join(o_antes), ", ".join(o_ahora)))
+        echo("        Una de las dos se midio con BENCH_ORDEN=rotando, que existe para")
+        echo("        medir la diferencia, no para medir con el.")
 
     avisos = 0
     todos = []      # |delta| de TODAS las comparables, para la distribucion
@@ -1258,11 +1307,15 @@ def main():
     for nombre in quiero:
         print("  %-26s " % nombre, end="", flush=True)
         durante = datos.setdefault("durante", {}).setdefault(nombre, {})
-        medidas, error = ejecutar(nombre, args.compiler, args.mode, tmp, durante)
+        meta = {}
+        medidas, error = ejecutar(nombre, args.compiler, args.mode, tmp, durante, meta)
         if error:
             echo("-- %s" % error)
             continue
         datos["suites"][nombre] = medidas
+        # CON QUE ORDEN Y QUE SEMILLA, por suite: con ella se repite la toma.
+        if meta.get("orden"):
+            datos.setdefault("orden", {})[nombre] = meta["orden"]
         echo("%d medidas" % len(medidas))
 
     total = sum(len(v) for v in datos["suites"].values())

@@ -41,7 +41,8 @@
 // todas las de la otra deja que la deriva termica, el escalado de frecuencia y
 // la ocupacion de la cache se repartan de forma desigual entre ellas. Lo
 // correcto es alternar: una vuelta de cada, y ademas EN ORDEN DISTINTO cada
-// ronda, para que la posicion tampoco favorezca a ninguna.
+// ronda, para que ni la posicion ni el vecino favorezcan a ninguna. Desde el 2
+// oct 2026 ese orden es AL AZAR en cada ronda; ver «El orden de las variantes».
 //
 // Requiere que las variantes existan a la vez en el mismo binario, que es lo
 // que `include/algorithms/mul_kernels.hpp` vino a permitir.
@@ -59,7 +60,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
+#include <random>
+#include <string>
+#include <string_view>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -160,9 +166,30 @@ namespace bench
     /// RDTSC-- porque lo que se quiere acotar es el TIEMPO que dura la sesion,
     /// y RDTSC cuenta a frecuencia invariante, no a la real.
     ///
+    /// @brief Techo de la calibracion: 2^36 iteraciones.
+    ///
+    /// Gastar 200 ms en 2^36 vueltas son 3 picosegundos por vuelta, lo que no
+    /// cuesta NADA que haga trabajo de verdad. Si la calibracion llega aqui, el
+    /// compilador se ha llevado la operacion.
+    ///
+    /// ANTES NO HABIA TECHO, y el fallo era silencioso. Con una operacion que no
+    /// cuesta nada el tiempo no crece con `n`, y `n` se multiplicaba por 4
+    /// cuarenta veces: en la 32 llega a 2^64, que en `std::size_t` es CERO. La
+    /// medida dividia entonces por cero y publicaba un NaN. Lo destapo el 2 oct
+    /// 2026 la prueba del orden (`tests/test_bench_orden.cpp`), con unas
+    /// variantes que GCC, clang y MSVC reducian a una sola llamada.
+    inline constexpr std::size_t MAX_ITERACIONES = std::size_t{1} << 36;
+
+    /// @brief Calibra: cuantas iteraciones hacen falta para gastar `objetivo_ms`.
+    ///
+    /// Dobla desde 1 hasta pasarse, midiendo con el reloj de pared --no con
+    /// RDTSC-- porque lo que se quiere acotar es el TIEMPO que dura la sesion,
+    /// y RDTSC cuenta a frecuencia invariante, no a la real.
+    ///
     /// @param op Lo que se mide. Recibe el indice de la vuelta.
     /// @param objetivo_ms Milisegundos que se quieren gastar.
-    /// @return Numero de iteraciones, al menos 1.
+    /// @return Numero de iteraciones, entre 1 y `MAX_ITERACIONES`. Si toca el
+    ///         techo, avisa: lo que se mide no cuesta nada.
     template <typename F>
     std::size_t calibra(F op, double objetivo_ms = MS_POR_CASILLA)
     {
@@ -177,6 +204,8 @@ namespace bench
 
             if (ms >= objetivo_ms)
                 return n;
+            if (n >= MAX_ITERACIONES)
+                break;
 
             // Si la medida es demasiado corta para fiarse del reloj, dobla a
             // ciegas; si ya se puede extrapolar, salta directamente.
@@ -188,7 +217,12 @@ namespace bench
                 const auto siguiente = static_cast<std::size_t>(static_cast<double>(n) * factor * 1.1) + 1;
                 n = siguiente > n ? siguiente : n * 2;
             }
+            if (n > MAX_ITERACIONES)
+                n = MAX_ITERACIONES;
         }
+        std::printf("  [OJO] la calibracion llego a %zu vueltas sin gastar %.3g ms: lo que se mide NO\n"
+                    "        CUESTA NADA. El compilador se ha llevado la operacion; la cifra no vale.\n",
+                    n, objetivo_ms);
         return n;
     }
 
@@ -262,6 +296,11 @@ namespace bench
     template <typename F>
     Medida mide_una(F op, std::size_t reps = REPETICIONES, double objetivo_ms = MS_POR_CASILLA)
     {
+        // `op` ya es una copia local, que es lo que `mide_entrelazado` tiene que
+        // hacer a mano (ver alli). Se exige lo mismo, para que las dos digan lo
+        // mismo de una variante.
+        static_assert(std::is_invocable_v<const F &, std::size_t>,
+                      "mide_una: la variante no puede ser `mutable`");
         const std::size_t n = calibra(op, objetivo_ms);
 
         // Calentamiento que se descarta: la primera vuelta paga los fallos de
@@ -286,11 +325,152 @@ namespace bench
         return m;
     }
 
+    // =========================================================================
+    // El orden de las variantes en cada ronda (2 oct 2026)
+    // =========================================================================
+    //
+    // HASTA EL 2 OCT ROTABA una posicion por ronda: en la ronda r, el orden era
+    // r, r+1, ..., r-1. Eso equilibra la POSICION --cada variante pasa por cada
+    // sitio las mismas veces-- pero deja fijo el VECINO: la variante j va detras
+    // de la j-1 en K-1 de cada K rondas, siempre. Si una variante deja la
+    // maquina peor de lo que la encontro --el monton de GMP fragmentado, el
+    // nucleo mas caliente, el predictor entrenado en otra cosa--, quien la sigue
+    // lo paga SIEMPRE, y ninguna estadistica de la tanda lo puede ver: lo llevan
+    // todas sus vueltas, tambien las de la cola baja.
+    //
+    // AHORA ES UNA PERMUTACION AL AZAR EN CADA RONDA. Lo que dependa del vecino
+    // deja de ser un sesgo y pasa a ser ruido; y el ruido si lo ve la tanda,
+    // porque unas vueltas lo llevan y otras no, y el suelo se queda con las que
+    // no.
+    //
+    // CUANTO PESABA, NO SE SABE. Con 200 ms por vuelta, lo que se recupera en
+    // microsegundos --la cache, el predictor-- se diluye; lo que dura mas --la
+    // temperatura, el estado del monton-- no. Se mide en la plataforma dedicada:
+    // el mismo binario con los dos ordenes, el mismo minuto (NEXT_STEPS, E3).
+    //
+    // EL AZAR SE PUEDE REPETIR. La semilla de la toma se anuncia al empezar y
+    // queda en el registro (`#orden`); `BENCH_SEMILLA=<semilla>` repite los
+    // mismos ordenes. El generador y el barajado son PROPIOS --splitmix64 y
+    // Fisher-Yates con rechazo--, no los de la biblioteca estandar: lo que hace
+    // `std::shuffle` con una semilla no esta especificado, y la misma daria
+    // ordenes distintos en libstdc++, libc++ y la de MSVC.
+    //
+    // `BENCH_ORDEN=rotando` devuelve el orden de antes. Existe para MEDIR la
+    // diferencia, no para medir con el; igual que `BENCH_REPETICIONES`.
+
+    /// @brief Un paso de splitmix64: avanza `estado` y devuelve 64 bits.
+    [[nodiscard]] inline std::uint64_t siguiente_azar(std::uint64_t &estado) noexcept
+    {
+        std::uint64_t z = (estado += 0x9E3779B97F4A7C15ull);
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+        return z ^ (z >> 31);
+    }
+
+    /// @brief Entero uniforme en `[0, n)`, con `n >= 1`.
+    ///
+    /// SIN SESGO: `x % n` a secas favorece los restos pequenos cuando 2^64 no es
+    /// multiplo de `n`. Se rechaza la cola que no completa un multiplo.
+    [[nodiscard]] inline std::size_t azar_menor_que(std::uint64_t &estado, std::size_t n) noexcept
+    {
+        const std::uint64_t m = static_cast<std::uint64_t>(n);
+        const std::uint64_t tope = UINT64_MAX - UINT64_MAX % m; // multiplo de m
+        std::uint64_t x = siguiente_azar(estado);
+        while (x >= tope)
+            x = siguiente_azar(estado);
+        return static_cast<std::size_t>(x % m);
+    }
+
+    /// @brief Como se ordenan las variantes dentro de cada ronda de UNA ventana.
+    struct Orden
+    {
+        bool al_azar{true};       ///< false: rota, el protocolo de antes del 2 oct.
+        std::uint64_t semilla{0}; ///< la de ESTA ventana, sacada de la de la toma.
+    };
+
+    /// @brief El orden de la ronda `r`. Funcion pura salvo por `estado`, que
+    ///        avanza: las rondas de una ventana se piden en orden, una tras otra.
+    template <std::size_t K>
+    [[nodiscard]] std::array<std::size_t, K> orden_de_ronda(const Orden &o, std::uint64_t &estado,
+                                                            std::size_t r)
+    {
+        std::array<std::size_t, K> p{};
+        for (std::size_t i = 0; i < K; ++i)
+            p[i] = o.al_azar ? i : (i + r) % K;
+        if (o.al_azar)
+            for (std::size_t i = K; i > 1; --i) // Fisher-Yates
+                std::swap(p[i - 1], p[azar_menor_que(estado, i)]);
+        return p;
+    }
+
+    namespace detalle
+    {
+        struct OrdenDeLaToma
+        {
+            bool al_azar{true};
+            std::uint64_t semilla{0}; ///< la de la toma, la que se anuncia.
+            std::uint64_t estado{0};  ///< de aqui sale la semilla de cada ventana.
+        };
+
+        /// @brief Se decide UNA vez por proceso, al pedir la primera ventana.
+        inline OrdenDeLaToma &orden_de_la_toma()
+        {
+            static OrdenDeLaToma t = []
+            {
+                OrdenDeLaToma r{};
+                const char *modo = std::getenv("BENCH_ORDEN");
+                r.al_azar = !(modo != nullptr && std::string_view(modo) == "rotando");
+                const char *s = std::getenv("BENCH_SEMILLA");
+                if (s != nullptr && *s != '\0')
+                    r.semilla = std::strtoull(s, nullptr, 0);
+                else
+                {
+                    std::random_device rd;
+                    r.semilla = (static_cast<std::uint64_t>(rd()) << 32) ^ static_cast<std::uint64_t>(rd()) ^
+                                static_cast<std::uint64_t>(
+                                    std::chrono::steady_clock::now().time_since_epoch().count());
+                }
+                r.estado = r.semilla;
+
+                char texto[64];
+                if (r.al_azar)
+                {
+                    std::snprintf(texto, sizeof texto, "al_azar 0x%016llx",
+                                  static_cast<unsigned long long>(r.semilla));
+                    std::printf("  [orden] al azar en cada ronda, semilla 0x%016llx "
+                                "(BENCH_SEMILLA=0x%016llx lo repite)\n",
+                                static_cast<unsigned long long>(r.semilla),
+                                static_cast<unsigned long long>(r.semilla));
+                }
+                else
+                {
+                    std::snprintf(texto, sizeof texto, "rotando");
+                    std::printf("  [orden] ROTANDO (BENCH_ORDEN=rotando): el protocolo de antes del "
+                                "2 oct 2026, solo para medir la diferencia\n");
+                }
+                bench_record_meta("orden", texto);
+                return r;
+            }();
+            return t;
+        }
+    } // namespace detalle
+
+    /// @brief El orden de la PROXIMA ventana. Cada llamada saca una semilla
+    ///        nueva de la de la toma, asi que dos ventanas no repiten la misma
+    ///        sucesion de ordenes, y con la misma semilla de toma se repiten
+    ///        todas.
+    [[nodiscard]] inline Orden orden_de_la_ventana()
+    {
+        auto &t = detalle::orden_de_la_toma();
+        return Orden{t.al_azar, siguiente_azar(t.estado)};
+    }
+
     /// @brief Mide varias variantes **entrelazadas y en orden cambiante**.
     ///
-    /// En cada ronda se ejecutan todas, y el orden **rota una posicion por
-    /// ronda**. Asi ninguna ocupa siempre el mismo sitio, y la deriva termica y
-    /// el escalado de frecuencia se reparten por igual entre ellas.
+    /// En cada ronda se ejecutan todas, **en un orden al azar distinto cada
+    /// ronda** (ver «El orden de las variantes»). Asi ninguna ocupa siempre el
+    /// mismo sitio ni va siempre detras de la misma, y la deriva termica y el
+    /// escalado de frecuencia se reparten por igual entre ellas.
     ///
     /// Es la regla 4 del protocolo, y hasta ahora era imposible de cumplir:
     /// requiere que las variantes existan A LA VEZ en el mismo binario.
@@ -299,13 +479,23 @@ namespace bench
     ///        vuelta.
     /// @param reps Repeticiones por variante; diez es el minimo del protocolo.
     /// @param objetivo_ms Tiempo por repeticion y variante.
+    /// @param orden Como se ordenan las rondas. Por omision, el de la toma; las
+    ///        pruebas pasan uno fijo para poder comprobarlo.
     /// @return Una `Medida` por variante, en el orden en que se pasaron.
     template <typename... Fs>
     auto mide_entrelazado(std::tuple<Fs...> ops, std::size_t reps = REPETICIONES,
-                          double objetivo_ms = MS_POR_CASILLA)
+                          double objetivo_ms = MS_POR_CASILLA, Orden orden = orden_de_la_ventana())
     {
         constexpr std::size_t K = sizeof...(Fs);
         static_assert(K >= 1, "hace falta al menos una variante");
+        // El bucle cronometrado trabaja sobre una COPIA de cada variante (ver
+        // alli por que). Eso solo es lo mismo que usar la original si la
+        // variante no guarda estado propio entre vueltas: se exige aqui, en vez
+        // de suponerlo.
+        static_assert((std::is_invocable_v<const Fs &, std::size_t> && ...),
+                      "mide_entrelazado: las variantes no pueden ser `mutable` (se copian)");
+        static_assert((std::is_copy_constructible_v<Fs> && ...),
+                      "mide_entrelazado: las variantes tienen que poder copiarse");
 
         // La calibracion se hace UNA vez por variante y se queda fija: si el
         // numero de iteraciones cambiara entre rondas, las rondas no serian
@@ -333,12 +523,14 @@ namespace bench
 
         // EL SELLO VA AQUI, ni antes ni despues: justo alrededor de las vueltas
         // cronometradas, que son las que forman la cola baja.
+        std::uint64_t estado = orden.semilla;
         const double t_inicio = ahora_epoca();
         for (std::size_t r = 0; r < reps; ++r)
         {
+            const std::array<std::size_t, K> turno = orden_de_ronda<K>(orden, estado, r);
             for (std::size_t paso = 0; paso < K; ++paso)
             {
-                const std::size_t cual = (paso + r) % K; // el orden rota
+                const std::size_t cual = turno[paso];
                 [&]<std::size_t... I>(std::index_sequence<I...>)
                 {
                     (
@@ -346,11 +538,28 @@ namespace bench
                         {
                             if (I != cual)
                                 return;
+                            // COPIAS LOCALES de la variante y del numero de
+                            // vueltas, a proposito (2 oct 2026). Una barrera con
+                            // `memory` --la de `escapa`, la de `doNotOptimize`
+                            // para tipos que no son de 16 bytes-- obliga al
+                            // compilador a suponer que cualquier memoria a la
+                            // que se llega ha podido cambiar, y la tupla y `n`
+                            // estaban en esa memoria: GCC volvia a leer EN CADA
+                            // VUELTA el puntero que la variante lleva capturado
+                            // y el limite del bucle. Medido con
+                            // `benchmark_vs_builtin`: copiar un `uint64_t`
+                            // costaba 2,2 tics dentro del arnes y 1,2 fuera. Un
+                            // tic de mas en todas las variantes no las ordena
+                            // distinto, pero aplasta las razones entre ellas.
+                            // Unas copias locales, que no se dejan ver desde
+                            // fuera, pueden vivir en registros.
+                            const auto op = std::get<I>(ops);
+                            const std::size_t vueltas = n[I];
                             CycleTimer t;
-                            for (std::size_t k = 0; k < n[I]; ++k)
-                                std::get<I>(ops)(k);
+                            for (std::size_t k = 0; k < vueltas; ++k)
+                                op(k);
                             v[I].push_back(static_cast<double>(t.elapsed_cycles()) /
-                                           static_cast<double>(n[I]));
+                                           static_cast<double>(vueltas));
                         }(),
                         ...);
                 }(std::make_index_sequence<K>{});
