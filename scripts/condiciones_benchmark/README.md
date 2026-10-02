@@ -58,6 +58,39 @@ alguna ventana perturbada **no vale de referencia**, y `--compare` no la usa. Qu
 la máquina esté tranquila al empezar ya no se da por bueno para toda la toma: el
 campo se llama `tranquila_al_empezar` precisamente para no afirmar más que eso.
 
+## En Linux: `cpu_de_medida.sh` (la plataforma de medida dedicada)
+
+Desde el 2 oct 2026 la serie de referencia se mide en una máquina aparte con
+Ubuntu Server, **con el turbo apagado** (ver NEXT_STEPS, «La plataforma de medida
+dedicada»). Allí no hay servicios que silenciar; lo que hay que fijar es **la
+CPU**, y lo hace este guion:
+
+    sudo cpu_de_medida.sh fija       turbo apagado, gobernador performance,
+                                     SMT apagado (si lo hay)
+    sudo cpu_de_medida.sh restaura   vuelve a como estaba antes de `fija`
+         cpu_de_medida.sh estado     lo que hay ahora
+
+Es **la única pieza del arnés que corre como root**, y por eso:
+
+- **Verifica cada ajuste leyéndolo de vuelta**. Si alguno no cogió, sale con
+  error y dice «ESTA MÁQUINA NO ESTÁ LISTA PARA MEDIR».
+- Si `fija` se llama dos veces, **conserva el estado original**, no el ya fijado.
+- **Restaura en orden**: primero el SMT, porque al encenderlo reaparecen las CPU
+  gemelas y después hay que devolverles el gobernador.
+- **Como root ignora cualquier raíz alternativa**: `BENCH_SYSFS` y
+  `BENCH_ESTADO` son sólo para las pruebas, para que el guion no sea una vía de
+  escritura como root en rutas arbitrarias.
+
+Probado contra un `sysfs` falso en `scripts/tests/test_cpu_de_medida.py` y
+falsificado con seis averías a propósito. Dos cosas **no se pueden probar con un
+`sysfs` falso** y quedan para la primera sesión en la máquina de verdad: el orden
+al restaurar el SMT —en el `/sys` real, apagarlo hace desaparecer los ficheros de
+las CPU gemelas— y que la EPP la cambie el kernel al poner `performance` (la
+prueba lo simula, pero es una simulación).
+
+`bench_history.py` registra en cada toma con qué configuración se midió, y
+`--compare` no compara en silencio tomas con distinta configuración.
+
 ## Lo que no tocan, y por qué
 
 - **Defender no se apaga: se le ponen exclusiones** para `build/` y `C:\msys64`.
