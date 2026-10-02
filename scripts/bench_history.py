@@ -270,6 +270,94 @@ def version_compilador(compilador: str) -> str:
     return "desconocida"
 
 
+def _lee(ruta):
+    """El contenido de un fichero de sysfs, sin espacios. None si no se puede leer.
+
+    None es «no lo se», y no se sustituye nunca por un valor por omision: un turbo
+    que no se pudo leer NO es un turbo apagado.
+    """
+    try:
+        with open(ruta, encoding="ascii", errors="replace") as f:
+            return f.read().strip()
+    except OSError:
+        return None
+
+
+def _todas_las_cpu(raiz, relativo):
+    """Los valores distintos de `cpuN/<relativo>` en todas las CPU, ordenados."""
+    base = Path(raiz) / "sys" / "devices" / "system" / "cpu"
+    vistos = set()
+    for d in sorted(base.glob("cpu[0-9]*")):
+        v = _lee(d / relativo)
+        if v is not None:
+            vistos.add(v)
+    return sorted(vistos)
+
+
+def configuracion_cpu_linux(raiz: str = "/") -> dict:
+    """Con que configuracion de CPU se esta midiendo, leida de sysfs. Linux.
+
+    Es lo que define que significan las cifras: con el turbo apagado y el
+    gobernador en `performance`, el nucleo va a frecuencia fija como el TSC y los
+    «ciclos» son ciclos de verdad; con el turbo encendido, una carga ajena los
+    infla (P2.22). Lo que no se puede leer va a None. `raiz` es para las pruebas.
+    """
+    cpu = Path(raiz) / "sys" / "devices" / "system" / "cpu"
+    driver = _lee(cpu / "cpu0" / "cpufreq" / "scaling_driver")
+
+    # EL TURBO SE APAGA POR SITIOS DISTINTOS segun el driver: intel_pstate tiene
+    # su `no_turbo` (1 = apagado); acpi-cpufreq y amd-pstate usan `boost`
+    # (0 = apagado), global o por CPU.
+    turbo = None
+    no_turbo = _lee(cpu / "intel_pstate" / "no_turbo")
+    if no_turbo in ("0", "1"):
+        turbo = "apagado" if no_turbo == "1" else "encendido"
+    else:
+        boost = _lee(cpu / "cpufreq" / "boost")
+        por_cpu = _todas_las_cpu(raiz, "cpufreq/boost")
+        valores = [boost] if boost in ("0", "1") else por_cpu
+        if valores and set(valores) <= {"0", "1"}:
+            turbo = ("apagado" if valores == ["0"] else
+                     "encendido" if valores == ["1"] else "mixto")
+
+    def unico(valores):
+        if not valores:
+            return None
+        return valores[0] if len(valores) == 1 else "mixto: " + ",".join(valores)
+
+    modelo = None
+    for linea in (_lee(Path(raiz) / "proc" / "cpuinfo") or "").splitlines():
+        if linea.startswith("model name"):
+            modelo = linea.split(":", 1)[1].strip()
+            break
+
+    return {
+        "modelo": modelo,
+        "driver": driver,
+        "turbo": turbo,
+        "gobernador": unico(_todas_las_cpu(raiz, "cpufreq/scaling_governor")),
+        "epp": unico(_todas_las_cpu(raiz, "cpufreq/energy_performance_preference")),
+        "smt": _lee(cpu / "smt" / "control"),
+        "en_linea": _lee(cpu / "online"),
+        "aisladas": _lee(cpu / "isolated") or None,
+        "khz_min": unico(_todas_las_cpu(raiz, "cpufreq/scaling_min_freq")),
+        "khz_max": unico(_todas_las_cpu(raiz, "cpufreq/scaling_max_freq")),
+    }
+
+
+def huella_cpu(toma: dict):
+    """Lo que tiene que coincidir para que dos tomas sean comparables, o None.
+
+    Driver, turbo, gobernador y SMT: lo que cambia que significan las cifras. None
+    en las tomas que no lo registraron (las de Windows, y todas las de antes del
+    2 oct 2026) -- y None no es comparable con nada distinto de None.
+    """
+    c = (toma.get("condiciones") or {}).get("cpu")
+    if not c:
+        return None
+    return (c.get("driver"), c.get("turbo"), c.get("gobernador"), c.get("smt"))
+
+
 def condiciones_de_medida() -> dict:
     """Estado de la maquina segun `scripts/condiciones_benchmark/`.
 
@@ -286,7 +374,13 @@ def condiciones_de_medida() -> dict:
     sin este dato vale menos, pero vale.
     """
     if rutas.plataforma() != "windows":
-        return {"verdicto": "no aplica: no es Windows"}
+        # EN LINUX LO QUE IMPORTA ES LA CPU, no los servicios (P2.24): con que
+        # turbo, gobernador y SMT se esta midiendo, que es lo que define que
+        # significan las cifras.
+        cpu = configuracion_cpu_linux()
+        return {"verdicto": "turbo %s, gobernador %s, SMT %s" % (
+                    cpu["turbo"] or "¿?", cpu["gobernador"] or "¿?", cpu["smt"] or "¿?"),
+                "cpu": cpu}
 
     guion = RAIZ / "scripts" / "condiciones_benchmark" / "comprueba_condiciones.ps1"
     if not guion.exists():
@@ -641,7 +735,7 @@ def veredicto_durante(toma: dict) -> dict:
     }
 
 
-def elige_referencia(tomas, suites=None):
+def elige_referencia(tomas, suites=None, huella="sin filtro"):
     """De una lista de tomas (de la mas vieja a la mas nueva), cual usar de
     referencia para comparar `suites`, y por que si no es certificable. Pura.
 
@@ -665,6 +759,12 @@ def elige_referencia(tomas, suites=None):
         indices = todas or alguna
         if not indices:
             return None, "ninguna toma anterior tiene estas suites"
+    # LA MISMA CONFIGURACION DE CPU, si se pide (P2.24). Una toma con el turbo
+    # encendido no sirve de referencia para una con el turbo apagado. Si ninguna
+    # coincide, se sigue con las que hay y el aviso de `comparar` lo dira.
+    if huella != "sin filtro":
+        iguales = [i for i in indices if huella_cpu(tomas[i]) == huella]
+        indices = iguales or indices
     for i in reversed(indices):
         if veredicto_durante(tomas[i])["certificable"]:
             return i, None
@@ -913,6 +1013,17 @@ def comparar(actual: dict, previo_path: Path, motivo_referencia: str = None):
         echo("        es menor por construccion. Una bajada general aqui NO es una")
         echo("        mejora: es el cambio de regimen. Ver REPETICIONES en")
         echo("        benchs/bench_adaptativo.hpp.")
+
+    # LA CONFIGURACION DE LA CPU TAMBIEN (P2.24). Con el turbo encendido y con el
+    # apagado las cifras no miden lo mismo: unas son ticks del TSC sensibles a la
+    # carga y las otras ciclos de verdad.
+    if huella_cpu(previo) != huella_cpu(actual):
+        echo("  [OJO] configuracion de CPU distinta (driver, turbo, gobernador, SMT):")
+        echo("        antes: %s" % (huella_cpu(previo) or "no registrada"))
+        echo("        ahora: %s" % (huella_cpu(actual) or "no registrada"))
+        echo("        Con el turbo encendido las cifras son ticks del TSC que una carga")
+        echo("        ajena infla (P2.22); con el apagado, ciclos de verdad. No se")
+        echo("        comparan sin decirlo.")
 
     # EL ARNES TAMBIEN ROMPE LA COMPARABILIDAD, y es el caso mas traicionero de
     # los tres: el compilador y las repeticiones se ven en los metadatos, pero un
@@ -1210,7 +1321,7 @@ def main():
             # LA REFERENCIA CERTIFICADA MAS RECIENTE, no la ultima sin mirar
             # (P2.22). Si ninguna lo es, la ultima, y se dice por que no se fia.
             tomas = [json.loads(io.open(q, encoding="utf-8").read()) for q in previas]
-            i, motivo = elige_referencia(tomas, set(datos["suites"]))
+            i, motivo = elige_referencia(tomas, set(datos["suites"]), huella_cpu(datos))
             if i is None:
                 echo("")
                 echo("  No hay toma anterior de %s con estas suites (%s): nada con que"

@@ -306,6 +306,91 @@ class CuentaDobleDeWindows(unittest.TestCase):
         self.assertAlmostEqual(bh._cpu_ocupada_sistema(falso), 3.5)
 
 
+def _sysfs(raiz, ficheros):
+    """Un sysfs falso: {ruta relativa: contenido}."""
+    for rel, contenido in ficheros.items():
+        p = Path(raiz) / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(contenido + "\n", encoding="ascii")
+
+
+_CPU = "sys/devices/system/cpu/"
+
+
+class ConfiguracionCpuLinux(unittest.TestCase):
+    """Con que CPU se midio. Lo que define que significan las cifras."""
+
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self.raiz = self._tmp.name
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _intel(self, no_turbo="1", gobernador="performance", smt="off"):
+        f = {_CPU + "intel_pstate/no_turbo": no_turbo, _CPU + "smt/control": smt,
+             _CPU + "online": "0-5", "proc/cpuinfo": "model name\t: Intel(R) Core(TM) i5-8500T CPU"}
+        for n in range(6):
+            f[_CPU + "cpu%d/cpufreq/scaling_driver" % n] = "intel_pstate"
+            f[_CPU + "cpu%d/cpufreq/scaling_governor" % n] = gobernador
+            f[_CPU + "cpu%d/cpufreq/scaling_max_freq" % n] = "2100000"
+        _sysfs(self.raiz, f)
+
+    def test_la_serie_de_referencia_en_intel(self):
+        self._intel()
+        c = bh.configuracion_cpu_linux(self.raiz)
+        self.assertEqual((c["driver"], c["turbo"], c["gobernador"], c["smt"]),
+                         ("intel_pstate", "apagado", "performance", "off"))
+        self.assertEqual(c["khz_max"], "2100000")
+        self.assertIn("i5-8500T", c["modelo"])
+
+    def test_no_turbo_a_cero_es_turbo_encendido(self):
+        self._intel(no_turbo="0")
+        self.assertEqual(bh.configuracion_cpu_linux(self.raiz)["turbo"], "encendido")
+
+    def test_amd_apaga_el_turbo_por_boost(self):
+        # Otro sitio, y la logica al reves: `boost` 0 es apagado.
+        _sysfs(self.raiz, {_CPU + "cpufreq/boost": "0",
+                           _CPU + "cpu0/cpufreq/scaling_driver": "acpi-cpufreq"})
+        self.assertEqual(bh.configuracion_cpu_linux(self.raiz)["turbo"], "apagado")
+
+    def test_gobernadores_distintos_se_dicen_mixtos(self):
+        self._intel()
+        _sysfs(self.raiz, {_CPU + "cpu3/cpufreq/scaling_governor": "powersave"})
+        self.assertTrue(bh.configuracion_cpu_linux(self.raiz)["gobernador"].startswith("mixto"))
+
+    def test_lo_que_no_se_puede_leer_es_no_lo_se(self):
+        # Un sysfs vacio: todo None. Un turbo que no se pudo leer NO es un turbo apagado.
+        c = bh.configuracion_cpu_linux(self.raiz)
+        self.assertIsNone(c["turbo"])
+        self.assertIsNone(c["gobernador"])
+        self.assertIsNone(c["driver"])
+
+
+class HuellaCpu(unittest.TestCase):
+
+    def _toma(self, turbo, suites=("a",)):
+        return {"condiciones": {"cpu": {"driver": "intel_pstate", "turbo": turbo,
+                                        "gobernador": "performance", "smt": "off"}},
+                "suites": {s: {"x": {"valor": 1.0, "t_inicio": 0.0, "t_fin": 10.0,
+                                     "otros_suelo": 0.1}} for s in suites}}
+
+    def test_sin_registro_es_none(self):
+        # Las de Windows y todas las de antes del 2 oct 2026.
+        self.assertIsNone(bh.huella_cpu({"suites": {}}))
+
+    def test_turbo_distinto_es_huella_distinta(self):
+        self.assertNotEqual(bh.huella_cpu(self._toma("apagado")), bh.huella_cpu(self._toma("encendido")))
+
+    def test_la_referencia_prefiere_la_misma_huella(self):
+        # Una toma certificada con el turbo ENCENDIDO no sirve de referencia para una
+        # con el turbo apagado, aunque sea mas reciente.
+        apagado, encendido = self._toma("apagado"), self._toma("encendido")
+        i, _ = bh.elige_referencia([apagado, encendido], {"a"}, bh.huella_cpu(apagado))
+        self.assertEqual(i, 0)
+
+
 class MuestreadorSinPsutil(unittest.TestCase):
     """Si no se puede medir, lo dice. «No lo se» no es «no hubo carga»."""
 
