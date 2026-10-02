@@ -264,6 +264,48 @@ class EligeReferencia(unittest.TestCase):
         self.assertIn("suites", motivo)
 
 
+class IdentidadDeLaSerie(unittest.TestCase):
+    """Que Windows, WSL y un Linux nativo en la MISMA maquina no compartan serie."""
+
+    def test_windows_conserva_el_nombre_a_secas(self):
+        # La carpeta `MSI/` ya existe con todo el historico: no se puede romper.
+        self.assertEqual(bh.nombre_maquina("MSI", "windows"), "MSI")
+
+    def test_linux_y_wsl_llevan_el_sistema_detras(self):
+        self.assertEqual(bh.nombre_maquina("MSI", "linux"), "MSI-linux")
+        self.assertEqual(bh.nombre_maquina("MSI", "wsl"), "MSI-wsl")
+
+    def test_los_tres_son_series_distintas_con_el_mismo_host(self):
+        nombres = {bh.nombre_maquina("MSI", s) for s in ("windows", "wsl", "linux")}
+        self.assertEqual(len(nombres), 3)
+
+    def test_wsl_se_reconoce_por_proc_version(self):
+        wsl = "Linux version 6.6.87.2-microsoft-standard-WSL2 (gcc 11.2.0)"
+        nativo = "Linux version 6.8.0-45-generic (buildd@lcy02-amd64-075) (gcc-13)"
+        self.assertEqual(bh.sistema("linux", wsl), "wsl")
+        self.assertEqual(bh.sistema("linux", nativo), "linux")
+        self.assertEqual(bh.sistema("windows", "lo que sea"), "windows")
+
+
+class CuentaDobleDeWindows(unittest.TestCase):
+    """La cuenta doble de psutil se decide por la forma del dato, no por el sistema."""
+
+    def test_con_dpc_no_se_suma_aparte(self):
+        # El backend de Windows: `system` ya incluye interrupciones y DPC.
+        t = type("T", (), {"user": 1.0, "system": 2.0, "idle": 9.0, "interrupt": 0.5, "dpc": 0.5})()
+        falso = type("P", (), {"cpu_times": staticmethod(lambda: t)})
+        self.assertAlmostEqual(bh._cpu_ocupada_sistema(falso), 3.0)
+
+    def test_sin_dpc_vale_la_formula_de_psutil(self):
+        # El de Linux: total menos ocioso y iowait, sin `guest`, que va en `user`.
+        import collections
+        T = collections.namedtuple("T", "user nice system idle iowait irq softirq steal guest guest_nice")
+        t = T(1.0, 0.0, 2.0, 9.0, 1.0, 0.25, 0.25, 0.0, 0.5, 0.0)
+        falso = type("P", (), {"cpu_times": staticmethod(lambda: t)})
+        # total 14,0 - guest 0,5 = 13,5; menos idle 9 y iowait 1 = 3,5
+        self.assertAlmostEqual(bh._cpu_ocupada_sistema(falso), 3.5)
+
+
 class MuestreadorSinPsutil(unittest.TestCase):
     """Si no se puede medir, lo dice. «No lo se» no es «no hubo carga»."""
 

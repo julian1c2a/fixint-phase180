@@ -202,9 +202,41 @@ def arbol_limpio() -> bool:
         return False
 
 
-def nombre_maquina() -> str:
-    """Identifica la maquina. Dos maquinas distintas no comparten serie."""
-    return platform.node() or "desconocida"
+def sistema(plataforma: str = None, version: str = None) -> str:
+    """`windows`, `wsl` o `linux`: el sistema que corre en la maquina.
+
+    WSL se separa de Linux porque es OTRA plataforma de medida aunque corra en el
+    mismo hierro: una maquina virtual, con su planificador y sus relojes. Se
+    reconoce por `/proc/version`. Los dos argumentos son para las pruebas.
+    """
+    plataforma = plataforma or rutas.plataforma()
+    if plataforma == "windows":
+        return "windows"
+    if version is None:
+        try:
+            with open("/proc/version", encoding="ascii", errors="replace") as f:
+                version = f.read()
+        except OSError:
+            version = ""
+    v = version.lower()
+    return "wsl" if ("microsoft" in v or "wsl" in v) else "linux"
+
+
+def nombre_maquina(nodo: str = None, sist: str = None) -> str:
+    """Identifica la SERIE: la maquina, y el sistema que corre en ella.
+
+    POR QUE NO BASTA EL NOMBRE DE HOST. Hasta el 2 oct 2026 se usaba solo
+    `platform.node()`, y una instalacion de Ubuntu en la misma maquina con el
+    mismo nombre --lo natural-- habria ido a la misma carpeta que Windows. Como
+    las dos piden `gcc`, `--compare` habria comparado un sistema contra el otro
+    sin avisar (P2.24).
+
+    Windows conserva el nombre a secas para no romper la carpeta que ya existe; los
+    demas llevan el sistema detras: `MSI-linux`, `MSI-wsl`.
+    """
+    nodo = nodo if nodo is not None else (platform.node() or "desconocida")
+    sist = sist or sistema()
+    return nodo if sist == "windows" else "%s-%s" % (nodo, sist)
 
 
 def version_compilador(compilador: str) -> str:
@@ -419,7 +451,12 @@ def _cpu_ocupada_sistema(psutil):
     `guest`, que ya va dentro de `user`.
     """
     t = psutil.cpu_times()
-    if sys.platform == "win32":
+    # POR LA FORMA DEL DATO, NO POR EL NOMBRE DEL SISTEMA. Hasta el 2 oct 2026 se
+    # decidia con `sys.platform == "win32"`, y eso depende del interprete: con la
+    # Python de MSYS dice 'cygwin' y el arreglo se saltaba en silencio (lo
+    # documenta `rutas.plataforma`). La cuenta doble pasa exactamente cuando
+    # psutil devuelve `dpc` aparte -- su backend de Windows --, asi que se mira eso.
+    if hasattr(t, "dpc"):
         return t.user + t.system
     total = sum(t)
     total -= getattr(t, "guest", 0) + getattr(t, "guest_nice", 0)  # ya van en user/nice
