@@ -1,3 +1,19 @@
+## [sin publicar] - 2026-10-20 - **los documentos vivos, al dia: decian 72 tests y hay 73** (ACTUALIZA_DOC)
+
+La suite, medida otra vez y no supuesta: **73/73 en los cinco** de Windows (GCC
+16.2, clang 23.1.3 con libc++ y con libstdc++, MSVC e Intel) y **73/73 en las
+tres familias de WSL**. El fichero 73, `test_bench_orden`, entro el 2 oct, y el
+README, PROJECT_STATUS y el bloque de estado de NEXT_STEPS siguieron diciendo 72
+dieciocho dias: el armonizador solo mira las frases de «suite actual/completa».
+
+Y PROJECT_STATUS, parado en el 27 sep, contaba como ABIERTO el frente de la
+division --cerrado por ahora, con Burnikel-Ziegler aparcado (ADR-016)--, decia
+que Karatsuba solo estaba medido en GCC --en los cuatro desde el 6 sep--, 349
+avisos de doxygen en `int128_param_*` --257 desde el 23 sep--, 34 headers y 65
+tests. Su «En una linea» describe ahora la fase 0 de la 1.90 y la plataforma de
+medida dedicada. Y MSYS2 trae ya clang-format 23.1.3: el arbol, 146 ficheros, es
+punto fijo de ella y de la 21 del CI.
+
 ## [sin publicar] - 2026-10-20 - **la maquina de medida, preparada sin tenerla: los guiones, probados en un Ubuntu 24.04 limpio** (P2.24)
 
 El mini PC aun no tiene Ubuntu, y lo que hacia falta para medir en el no

@@ -96,9 +96,10 @@ la ruta de inclusión.
 g++ -std=c++20 -I include mi_programa.cpp
 ```
 
-Requisitos: **C++20**. Verificada en local, **72/72 en los cinco**: GCC 16.2
-(libstdc++), Clang 22.1.8 (**libc++**), **Clang 22.1.8 (libstdc++)**, MSVC
-19.5x e Intel oneAPI 2026.1. El CI la cruza además con GCC 13–16 y Clang 18–22
+Requisitos: **C++20**. Verificada en local el 20 oct 2026, **73/73 en los
+cinco**: GCC 16.2 (libstdc++), Clang 23.1.3 (**libc++**), **Clang 23.1.3
+(libstdc++)**, MSVC 19.5x e Intel oneAPI; y en WSL, 73/73 con g++, clang e
+Intel oneAPI. El CI la cruza además con GCC 13–16 y Clang 18–22
 sobre x86-64, x86-32, ARM64, ARM32 y RISC-V 64, y desde el 5 sep 2026 esas
 celdas compilan de verdad con el compilador que dicen — antes los scripts
 pisaban la versión que inyectaba la matriz.
@@ -146,7 +147,7 @@ Para código nuevo, usar `fixed_int_t` y sus alias.
 
 ```
 include/          40 cabeceras; fixed_width_int_t.hpp es el tipo insignia
-tests/            72 ficheros de test
+tests/            73 ficheros de test
 benchs/           benchmarks (RDTSC, rondas intercaladas, minimo)
 demos/            ejemplos de uso
 docs/             referencia de la API y decisiones

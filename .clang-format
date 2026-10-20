@@ -8,8 +8,13 @@
 # editor aplicaba su estilo por defecto y generaba diffs de cientos de líneas
 # de puro reformateo sobre ficheros escritos a mano.
 #
-# VERSION DE REFERENCIA LOCAL: clang-format 22.1.8   (la que trae MSYS2)
+# VERSION DE REFERENCIA LOCAL: clang-format 23.1.3   (la que trae MSYS2 desde
+#                              octubre de 2026; antes, la 22.1.8)
 # VERSION DEL CI:                clang-format 21      (la de apt.llvm.org)
+#
+# El 20 oct 2026, con MSYS2 ya en la 23.1.3: los 146 ficheros de include/
+# tests/ benchs/ demos/, 0 querrian cambiar con la 23 Y con la 21 (la de WSL,
+# igual que el CI). El arbol sigue siendo punto fijo de las dos.
 #
 # clang-format NO es estable entre versiones mayores, y este arbol lo sufrio:
 #   v19  rompe `a ^ T{0}` en `a ^ T { 0 }`   (lee `^ T{` como declaracion)
@@ -28,7 +33,7 @@
 # la v22 rompia `std::bitset<64 * N>`; ya no es cierto sobre este arbol.
 #
 # LA REGLA: el arbol debe satisfacer las dos versiones. En local se usa la
-# 22.1.8, que es la que hay; el CI comprueba con la 21, lo que da una segunda
+# que traiga MSYS2 (hoy la 23.1.3); el CI comprueba con la 21, lo que da una segunda
 # opinion gratis. Si alguna vez discrepan sobre una construccion nueva, el CI
 # se pone en rojo y esa construccion se escribe de una forma que valga para
 # ambas. Es preferible a fiarlo todo a una sola version.

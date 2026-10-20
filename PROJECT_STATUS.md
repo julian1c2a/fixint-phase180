@@ -1,6 +1,6 @@
 # PROJECT STATUS
 
-**Last Updated:** 27 September 2026
+**Last Updated:** 20 October 2026
 **Versión:** v1.90.4 · **rama** `phase-1.90` *(abierta el 27 sep)* · árbol limpio, todo en `origin`
 
 > Instantánea **del estado actual**, y solo eso. No acumula historia: lo ya hecho
@@ -13,50 +13,53 @@
 ## En una línea
 
 `fixed_int_t<N, Sign, Form, Policy>` está **terminado** como entero de N × 64
-bits, **v1.90.4 está publicada**, y **el diseño de la 2.0 está cerrado sin
-cuestiones abiertas**: se está escribiendo. De P1 van cerradas P1.1 a P1.4 y
-**los tramos 1 y 2 de P1.5** salvo lo anotado; del inventario de retirada de
-`int128_param_t`
-([ADR-006](docs/decisions/ADR-006-migracion-int128-param-a-fixed-int.md)) van
-**8 filas de 11**, y dos más esperan una decisión escrita, no trabajo.
+bits, **v1.90.4 está publicada**, y **el diseño de la 2.0 está cerrado**. La
+**multiplicación** está cerrada (17 sep: escolar desenrollado, Karatsuba
+equilibrado, cuadrado y Toom-3, cada umbral medido) y la **división** también,
+por ahora: Knuth D en su capa medible, Möller–Granlund 2/1 y 3/2, y
+Burnikel–Ziegler aparcado con medida
+([ADR-016](docs/decisions/ADR-016-burnikel-ziegler-aparcado-por-medida.md)).
 
-**El frente de la división está abierto, pero Möller–Granlund queda cerrado**
-(P2.10, 18 sep). Knuth D vive en su propia capa medible, con la estimación del
-dígito del cociente como perilla. La **2/1** hace que el coste por limbo del
-divisor de un limbo caiga de **~84 a ~17 ciclos** (hasta 4,97×); la **3/2** da
-hasta **3,33×** en la estimación de q̂ con divisores cortos. Queda
-**Burnikel–Ziegler**.
+**La 1.90 está en su fase 0: afinar el banco ANTES de borrar `int128_param_*` y
+renombrar** ([ADR-023](docs/decisions/ADR-023-sin-sufijo-t-en-las-plantillas-de-clase.md),
+[ADR-024](docs/decisions/ADR-024-el-nombre-del-tipo-de-punto-fijo.md)). El banco
+es el instrumento con el que se va a juzgar la 1.90, y no estaba calibrado.
+Desde el 27 sep se han cerrado siete tareas; las tres que más cambian lo que se
+puede afirmar:
 
-Las dos mitades trajeron el mismo aviso, y el proyecto lo tenía escrito al revés:
-Möller–Granlund **sí tiene umbral**, porque el recíproco es un coste fijo por
-llamada y el ahorro es por iteración. Sin iteraciones sobre las que repartirlo es
-coste puro: la 2/1 pierde 4× en `N=1`, y la 3/2 pierde el 47% cuando el divisor
-ocupa la anchura entera —que es justo lo que dan dos operandos aleatorios—.
-**Los dos casos malos vivían fuera del barrido que se había hecho.**
+- el arnés **mide lo que pasa DURANTE la toma**: un solo proceso compitiendo
+  infla todas las cifras un 17 %, y la dispersión no lo ve (P2.22);
+- el banco de comparación **mide lo mismo en todos los tipos**, con el orden de
+  las variantes al azar en cada ronda. La división publicada medía `1/12345`
+  (P2.25);
+- la toma de referencia **medirá el «antes» de todo lo que el borrado se lleva**
+  (P2.27).
 
-**Y el 18 sep se recogieron dos ganancias que no eran algoritmos**: `mul_wide`
-ensanchaba antes de multiplicar (**2,3×–2,8×**) y `checked_mul` multiplicaba dos
-veces, la primera con un escolar cuadrático (**1,4×–1,9×, creciendo con N**).
+**Falta medir, y se medirá en una máquina dedicada**: un mini PC con AMD Ryzen 7
+5825U y Ubuntu Server, con el turbo apagado. Los guiones de preparación y de
+sesión y los tres experimentos de validación están escritos y **probados en un
+Ubuntu 24.04 limpio** (P2.24); falta instalar la máquina. Después, por este
+orden: E1–E3, la toma de referencia, **P2.26** —el tipo nuevo pierde contra el
+viejo en desplazamiento, comparación y lectura decimal, y borrar el viejo así
+sería una regresión— y entonces el borrado y el renombrado. Ver
+[NEXT_STEPS](NEXT_STEPS.md), «La plataforma de medida dedicada».
 
-**El frente de la multiplicación está cerrado** (17 sep 2026): cuatro algoritmos
-en `include/algorithms/mul_kernels.hpp` —escolar desenrollado, Karatsuba con
-reparto equilibrado, cuadrado y Toom-3— **con cada umbral medido**, y la mitad
-alta del rango admitido (N = 64…4096) cubierta por primera vez.
-
-## Verificación — 23 September 2026
+## Verificación — 20 October 2026
 
 | Comprobación | Resultado |
 |---|---|
-| `python make.py test gcc release-O2` | **72/72 ficheros** (GCC 16.2 ucrt64, libstdc++), **medido el 27 sep** |
-| `python make.py test clang release-O2` | **72/72 ficheros** (clang 22.1.8 clang64, **libc++**) |
-| `python make.py test clang-libstdcxx release-O2` | **72/72 ficheros** (clang 22.1.8 ucrt64, **libstdc++**) |
-| `python make.py test msvc release-O2` | **72/72 ficheros** |
-| `python make.py test intel release-O2` | **72/72 ficheros** (oneAPI 2026.1) |
-| CI sobre `844fd85` | **24/24 jobs, cero fallos** (contados con `gh run view`, no supuestos), matriz completa: gcc-13/14/15/16, clang-18/19/20/21/22, ARM64, arm32, riscv64, i686 e **Intel ICX**. La cifra anterior citaba `f959f53`, **58 commits atrás**, y en ese intervalo el CI estuvo cuatro días en rojo sin que nadie lo mirara |
-| `scripts/check_headers_selfcontained.py` | **40/40** headers aislados, en los **tres** de MinGW: gcc, clang y clang-libstdcxx |
-| `clang-format --dry-run --Werror`, **142** ficheros | 0 sin formatear, con la 21.1.8 **y** con la 22.1.8 |
-| `scripts/check_docs_consistency.py --doxygen` | **9/9** — es la orden que corre el CI |
-| `python make.py wsl` | **72/72 en las tres familias** (216 ficheros = 72 × 3): g++, clang e **Intel oneAPI**, y **cero avisos de deprecación** tras P1.5 tramo 2 |
+| `python make.py test gcc release-O2` | **73/73 ficheros** (GCC 16.2 ucrt64, libstdc++), **medido el 20 oct** |
+| `python make.py test clang release-O2` | **73/73 ficheros** (clang 23.1.3 clang64, **libc++**), 20 oct |
+| `python make.py test clang-libstdcxx release-O2` | **73/73 ficheros** (clang 23.1.3 ucrt64, **libstdc++**), 20 oct |
+| `python make.py test msvc release-O2` | **73/73 ficheros**, 20 oct |
+| `python make.py test intel release-O2` | **73/73 ficheros** (oneAPI), 20 oct |
+| CI sobre `88d23f4` | **25/25 jobs, cero fallos** (contados con `gh run view`, no supuestos), matriz completa: gcc-13/14/15/16, clang-18/19/20/21/22, ARM64, arm32, riscv64, i686, **Intel ICX**, los benchmarks compilando y las pruebas de los guiones de Python |
+| `scripts/check_headers_selfcontained.py` | **40/40** headers aislados con GCC 16.2, 20 oct (el 23 sep, también con clang y clang-libstdcxx) |
+| `clang-format --dry-run --Werror`, **146** ficheros | 0 sin formatear, con la **21** (la del CI, en WSL) **y** con la **23.1.3** (la de MSYS2 hoy), 20 oct |
+| `scripts/check_docs_consistency.py --doxygen` | **14/14** — es la orden que corre el CI |
+| `python make.py wsl` | **73/73 en las tres familias**: g++, clang e **Intel oneAPI**, sin avisos, 20 oct |
+| Pruebas de los guiones (`scripts/tests`) | **81** en Linux; en Windows se saltan las 13 que necesitan bash POSIX |
+| Preparación de la máquina de medida (`scripts/condiciones_benchmark/contenedor/prueba.sh`) | **32/32** en un Ubuntu 24.04 limpio, 20 oct |
 | `scripts/check_matriz_paridad.py` | **348/348 celdas** (47 capacidades × **6** columnas, más 2 políticas reservadas y **13 sondas del punto fijo**, ocho que tienen que compilar y cinco que no), todas como declaran. **No está en el CI**; ver [MATRIZ_DE_PARIDAD](docs/MATRIZ_DE_PARIDAD.md) |
 | Avisos de cobertura de Doxygen desde `include/` | **257** (local, doxygen 1.18.0), y el techo de ADR-014 baja a 257 con ellos (23 sep, P3.7). **Son todos de `int128_param_*`**: el código que se queda está a **cero**, headers internos incluidos. Total de doxygen **525 → 270**, y los 13 restantes son enlaces válidos en el repo que el sitio generado no resuelve |
 
@@ -66,8 +69,8 @@ alta del rango admitido (N = 64…4096) cubierta por primera vez.
 > publicaba no significaba nada. Ver
 > [ADR-014](docs/decisions/ADR-014-cobertura-de-doxygen.md).
 
-Compiladores: GCC 13–16, Clang 18–22, MSVC 19.5x e **Intel ICX 2026.1**
-(66/66 en local sobre Windows, y **Intel oneAPI 2026.0 también en WSL**). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
+Compiladores: GCC 13–16, Clang 18–23, MSVC 19.5x e **Intel ICX 2026.1**
+(73/73 en local sobre Windows, y **Intel oneAPI 2026.0 también en WSL**). Arcos: x86-64, x86-32, ARM64, ARM32 y RISC-V 64.
 
 > **ARM ya no lleva reservas** (26 ago 2026). Los cuatro fallos que las
 > tolerancias del CI tapaban eran un bug de portabilidad real —`_umul128` en la
@@ -91,11 +94,11 @@ Compiladores: GCC 13–16, Clang 18–22, MSVC 19.5x e **Intel ICX 2026.1**
 
 | | |
 |---|---|
-| Headers | 34 (`include/`, con `algorithms/` e `intrinsics/`) |
-| Tests | 65 ficheros |
-| Scripts vivos | **25** rastreados fuera de `tests/` y `benchs/`, mas 5 en `scripts/archive`. El contador decia 20 y llevaba tiempo desfasado: ahora el criterio esta dicho, que es lo que permite volver a contarlo |
-| Documentos de raíz | 12, **11.286** renglones — de los que la mayoría son el `CHANGELOG` |
-| ADR | **22**, ninguna decisión tomada sin documentar |
+| Headers | 40 (`include/`, con `algorithms/` e `intrinsics/`) |
+| Tests | 73 ficheros |
+| Scripts vivos | **41** guiones (`.py`, `.sh`, `.bash`, `.ps1`, `.bat`) rastreados en `scripts/`, sin contar `scripts/archive` (32) ni `scripts/tests`; contados el 20 oct con `git ls-files`. Decia 25 con un criterio que no estaba escrito del todo, y no se podia recontar igual: este si |
+| Documentos de raíz | 12, **13.974** renglones — de los que la mayoría son el `CHANGELOG` |
+| ADR | **24**, ninguna decisión tomada sin documentar |
 
 ## Cifras de la suite
 
@@ -190,9 +193,11 @@ fallan, comprobado uno a uno.
 - **Intel sigue sin funcionar en el runner del CI**, que es otro problema:
   `ONEAPI_ROOT` viene vacío y la acción de terceros deja un `CMAKE_PREFIX_PATH`
   de Linux en un runner de Windows.
-- **Documentación de `int128_param_*`: 349 avisos**, exentos a propósito hasta
-  que ADR-006 retire el tipo.
-- **Karatsuba solo está medido en GCC.** Faltan Clang, MSVC e Intel.
+- **Documentación de `int128_param_*`: 257 avisos** (decía 349: es la cifra de
+  antes del 23 sep), exentos a propósito hasta que ADR-006 retire el tipo.
+- ✅ **Karatsuba ya está medido en los cuatro compiladores** (6 sep 2026, ver
+  [PERFORMANCE](docs/PERFORMANCE.md), «Los cuatro compiladores»). Esta línea
+  decía que sólo en GCC hasta el 20 oct, seis semanas después.
 - **El bucle escolar de `operator*` es un 14 % más lento que una copia idéntica
   suya escrita como función libre**, en N=3. Lo destapó el control del benchmark
   de Karatsuba y no está explicado. Falta barrer N impares y N pares que no usen
