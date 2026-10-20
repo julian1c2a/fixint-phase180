@@ -142,6 +142,43 @@ class CpuDeMedida(unittest.TestCase):
         self.assertEqual(rc, 1, salida)
         self.assertIn("turbo", salida)
 
+    def test_fija_con_turbo_deja_el_turbo_encendido_y_lo_demas_igual(self):
+        # Para E2 (20 oct 2026): todo como en la serie de referencia MENOS el turbo.
+        self._intel(no_turbo="1")   # aunque viniera apagado de antes
+        rc, salida = self._corre("fija-con-turbo")
+        self.assertEqual(rc, 0, salida)
+        self.assertEqual(self._lee(CPU + "intel_pstate/no_turbo"), "0")
+        self.assertEqual(self._lee(CPU + "smt/control"), "off")
+        self.assertEqual(self._lee(CPU + "cpu3/cpufreq/scaling_governor"), "performance")
+        self.assertIn("TURBO ENCENDIDO", salida)
+
+    def test_fija_con_turbo_en_amd(self):
+        f = {CPU + "cpufreq/boost": "0", CPU + "cpu0/cpufreq/scaling_driver": "amd-pstate-epp",
+             CPU + "cpu0/cpufreq/scaling_governor": "powersave"}
+        self._pon(f)
+        rc, salida = self._corre("fija-con-turbo")
+        self.assertEqual(rc, 0, salida)
+        self.assertEqual(self._lee(CPU + "cpufreq/boost"), "1")
+
+    def test_alternar_los_dos_modos_y_restaurar_vuelve_al_principio(self):
+        # E2 alterna turbo apagado y encendido en la misma sesion. El estado de
+        # ANTES de la sesion tiene que sobrevivir a todas las alternancias.
+        self._intel()
+        for orden in ("fija", "fija-con-turbo", "fija", "fija-con-turbo"):
+            rc, salida = self._corre(orden)
+            self.assertEqual(rc, 0, salida)
+        self._corre("restaura")
+        self.assertEqual(self._lee(CPU + "intel_pstate/no_turbo"), "0")
+        self.assertEqual(self._lee(CPU + "smt/control"), "on")
+        self.assertEqual(self._lee(CPU + "cpu1/cpufreq/scaling_governor"), "powersave")
+
+    def test_un_turbo_que_no_se_deja_encender_hace_fallar(self):
+        self._intel(no_turbo="1")
+        (self.raiz / CPU / "intel_pstate/no_turbo").chmod(stat.S_IRUSR)
+        rc, salida = self._corre("fija-con-turbo")
+        self.assertEqual(rc, 1, salida)
+        self.assertIn("NO ESTA LISTA", salida)
+
     def test_restaura_sin_estado_no_rompe(self):
         self._intel()
         rc, salida = self._corre("restaura")

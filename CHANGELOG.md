@@ -1,3 +1,50 @@
+## [sin publicar] - 2026-10-20 - **la maquina de medida, preparada sin tenerla: los guiones, probados en un Ubuntu 24.04 limpio** (P2.24)
+
+El mini PC aun no tiene Ubuntu, y lo que hacia falta para medir en el no
+dependia de el. Queda escrito, y probado en un contenedor con Ubuntu 24.04
+recien instalado, lo que se hara el primer dia:
+
+- `prepara_ubuntu.sh`, UNA vez y con el sudo del administrador: paquetes
+  (g++-14, psutil, Boost, GMP, TomMath); el usuario `bench` SIN contrasena, que
+  solo entra con su clave; el repositorio; `cpu_de_medida` en /usr/local/sbin,
+  DE ROOT y copiado desde un clon PROPIO DE ROOT --si se copiara del de `bench`,
+  `bench` podria editarlo antes de la siguiente preparacion y seria una puerta a
+  root--, y `sudo` para `bench` SOLO para fijar y devolver la CPU; SSH sin
+  contrasena y sin root, SOLO si el administrador ya entra con clave; y fuera lo
+  que se despierta solo. `--comprobar` dice lo que haria sin tocar nada, y se
+  puede repetir sin dano.
+- `sesion_ubuntu.sh`: una toma de principio a fin. El commit sin ramas, se niega
+  con el arbol sucio, NO MIDE si la CPU no se fija, la DEVUELVE pase lo que pase
+  (tambien si se corta), y saca la toma del arbol.
+- E1, E2 y E3 dentro del repositorio (`experimentos/`), con
+  `benchs/experimento_carga.cpp`, y un modo `fija-con-turbo` en `cpu_de_medida`
+  para E2.
+
+PROBADO EN UN CONTENEDOR CON UBUNTU 24.04 LIMPIO, 32 comprobaciones, todas en
+verde, con `scripts/condiciones_benchmark/contenedor/prueba.sh`, que se queda
+en el repositorio para pasarla antes de tocar estos guiones: la preparacion, repetida,
+con un administrador sin clave y con un `sshd` que no puede validar; permisos y
+sudo (`bench` no puede `sudo /bin/true`); una sesion que no puede fijar la CPU y
+NO mide; una sesion de punta a punta con g++-14; y los tres experimentos. LA
+PRUEBA CAZO SEIS FALLOS MIOS: `--comprobar` salia con error en toda maquina recien
+instalada; los experimentos pedian `estado` con un sudo que no estaba permitido;
+un `sshd -t` que fallaba por el ENTORNO se tomaba por configuracion invalida («no
+puedo comprobarlo» no es «esta mal», otra vez); E2 daba por muertos los
+quemadores del calor, sobresuscrito a proposito; E3 con un solo par declaraba
+todo «fuera del ruido»; y los experimentos dejaban su JSON dentro del
+repositorio.
+
+E1 YA CUADRA EN LINUX, en WSL y en el contenedor: con el banco quemando, `otros`
+da -0,03 (resta su propia CPU), y con 7 y 14 quemadores, +7,05 y +13,98. La rama
+de Linux del muestreador solo tenia pruebas unitarias.
+
+FALSIFICADO: el turbo al reves en `fija-con-turbo` (Intel y AMD) y sin verificar,
+y un muestreador que no resta el banco, que E1 caza con «NO SE RESTA AL
+BENCHMARK». 81 pruebas de Python.
+
+Lo que solo se puede hacer en la maquina sigue pendiente: que `amd-pstate` deje
+apagar el turbo, el orden de restaurar el SMT, E1/E2/E3 alli y la referencia.
+
 ## [sin publicar] - 2026-10-20 - **la referencia medira el «antes» de todo lo que el borrado se lleva** (P2.27)
 
 Antes de la toma de referencia --que es el «antes» del borrado de

@@ -9,8 +9,15 @@
 #
 #   sudo cpu_de_medida.sh fija       turbo apagado, gobernador performance,
 #                                    SMT apagado (si lo hay)
+#   sudo cpu_de_medida.sh fija-con-turbo
+#                                    lo mismo pero con el turbo ENCENDIDO: solo
+#                                    para E2, que compara los dos (20 oct 2026)
 #   sudo cpu_de_medida.sh restaura   vuelve a como estaba antes de `fija`
 #        cpu_de_medida.sh estado     lo que hay ahora (no necesita root)
+#
+# `fija` y `fija-con-turbo` se pueden alternar: el estado original se guarda la
+# PRIMERA vez y no se pisa, asi que `restaura` siempre vuelve al de antes de la
+# sesion.
 #
 # Por que existe
 # --------------
@@ -82,6 +89,8 @@ estado() {
 }
 
 fija() {
+    # `apagado` para la serie de referencia; `encendido` solo para E2.
+    local quiero_turbo="${1:-apagado}"
     local fallos=0 g smt
 
     # 1. EL ESTADO ORIGINAL, y solo si no hay ya uno guardado.
@@ -113,14 +122,23 @@ fija() {
             || { echo "FALLA: no se pudo apagar el SMT"; fallos=$((fallos + 1)); }
     fi
 
-    # 3. EL TURBO, por el sitio que tenga esta CPU.
+    # 3. EL TURBO, por el sitio que tenga esta CPU, y con la logica al reves en
+    #    cada uno: `no_turbo` 1 es apagado; `boost` 0 es apagado.
     if [ -e "$CPU/intel_pstate/no_turbo" ]; then
-        escribe "$CPU/intel_pstate/no_turbo" 1
+        if [ "$quiero_turbo" = apagado ]; then
+            escribe "$CPU/intel_pstate/no_turbo" 1
+        else
+            escribe "$CPU/intel_pstate/no_turbo" 0
+        fi
     elif [ -e "$CPU/cpufreq/boost" ]; then
-        escribe "$CPU/cpufreq/boost" 0
+        if [ "$quiero_turbo" = apagado ]; then
+            escribe "$CPU/cpufreq/boost" 0
+        else
+            escribe "$CPU/cpufreq/boost" 1
+        fi
     fi
-    [ "$(turbo_ahora)" = apagado ] \
-        || { echo "FALLA: el turbo no esta apagado (ahora: $(turbo_ahora))"; fallos=$((fallos + 1)); }
+    [ "$(turbo_ahora)" = "$quiero_turbo" ] \
+        || { echo "FALLA: el turbo no esta $quiero_turbo (ahora: $(turbo_ahora))"; fallos=$((fallos + 1)); }
 
     # 4. EL GOBERNADOR en todas las CPU que queden en linea. La preferencia de
     #    energia (EPP) no se toca: con `performance` intel_pstate la fija solo, y
@@ -140,7 +158,11 @@ fija() {
         echo "$fallos ajuste(s) no se pudieron aplicar: ESTA MAQUINA NO ESTA LISTA PARA MEDIR"
         exit 1
     fi
-    echo "  lista para medir"
+    if [ "$quiero_turbo" = apagado ]; then
+        echo "  lista para medir"
+    else
+        echo "  lista para medir CON EL TURBO ENCENDIDO: no es la serie de referencia (solo E2)"
+    fi
 }
 
 restaura() {
@@ -175,11 +197,12 @@ restaura() {
 }
 
 case "${1:-}" in
-    fija) fija ;;
+    fija) fija apagado ;;
+    fija-con-turbo) fija encendido ;;
     restaura) restaura ;;
     estado) estado ;;
     *)
-        echo "uso: $0 fija|restaura|estado" >&2
+        echo "uso: $0 fija|fija-con-turbo|restaura|estado" >&2
         exit 2
         ;;
 esac

@@ -91,6 +91,75 @@ prueba lo simula, pero es una simulación).
 `bench_history.py` registra en cada toma con qué configuración se midió, y
 `--compare` no compara en silencio tomas con distinta configuración.
 
+`fija-con-turbo` (20 oct 2026) hace lo mismo con el turbo **encendido**. Sólo lo
+usa E2, que compara los dos; la serie de referencia es con `fija`. Los dos modos
+se pueden alternar: el estado de antes de la sesión se guarda la primera vez y
+`restaura` siempre vuelve a él.
+
+## En Linux: preparar la máquina, una vez (`prepara_ubuntu.sh`)
+
+Lo corre **el administrador**, con su `sudo`, en el Ubuntu Server recién
+instalado. Es lo único que necesita root, y por eso se lee antes:
+
+    curl -fsSLO https://raw.githubusercontent.com/julian1c2a/fixint-phase180/phase-1.90/scripts/condiciones_benchmark/prepara_ubuntu.sh
+    less prepara_ubuntu.sh
+    sudo bash prepara_ubuntu.sh --comprobar        # lo que haría, sin tocar nada
+    sudo bash prepara_ubuntu.sh "ssh-ed25519 AAAA... claude@portatil"
+
+Instala g++-14, psutil y las cabeceras de Boost, GMP y TomMath; crea el usuario
+`bench`, **sin contraseña**, que sólo entra con la clave dada; clona el
+repositorio en su casa; instala `cpu_de_medida` en `/usr/local/sbin`, **de
+root**, y le da a `bench` `sudo` **sólo** para fijar y devolver la CPU; quita la
+contraseña de SSH **sólo si el administrador ya entra con clave** (si no, se lo
+salta y lo dice, para no dejarle fuera); y apaga lo que se despierta solo
+—actualizaciones automáticas, snapd—, que pasan a hacerse a mano fuera de las
+sesiones. Al final dice si la CPU deja apagar el turbo, que en AMD con
+`amd-pstate` es lo primero que hay que comprobar.
+
+`cpu_de_medida` se instala desde un clon **propio de root**, no desde el de
+`bench`: si se copiara de allí, `bench` podría editarlo antes de la siguiente
+preparación, y eso sería una puerta a root.
+
+## En Linux: una toma (`sesion_ubuntu.sh`)
+
+La corre `bench`, lanzada desde el portátil y despegada de la conexión:
+
+    ssh bench@banco 'setsid nohup fixint-phase180/scripts/condiciones_benchmark/sesion_ubuntu.sh <commit> \
+                     > sesiones/ultima.log 2>&1 < /dev/null &'
+
+Trae el commit y se coloca en él sin ramas; se niega si el árbol tiene cambios;
+fija la CPU y **no mide si no coge**; corre `bench_history.py` con g++-14
+esperando antes a que haya calma; **devuelve la CPU pase lo que pase**, también
+si se corta; y saca la toma del árbol a `~/resultados`, de donde la recoge el
+portátil.
+
+## En Linux: los experimentos, antes de la referencia (`experimentos/`)
+
+| | qué valida | dura |
+|---|---|---:|
+| `e1_muestreador.py` | que `otros` mide la carga ajena **restando la del banco**, por diferencias contra el fondo | ~1 min |
+| `e2_turbo.py` | que con el turbo **apagado** una carga ajena ya no infla las cifras (en Windows, +17 %), y la cola térmica de P2.23 | ~35 min |
+| `e3_orden.py` | cuánto sesgaba el orden **rotando** de las variantes, el de antes del 2 oct | ~80 min |
+
+Usan `benchs/experimento_carga.cpp` (E2) y el `bench_history.py` de producción
+(E3), y dejan su detalle en `~/resultados/experimentos/`, **fuera del
+repositorio**.
+
+## Probarlo todo sin la máquina (`contenedor/prueba.sh`)
+
+    bash scripts/condiciones_benchmark/contenedor/prueba.sh     # Linux con Docker; WSL vale
+
+Empaqueta el árbol de trabajo, **sin commit**, y lo usa como «GitHub» dentro de
+un `ubuntu:24.04` recién bajado: la preparación (repetida, con un administrador
+sin clave, con un `sshd` que no puede validar y con uno que sí), permisos,
+`sudo` y SSH, una sesión que no puede fijar la CPU y **no debe medir**, otra de
+punta a punta, y los tres experimentos en modo fontanería. Unos diez minutos.
+No prueba la CPU de verdad, ni systemd, ni las cifras de los experimentos.
+**Hay que pasarla antes de tocar `prepara_ubuntu.sh` o `sesion_ubuntu.sh`**: la
+primera vez cazó seis fallos que habrían llegado a la máquina. Para comprobar la fontanería sin la máquina: `--sin-cpu`, o
+`CPU_DE_MEDIDA=<un guion falso>`, y en E2 `--rapido`. **Un experimento corrido así
+no dice nada de la CPU.**
+
 ## Lo que no tocan, y por qué
 
 - **Defender no se apaga: se le ponen exclusiones** para `build/` y `C:\msys64`.
