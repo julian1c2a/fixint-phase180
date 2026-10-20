@@ -94,6 +94,11 @@ DOXYGEN_BASELINE_POR_DEFECTO = max(DOXYGEN_BASELINE.values())
 # puede crecer sin que alguien lo mire.
 #
 # Al bajarlo: ejecutar el armonizador, leer la cifra y apuntarla aqui con fecha.
+#
+# 20 oct 2026: la cifra no cambia, pero los ficheros si. Sale
+# `benchmark_fixed_vs_param` (retirado: lo cubren `vs_builtin` y `bases`) y entra
+# `benchmark_bases`, que mide el tipo viejo CONTRA el nuevo en las conversiones
+# para que la toma de referencia traiga el «antes» del borrado. Se va con el.
 QUIERO_INT128_PARAM_TECHO = 52   # 37 tests + 9 bancos + 6 demos — 29 sep 2026, al poner la puerta
 
 

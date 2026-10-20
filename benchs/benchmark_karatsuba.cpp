@@ -39,7 +39,7 @@
 // benchmark se quedo atras. Por eso las etiquetas ya no se escriben a mano: las
 // deduce `regimen()` de los umbrales.)
 //
-// Metodo: las tres variantes se miden ENTRELAZADAS y CON EL ORDEN ROTANDO, en
+// Metodo: las tres variantes se miden ENTRELAZADAS y CON EL ORDEN AL AZAR, en
 // vueltas de tiempo fijo, y se toma el MINIMO. Entrelazar reparte por igual la
 // deriva termica y el ruido del planificador; rotar el orden quita el sesgo de
 // ir siempre la primera --que era el resto que quedaba--; y el minimo se queda
@@ -553,7 +553,7 @@ static constexpr std::size_t OPERANDS{256};
 // 400.000 iteraciones para las doce anchuras: en N=2 eso es una ventana de 4 ms
 // y en N=32 de casi un segundo, con el mismo calentamiento de WARMUP vueltas
 // para las dos. `bench::mide_entrelazado` fija el TIEMPO (200 ms) y deduce las
-// iteraciones, calienta segun la casilla y rota el orden de las variantes.
+// iteraciones, calienta segun la casilla y baraja el orden de las variantes.
 
 // `nota` ya no la pasa quien llama: la deduce `regimen(N)` de los umbrales. Se
 // conserva el parametro para lo que NO se puede deducir -- por ahora nada, y por
@@ -661,7 +661,7 @@ int main()
     std::cout << "\n=== Karatsuba frente a multiplicacion escolar ===\n";
     std::cout << "operandos: " << OPERANDS << " pseudoaleatorios; " << bench::REPETICIONES << " vueltas de "
               << bench::MS_POR_CASILLA
-              << " ms por casilla, las TRES variantes entrelazadas y con el orden rotando;"
+              << " ms por casilla, las TRES variantes entrelazadas y con el orden al azar;"
                  " minimo por caso\n";
 
     std::cout << "\n[correccion]\n";

@@ -37,7 +37,7 @@
 // TIEMPO DE COMPILACION y meter las 96 anchuras seguidas dispara el coste sin
 // anadir informacion.
 //
-// Protocolo: las dos variantes ENTRELAZADAS con el orden rotando, diez
+// Protocolo: las dos variantes ENTRELAZADAS con el orden al azar, diez
 // repeticiones, iteraciones calibradas a 200 ms, y se publica la dispersion. Una
 // razon que no supere la suma de los recorridos NO significa nada, y se marca.
 // =============================================================================
@@ -156,7 +156,7 @@ int main()
                 "pasa a PERDER en N grande, porque es O(N^2) en tamano de codigo y deja de\n"
                 "caber en la cache de instrucciones.\n\n"
                 "Protocolo: %zu repeticiones, %.0f ms cada una, iteraciones calibradas,\n"
-                "variantes entrelazadas con el orden rotando. La columna de porcentaje es el\n"
+                "variantes entrelazadas con el orden al azar. La columna de porcentaje es el\n"
                 "recorrido (max-min)/min. Una razon marcada '(ruido)' NO significa nada.\n\n",
                 bench::REPETICIONES, bench::MS_POR_CASILLA);
 

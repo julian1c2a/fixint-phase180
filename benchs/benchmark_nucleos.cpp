@@ -148,7 +148,7 @@ int main()
     print_header("nucleos de multiplicacion, entrelazados");
 
     std::printf("\nProtocolo: %zu repeticiones por casilla, %.0f ms cada una, iteraciones\n"
-                "calibradas, y las variantes ENTRELAZADAS con el orden rotando cada ronda.\n"
+                "calibradas, y las variantes ENTRELAZADAS con el orden al azar cada ronda.\n"
                 "La columna 'recorrido' es (max-min)/min: si la diferencia entre dos\n"
                 "variantes no la supera, esa diferencia no significa nada.\n\n",
                 bench::REPETICIONES, bench::MS_POR_CASILLA);

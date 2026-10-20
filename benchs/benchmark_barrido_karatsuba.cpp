@@ -165,7 +165,7 @@ int main()
                 "dentro del algoritmo hasta que los nucleos se sacaron a funciones libres.\n\n"
                 "Solo potencias de dos: es la limitacion del Karatsuba de hoy.\n\n"
                 "Protocolo: %zu repeticiones, %.0f ms cada una, iteraciones calibradas, las\n"
-                "CUATRO variantes entrelazadas con el orden rotando cada ronda.\n",
+                "CUATRO variantes entrelazadas con el orden al azar cada ronda.\n",
                 bench::REPETICIONES, bench::MS_POR_CASILLA);
 
     bench::imprime_cabecera();

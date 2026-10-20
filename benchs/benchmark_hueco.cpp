@@ -32,7 +32,7 @@
 // y si los dos coinciden, el hueco desaparece por construccion: no queda banda
 // en la que el bucle sea el elegido.
 //
-// Las TRES entrelazadas, con el orden rotando cada ronda, diez repeticiones y
+// Las TRES entrelazadas, con el orden al azar cada ronda, diez repeticiones y
 // dispersion publicada. Rejilla densa de 4 a 64: sin saltar ninguna, porque
 // interpolar entre potencias de dos es lo que escondio el acantilado durante
 // meses.
@@ -159,7 +159,7 @@ int main()
                 "Si coinciden, el hueco desaparece: no queda banda donde el bucle sea el\n"
                 "elegido.\n\n"
                 "Protocolo: %zu repeticiones, %.0f ms cada una, las TRES entrelazadas con el\n"
-                "orden rotando. Un '?' marca una razon que no supera la suma de los\n"
+                "orden al azar. Un '?' marca una razon que no supera la suma de los\n"
                 "recorridos de sus dos casillas: no significa nada.\n\n",
                 bench::REPETICIONES, bench::MS_POR_CASILLA);
 

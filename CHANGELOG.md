@@ -1,3 +1,35 @@
+## [sin publicar] - 2026-10-20 - **la referencia medira el «antes» de todo lo que el borrado se lleva** (P2.27)
+
+Antes de la toma de referencia --que es el «antes» del borrado de
+`int128_param_*`-- se repasaron las siete suites del arnes viejo, que miden solo
+el tipo viejo y se van con el. Casi todo tenia ya su equivalente para el tipo
+nuevo en el arnes adaptativo. Dos comparaciones no: las hacia SOLO
+`benchmark_fixed_vs_param`, con un bucle escrito a mano por tipo --justo lo que
+prohibe la regla del 2 oct--.
+
+- EL RESTO (`%`) entra en `benchmark_vs_builtin`, con los MISMOS operandos que la
+  division: asi `/` y `%` se comparan sobre valores identicos. Doce operaciones,
+  unos 13 minutos.
+- LAS CONVERSIONES: `benchmark_bases` mide el TIPO VIEJO junto al nuevo en 128
+  bits, con la misma llamada y los mismos valores. Escribe en las seis bases y
+  lee solo en la 10: el viejo no tiene lectura con base, solo la decimal y las de
+  prefijo, y con prefijo la cadena de entrada ya no seria la misma. Antes de
+  medir comprueba que los dos convierten igual; si no, esa base no se mide.
+- `benchmark_fixed_vs_param` SE RETIRA: lo que medía lo miden ahora las dos de
+  arriba, con la misma funcion para todos los tipos. La superficie del tipo
+  viejo se queda en 52 ficheros: sale uno y entra `bases`.
+
+Falsificado: un resto de GMP que divide, y una comprobacion de `bases` que
+compara con otra base. Las dos, cazadas.
+
+Y SALIO UN HALLAZGO PARA P2.26, en una pasada corta: el tipo nuevo LEE DECIMAL
+unas 4 veces mas lento que el viejo, y escribe en base 2 y 16 unas 2 veces mas
+lento. En las demas bases escribe mas deprisa. Indicio, no cifra: la referencia
+lo medira bien.
+
+De paso, los nueve bancos que decian en su salida «con el orden rotando» dicen
+ya lo que hacen: desde el 2 oct, el orden es al azar.
+
 ## [sin publicar] - 2026-10-02 - **el banco de comparacion media una cosa distinta en cada tipo, y la division medía 1/12345** (P2.25)
 
 Una regla del autor, que ordena todo lo que sigue: **las tablas comparan con la

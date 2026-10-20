@@ -350,16 +350,20 @@ pagaba siempre. Cuánto pesaba no se sabe todavía: con 200 ms por vuelta, lo qu
 se recupera en microsegundos se diluye, y lo que dura más, no. Se mide en la
 plataforma dedicada (E3 en NEXT_STEPS).
 
-En los siete que siguen con el arnés viejo —iteraciones fijas, una variante
-detrás de otra— no lo es, y ahí la advertencia de arriba sigue en pie. Los siete
+En los seis que siguen con el arnés viejo —iteraciones fijas, una variante
+detrás de otra— no lo es, y ahí la advertencia de arriba sigue en pie. Los seis
 miden `int128_param_t`, que la 1.90 borra; por eso no se migraron (P2.17).
 `benchmark_vs_builtin` sí se migró el 2 oct, porque se queda: después del
-borrado seguirá comparando el tipo nuevo con los del compilador.
+borrado seguirá comparando el tipo nuevo con los del compilador. Y
+`benchmark_fixed_vs_param`, que comparaba el tipo viejo con el nuevo con un
+bucle a mano por tipo, se retiró el 20 oct: lo que medía lo miden ahora
+`vs_builtin` —con el resto (`%`) añadido— y `bases`, que incluye el tipo viejo en
+128 bits, los dos con la misma función para todos los tipos.
 
 > Este párrafo decía «doce» y «once» hasta el 1 oct 2026, dos días después de
 > que P2.17 migrara tres suites más. Contado ese día: 15 y 8. El 2 oct, con
 > `vs_builtin` migrado: 16 y 7 (se cuentan los `benchmark_*.cpp`, que son las
-> suites del histórico).
+> suites del histórico). El 20 oct, retirado `fixed_vs_param`: 16 y 6.
 
 > Este párrafo decía «el benchmark **no controla esto** hoy» hasta el 27 sep,
 > catorce días después de que doce de ellos empezaran a controlarlo. Una

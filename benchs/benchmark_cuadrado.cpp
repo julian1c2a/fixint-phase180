@@ -140,7 +140,7 @@ int main()
                 "Hubo una tercera columna, el cuadrado escolar, y se fue con su nucleo:\n"
                 "medido el 16 sep, perdia en las dieciseis anchuras. Ver `mul_kernels.hpp`.\n\n"
                 "Protocolo: %zu repeticiones, %.0f ms cada una, las DOS entrelazadas con el\n"
-                "orden rotando. Un '?' marca una razon que no supera el ruido.\n\n",
+                "orden al azar. Un '?' marca una razon que no supera el ruido.\n\n",
                 bench::REPETICIONES, bench::MS_POR_CASILLA);
 
     std::printf("|    N |  a*a hoy  |  sqr kar  |  kar/hoy    |\n");

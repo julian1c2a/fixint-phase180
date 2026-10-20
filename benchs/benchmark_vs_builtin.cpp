@@ -100,7 +100,9 @@
 // numeros negativos, ni los productos cuyos dos factores pasan de 64 bits -- un
 // producto exacto que cabe en 127 bits tiene siempre un factor de un limbo.
 //
-// COSTE: diez operaciones x doce tipos x 25 vueltas x 200 ms, unos 11 minutos.
+// COSTE: doce operaciones x doce tipos x 25 vueltas x 200 ms, unos 13 minutos.
+// El RESTO (`%`) entro el 20 oct 2026 con los operandos de la division: era lo
+// unico que solo comparaba `benchmark_fixed_vs_param`, que se retiro ese dia.
 // =============================================================================
 
 namespace bmp = boost::multiprecision;
@@ -157,11 +159,16 @@ enum class Seccion
     producto,
     division_corta,
     division_larga,
+    resto_corto,
+    resto_largo,
     desplaza_izq,
     desplaza_der,
     o_exclusivo,
-    menor,
+    menor, // la ultima: de ella sale NUM_OPERACIONES
 };
+
+/// @brief Cuantas operaciones mide el banco, la copia incluida.
+static constexpr int NUM_OPERACIONES = static_cast<int>(Seccion::menor) + 1;
 
 /// @brief El nombre de la operacion en la tabla y en el historico.
 static constexpr const char *nombre(Seccion s)
@@ -180,6 +187,10 @@ static constexpr const char *nombre(Seccion s)
             return "division (/), divisor corto";
         case Seccion::division_larga:
             return "division (/), divisor largo";
+        case Seccion::resto_corto:
+            return "resto (%), divisor corto";
+        case Seccion::resto_largo:
+            return "resto (%), divisor largo";
         case Seccion::desplaza_izq:
             return "desplazamiento (<<)";
         case Seccion::desplaza_der:
@@ -226,8 +237,14 @@ static unsigned parte(unsigned ancho, double f)
 /// Salen de un generador con semilla FIJA por operacion, asi que son las mismas
 /// en todas las ejecuciones y en todos los compiladores. Y cada receta garantiza
 /// que el resultado EXACTO cabe en `ancho` bits.
-static std::array<Pareja, VALORES> parejas(Seccion sec, unsigned ancho)
+///
+/// El RESTO usa los operandos de la DIVISION, los mismos: asi `/` y `%` se
+/// comparan sobre valores identicos.
+static std::array<Pareja, VALORES> parejas(Seccion pedida, unsigned ancho)
 {
+    const Seccion sec = pedida == Seccion::resto_corto   ? Seccion::division_corta
+                        : pedida == Seccion::resto_largo ? Seccion::division_larga
+                                                         : pedida;
     std::uint64_t e = 0x5EED0000ull + static_cast<std::uint64_t>(sec);
     const unsigned mitad = (ancho + 1) / 2; // 64 o 32: lo que cabe en «un limbo»
     // Fracciones con las que se reparten los bits: variadas, para no medir un
@@ -273,6 +290,9 @@ static std::array<Pareja, VALORES> parejas(Seccion sec, unsigned ancho)
             case Seccion::division_larga: // divisor de mas de media anchura
                 q.a = con_bits(e, ancho);
                 q.b = con_bits(e, mitad + 1 + parte(ancho - 1 - mitad, g[k]));
+                break;
+            case Seccion::resto_corto: // no llegan aqui: usan la receta de la division
+            case Seccion::resto_largo:
                 break;
             case Seccion::desplaza_izq: // a con sitio para desplazarse s bits
                 q.s = parte(ancho, h[k]);
@@ -395,6 +415,8 @@ static inline void opera(Banco<S, T> &k, std::size_t i)
         k.r = x * y;
     else if constexpr (S == Seccion::division_corta || S == Seccion::division_larga)
         k.r = x / y;
+    else if constexpr (S == Seccion::resto_corto || S == Seccion::resto_largo)
+        k.r = x % y;
     else if constexpr (S == Seccion::desplaza_izq)
         k.r = x << k.s[i];
     else if constexpr (S == Seccion::desplaza_der)
@@ -631,14 +653,15 @@ int main()
 #else
     std::printf("  Boost:      cpp_int, checked\n");
 #endif
-    std::printf("  %zu tipos x 10 operaciones x %zu vueltas x %.0f ms\n", NUM_TIPOS, bench::REPETICIONES,
-                bench::MS_POR_CASILLA);
+    std::printf("  %zu tipos x %d operaciones x %zu vueltas x %.0f ms\n", NUM_TIPOS, NUM_OPERACIONES,
+                bench::REPETICIONES, bench::MS_POR_CASILLA);
     std::printf("================================================================\n");
 
     // ANTES DE MEDIR NADA: que todos calculen lo mismo.
     const int malos = discrepan<Seccion::copia>() + discrepan<Seccion::suma>() + discrepan<Seccion::resta>() +
                       discrepan<Seccion::producto>() + discrepan<Seccion::division_corta>() +
-                      discrepan<Seccion::division_larga>() + discrepan<Seccion::desplaza_izq>() +
+                      discrepan<Seccion::division_larga>() + discrepan<Seccion::resto_corto>() +
+                      discrepan<Seccion::resto_largo>() + discrepan<Seccion::desplaza_izq>() +
                       discrepan<Seccion::desplaza_der>() + discrepan<Seccion::o_exclusivo>() +
                       discrepan<Seccion::menor>();
     if (malos != 0)
@@ -648,8 +671,8 @@ int main()
                     malos);
         return 2;
     }
-    std::printf("\n  Comprobado: los %zu tipos dan los mismos resultados en las 10 operaciones.\n",
-                NUM_TIPOS);
+    std::printf("\n  Comprobado: los %zu tipos dan los mismos resultados en las %d operaciones.\n", NUM_TIPOS,
+                NUM_OPERACIONES);
 
     // La copia primero: es el suelo de las demas.
     const auto copia = mide<Seccion::copia>();
@@ -659,6 +682,8 @@ int main()
     seccion<Seccion::producto>(copia);
     seccion<Seccion::division_corta>(copia);
     seccion<Seccion::division_larga>(copia);
+    seccion<Seccion::resto_corto>(copia);
+    seccion<Seccion::resto_largo>(copia);
     seccion<Seccion::desplaza_izq>(copia);
     seccion<Seccion::desplaza_der>(copia);
     seccion<Seccion::o_exclusivo>(copia);

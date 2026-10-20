@@ -131,7 +131,7 @@ int main()
     std::printf("\nSi el acantilado desaparece, la razon debe ser SUAVE en N y sin dientes:\n"
                 "las potencias de dos no deben destacar sobre sus vecinas.\n\n"
                 "Protocolo: %zu repeticiones, %.0f ms cada una, entrelazadas con el orden\n"
-                "rotando. '(ruido)' = la diferencia no supera la suma de los recorridos.\n\n",
+                "al azar. '(ruido)' = la diferencia no supera la suma de los recorridos.\n\n",
                 bench::REPETICIONES, bench::MS_POR_CASILLA);
 
     std::printf("|    N | clase |    bucle cyc/op      | equilibrado cyc/op   |  razon  |\n");

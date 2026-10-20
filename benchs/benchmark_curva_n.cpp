@@ -105,7 +105,7 @@ static std::vector<uint_fixed_t<N>> divisores(std::uint64_t semilla)
 // `mide` y `mejor` se fueron con el arnes viejo: calentaban, cronometraban un
 // numero fijo de vueltas y se quedaban con el minimo de cinco rondas, cada
 // operacion por separado. Todo eso lo hace ya `bench::mide_entrelazado`, y
-// ademas ENTRELAZA las seis con el orden rotando -- que es lo que permite
+// ademas ENTRELAZA las seis con el orden al azar -- que es lo que permite
 // compararlas entre si, porque la deriva termica les toca por igual.
 
 /// @brief Registra, comprueba verosimilitud e imprime una casilla.
@@ -216,7 +216,7 @@ int main()
 {
     std::printf("=== Coste por operacion frente a la anchura N ===\n");
     std::printf("%zu operandos aleatorios; %zu vueltas de %.0f ms por casilla, las SEIS\n"
-                "operaciones entrelazadas y con el orden rotando. Se publica el minimo.\n",
+                "operaciones entrelazadas y con el orden al azar. Se publica el minimo.\n",
                 OPERANDOS, bench::REPETICIONES, bench::MS_POR_CASILLA);
     std::printf("\nCada par de columnas es: cyc/op y cyc/op POR LIMBO.\n"
                 "Por limbo, lo lineal sale plano y lo cuadratico sale creciendo.\n\n");
